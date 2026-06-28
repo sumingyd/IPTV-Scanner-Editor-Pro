@@ -121,12 +121,20 @@ def create_app() -> web.Application:
     app.router.add_get('/api/sources', handle_sources_list)
     app.router.add_post('/api/sources', handle_sources_add)
     app.router.add_delete('/api/sources/{id}', handle_sources_delete)
+    app.router.add_post('/api/sources/reload', handle_sources_reload)
+    app.router.add_get('/api/sources/status', handle_sources_status)
     app.router.add_get('/api/epg/sources', handle_epg_sources_list)
     app.router.add_post('/api/epg/sources', handle_epg_sources_add)
     app.router.add_delete('/api/epg/sources/{id}', handle_epg_sources_delete)
     app.router.add_post('/api/scan/start', handle_scan_start)
     app.router.add_post('/api/scan/stop', handle_scan_stop)
     app.router.add_get('/api/scan/status', handle_scan_status)
+    app.router.add_post('/api/scan/range', handle_scan_range)
+    app.router.add_get('/api/scan/results', handle_scan_results)
+    app.router.add_get('/api/mappings', handle_mappings_list)
+    app.router.add_post('/api/mappings', handle_mappings_add)
+    app.router.add_delete('/api/mappings/{id}', handle_mappings_delete)
+    app.router.add_post('/api/mappings/refresh', handle_mappings_refresh)
     app.router.add_get('/api/epg', handle_epg)
     app.router.add_get('/stream/{id}', handle_stream_proxy)
     return app
@@ -417,7 +425,8 @@ async def handle_channels_list(request):
     start = (page - 1) * page_size
     end = start + page_size
     page_items = channels[start:end]
-    groups = sorted(set(ch.get('group', '') for ch in all_channels if ch.get('group')))
+    # 分组按 M3U 文件中的首次出现顺序（保持原序，去重），与 PC 端 _update_groups_for 逻辑一致
+    groups = list(dict.fromkeys(ch.get('group', '') for ch in all_channels if ch.get('group')))
     return _json_success(
         channels=page_items,
         total=total_filtered,
@@ -625,12 +634,47 @@ async def handle_epg_sources_delete(request):
     return _json_success()
 
 
+async def handle_sources_reload(request):
+    """重新加载订阅源（独立于扫描整理功能）"""
+    ctx = get_context()
+    if not ctx:
+        return _json_error('上下文未初始化', 503)
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        pass
+    url = (data.get('url') or '').strip()
+    if ctx.is_standalone():
+        if not ctx.reload_sources(url):
+            return _json_error('订阅源正在加载中', 409)
+        return _json_success(message='订阅源加载已开始')
+    # 桌面模式：调用主窗口的加载逻辑
+    mw = ctx.get_main_window()
+    if mw and hasattr(mw, 'reload_subscription'):
+        import threading
+        threading.Thread(target=mw.reload_subscription, args=(url,), daemon=True).start()
+        return _json_success(message='订阅源加载已开始')
+    return _json_error('不支持此操作', 503)
+
+
+async def handle_sources_status(request):
+    """获取订阅源加载状态"""
+    ctx = get_context()
+    if not ctx:
+        return _json_success(loading=False, message='未初始化')
+    if ctx.is_standalone():
+        status = ctx.get_source_load_status()
+        return _json_success(**status)
+    return _json_success(loading=False, message='桌面模式')
+
+
 async def handle_scan_start(request):
     ctx = get_context()
     if not ctx:
         return _json_error('上下文未初始化', 503)
 
-    # 独立模式（Android/无 GUI）：使用 StandaloneScanner
+    # 独立模式（Android/无 GUI）：使用 URL 范围扫描
     if ctx.is_standalone():
         scanner = ctx.get_standalone_scanner()
         if not scanner:
@@ -641,10 +685,14 @@ async def handle_scan_start(request):
         except Exception:
             pass
         url = data.get('url', '').strip()
+        if not url:
+            return _json_error('请提供扫描URL', 400)
         if scanner.is_scanning():
             return _json_error('扫描已在进行中', 409)
-        if scanner.start_scan(url):
-            return _json_success(message='扫描已开始')
+        timeout = int(data.get('timeout', 10))
+        threads = int(data.get('threads', 4))
+        if scanner.start_range_scan(url, timeout, threads):
+            return _json_success(message='URL 范围扫描已开始')
         return _json_error('启动扫描失败', 500)
 
     # 桌面模式：依赖 _scan_dialog
@@ -750,6 +798,140 @@ async def handle_scan_status(request):
         validating=getattr(scanner, 'is_validating', False),
         stats=stats
     )
+
+
+async def handle_scan_range(request):
+    """URL 范围扫描（PC 端"扫描整理"功能）
+
+    body: {url, timeout?, threads?}
+    url 支持 [1-255] / [1,5,10] / [1-10,20-30] 等方括号范围表达式
+    """
+    ctx = get_context()
+    if not ctx:
+        return _json_error('上下文未初始化', 503)
+    if not ctx.is_standalone():
+        return _json_error('当前环境不支持 URL 范围扫描（仅独立模式可用）', 503)
+    scanner = ctx.get_standalone_scanner()
+    if not scanner:
+        return _json_error('扫描器未初始化', 503)
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        pass
+    base_url = (data.get('url') or '').strip()
+    if not base_url:
+        return _json_error('URL 不能为空')
+    if scanner.is_scanning():
+        return _json_error('扫描已在进行中', 409)
+    timeout = int(data.get('timeout', 10) or 10)
+    threads = int(data.get('threads', 4) or 4)
+    timeout = max(1, min(timeout, 60))
+    threads = max(1, min(threads, 64))
+    if scanner.start_range_scan(base_url, timeout, threads):
+        return _json_success(message='URL 范围扫描已开始')
+    return _json_error('启动扫描失败', 500)
+
+
+async def handle_scan_results(request):
+    """获取 URL 范围扫描结果列表"""
+    ctx = get_context()
+    if not ctx:
+        return _json_success(results=[])
+    if not ctx.is_standalone():
+        return _json_success(results=[])
+    scanner = ctx.get_standalone_scanner()
+    if not scanner:
+        return _json_success(results=[])
+    return _json_success(results=scanner.get_results())
+
+
+def _get_mapping_manager():
+    """获取频道映射管理器（全局单例，不依赖 PySide6）"""
+    try:
+        from models.channel_mappings import mapping_manager
+        return mapping_manager
+    except Exception as e:
+        logger.warning(f"映射管理器不可用: {e}")
+        return None
+
+
+async def handle_mappings_list(request):
+    """列出所有映射条目"""
+    mm = _get_mapping_manager()
+    if not mm:
+        return _json_error('映射管理器不可用', 503)
+    try:
+        entries = mm.get_mapping_entries()
+        remote_url = ''
+        config = get_config()
+        if config:
+            try:
+                remote_url = config.get_setting('channel_mappings', 'remote_url', '')
+            except Exception:
+                pass
+        return _json_success(entries=entries, remote_url=remote_url)
+    except Exception as e:
+        return _json_error(f'获取映射失败: {e}', 500)
+
+
+async def handle_mappings_add(request):
+    """添加用户映射 body: {raw_name, standard_name, logo_url?, group_name?}"""
+    mm = _get_mapping_manager()
+    if not mm:
+        return _json_error('映射管理器不可用', 503)
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        pass
+    raw_name = (data.get('raw_name') or '').strip()
+    standard_name = (data.get('standard_name') or '').strip()
+    if not raw_name or not standard_name:
+        return _json_error('原始名称和标准名称不能为空')
+    logo_url = (data.get('logo_url') or '').strip()
+    group_name = (data.get('group_name') or '').strip()
+    try:
+        mm.add_user_mapping(raw_name, standard_name, logo_url, group_name)
+        return _json_success(message='映射已添加')
+    except Exception as e:
+        return _json_error(f'添加映射失败: {e}', 500)
+
+
+async def handle_mappings_delete(request):
+    """删除映射 {id} 格式: standard_name 或 standard_name||raw_name"""
+    mm = _get_mapping_manager()
+    if not mm:
+        return _json_error('映射管理器不可用', 503)
+    key = request.match_info['id']
+    try:
+        if '||' in key:
+            standard_name, raw_name = key.split('||', 1)
+            mm.remove_user_mapping_entry(standard_name, raw_name)
+        else:
+            mm.remove_user_mapping(key)
+        return _json_success(message='映射已删除')
+    except Exception as e:
+        return _json_error(f'删除映射失败: {e}', 500)
+
+
+async def handle_mappings_refresh(request):
+    """刷新远程映射缓存"""
+    mm = _get_mapping_manager()
+    if not mm:
+        return _json_error('映射管理器不可用', 503)
+    try:
+        # 在后台线程中刷新，避免阻塞
+        import threading
+        def _do_refresh():
+            try:
+                mm.refresh_cache()
+            except Exception as e:
+                logger.error(f"刷新远程映射失败: {e}")
+        threading.Thread(target=_do_refresh, daemon=True).start()
+        return _json_success(message='正在刷新远程映射...')
+    except Exception as e:
+        return _json_error(f'刷新失败: {e}', 500)
 
 
 async def handle_epg(request):

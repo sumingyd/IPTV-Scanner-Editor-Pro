@@ -51,6 +51,9 @@ class MPVView @JvmOverloads constructor(context: Context, attrs: AttributeSet? =
     fun playFile(path: String) {
         if (holder.surface != null && holder.surface.isValid) {
             MPVLib.command(arrayOf("loadfile", path))
+            // 显式解除暂停：keep-open=yes 会让 mpv 在 stop/idle 后保留 pause=true，
+            // 不显式恢复会导致新文件加载后不播放（一直显示已暂停）
+            MPVLib.setPropertyBoolean("pause", false)
         } else {
             filePath = path
         }
@@ -73,6 +76,7 @@ class MPVView @JvmOverloads constructor(context: Context, attrs: AttributeSet? =
 
         if (filePath != null) {
             MPVLib.command(arrayOf("loadfile", filePath as String))
+            MPVLib.setPropertyBoolean("pause", false)
             filePath = null
         } else {
             MPVLib.setPropertyString("vo", voInUse)

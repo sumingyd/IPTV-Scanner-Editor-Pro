@@ -32,6 +32,8 @@ class StandaloneScanner:
         }
         self.running = False
         self.last_message = '空闲'
+        self._scan_mode: Optional[str] = None  # 'subscription' 或 'range'
+        self._scan_results: List[Dict] = []  # URL 范围扫描结果列表
 
     def is_scanning(self) -> bool:
         return self.running
@@ -49,6 +51,7 @@ class StandaloneScanner:
             self.running = True
             self._stop_event.clear()
             self.stats = {'total': 0, 'valid': 0, 'invalid': 0, 'scanned': 0}
+            self._scan_mode = 'subscription'
         self._thread = threading.Thread(target=self._scan_worker, args=(url,), daemon=True)
         self._thread.start()
         return True
@@ -56,6 +59,165 @@ class StandaloneScanner:
     def stop_scan(self):
         """请求停止扫描"""
         self._stop_event.set()
+
+    def start_range_scan(self, base_url: str, timeout: int = 10, threads: int = 4) -> bool:
+        """开始 URL 范围扫描（PC 端"扫描整理"功能）
+
+        解析方括号范围表达式（如 rtp://239.1.1.[1-255]:5002），
+        对每个 URL 做可达性检查（HTTP/HTTPS 用 requests HEAD），
+        将有效 URL 添加为频道。rtp/udp/rtsp 等非 HTTP 协议直接添加不验证。
+        """
+        with self._lock:
+            if self.running:
+                return False
+            self.running = True
+            self._stop_event.clear()
+            self.stats = {'total': 0, 'valid': 0, 'invalid': 0, 'scanned': 0}
+            self._scan_mode = 'range'
+        self._thread = threading.Thread(
+            target=self._range_scan_worker, args=(base_url, timeout, threads), daemon=True
+        )
+        self._thread.start()
+        return True
+
+    def _range_scan_worker(self, base_url: str, timeout: int, threads: int):
+        """URL 范围扫描工作线程"""
+        try:
+            from services.url_parser_service import URLRangeParser
+            parser = URLRangeParser()
+            # 先统计总 URL 数
+            all_urls: List[str] = []
+            for batch in parser.parse_url(base_url, batch_size=1000):
+                for u in batch:
+                    if self._stop_event.is_set():
+                        break
+                    all_urls.append(u)
+                if self._stop_event.is_set():
+                    break
+            with self._lock:
+                self.stats['total'] = len(all_urls)
+                self._scan_results = []  # 清空上次扫描结果
+            if not all_urls:
+                self.last_message = '无 URL 可扫描（检查范围表达式）'
+                return
+            self.last_message = f'开始扫描 {len(all_urls)} 个 URL（{threads} 线程）'
+            logger.info(f"URL 范围扫描：共 {len(all_urls)} 个 URL")
+
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            import requests as _requests
+            import socket
+            from urllib.parse import urlparse
+            found_channels: List[Dict] = []
+            scan_results: List[Dict] = []  # 完整扫描结果列表（含有效/无效）
+            scanned_count = 0
+            valid_count = 0
+            invalid_count = 0
+
+            def _check_one(u: str):
+                """验证单个 URL，返回 (url, valid, status, latency_ms, channel_or_none)"""
+                if self._stop_event.is_set():
+                    return (u, False, '已取消', 0, None)
+                low = u.lower()
+                name = u.split('/')[-1] or u.split('://')[-1] or u
+                import time as _t
+                t0 = _t.time()
+                # HTTP/HTTPS：用 HEAD 请求验证可达性
+                if low.startswith('http://') or low.startswith('https://'):
+                    try:
+                        r = _requests.head(u, timeout=timeout, allow_redirects=True,
+                                           headers={'User-Agent': 'IPTV-Scanner/1.0'})
+                        latency = int((_t.time() - t0) * 1000)
+                        if r.status_code < 400:
+                            ch = {'name': name, 'url': u, 'group': '扫描结果', 'logo': '',
+                                  'tvg_id': '', 'tvg_name': name, 'valid': True}
+                            return (u, True, f'HTTP {r.status_code}', latency, ch)
+                        return (u, False, f'HTTP {r.status_code}', latency, None)
+                    except Exception as e:
+                        latency = int((_t.time() - t0) * 1000)
+                        return (u, False, f'错误: {str(e)[:60]}', latency, None)
+                # RTSP：用 TCP socket 连接检查
+                if low.startswith('rtsp://'):
+                    try:
+                        parsed = urlparse(u)
+                        host = parsed.hostname or ''
+                        port = parsed.port or 554
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        sock.settimeout(timeout)
+                        sock.connect((host, port))
+                        sock.close()
+                        latency = int((_t.time() - t0) * 1000)
+                        ch = {'name': name, 'url': u, 'group': '扫描结果', 'logo': '',
+                              'tvg_id': '', 'tvg_name': name, 'valid': True}
+                        return (u, True, 'RTSP 可达', latency, ch)
+                    except Exception as e:
+                        latency = int((_t.time() - t0) * 1000)
+                        return (u, False, f'RTSP: {str(e)[:40]}', latency, None)
+                # RTP/UDP：组播流无法在非组播环境验证，标记为"未测试"并添加为频道
+                if low.startswith('rtp://') or low.startswith('udp://'):
+                    # 不做可达性检查（UDP 组播需要特殊网络环境），直接添加为待测试频道
+                    ch = {'name': name, 'url': u, 'group': '扫描结果', 'logo': '',
+                          'tvg_id': '', 'tvg_name': name, 'valid': None, 'status': '未测试'}
+                    return (u, None, '未测试(UDP组播)', 0, ch)
+                # 其他协议：标记为不支持
+                return (u, False, '不支持的协议', 0, None)
+
+            with ThreadPoolExecutor(max_workers=max(1, min(threads, 64))) as pool:
+                futures = {pool.submit(_check_one, u): u for u in all_urls}
+                for fut in as_completed(futures):
+                    if self._stop_event.is_set():
+                        break
+                    scanned_count += 1
+                    try:
+                        url, valid, status, latency, ch = fut.result()
+                        # 记录扫描结果（用于前端列表显示）
+                        result_item = {
+                            'url': url, 'name': ch['name'] if ch else url.split('/')[-1],
+                            'valid': valid, 'status': status, 'latency': latency,
+                            'group': '扫描结果'
+                        }
+                        scan_results.append(result_item)
+                        if ch:
+                            found_channels.append(ch)
+                            if valid is True:
+                                valid_count += 1
+                        else:
+                            invalid_count += 1
+                    except Exception as e:
+                        scan_results.append({
+                            'url': futures[fut], 'name': futures[fut].split('/')[-1],
+                            'valid': False, 'status': f'异常: {str(e)[:40]}', 'latency': 0,
+                            'group': '扫描结果'
+                        })
+                        invalid_count += 1
+                    with self._lock:
+                        self.stats['scanned'] = scanned_count
+                        self.stats['valid'] = valid_count
+                        self.stats['invalid'] = invalid_count
+                        self._scan_results = list(scan_results)  # 实时更新结果列表
+                    if scanned_count % 10 == 0:
+                        self.last_message = f'已扫描 {scanned_count}/{len(all_urls)}（有效 {valid_count}）'
+
+            # 保存完整结果列表
+            with self._lock:
+                self._scan_results = scan_results
+            if found_channels and not self._stop_event.is_set():
+                # 追加到现有频道列表（不覆盖订阅源加载的频道）
+                self._ctx._channels = self._ctx._channels + found_channels
+                import time
+                self._ctx._last_load_time = time.time()
+                self.last_message = f'完成：发现 {len(found_channels)} 个有效频道'
+                logger.info(f"URL 范围扫描完成，发现 {len(found_channels)} 个有效频道")
+            elif self._stop_event.is_set():
+                self.last_message = '已停止'
+            else:
+                self.last_message = f'完成：未发现有效频道（扫描 {scanned_count} 个）'
+        except Exception as e:
+            logger.error(f"URL 范围扫描异常: {e}")
+            self.last_message = f'扫描异常: {e}'
+        finally:
+            with self._lock:
+                self.running = False
+                self._scan_mode = None
 
     def get_status(self) -> Dict:
         with self._lock:
@@ -66,7 +228,13 @@ class StandaloneScanner:
                 'invalid': self.stats.get('invalid', 0),
                 'scanned': self.stats.get('scanned', 0),
                 'message': self.last_message,
+                'mode': getattr(self, '_scan_mode', None),
             }
+
+    def get_results(self) -> List[Dict]:
+        """获取 URL 范围扫描结果列表"""
+        with self._lock:
+            return list(self._scan_results)
 
     def _scan_worker(self, url: str):
         """扫描工作线程"""
@@ -147,6 +315,7 @@ class ServerContext:
     _instance = None
 
     def __init__(self, main_window=None):
+        import threading as _threading
         self._main_window = main_window
         self._config: Optional[ConfigManager] = None
         self._channels: List[Dict] = []
@@ -156,14 +325,17 @@ class ServerContext:
         self._last_load_time = 0.0
         self._standalone_scanner: Optional[StandaloneScanner] = None
         self._epg_parser = None  # standalone 模式下使用的 EPG 解析器
+        # 订阅源加载状态（独立于扫描整理功能）
+        self._source_loading = False
+        self._source_load_status: Dict = {'loading': False, 'total': 0, 'loaded': 0, 'channels': 0, 'message': '空闲'}
+        self._source_load_lock = _threading.Lock()
 
         if self._standalone:
             self._config = ConfigManager()
             self._standalone_scanner = StandaloneScanner(self)
-            import threading
-            threading.Thread(target=self._load_channels_from_file, daemon=True).start()
+            _threading.Thread(target=self._load_channels_from_file, daemon=True).start()
             # 异步初始化 EPG 解析器（不依赖 PySide6）
-            threading.Thread(target=self._init_epg_parser, daemon=True).start()
+            _threading.Thread(target=self._init_epg_parser, daemon=True).start()
 
     @classmethod
     def get_instance(cls, main_window=None):
@@ -209,6 +381,97 @@ class ServerContext:
         import time
         if time.time() - self._last_load_time > max_age:
             self._load_channels_from_file()
+
+    def reload_sources(self, url: str = '') -> bool:
+        """重新加载订阅源（独立于扫描整理功能）
+
+        - url 为空：重新加载所有已配置的订阅源
+        - url 非空：加载指定 URL 的订阅源
+        返回 True 表示已启动加载，False 表示已有加载在运行
+        """
+        with self._source_load_lock:
+            if self._source_loading:
+                return False
+            self._source_loading = True
+            self._source_load_status = {'loading': True, 'total': 0, 'loaded': 0, 'channels': 0, 'message': '开始加载'}
+        import threading
+        threading.Thread(target=self._reload_sources_worker, args=(url,), daemon=True).start()
+        return True
+
+    def _reload_sources_worker(self, url: str):
+        """订阅源加载工作线程（后台静默执行，不使用扫描状态）"""
+        try:
+            config = self._config
+            if not config:
+                with self._source_load_lock:
+                    self._source_loading = False
+                    self._source_load_status = {'loading': False, 'total': 0, 'loaded': 0, 'channels': 0, 'message': '配置未初始化'}
+                return
+
+            # 收集要加载的源
+            if url:
+                sources = [{'url': url, 'name': url, 'enabled': True}]
+            else:
+                try:
+                    sources = config.load_playlist_sources()
+                except Exception as e:
+                    logger.warning(f"加载订阅源列表失败: {e}")
+                    sources = []
+
+            with self._source_load_lock:
+                self._source_load_status['total'] = len(sources)
+
+            if not sources:
+                with self._source_load_lock:
+                    self._source_loading = False
+                    self._source_load_status = {'loading': False, 'total': 0, 'loaded': 0, 'channels': 0, 'message': '无订阅源'}
+                return
+
+            all_channels: List[Dict] = []
+            for idx, source in enumerate(sources):
+                src_url = source.get('url', '')
+                if not src_url or not source.get('enabled', True):
+                    continue
+                with self._source_load_lock:
+                    self._source_load_status['loaded'] = idx + 1
+                    self._source_load_status['message'] = f'加载中 {idx+1}/{len(sources)}'
+                try:
+                    import requests
+                    resp = requests.get(src_url, timeout=15, headers={'User-Agent': 'IPTV-Scanner/1.0'})
+                    content = load_m3u_from_url_data(resp.content)
+                    channels, _ = parse_m3u_content(content)
+                    if channels:
+                        all_channels.extend(channels)
+                except Exception as e:
+                    logger.warning(f"加载源 {src_url} 失败: {e}")
+
+            # 更新频道列表
+            if all_channels:
+                self._channels = all_channels
+                import time
+                self._last_load_time = time.time()
+                with self._source_load_lock:
+                    self._source_loading = False
+                    self._source_load_status = {'loading': False, 'total': len(sources), 'loaded': len(sources), 'channels': len(all_channels), 'message': f'完成：{len(all_channels)} 个频道'}
+                logger.info(f"订阅源加载完成，共 {len(all_channels)} 个频道")
+            else:
+                # 加载到空列表时不覆盖已有频道，提示当前频道数
+                existing = len(self._channels)
+                msg = f'本次未加载到新频道（现有 {existing} 个）' if existing > 0 else '未加载到频道'
+                with self._source_load_lock:
+                    self._source_loading = False
+                    self._source_load_status = {'loading': False, 'total': len(sources), 'loaded': len(sources), 'channels': existing, 'message': msg}
+        except Exception as e:
+            logger.error(f"订阅源加载异常: {e}")
+            with self._source_load_lock:
+                self._source_loading = False
+                self._source_load_status = {'loading': False, 'total': 0, 'loaded': 0, 'channels': 0, 'message': f'异常: {e}'}
+
+    def get_source_load_status(self) -> Dict:
+        """获取订阅源加载状态"""
+        with self._source_load_lock:
+            return dict(self._source_load_status)
+
 
     def get_all_channels(self) -> List[Dict]:
         if self._main_window:

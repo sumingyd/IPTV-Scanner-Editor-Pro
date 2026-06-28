@@ -104,6 +104,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 .panel-search input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none}
 .panel-search input:focus{border-color:var(--accent)}
 .panel-search input::placeholder{color:#555}
+.panel-group-filter{padding:0 12px 8px;flex-shrink:0}
+.panel-group-filter select{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23888'><path d='M7 10l5 5 5-5z'/></svg>");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+.panel-group-filter select:focus{border-color:var(--accent)}
 
 .panel-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 8px;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .panel-tabs::-webkit-scrollbar{display:none}
@@ -134,6 +137,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 .epg-item .epg-desc{font-size:11px;color:var(--text-faint);margin-top:2px;line-height:1.4}
 .epg-item.now{background:var(--accent-soft);border-left:3px solid var(--accent);padding-left:9px}
 .epg-item.now .epg-title{color:#fff}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
 /* Form components for function panels */
 .form-section{padding:12px 0;border-bottom:1px solid var(--border)}
@@ -258,6 +262,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
     <button class="panel-tab" data-tab="queue" onclick="switchChTab('queue',this)">队列</button>
   </div>
   <div class="panel-search"><input id="searchInput" placeholder="搜索频道..."></div>
+  <div class="panel-group-filter" id="groupFilterBar" style="display:none">
+    <select id="groupFilterSelect" onchange="onGroupFilterChange(this.value)">
+      <option value="">全部频道</option>
+    </select>
+  </div>
   <div class="panel-body" id="channelList"></div>
 </div>
 
@@ -424,6 +433,7 @@ const state = {
   bookmarks: [], resumeList: [],
   epgReminder: [], epgCache: new Map(),
   chTab: 'sub',
+  selectedGroup: '',  /* 空字符串表示"全部频道"，与 PC 端默认行为一致 */
   /* mpv 状态镜像（由 onMpvProperty 同步） */
   mpv: { paused:true, timePos:0, duration:0, volume:100, muted:false, speed:1, eof:false,
          mediaTitle:'', filePath:'', hwdec:'', videoFormat:'', audioFormat:'' },
@@ -484,6 +494,11 @@ const api = {
       const r = d.data || d;
       state.channels = r.channels||[];
       state.groups = r.groups||[];
+      /* 若当前选中的分组在新列表中不存在，回退到"全部频道"（与 PC 端 _update_groups_for 一致） */
+      if(state.selectedGroup && !state.groups.includes(state.selectedGroup)){
+        state.selectedGroup = '';
+      }
+      updateGroupFilter();
       renderChannelList();
     }
   },
@@ -507,6 +522,11 @@ const api = {
   async startScan(url){ return this.post('/api/scan/start',{url}); },
   async stopScan(){ return this.post('/api/scan/stop'); },
   async scanStatus(){ return this.get('/api/scan/status'); },
+  /* 频道映射管理 */
+  async fetchMappings(){ return this.get('/api/mappings'); },
+  async addMapping(raw_name, standard_name, logo_url, group_name){ return this.post('/api/mappings',{raw_name,standard_name,logo_url,group_name}); },
+  async delMapping(id){ return this.del('/api/mappings/'+encodeURIComponent(id)); },
+  async refreshMappings(){ return this.post('/api/mappings/refresh'); },
   async addChannel(url,name,group){ return this.post('/api/channels',{url,name,group}); },
   async updateChannel(idx, body){ return this.put('/api/channels/'+idx, body); },
   async deleteChannel(idx){ return this.del('/api/channels/'+idx); }
@@ -554,7 +574,10 @@ function playChannel(idx, opts={}){
   state.prevIdx = state.currentIdx;
   state.currentIdx = idx;
   const ch = state.channels[idx];
-  const url = API+'/stream/'+idx;
+  /* 直接使用频道原始 URL 让 mpv 播放（与 PC 端一致），不通过 HTTP 代理
+     mpv 原生支持 rtp/udp/rtsp/http/https 等协议，代理会导致非 HTTP 协议失败 */
+  const url = ch.url;
+  if(!url){ showOSD('错误', '频道 URL 为空'); return; }
   Mpv.playChannel(url);
   showOSD(ch.name, ch.group);
   updateCtrlInfo();
@@ -825,53 +848,72 @@ setInterval(updateProgress, 1000);
 /* ============== 8. 频道与 EPG 面板 ============== */
 function switchChTab(tab, btn){
   state.chTab = tab;
+  /* 切换 tab 时重置分组筛选（收藏/历史/队列不使用分组筛选） */
+  state.selectedGroup = '';
   $$('.panel-tab').forEach(t=>t.classList.remove('active'));
   if(btn) btn.classList.add('active');
   else { const el=$$('.panel-tab').find(t=>t.dataset.tab===tab); if(el) el.classList.add('active'); }
+  updateGroupFilter();
+  renderChannelList($('#searchInput').value);
+}
+
+/* 更新分组筛选下拉框：订阅/本地 tab 显示，其他 tab 隐藏 */
+function updateGroupFilter(){
+  const bar = $('#groupFilterBar');
+  const sel = $('#groupFilterSelect');
+  if(!bar || !sel) return;
+  const showGroups = (state.chTab==='sub' || state.chTab==='local');
+  if(!showGroups){ bar.style.display='none'; return; }
+  /* 重建选项：第一项始终是"全部频道"，后续按 state.groups 顺序（M3U 出现顺序） */
+  const cur = state.selectedGroup || '';
+  let html = '<option value="">全部频道</option>';
+  for(const g of state.groups){
+    if(!g) continue;
+    html += `<option value="${esc(g)}" ${g===cur?'selected':''}>${esc(g)}</option>`;
+  }
+  sel.innerHTML = html;
+  bar.style.display = 'block';
+}
+function onGroupFilterChange(v){
+  state.selectedGroup = v || '';
   renderChannelList($('#searchInput').value);
 }
 
 function renderChannelList(filter=''){
   const f = (filter||'').toLowerCase();
-  let list = state.channels;
-  if(state.chTab==='fav') list = state.channels.filter((_,i)=>state.favorites.has(i));
-  else if(state.chTab==='hist') list = state.playHistory.map(idx=>state.channels[idx]).filter(Boolean);
-  else if(state.chTab==='local') list = state.channels.filter(c=>!c.url||!c.url.startsWith('http'));
-  else if(state.chTab==='queue') list = state.queue.map(idx=>state.channels[idx]).filter(Boolean);
-  let html='';
-  if(state.chTab==='sub'||state.chTab==='local'||state.chTab==='queue'){
-    let gcount = {};
-    if(state.chTab==='queue'){
-      /* 队列平铺 */
-      if(f) list=list.filter(c=>c.name.toLowerCase().includes(f));
-      if(!list.length) html='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">队列为空</div>';
-      else list.forEach(c=>{
-        const idx=state.channels.indexOf(c);
-        html+=`<div class="ch-item ${idx===state.currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span class="ch-text">${esc(c.name)}</span><span class="ch-meta">${esc(c.group)}</span></div>`;
-      });
-    } else {
-      for(const g of state.groups){
-        let gc = state.channels.filter(c=>c.group===g);
-        if(state.chTab==='local') gc = gc.filter(c=>!c.url||!c.url.startsWith('http'));
-        if(f) gc = gc.filter(c=>c.name.toLowerCase().includes(f)||c.group.toLowerCase().includes(f));
-        if(!gc.length) continue;
-        html+=`<div class="group-item"><div class="group-header" onclick="toggleGroup(this)"><span>${esc(g)}</span><span class="count">${gc.length}</span></div><div class="group-channels">`;
-        for(const c of gc){
-          const idx=state.channels.indexOf(c);
-          html+=`<div class="ch-item ${idx===state.currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span class="ch-text">${esc(c.name)}</span></div>`;
-        }
-        html+='</div></div>';
-      }
-    }
-  } else {
-    if(f) list=list.filter(c=>c.name.toLowerCase().includes(f));
-    if(!list.length) html='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">'+(state.chTab==='fav'?'暂无收藏':'暂无历史')+'</div>';
-    else list.forEach(c=>{
-      const idx=state.channels.indexOf(c);
-      html+=`<div class="ch-item ${idx===state.currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span class="ch-text">${esc(c.name)}</span><span class="ch-meta">${esc(c.group)}</span></div>`;
+  /* 根据当前 tab 确定基础列表（保持 M3U 顺序，不重排） */
+  let list = [];
+  let showGroupMeta = true;  /* 是否在频道项右侧显示分组小字 */
+  if(state.chTab==='fav'){ list = state.channels.map((c,i)=>({c,i})).filter(x=>state.favorites.has(x.i)); }
+  else if(state.chTab==='hist'){ list = state.playHistory.map(idx=>({c:state.channels[idx], i:idx})).filter(x=>x.c); }
+  else if(state.chTab==='local'){ list = state.channels.map((c,i)=>({c,i})).filter(x=>!x.c.url||!x.c.url.startsWith('http')); }
+  else if(state.chTab==='queue'){ list = state.queue.map(idx=>({c:state.channels[idx], i:idx})).filter(x=>x.c); }
+  else { list = state.channels.map((c,i)=>({c,i})); }
+  /* 分组筛选（仅订阅/本地 tab 生效，与 PC 端 on_sub_group_changed 行为一致） */
+  if((state.chTab==='sub' || state.chTab==='local') && state.selectedGroup){
+    list = list.filter(x=>{
+      const groups = x.c._groups || [x.c.group];
+      return groups.includes(state.selectedGroup);
     });
   }
-  if(!html) html='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">暂无频道</div>';
+  /* 搜索筛选 */
+  if(f){
+    list = list.filter(x=>{
+      const name = (x.c.name||'').toLowerCase();
+      const group = (x.c.group||'').toLowerCase();
+      return name.includes(f) || group.includes(f);
+    });
+  }
+  let html='';
+  const empty = {fav:'暂无收藏', hist:'暂无历史', queue:'队列为空', local:'无本地频道', sub:'暂无频道'};
+  if(!list.length){
+    html = `<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">${empty[state.chTab]||'暂无频道'}</div>`;
+  } else {
+    for(const {c, i} of list){
+      const meta = showGroupMeta && c.group ? `<span class="ch-meta">${esc(c.group)}</span>` : '';
+      html += `<div class="ch-item ${i===state.currentIdx?'playing':''}" onclick="playChannel(${i})"><div class="ch-dot"></div><span class="ch-text">${esc(c.name)}</span>${meta}</div>`;
+    }
+  }
   $('#channelList').innerHTML = html;
 }
 function toggleGroup(el){ el.nextElementSibling.classList.toggle('open'); }
@@ -891,16 +933,40 @@ function renderEPGList(){
     const list = filter ? p.filter(e=>((e.title||'')+(e.desc||'')).toLowerCase().includes(filter)) : p;
     const now = Date.now();
     let html='';
-    for(const e of list){
+    let currentIdx=-1;  /* 当前正在播放的节目索引（用于滚动定位） */
+    for(let i=0;i<list.length;i++){
+      const e=list[i];
       const isNow = e.start_ts && e.stop_ts && now>=e.start_ts*1000 && now<e.stop_ts*1000;
-      html+=`<div class="epg-item ${isNow?'now':''}" onclick="setReminder(${state.currentIdx},'${esc(e.title||'')}',${e.start_ts||0})">
-        <div class="epg-time">${esc(e.start||'')} - ${esc(e.stop||'')}</div>
+      const isPast = e.stop_ts && now>=e.stop_ts*1000;
+      if(isNow) currentIdx=i;
+      const liveBadge = isNow ? '<span style="background:#f44336;color:#fff;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;font-weight:600;animation:pulse 2s infinite">LIVE</span>' : '';
+      const pastClass = isPast && !isNow ? 'opacity:.5' : '';
+      html+=`<div class="epg-item ${isNow?'now':''}" data-idx="${i}" style="${pastClass}" onclick="setReminder(${state.currentIdx},'${esc(e.title||'')}',${e.start_ts||0})">
+        <div class="epg-time">${esc(e.start||'')} - ${esc(e.stop||'')}${liveBadge}</div>
         <div class="epg-title">${esc(e.title||'')}</div>
         ${e.desc?`<div class="epg-desc">${esc(e.desc)}</div>`:''}
       </div>`;
     }
     if(!html) html='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">无匹配节目</div>';
     $('#epgList').innerHTML = html;
+    /* 滚动定位到当前正在播放的节目（与 PC 端 _scroll_to_current_program 一致） */
+    if(currentIdx>=0){
+      const item = $('#epgList').querySelector(`.epg-item[data-idx="${currentIdx}"]`);
+      if(item) item.scrollIntoView({block:'center', behavior:'smooth'});
+    } else if(filter){
+      /* 搜索模式下不滚动 */
+    } else {
+      /* 无当前节目时，找到第一个未开始的节目并滚动到顶部 */
+      const items = $('#epgList').querySelectorAll('.epg-item');
+      for(const it of items){
+        const idx = parseInt(it.dataset.idx);
+        const e = list[idx];
+        if(e && e.start_ts && now < e.start_ts*1000){
+          it.scrollIntoView({block:'start', behavior:'smooth'});
+          break;
+        }
+      }
+    }
   });
 }
 
@@ -1206,20 +1272,43 @@ async function addSource(){
   const d=await api.addSource(url, name);
   if(d && d.success){
     $('#srcUrl').value=''; $('#srcName').value='';
-    showOSD('添加成功', '开始加载频道...');
+    showOSD('添加成功', '正在加载频道...');
     closeFuncPanel();
-    /* 添加源后自动触发扫描，并打开扫描面板实时显示进度 */
-    await api.startScan(url);
     await api.fetchSources();
-    openFuncPanel('scan');
+    reloadSubscription(url);
   } else { alert('添加失败'); }
 }
 async function refreshSource(idx){
   const s = state.sources[idx];
   if(!s || !s.url){ showOSD('刷新','无效源'); return; }
-  showOSD('刷新', '开始加载频道...');
-  await api.startScan(s.url);
-  openFuncPanel('scan');
+  showOSD('刷新', '正在加载频道...');
+  reloadSubscription(s.url);
+}
+/* 订阅源加载：使用独立的 /api/sources/reload 和 /api/sources/status API
+   与"扫描整理"（局域网 URL 范围扫描）是完全独立的两个功能，不触发扫描状态 */
+let _reloadTimer = null;
+async function reloadSubscription(url){
+  if(_reloadTimer){ clearInterval(_reloadTimer); _reloadTimer=null; }
+  /* 调用加载 API，如果返回 409（正在加载中）不报错，直接轮询现有状态 */
+  const d = await api.post('/api/sources/reload', {url});
+  if(!d || !d.success){
+    /* 409 表示已有加载在运行，直接开始轮询 */
+    if(!d || d.error !== '订阅源正在加载中'){
+      showOSD('加载失败', (d && d.error) || '未知错误');
+      return;
+    }
+  }
+  _reloadTimer = setInterval(async ()=>{
+    const s = await api.get('/api/sources/status');
+    if(!s || !s.success){ clearInterval(_reloadTimer); _reloadTimer=null; return; }
+    if(!s.loading){
+      clearInterval(_reloadTimer); _reloadTimer=null;
+      /* 无论消息如何，都刷新频道列表并显示实际频道数 */
+      await api.fetchChannels();
+      const n = state.channels.length;
+      showOSD('加载完成', n>0 ? `共 ${n} 个频道` : '未加载到频道');
+    }
+  }, 1000);
 }
 
 /* 订阅源管理（使用 funcPanel） */
@@ -1275,6 +1364,10 @@ registerFunc('menu', { title:'主菜单' }, body=>{
     <div class="list-item" onclick="openEpgSources()">
       <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM5 6V5h14v1H5zm2 6h5v5H7z"/></svg></div>
       <div class="li-text"><div class="li-title">EPG 订阅源</div><div class="li-sub">管理节目单订阅地址（XMLTV）</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('mapping')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+      <div class="li-text"><div class="li-title">频道映射</div><div class="li-sub">远程映射 + 用户映射管理</div></div>
     </div>
     <div class="menu-section">播放</div>
     <div class="list-item" onclick="closeFuncPanel();openPanel('channels')">
@@ -2681,20 +2774,141 @@ async function delEpgSource(i){
   showOSD('EPG 源','已删除');
 }
 
+/* ---- 频道映射面板 ---- */
+let _mappingState = { entries: [], remoteUrl: '' };
+registerFunc('mapping', { title:'频道映射' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">远程映射</div>
+      <div style="font-size:11px;color:var(--text-dim);padding:4px 0;line-height:1.5">
+        <div>远程 URL: <span id="mappingRemoteUrl" style="color:var(--accent);word-break:break-all">加载中...</span></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="refreshRemoteMappings()">刷新远程映射</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">添加用户映射</div>
+      <div class="form-row"><input type="text" id="mapRawName" placeholder="原始名称（从 URL 提取的标识）"></div>
+      <div class="form-row"><input type="text" id="mapStandardName" placeholder="标准名称（如 CCTV-1 综合）"></div>
+      <div class="form-row"><input type="text" id="mapLogo" placeholder="Logo URL（可选）"></div>
+      <div class="form-row"><input type="text" id="mapGroup" placeholder="分组（可选）"></div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="addUserMapping()">添加</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">映射列表 <span id="mappingCount" style="color:var(--text-faint);font-weight:normal"></span></div>
+      <div id="mappingList" style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+        <div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">加载中...</div>
+      </div>
+    </div>
+  `;
+  loadMappings();
+});
+async function loadMappings(){
+  const d = await api.fetchMappings();
+  if(d && d.success){
+    _mappingState.entries = d.entries || [];
+    _mappingState.remoteUrl = d.remote_url || '';
+    renderMappings();
+  } else {
+    $('#mappingList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">加载失败</div>';
+  }
+}
+function renderMappings(){
+  const el = $('#mappingList');
+  const countEl = $('#mappingCount');
+  const urlEl = $('#mappingRemoteUrl');
+  if(urlEl) urlEl.textContent = _mappingState.remoteUrl || '未配置';
+  const entries = _mappingState.entries;
+  if(countEl) countEl.textContent = entries.length ? `(${entries.length} 条)` : '';
+  if(!entries || !entries.length){
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">暂无映射</div>';
+    return;
+  }
+  let html='';
+  for(const e of entries){
+    const key = encodeURIComponent(e.unique_key || (e.standard_name+'||'+e.raw_name));
+    const raw = esc(e.raw_name || '');
+    const std = esc(e.standard_name || '');
+    const logo = e.logo_url ? `<img src="${esc(e.logo_url)}" style="width:20px;height:20px;border-radius:3px;vertical-align:middle;margin-right:6px" onerror="this.style.display='none'">` : '';
+    const group = e.group_name ? `<span style="color:var(--text-faint);font-size:10px">[${esc(e.group_name)}]</span>` : '';
+    html += `<div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${logo}<span style="color:#fff;font-weight:500">${std}</span> <span style="color:var(--text-faint);font-size:10px">← ${raw}</span> ${group}</span>
+        <button class="btn sm danger" style="font-size:10px;padding:4px 8px;flex-shrink:0;margin-left:8px" onclick="delMapping('${key}')">删除</button>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+async function addUserMapping(){
+  const raw = $('#mapRawName').value.trim();
+  const std = $('#mapStandardName').value.trim();
+  if(!raw || !std){ alert('原始名称和标准名称不能为空'); return; }
+  const logo = $('#mapLogo').value.trim();
+  const group = $('#mapGroup').value.trim();
+  const d = await api.addMapping(raw, std, logo, group);
+  if(d && d.success){
+    $('#mapRawName').value=''; $('#mapStandardName').value=''; $('#mapLogo').value=''; $('#mapGroup').value='';
+    showOSD('映射','已添加');
+    loadMappings();
+  } else {
+    alert((d && d.error) || '添加失败');
+  }
+}
+async function delMapping(key){
+  const decoded = decodeURIComponent(key);
+  const d = await api.delMapping(decoded);
+  if(d && d.success){
+    showOSD('映射','已删除');
+    loadMappings();
+  } else {
+    alert((d && d.error) || '删除失败');
+  }
+}
+async function refreshRemoteMappings(){
+  showOSD('映射','正在刷新远程...');
+  const d = await api.refreshMappings();
+  if(d && d.success){
+    setTimeout(loadMappings, 2000);  /* 等后台刷新完成 */
+    showOSD('映射','远程映射已刷新');
+  } else {
+    alert((d && d.error) || '刷新失败');
+  }
+}
+
 /* ---- 扫描整理面板 ---- */
 let scanPollTimer=null;
 registerFunc('scan', { title:'扫描整理' }, body=>{
   body.innerHTML = `
     <div class="form-section">
-      <div class="form-section-title">扫描</div>
-      <div class="form-row"><input type="text" id="scanUrl" placeholder="订阅源 URL（留空扫描所有源）"></div>
+      <div class="form-section-title">URL 范围扫描</div>
+      <div style="font-size:11px;color:var(--text-faint);padding:4px 0;line-height:1.5">
+        支持方括号范围表达式：<br>
+        · <code style="color:var(--accent)">rtp://239.1.1.[1-255]:5002</code><br>
+        · <code style="color:var(--accent)">http://ip:port/[1,5,10]/index.m3u8</code><br>
+        · <code style="color:var(--accent)">http://192.168.1.[1-10]/tv/[1-20].m3u8</code>
+      </div>
+      <div class="form-row"><input type="text" id="scanUrl" placeholder="rtp://239.1.1.[1-255]:5002"></div>
+      <div class="form-row" style="display:flex;gap:8px">
+        <div style="flex:1"><label style="font-size:10px;color:var(--text-dim)">超时(秒)</label><input type="number" id="scanTimeout" value="10" min="1" max="60" style="width:100%"></div>
+        <div style="flex:1"><label style="font-size:10px;color:var(--text-dim)">线程</label><input type="number" id="scanThreads" value="4" min="1" max="64" style="width:100%"></div>
+      </div>
       <div class="btn-row">
-        <button class="btn primary sm" onclick="startScanNow()">开始</button>
+        <button class="btn primary sm" onclick="startScanNow()">开始扫描</button>
         <button class="btn sm danger" onclick="stopScanNow()">停止</button>
       </div>
       <div id="scanStatus" style="font-size:11px;color:var(--text-dim);padding:8px 4px">空闲</div>
       <div id="scanProgress" style="width:100%;height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:4px;display:none">
         <div id="scanProgressBar" style="width:0%;height:100%;background:var(--accent);border-radius:2px;transition:width .3s"></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">扫描结果 <span id="scanResultCount" style="color:var(--text-faint);font-weight:normal"></span></div>
+      <div id="scanResults" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+        <div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">暂无扫描结果</div>
       </div>
     </div>
     <div class="form-section">
@@ -2716,14 +2930,19 @@ registerFunc('scan', { title:'扫描整理' }, body=>{
     </div>
   `;
   pollScanStatus();
-  scanPollTimer=setInterval(pollScanStatus, 2000);
+  scanPollTimer=setInterval(pollScanStatus, 1500);
   const obs=new MutationObserver(()=>{ if($('#funcTitle').textContent!=='扫描整理'){ clearInterval(scanPollTimer); scanPollTimer=null; obs.disconnect(); } });
   obs.observe($('#panelFunc'), {attributes:true, attributeFilter:['class']});
 });
 async function startScanNow(){
   const url=$('#scanUrl').value.trim();
-  await api.startScan(url);
-  showOSD('扫描','已开始');
+  if(!url){ alert('请输入 URL 范围表达式'); return; }
+  const timeout=parseInt($('#scanTimeout')?.value)||10;
+  const threads=parseInt($('#scanThreads')?.value)||4;
+  /* 调用 URL 范围扫描 API（与订阅源加载是独立功能） */
+  const d=await api.post('/api/scan/range', {url, timeout, threads});
+  if(d && d.success){ showOSD('扫描', '已开始'); }
+  else { alert((d && d.error) || '启动扫描失败'); }
 }
 async function stopScanNow(){
   await api.stopScan();
@@ -2746,9 +2965,15 @@ async function pollScanStatus(){
       const pb=$('#scanProgress'); if(pb) pb.style.display='block';
       const bar=$('#scanProgressBar'); if(bar) bar.style.width=(total>0?(scanned/total*100):0)+'%';
     } else {
-      el.textContent=`空闲 · 总计 ${total} / 有效 ${valid}${msg?' · '+msg:''}`;
+      /* 空闲时只显示"空闲"+最后消息，不显示统计数字（避免残留数据误导） */
+      el.textContent=`空闲${msg && msg!=='空闲' ? ' · ' + msg : ''}`;
       const pb=$('#scanProgress'); if(pb) pb.style.display='none';
     }
+  }
+  /* 拉取扫描结果列表（扫描中和扫描完成后都显示） */
+  const rd = await api.get('/api/scan/results');
+  if(rd && rd.success && rd.results){
+    renderScanResults(rd.results);
   }
   /* 扫描完成时自动刷新频道列表（之前已 running 现在停止） */
   if(!running && pollScanStatus._wasRunning){
@@ -2758,6 +2983,35 @@ async function pollScanStatus(){
   } else if(running){
     pollScanStatus._wasRunning=true;
   }
+}
+function renderScanResults(results){
+  const el=$('#scanResults');
+  const countEl=$('#scanResultCount');
+  if(!el) return;
+  if(countEl) countEl.textContent = results.length ? `(${results.length} 条)` : '';
+  if(!results || !results.length){
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">暂无扫描结果</div>';
+    return;
+  }
+  let html='';
+  for(const r of results){
+    const v = r.valid;
+    const statusColor = v===true ? '#4CAF50' : (v===null ? '#FF9800' : '#f44336');
+    const statusText = v===true ? '有效' : (v===null ? '未测试' : '无效');
+    const latencyText = r.latency ? `${r.latency}ms` : '';
+    html += `<div class="scan-result-item" style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="color:var(--text);font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name||r.url)}</span>
+        <span style="color:${statusColor};font-size:10px;font-weight:600;margin-left:8px;flex-shrink:0">${statusText}</span>
+      </div>
+      <div style="color:var(--text-faint);font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.url)}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:2px">
+        <span style="color:var(--text-dim);font-size:10px">${esc(r.status||'')}</span>
+        <span style="color:var(--text-dim);font-size:10px">${latencyText}</span>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html;
 }
 function sortChannels(){
   if(!state.channels.length){ showOSD('整理','无频道'); return; }
