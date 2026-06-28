@@ -22,6 +22,17 @@ import com.chaquo.python.android.AndroidPlatform;
 import com.iptv.scanner.editor.pro.mpv.MPVView;
 import com.iptv.scanner.editor.pro.mpv.MpvJsBridge;
 
+/**
+ * 主 Activity：三层混合架构
+ *  1. 底层 MPVView（SurfaceView + JNI mpv）负责视频渲染
+ *  2. 中层 WebView 透明叠加，加载 Python aiohttp 服务的移动 UI
+ *  3. Python 服务运行在子线程，提供 RESTful API 和静态资源
+ *
+ * 遥控器/键盘适配：
+ *  - DPAD/确认/菜单/媒体键通过 evaluateJavascript 转发给 HTML UI 的 onRemoteKey(code)
+ *  - BACK 键由 Java 层处理（关闭面板或退出）
+ *  - VOLUME_UP/DOWN/MUTE 由系统处理，不拦截
+ */
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "IPTVMainActivity";
@@ -46,6 +57,8 @@ public class MainActivity extends AppCompatActivity {
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.TRANSPARENT);
+        webView.setFocusable(true);
+        webView.setFocusableInTouchMode(true);
         layout.addView(webView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
@@ -155,13 +168,92 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    /**
+     * 遥控器/键盘事件分发：
+     *  - BACK 由 Java 层处理（关闭面板或退出）
+     *  - DPAD/确认/菜单/媒体键转发给 HTML UI 的 onRemoteKey(code)
+     */
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
-            webView.goBack();
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // 先让 JS 处理（关闭打开的面板），JS 不处理则退出
+            webView.evaluateJavascript(
+                "if(window.onRemoteKey){if(onRemoteKey(" + keyCode + ")){}}",
+                value -> {
+                    // evaluateJavascript 完成后无返回值时 value 为 null 或 "null"
+                    // 这里简单处理：直接由 JS 决定，BACK 总是允许返回
+                }
+            );
+            // BACK 键同时由 Java 层兜底：如果 WebView 可后退则后退，否则退出
+            if (webView.canGoBack()) {
+                webView.goBack();
+                return true;
+            }
+            // 不主动 finish，让 JS 处理；如果 JS 不处理，用户再按一次 BACK 由系统处理
+        }
+
+        // 转发给 HTML UI 的遥控器按键
+        if (dispatchKeyToJS(keyCode)) {
             return true;
         }
+
         return super.onKeyDown(keyCode, event);
+    }
+
+    /**
+     * 把遥控器/媒体按键转发给 HTML UI。
+     * @return true 表示已转发（消费），false 表示不处理
+     */
+    private boolean dispatchKeyToJS(int keyCode) {
+        switch (keyCode) {
+            // 方向键
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            // 菜单键
+            case KeyEvent.KEYCODE_MENU:
+            // 媒体键
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_NEXT:
+            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+            case KeyEvent.KEYCODE_MEDIA_STOP:
+            case KeyEvent.KEYCODE_MEDIA_STEP_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD:
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+            // 数字键（频道号输入）
+            case KeyEvent.KEYCODE_0:
+            case KeyEvent.KEYCODE_1:
+            case KeyEvent.KEYCODE_2:
+            case KeyEvent.KEYCODE_3:
+            case KeyEvent.KEYCODE_4:
+            case KeyEvent.KEYCODE_5:
+            case KeyEvent.KEYCODE_6:
+            case KeyEvent.KEYCODE_7:
+            case KeyEvent.KEYCODE_8:
+            case KeyEvent.KEYCODE_9:
+            // 字母键（快捷键）
+            case KeyEvent.KEYCODE_F:
+            case KeyEvent.KEYCODE_M:
+            case KeyEvent.KEYCODE_S:
+            case KeyEvent.KEYCODE_E:
+            case KeyEvent.KEYCODE_L:
+            case KeyEvent.KEYCODE_P:
+            case KeyEvent.KEYCODE_O:
+            case KeyEvent.KEYCODE_C:
+            case KeyEvent.KEYCODE_T:
+            case KeyEvent.KEYCODE_B:
+                webView.evaluateJavascript(
+                    "if(window.onRemoteKey)onRemoteKey(" + keyCode + ");",
+                    null
+                );
+                return true;
+        }
+        return false;
     }
 
     @Override

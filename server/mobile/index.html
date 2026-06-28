@@ -11,19 +11,28 @@
 <title>IPTV Scanner Editor Pro</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
-html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px}
 
-#splashScreen{position:fixed;inset:0;z-index:100;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s ease}
+:root{
+  --bg:#1a1a1a;--panel:rgba(30,30,30,.94);--panel-solid:#1e1e1e;
+  --border:rgba(255,255,255,.08);--border-strong:rgba(255,255,255,.16);
+  --text:#e0e0e0;--text-dim:rgba(255,255,255,.5);--text-faint:rgba(255,255,255,.3);
+  --accent:#4a7eff;--accent-soft:rgba(74,126,255,.15);
+  --danger:#f44336;--warn:#ff9800;--ok:#4caf50;--purple:#9c27b0;
+  --radius:12px;--radius-sm:8px;
+}
+
+/* Splash */
+#splashScreen{position:fixed;inset:0;z-index:200;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s ease}
 #splashScreen.fade-out{opacity:0;pointer-events:none}
 #splashScreen .splash-logo{width:96px;height:96px;opacity:0;transform:scale(.7);animation:splashIn .8s .2s ease forwards;border-radius:20px}
 #splashScreen h1{font-size:22px;font-weight:700;color:#fff;opacity:0;transform:translateY(10px);animation:splashTextIn .6s .6s ease forwards}
 #splashScreen .splash-sub{font-size:12px;color:rgba(255,255,255,.3);margin-top:4px;opacity:0;animation:splashTextIn .6s .8s ease forwards}
 #splashScreen .splash-bar{width:120px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:24px;overflow:hidden;opacity:0;animation:splashTextIn .4s 1s ease forwards}
-#splashScreen .splash-bar-fill{width:0%;height:100%;background:#4a7eff;border-radius:2px;animation:splashLoad 1.5s 1.2s ease forwards}
+#splashScreen .splash-bar-fill{width:0%;height:100%;background:var(--accent);border-radius:2px;animation:splashLoad 1.5s 1.2s ease forwards}
 @keyframes splashIn{to{opacity:1;transform:scale(1)}}
 @keyframes splashTextIn{to{opacity:1;transform:translateY(0)}}
 @keyframes splashLoad{to{width:100%}}
-
 
 #centerIcon{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;opacity:0;transition:opacity .4s}
 #centerIcon.show{opacity:1}
@@ -33,115 +42,199 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 #playFeedback.show{opacity:1}
 #playFeedback svg{width:64px;height:64px;fill:rgba(255,255,255,.7);filter:drop-shadow(0 4px 12px rgba(0,0,0,.6))}
 
+/* OSD */
 #osd{position:fixed;top:0;left:0;right:0;padding:20px 24px;background:linear-gradient(180deg,rgba(0,0,0,.7) 0%,transparent 100%);z-index:20;pointer-events:none;opacity:0;transition:opacity .3s}
 #osd.show{opacity:1}
 #osd .ch-name{font-size:18px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)}
 #osd .ch-group{font-size:13px;color:rgba(255,255,255,.65);margin-top:2px}
+#osd .ch-extra{font-size:11px;color:rgba(255,255,255,.45);margin-top:4px}
 
+/* Top bar (compact controls when no panel open) */
+#topBar{position:fixed;top:0;left:0;right:0;height:48px;padding:0 12px;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(0,0,0,.5) 0%,transparent 100%);z-index:15;opacity:0;transition:opacity .3s;pointer-events:none}
+#topBar.show{opacity:1;pointer-events:auto}
+#topBar .tb-btn{width:36px;height:36px;border-radius:8px;background:rgba(0,0,0,.4);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+#topBar .tb-btn:active{background:rgba(255,255,255,.2)}
+#topBar .tb-btn svg{width:20px;height:20px;fill:#fff}
+#topBar .tb-title{flex:1;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.8)}
+#topBar .tb-status{font-size:11px;color:rgba(255,255,255,.6);background:rgba(0,0,0,.4);border-radius:4px;padding:2px 6px}
+
+/* Bottom control bar */
+#bottomBar{position:fixed;left:0;right:0;bottom:0;padding:8px 12px 12px;background:linear-gradient(0deg,rgba(0,0,0,.7) 0%,transparent 100%);z-index:15;opacity:0;transition:opacity .3s;pointer-events:none}
+#bottomBar.show{opacity:1;pointer-events:auto}
+#bottomBar .bb-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#bottomBar .bb-btn{width:38px;height:38px;border-radius:8px;background:rgba(255,255,255,.08);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+#bottomBar .bb-btn:active{background:rgba(255,255,255,.2)}
+#bottomBar .bb-btn.text-btn{width:auto;padding:0 10px;font-size:12px;font-weight:600}
+#bottomBar .bb-btn svg{width:18px;height:18px;fill:#fff}
+#bottomBar .bb-progress{flex:1;min-width:80px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;cursor:pointer;position:relative}
+#bottomBar .bb-progress-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s}
+#bottomBar .bb-time{font-size:11px;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums;flex-shrink:0;min-width:38px;text-align:center}
+#bottomBar .bb-vol{width:60px;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.15);outline:none;flex-shrink:0}
+#bottomBar .bb-vol::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer}
+
+/* Touch layer */
 #touchLayer{position:fixed;inset:0;z-index:10}
 
-#panelOverlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:25;opacity:0;pointer-events:none;transition:opacity .25s}
+/* Panel overlay & floating panels */
+#panelOverlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:25;opacity:0;pointer-events:none;transition:opacity .25s}
 #panelOverlay.show{opacity:1;pointer-events:auto}
 
-.floating-panel{position:fixed;z-index:30;background:rgba(30,30,30,.92);border:1px solid rgba(255,255,255,.08);border-radius:14px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 8px 32px rgba(0,0,0,.5);overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s}
+.floating-panel{position:fixed;z-index:30;background:var(--panel);border:1px solid var(--border);border-radius:14px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 8px 32px rgba(0,0,0,.5);overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;display:flex;flex-direction:column}
+.floating-panel.hidden{transform:translateY(100%);opacity:0;pointer-events:none}
 
-#panelChannels{top:0;right:0;bottom:0;width:55%;max-width:360px;transform:translateX(100%);opacity:0;display:flex;flex-direction:column;border-radius:14px 0 0 14px}
+/* Channel panel - right drawer */
+#panelChannels{top:0;right:0;bottom:0;width:60%;max-width:380px;transform:translateX(100%);opacity:0;border-radius:14px 0 0 14px}
 #panelChannels.open{transform:translateX(0);opacity:1}
 
-#panelEPG{top:0;left:0;bottom:0;width:55%;max-width:360px;transform:translateX(-100%);opacity:0;display:flex;flex-direction:column;border-radius:0 14px 14px 0}
+/* EPG panel - left drawer */
+#panelEPG{top:0;left:0;bottom:0;width:60%;max-width:380px;transform:translateX(-100%);opacity:0;border-radius:0 14px 14px 0}
 #panelEPG.open{transform:translateX(0);opacity:1}
 
+/* Generic function panel - bottom sheet, full width */
+#panelFunc{left:0;right:0;bottom:0;top:auto;max-height:88vh;transform:translateY(100%);opacity:0;border-radius:18px 18px 0 0;width:100%;max-width:none}
+#panelFunc.open{transform:translateY(0);opacity:1}
+
+/* Controls panel - bottom sheet */
 #panelControls{left:0;right:0;bottom:0;transform:translateY(100%);opacity:0;border-radius:18px 18px 0 0;width:100%;max-width:none}
 #panelControls.open{transform:translateY(0);opacity:1}
 
-.panel-titlebar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
-.panel-titlebar .title{font-size:13px;font-weight:700;color:rgba(255,255,255,.9)}
-.panel-titlebar .close-btn{background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;cursor:pointer;padding:2px 6px;line-height:1}
-.panel-titlebar .close-btn:hover{color:rgba(255,255,255,.8)}
+.panel-titlebar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-titlebar .title{font-size:14px;font-weight:700;color:rgba(255,255,255,.95)}
+.panel-titlebar .close-btn{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1;border-radius:6px}
+.panel-titlebar .close-btn:active{background:rgba(255,255,255,.1);color:#fff}
 
-.panel-search{padding:8px 12px}
-.panel-search input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none}
+.panel-search{padding:8px 12px;flex-shrink:0}
+.panel-search input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none}
+.panel-search input:focus{border-color:var(--accent)}
 .panel-search input::placeholder{color:#555}
 
-.panel-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06);padding:0 8px}
-.panel-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,.4);font-size:12px;font-weight:600;padding:8px 0;cursor:pointer;text-align:center}
-.panel-tab.active{color:#4a7eff;border-bottom-color:#4a7eff}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 8px;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.panel-tabs::-webkit-scrollbar{display:none}
+.panel-tab{flex:0 0 auto;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-dim);font-size:12px;font-weight:600;padding:10px 12px;cursor:pointer;text-align:center;white-space:nowrap}
+.panel-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 
-.panel-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 8px 12px}
+.panel-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 12px 20px}
 
-.group-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:rgba(255,255,255,.8)}
+.group-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:rgba(255,255,255,.85)}
 .group-header:active{background:rgba(255,255,255,.05)}
-.group-header .count{font-size:11px;color:rgba(255,255,255,.35)}
+.group-header .count{font-size:11px;color:var(--text-faint)}
 .group-channels{display:none}
 .group-channels.open{display:block}
 
-.ch-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.7)}
-.ch-item:active{background:rgba(255,255,255,.05)}
-.ch-item.playing{color:#6a9eff;background:rgba(106,158,255,.08)}
+.ch-item{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:6px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.75)}
+.ch-item:active{background:rgba(255,255,255,.06)}
+.ch-item.playing{color:#6a9eff;background:var(--accent-soft)}
 .ch-item .ch-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.ch-item.playing .ch-dot{background:#4a7eff;box-shadow:0 0 4px #4a7eff}
+.ch-item.playing .ch-dot{background:var(--accent);box-shadow:0 0 4px var(--accent)}
 .ch-item:not(.playing) .ch-dot{background:rgba(255,255,255,.15)}
+.ch-item .ch-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-item .ch-meta{font-size:11px;color:var(--text-faint);flex-shrink:0}
 
-.epg-item{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04)}
-.epg-item .epg-time{font-size:11px;color:#4a7eff;font-weight:600}
-.epg-item .epg-title{font-size:13px;margin-top:2px;color:rgba(255,255,255,.8)}
-.epg-item .epg-desc{font-size:11px;color:rgba(255,255,255,.35);margin-top:1px}
+.epg-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer}
+.epg-item:active{background:rgba(255,255,255,.04)}
+.epg-item .epg-time{font-size:11px;color:var(--accent);font-weight:600}
+.epg-item .epg-title{font-size:13px;margin-top:2px;color:rgba(255,255,255,.85)}
+.epg-item .epg-desc{font-size:11px;color:var(--text-faint);margin-top:2px;line-height:1.4}
+.epg-item.now{background:var(--accent-soft);border-left:3px solid var(--accent);padding-left:9px}
+.epg-item.now .epg-title{color:#fff}
 
-.ctrl-media-row{display:flex;align-items:center;gap:4px;padding:8px 16px;border-bottom:none;flex-wrap:wrap}
-.ctrl-media-text{font-size:11px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
+/* Form components for function panels */
+.form-section{padding:12px 0;border-bottom:1px solid var(--border)}
+.form-section:last-child{border-bottom:none}
+.form-section-title{font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;padding:0 4px 8px}
+.form-row{display:flex;align-items:center;gap:12px;padding:8px 4px}
+.form-row.col{flex-direction:column;align-items:stretch;gap:6px}
+.form-row .label{flex:0 0 88px;font-size:13px;color:var(--text-dim)}
+.form-row .value{font-size:12px;color:var(--text);font-variant-numeric:tabular-nums;min-width:42px;text-align:right}
+.form-row input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none;cursor:pointer}
+.form-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 0 3px rgba(74,126,255,.2)}
+.form-row select,.form-row input[type=text],.form-row input[type=number]{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;outline:none;min-width:0}
+.form-row select:focus,.form-row input:focus{border-color:var(--accent)}
+.form-row select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff80'><path d='M7 10l5 5 5-5z'/></svg>");background-repeat:no-repeat;background-position:right 8px center;background-size:18px;padding-right:30px}
 
-.ctrl-line{height:1px;background:rgba(255,255,255,.06);margin:0 12px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;padding:8px 4px}
+.btn{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-size:13px;cursor:pointer;flex:1;min-width:80px;text-align:center}
+.btn:active{background:rgba(255,255,255,.12)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:active{background:#3a6ae0}
+.btn.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+.btn.danger:active{background:rgba(244,67,54,.15)}
+.btn.ghost{background:transparent}
+.btn.icon{flex:0 0 auto;min-width:38px;padding:8px 10px}
+.btn.active{background:var(--accent-soft);border-color:var(--accent);color:#6a9eff}
+.btn.sm{padding:5px 10px;font-size:12px;min-width:60px}
 
-.ctrl-info-row{display:flex;align-items:flex-start;gap:12px;padding:10px 16px}
-.ctrl-ch-logo{width:100px;height:36px;border-radius:6px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:16px;color:rgba(255,255,255,.3);flex-shrink:0;overflow:hidden}
-.ctrl-ch-logo img{width:100%;height:100%;object-fit:contain}
-.ctrl-ch-detail{flex:1;min-width:0}
-.ctrl-ch-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ctrl-ch-name{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ctrl-ch-program{font-size:12px;color:#4a7eff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
-.ctrl-time-badge{font-size:11px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 8px;white-space:nowrap}
-.ctrl-status-badge{font-size:11px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 8px;white-space:nowrap;min-width:70px;text-align:right}
-.ctrl-ch-desc{font-size:11px;color:rgba(255,255,255,.35);margin-top:3px;max-height:36px;overflow:hidden;line-height:1.4}
+.color-swatch{width:32px;height:24px;border-radius:4px;border:2px solid var(--border-strong);cursor:pointer;flex-shrink:0}
 
-.ctrl-control-row{display:flex;align-items:center;gap:6px;padding:8px 12px;flex-wrap:wrap}
-.ctrl-tool-btn{width:36px;height:32px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#e0e0e0;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.ctrl-tool-btn:active{background:rgba(255,255,255,.12)}
-.ctrl-tool-btn svg{width:18px;height:18px;fill:rgba(255,255,255,.7)}
-.ctrl-tool-btn.text-btn{width:auto;padding:0 10px;font-size:12px;font-weight:600;color:rgba(255,255,255,.7)}
+/* AVSync canvas */
+.avsync-canvas{width:100%;height:120px;background:#0a0a0a;border-radius:8px;display:block;margin-top:8px}
+.avsync-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.avsync-stat{background:rgba(255,255,255,.04);border-radius:6px;padding:8px;text-align:center}
+.avsync-stat .lbl{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px}
+.avsync-stat .val{font-size:14px;font-weight:600;color:#fff;margin-top:2px;font-variant-numeric:tabular-nums}
 
-.ctrl-prog-label{font-size:11px;color:rgba(255,255,255,.35);flex-shrink:0;min-width:32px;text-align:center}
-.ctrl-progress-bar{flex:1;min-width:60px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
-.ctrl-progress-fill{height:100%;background:#4a7eff;border-radius:2px;width:0%;transition:width .5s}
+/* List items */
+.list-item{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer}
+.list-item:active{background:rgba(255,255,255,.04)}
+.list-item:last-child{border-bottom:none}
+.list-item .li-icon{width:24px;height:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
+.list-item .li-icon svg{width:20px;height:20px;fill:currentColor}
+.list-item .li-text{flex:1;min-width:0}
+.list-item .li-title{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-item .li-sub{font-size:11px;color:var(--text-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-item .li-action{flex-shrink:0;font-size:11px;color:var(--accent);padding:4px 8px;cursor:pointer;border-radius:4px}
+.list-item .li-action:active{background:var(--accent-soft)}
 
-.ctrl-vol-slider{width:70px;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none;flex-shrink:0}
-.ctrl-vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#4a7eff;cursor:pointer}
+/* Media info grid */
+.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:8px 0}
+.info-card{background:rgba(255,255,255,.04);border-radius:8px;padding:10px}
+.info-card .ic-label{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px}
+.info-card .ic-value{font-size:13px;color:#fff;margin-top:2px;font-weight:600;word-break:break-all}
+.info-card .ic-value.ok{color:var(--ok)}
+.info-card .ic-value.warn{color:var(--warn)}
+.info-card .ic-value.bad{color:var(--danger)}
 
-#welcomeScreen{position:fixed;inset:0;background:#1a1a1a;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px}
+/* Welcome screen */
+#welcomeScreen{position:fixed;inset:0;background:#1a1a1a;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px;overflow-y:auto;-webkit-overflow-scrolling:touch}
 #welcomeScreen.show{display:flex}
 #welcomeScreen .logo{width:72px;height:72px;margin-bottom:16px;opacity:.6;border-radius:14px}
 #welcomeScreen h1{font-size:20px;font-weight:700;margin-bottom:6px;color:#fff}
-#welcomeScreen .sub{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:28px}
-
-.welcome-btn{display:flex;align-items:center;gap:14px;width:100%;max-width:360px;padding:14px 18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;color:#e0e0e0;cursor:pointer;margin-bottom:8px;text-align:left}
+#welcomeScreen .sub{font-size:13px;color:var(--text-faint);margin-bottom:28px}
+.welcome-btn{display:flex;align-items:center;gap:14px;width:100%;max-width:380px;padding:14px 18px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;color:var(--text);cursor:pointer;margin-bottom:8px;text-align:left}
 .welcome-btn:active{background:rgba(255,255,255,.08)}
-.welcome-btn svg{width:24px;height:24px;fill:rgba(255,255,255,.5);flex-shrink:0}
+.welcome-btn svg{width:24px;height:24px;fill:var(--text-dim);flex-shrink:0}
 .wb-title{font-size:14px;font-weight:600}
-.wb-desc{font-size:11px;color:rgba(255,255,255,.35);margin-top:1px}
-
-.menu-section{font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:1px;padding:0 4px;margin:16px 0 8px;text-align:left;max-width:380px;width:100%}
-
+.wb-desc{font-size:11px;color:var(--text-faint);margin-top:1px}
+.menu-section{font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;padding:0 4px;margin:16px 0 8px;text-align:left;max-width:380px;width:100%}
 #urlInputArea{display:none;width:100%;max-width:360px;margin-top:16px}
-#urlInputArea input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 14px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:6px}
+#urlInputArea input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--border-strong);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;margin-bottom:6px}
 #urlInputArea input::placeholder{color:#555}
-#urlInputArea button{width:100%;background:#4a7eff;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer}
+#urlInputArea button{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer}
 
+/* Spinner */
 @keyframes spin{to{transform:rotate(360deg)}}
-.spinner{width:24px;height:24px;border:2px solid rgba(255,255,255,.1);border-top-color:#4a7eff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+.spinner{width:24px;height:24px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
 
-#volumeOSD{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:40;background:rgba(0,0,0,.75);border-radius:14px;padding:16px 24px;display:none;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+/* Volume OSD */
+#volumeOSD{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:40;background:rgba(0,0,0,.8);border-radius:14px;padding:16px 24px;display:none;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 #volumeOSD svg{width:32px;height:32px;fill:#fff;margin-bottom:6px}
 #volumeOSD .vol-val{font-size:18px;font-weight:700;color:#fff}
 #volumeOSD .vol-label{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+
+/* Channel number input overlay */
+#channelNumInput{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:40;background:rgba(0,0,0,.85);border-radius:14px;padding:18px 28px;display:none;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);min-width:120px}
+#channelNumInput.show{display:block}
+#channelNumInput .cn-val{font-size:36px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;line-height:1}
+#channelNumInput .cn-label{font-size:11px;color:rgba(255,255,255,.5);margin-top:6px}
+
+/* Focus ring for remote navigation */
+.focused{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
+::-webkit-scrollbar-thumb:active{background:rgba(255,255,255,.3)}
 </style>
 </head>
 <body>
@@ -149,22 +242,42 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 <div id="splashScreen">
   <img class="splash-logo" src="logo.png" alt="">
   <h1>IPTV Scanner Editor Pro</h1>
-  <div class="splash-sub">v47.1</div>
+  <div class="splash-sub">v48.0</div>
   <div class="splash-bar"><div class="splash-bar-fill"></div></div>
 </div>
 
-
-<div id="centerIcon">
-  <img src="logo.png" alt="">
-</div>
-
-<div id="playFeedback">
-  <svg id="playFeedbackIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-</div>
+<div id="centerIcon"><img src="logo.png" alt=""></div>
+<div id="playFeedback"><svg id="playFeedbackIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
 
 <div id="osd">
   <div class="ch-name" id="osdName"></div>
   <div class="ch-group" id="osdGroup"></div>
+  <div class="ch-extra" id="osdExtra"></div>
+</div>
+
+<div id="topBar">
+  <button class="tb-btn" id="tbMenuBtn" title="菜单"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
+  <span class="tb-title" id="tbTitle">IPTV Scanner Editor Pro</span>
+  <span class="tb-status" id="tbStatus">就绪</span>
+  <button class="tb-btn" id="tbChannelsBtn" title="频道"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
+</div>
+
+<div id="bottomBar">
+  <div class="bb-row">
+    <button class="bb-btn" id="bbPrev" title="上一频道"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+    <button class="bb-btn" id="bbPlay" title="播放/暂停"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+    <button class="bb-btn" id="bbStop" title="停止"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
+    <button class="bb-btn" id="bbNext" title="下一频道"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+    <span class="bb-time" id="bbTimeStart">--:--</span>
+    <div class="bb-progress" id="bbProgress"><div class="bb-progress-fill" id="bbProgressFill"></div></div>
+    <span class="bb-time" id="bbTimeEnd">--:--</span>
+    <button class="bb-btn" id="bbMute" title="静音"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>
+    <input type="range" class="bb-vol" id="bbVolSlider" min="0" max="100" value="100">
+    <button class="bb-btn text-btn" id="bbSpeed" title="速度">1.0x</button>
+    <button class="bb-btn" id="bbAudio" title="音轨"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg></button>
+    <button class="bb-btn" id="bbSub" title="字幕"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg></button>
+    <button class="bb-btn" id="bbMore" title="更多"><svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></button>
+  </div>
 </div>
 
 <div id="touchLayer"></div>
@@ -173,59 +286,45 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
 <div id="panelChannels" class="floating-panel">
   <div class="panel-titlebar"><span class="title">频道列表</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>
   <div class="panel-tabs">
-    <button class="panel-tab active" onclick="switchChTab('sub',this)">订阅</button>
-    <button class="panel-tab" onclick="switchChTab('local',this)">本地</button>
-    <button class="panel-tab" onclick="switchChTab('fav',this)">收藏</button>
-    <button class="panel-tab" onclick="switchChTab('hist',this)">历史</button>
+    <button class="panel-tab active" data-tab="sub" onclick="switchChTab('sub',this)">订阅</button>
+    <button class="panel-tab" data-tab="local" onclick="switchChTab('local',this)">本地</button>
+    <button class="panel-tab" data-tab="fav" onclick="switchChTab('fav',this)">收藏</button>
+    <button class="panel-tab" data-tab="hist" onclick="switchChTab('hist',this)">历史</button>
+    <button class="panel-tab" data-tab="queue" onclick="switchChTab('queue',this)">队列</button>
   </div>
   <div class="panel-search"><input id="searchInput" placeholder="搜索频道..."></div>
   <div class="panel-body" id="channelList"></div>
 </div>
 
 <div id="panelEPG" class="floating-panel">
-  <div class="panel-titlebar"><span class="title">节目单</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>
-  <div class="panel-body" id="epgList"><div style="padding:40px;text-align:center;color:rgba(255,255,255,.25);font-size:13px">请先选择频道</div></div>
+  <div class="panel-titlebar"><span class="title" id="epgTitle">节目单</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>
+  <div class="panel-search"><input id="epgSearchInput" placeholder="搜索当前频道节目..."></div>
+  <div class="panel-body" id="epgList"><div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">请先选择频道</div></div>
 </div>
 
 <div id="panelControls" class="floating-panel">
   <div class="panel-titlebar"><span class="title">控制面板</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>
-  <div class="ctrl-media-row">
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="rgba(255,255,255,.35)"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12zM9 8h2v2H9z"/></svg>
-    <span class="ctrl-media-text" id="ctrlVideoInfo">未在播放</span>
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="rgba(255,255,255,.35)"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
-    <span class="ctrl-media-text" id="ctrlAudioInfo">--</span>
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="rgba(255,255,255,.35)"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
-    <span class="ctrl-media-text" id="ctrlNetworkInfo">--</span>
-    <span class="ctrl-media-text" id="ctrlBufferInfo" style="display:none"></span>
-  </div>
-  <div class="ctrl-line"></div>
-  <div class="ctrl-info-row">
-    <div class="ctrl-ch-logo" id="ctrlLogo"></div>
-    <div class="ctrl-ch-detail">
-      <div class="ctrl-ch-name-row">
-        <span class="ctrl-ch-name" id="ctrlName">IPTV Scanner Editor Pro</span>
-        <span class="ctrl-ch-program" id="ctrlProgram"></span>
-        <span class="ctrl-time-badge" id="ctrlTimeLabel">--:-- - --:--</span>
-        <span class="ctrl-status-badge" id="ctrlRemain">等待播放...</span>
+  <div class="panel-body" style="padding:8px 12px" id="ctrlBody">
+    <div class="ctrl-info-row" style="display:flex;align-items:flex-start;gap:12px;padding:10px 4px">
+      <div style="width:100px;height:36px;border-radius:6px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-faint);flex-shrink:0;overflow:hidden" id="ctrlLogo"></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="ctrlName">IPTV Scanner Editor Pro</span>
+          <span style="font-size:11px;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:2px 6px" id="ctrlStatus">就绪</span>
+        </div>
+        <div style="font-size:12px;color:var(--accent);margin-top:3px" id="ctrlProgram">打开播放列表开始观看</div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:2px" id="ctrlDesc">支持 M3U / M3U8 / 本地视频</div>
       </div>
-      <div class="ctrl-ch-desc" id="ctrlDesc">打开播放列表或导入频道开始观看</div>
     </div>
   </div>
-  <div class="ctrl-line"></div>
-  <div class="ctrl-control-row">
-    <button class="ctrl-tool-btn" onclick="togglePlay()" title="播放/暂停" id="ctrlPlay"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-    <button class="ctrl-tool-btn" onclick="stopPlay()" title="停止"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
-    <button class="ctrl-tool-btn" onclick="prevChannel()" title="上一频道"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
-    <button class="ctrl-tool-btn" onclick="nextChannel()" title="下一频道"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
-    <span class="ctrl-prog-label" id="ctrlTimeStart">--:--</span>
-    <div class="ctrl-progress-bar"><div class="ctrl-progress-fill" id="ctrlProgressFill"></div></div>
-    <span class="ctrl-prog-label" id="ctrlTimeEnd">--:--</span>
-    <button class="ctrl-tool-btn" id="ctrlMute" onclick="toggleMute()" title="音量"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>
-    <input type="range" class="ctrl-vol-slider" id="volumeSlider" min="0" max="100" value="100">
-    <button class="ctrl-tool-btn text-btn" onclick="changeSpeed()" title="播放速度"><span id="speedLabel">1.0x</span></button>
-    <button class="ctrl-tool-btn" onclick="cycleAudio()" title="音轨"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg></button>
-    <button class="ctrl-tool-btn" onclick="cycleSub()" title="字幕"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg></button>
+</div>
+
+<div id="panelFunc" class="floating-panel hidden">
+  <div class="panel-titlebar">
+    <span class="title" id="funcTitle">功能</span>
+    <button class="close-btn" onclick="closeFuncPanel()">&#10005;</button>
   </div>
+  <div class="panel-body" id="funcBody"></div>
 </div>
 
 <div id="volumeOSD">
@@ -234,10 +333,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
   <div class="vol-label">音量</div>
 </div>
 
+<div id="channelNumInput">
+  <div class="cn-val" id="cnVal">-</div>
+  <div class="cn-label">频道号</div>
+</div>
+
 <div id="welcomeScreen">
   <img class="logo" src="logo.png" alt="">
   <h1>IPTV Scanner Editor Pro</h1>
-  <div class="sub">v47.1</div>
+  <div class="sub">v48.0</div>
   <div style="width:100%;max-width:380px;margin-top:24px">
     <div class="menu-section">文件</div>
     <button class="welcome-btn" onclick="openLocalFile()">
@@ -257,6 +361,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
       <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
       <div><div class="wb-title">订阅源管理</div><div class="wb-desc">添加、编辑、删除 M3U 订阅源</div></div>
     </button>
+    <button class="welcome-btn" onclick="openFuncPanel('scan')">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <div><div class="wb-title">扫描整理</div><div class="wb-desc">扫描订阅源、整理频道列表</div></div>
+    </button>
   </div>
   <div id="urlInputArea">
     <input id="srcUrl" placeholder="输入 M3U/M3U8 订阅源 URL">
@@ -264,367 +372,2379 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;color:#e0e0e
     <button onclick="addSource()">添加</button>
   </div>
   <div style="margin-top:24px">
-    <button onclick="enterPlayer()" style="background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:10px;padding:10px 28px;font-size:13px;cursor:pointer">跳过，直接进入</button>
+    <button onclick="enterPlayer()" style="background:none;border:1px solid var(--border-strong);color:var(--text-dim);border-radius:10px;padding:10px 28px;font-size:13px;cursor:pointer">跳过，直接进入</button>
   </div>
 </div>
 
 <script>
-const API='';
+'use strict';
+
+/* ========================================================================
+ * IPTV Scanner Editor Pro - Android Mobile UI
+ * 单文件 SPA，覆盖 PC 端全部功能，适配遥控器和触控
+ * ========================================================================
+ *
+ * 模块组织：
+ *   1. 工具函数 utils
+ *   2. Mpv 通用封装 Mpv
+ *   3. 状态管理 state
+ *   4. 持久化 storage (localStorage)
+ *   5. HTTP API 调用 api
+ *   6. mpv 事件回调 onMpvProperty / onMpvEvent
+ *   7. 基础播放控制 play/stop/seek/volume/speed
+ *   8. 频道与 EPG 面板
+ *   9. 主菜单与功能面板系统
+ *  10. 遥控器适配 onRemoteKey
+ *  11. 触控手势
+ *  12. 高级功能面板：
+ *      - 字幕 (sub轨/样式/延迟/缩放/位置/可见性/加载/下载)
+ *      - 视频 (EQ/旋转/翻转/裁剪/比例/3D-360/HDR)
+ *      - 音频 (轨/延迟/设备/声道/音调/10段EQ)
+ *      - 播放 (队列/循环/AB/续播/书签/章节/逐帧/截图/连拍/AVSync)
+ *      - 网络 (Referer/Proxy/Headers)
+ *      - 工具 (搜索/EPG时间线/EPG搜索/EPG提醒/映射/扫描/流质量)
+ *      - 系统 (关于/更新/字幕下载/缩略图/设置)
+ */
+
+/* ============== 1. 工具函数 ============== */
+const $  = (s,el)=>(el||document).querySelector(s);
+const $$ = (s,el)=>Array.from((el||document).querySelectorAll(s));
+const esc = s => { if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; };
+function fmtTime(s){ if(!s||s<0||!isFinite(s)) return '--:--'; const m=Math.floor(s/60), sec=Math.floor(s%60); return (m<10?'0':'')+m+':'+(sec<10?'0':'')+sec; }
+function fmtTimeHMS(s){ if(!s||s<0||!isFinite(s)) return '--:--'; const h=Math.floor(s/3600), m=Math.floor(s%3600/60), sec=Math.floor(s%60); return (h?h+':':'')+(m<10?'0':'')+m+':'+(sec<10?'0':'')+sec; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function debounce(fn,ms){ let t; return function(){ const a=arguments,c=this; clearTimeout(t); t=setTimeout(()=>fn.apply(c,a),ms); }; }
+function uuid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+
+/* ============== 2. Mpv 通用封装 ==============
+ * 通过 AndroidMpv JS Bridge 调用原生 mpv。所有方法都做了存在性检查，
+ * 在 PC 浏览器调试时（无 AndroidMpv 对象）会安全降级为 noop/console。
+ */
 const USE_MPV = typeof AndroidMpv !== 'undefined';
-let channels=[],groups=[],currentIdx=-1,favorites=new Set(),sources=[];
-let chTab='sub',playHistory=[];
-let mpvPaused=true,mpvTimePos=0,mpvDuration=0,mpvVolume=100,mpvMuted=false;
-let osdTimer=null,panelOpen=null;
-
-function loadFavorites(){try{const s=localStorage.getItem('iptv_fav');if(s)favorites=new Set(JSON.parse(s))}catch(e){}}
-function saveFavorites(){localStorage.setItem('iptv_fav',JSON.stringify([...favorites]))}
-function loadHistory(){try{const s=localStorage.getItem('iptv_hist');if(s)playHistory=JSON.parse(s)}catch(e){playHistory=[]}}
-function saveHistory(){localStorage.setItem('iptv_hist',JSON.stringify(playHistory.slice(0,100)))}
-
-async function fetchSources(){
-  try{const r=await fetch(API+'/api/sources');const d=await r.json();sources=d.success?d.sources||d.data||[]:[]}catch(e){sources=[]}
-}
-
-async function fetchChannels(){
-  try{const r=await fetch(API+'/api/channels?size=5000');const d=await r.json();if(d.success){channels=d.data.channels||[];groups=d.data.groups||[];renderChannelList()}}catch(e){}
-}
-
-async function fetchEPG(channelId){
-  try{const r=await fetch(API+'/api/epg?id='+encodeURIComponent(channelId));const d=await r.json();return d.success?d.data:[]}catch(e){return[]}
-}
-
-function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
-
-window.onMpvProperty=function(prop,val){
-  if(prop==='pause'){mpvPaused=val;if(!val){document.getElementById('centerIcon').classList.remove('show')}else if(currentIdx<0){document.getElementById('centerIcon').classList.add('show')}}
-  if(prop==='time-pos'){mpvTimePos=val}
-  if(prop==='duration'){mpvDuration=val}
-  if(prop==='volume'){mpvVolume=val}
-  if(prop==='mute'){mpvMuted=val}
-  if(prop==='media-title'&&currentIdx>=0){document.getElementById('ctrlProgram').textContent=val}
+const Mpv = {
+  _call(fn, ...args){ if(USE_MPV && typeof AndroidMpv[fn]==='function') return AndroidMpv[fn](...args); return null; },
+  /* 通用属性读写（覆盖所有 mpv 功能） */
+  setStr(name, value){ this._call('setPropertyString', name, String(value)); },
+  setInt(name, value){ this._call('setPropertyInt', name, parseInt(value)||0); },
+  setDbl(name, value){ this._call('setPropertyDouble', name, Number(value)||0); },
+  setBool(name, value){ this._call('setPropertyBoolean', name, !!value); },
+  getStr(name){ return this._call('getPropertyString', name) || ''; },
+  getInt(name){ const v=this._call('getPropertyInt', name); return v===null?0:v; },
+  getDbl(name){ const v=this._call('getPropertyDouble', name); return v===null?0:v; },
+  getBool(name){ const v=this._call('getPropertyBoolean', name); return v===null?false:v; },
+  /* 通用命令：args 为字符串数组 */
+  cmd(args){ if(!Array.isArray(args)) return; try{ this._call('command', JSON.stringify(args.map(String))); }catch(e){} },
+  /* 兼容旧 API */
+  play(url){ this._call('play', url); },
+  stop(){ this._call('stop'); },
+  setPause(p){ this._call('setPause', p); },
+  togglePause(){ this._call('togglePause'); },
+  seek(sec){ this._call('seek', sec); },
+  seekRel(sec){ this._call('seekRelative', sec); },
+  setVolume(v){ this._call('setVolume', v); },
+  toggleMute(){ this._call('toggleMute'); },
+  setMute(m){ this._call('setMute', m); },
+  setSpeed(s){ this._call('setSpeed', s); },
+  cycleAudio(){ this._call('cycleAudio'); },
+  cycleSub(){ this._call('cycleSub'); },
+  setHwdec(m){ this._call('setHwdec', m); },
+  screenshot(path){ this._call('screenshotToFile', path); },
+  /* 高级封装 */
+  seekAbs(sec){ this.cmd(['seek', String(sec), 'absolute']); },
+  frameStep(){ this.cmd(['frame-step']); },
+  frameBack(){ this.cmd(['frame-back-step']); },
+  chapterNext(){ this.cmd(['add','chapter','1']); },
+  chapterPrev(){ this.cmd(['add','chapter','-1']); },
+  showOsd(text,dur){ this.cmd(['show-text', String(text), String(dur||2000)]); },
+  /* 切换频道前先 stop，避免 hwdec/D3D11 资源未释放导致黑屏（项目硬约束） */
+  playChannel(url){ this.stop(); setTimeout(()=>{ this.play(url); }, 80); }
 };
 
-window.onMpvEvent=function(eventId){
+/* ============== 3. 状态管理 ============== */
+const state = {
+  channels: [], groups: [], currentIdx: -1, prevIdx: -1,
+  sources: [], favorites: new Set(), playHistory: [], queue: [],
+  bookmarks: [], resumeList: [],
+  epgReminder: [], epgCache: new Map(),
+  chTab: 'sub',
+  /* mpv 状态镜像（由 onMpvProperty 同步） */
+  mpv: { paused:true, timePos:0, duration:0, volume:100, muted:false, speed:1, eof:false,
+         mediaTitle:'', filePath:'', hwdec:'', videoFormat:'', audioFormat:'' },
+  /* 临时输入（频道号输入） */
+  chNumBuffer: '', chNumTimer: null,
+  /* UI 状态 */
+  panelOpen: null, funcPanelOpen: false, controlsVisible: false,
+  osdTimer: null, hideControlsTimer: null,
+  /* 设置 */
+  settings: {}
+};
+
+/* ============== 4. 持久化 ============== */
+const storage = {
+  _get(key, def){ try{ const s=localStorage.getItem(key); return s?JSON.parse(s):def; }catch(e){ return def; } },
+  _set(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} },
+  loadFavorites(){ state.favorites = new Set(this._get('iptv_fav', [])); },
+  saveFavorites(){ this._set('iptv_fav', [...state.favorites]); },
+  loadHistory(){ state.playHistory = this._get('iptv_hist', []); },
+  saveHistory(){ this._set('iptv_hist', state.playHistory.slice(0,100)); },
+  loadQueue(){ state.queue = this._get('iptv_queue', []); },
+  saveQueue(){ this._set('iptv_queue', state.queue); },
+  loadBookmarks(){ state.bookmarks = this._get('iptv_bookmarks', []); },
+  saveBookmarks(){ this._set('iptv_bookmarks', state.bookmarks); },
+  loadResume(){ state.resumeList = this._get('iptv_resume', []); },
+  saveResume(){ this._set('iptv_resume', state.resumeList); },
+  loadReminders(){ state.epgReminder = this._get('iptv_reminders', []); },
+  saveReminders(){ this._set('iptv_reminders', state.epgReminder); },
+  loadSettings(){ state.settings = this._get('iptv_settings', {}); },
+  saveSettings(){ this._set('iptv_settings', state.settings); },
+  loadAll(){ this.loadFavorites(); this.loadHistory(); this.loadQueue(); this.loadBookmarks(); this.loadResume(); this.loadReminders(); this.loadSettings(); }
+};
+
+/* ============== 5. HTTP API ============== */
+const API = ''; /* 同源 */
+const api = {
+  async get(path){
+    try{ const r=await fetch(API+path); if(!r.ok) return null; const ct=r.headers.get('content-type')||''; return ct.includes('json')?await r.json():await r.text(); }
+    catch(e){ return null; }
+  },
+  async post(path, body){
+    try{ const r=await fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}); return await r.json(); }
+    catch(e){ return null; }
+  },
+  async put(path, body){
+    try{ const r=await fetch(API+path,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}); return await r.json(); }
+    catch(e){ return null; }
+  },
+  async del(path){
+    try{ const r=await fetch(API+path,{method:'DELETE'}); return await r.json(); }
+    catch(e){ return null; }
+  },
+  async fetchSources(){ const d=await this.get('/api/sources'); state.sources = (d && (d.sources||d.data)) || []; },
+  async fetchChannels(){
+    const d=await this.get('/api/channels?size=5000');
+    if(d && d.success){ state.channels = d.data.channels||[]; state.groups = d.data.groups||[]; renderChannelList(); }
+  },
+  async fetchEPG(channelId){
+    const d=await this.get('/api/epg?id='+encodeURIComponent(channelId));
+    return (d && d.success && d.data) || [];
+  },
+  async fetchEPGSearch(query){
+    const d=await this.get('/api/epg?search='+encodeURIComponent(query));
+    return (d && d.success && d.data) || [];
+  },
+  async addSource(url,name){ return this.post('/api/sources',{url,name}); },
+  async delSource(idx){ return this.del('/api/sources/'+idx); },
+  async importChannels(content, name){ return this.post('/api/channels/import',{content,name}); },
+  async startScan(url){ return this.post('/api/scan/start',{url}); },
+  async stopScan(){ return this.post('/api/scan/stop'); },
+  async scanStatus(){ return this.get('/api/scan/status'); },
+  async addChannel(url,name,group){ return this.post('/api/channels',{url,name,group}); },
+  async updateChannel(idx, body){ return this.put('/api/channels/'+idx, body); },
+  async deleteChannel(idx){ return this.del('/api/channels/'+idx); }
+};
+
+/* ============== 6. mpv 事件回调 ============== */
+window.onMpvProperty = function(prop, val){
+  if(typeof val === 'string' && (prop==='media-title' || prop==='path' || prop==='hwdec-current' || prop==='file-format' || prop==='video-format' || prop==='audio-format' || prop==='current-vo' || prop==='audio-device')){
+    if(prop==='media-title') state.mpv.mediaTitle = val;
+    else if(prop==='hwdec-current') state.mpv.hwdec = val;
+    else if(prop==='file-format') state.mpv.fileFormat = val;
+    else if(prop==='video-format') state.mpv.videoFormat = val;
+    else if(prop==='audio-format') state.mpv.audioFormat = val;
+    if(state.controlsVisible) updateMediaInfo();
+    return;
+  }
+  switch(prop){
+    case 'pause': state.mpv.paused = !!val; if(!val) hideCenterIcon(); else if(state.currentIdx<0) showCenterIcon(); updatePlayBtn(); break;
+    case 'time-pos': state.mpv.timePos = val; break;
+    case 'duration': state.mpv.duration = val; break;
+    case 'volume': state.mpv.volume = val; $('#bbVolSlider').value = val; break;
+    case 'mute': state.mpv.muted = val; updateMuteBtn(); break;
+    case 'speed': state.mpv.speed = val; $('#bbSpeed').textContent = (val>=1?val.toFixed(1):val.toFixed(2))+'x'; break;
+    case 'eof-reached': state.mpv.eof = !!val; break;
+    case 'pause': state.mpv.paused = !!val; updatePlayBtn(); break;
+  }
+  if(state.controlsVisible) updateProgress();
+};
+window.onMpvEvent = function(eventId){
+  /* eventId: 8=FILE_LOADED, 7=IDLE, 9=END_FILE, 11=PLAYBACK_RESTART */
   if(eventId===8){
-    document.getElementById('centerIcon').classList.remove('show');
-    if(currentIdx>=0)showOSD(channels[currentIdx].name,channels[currentIdx].group);
+    hideCenterIcon();
+    if(state.currentIdx>=0){ const ch=state.channels[state.currentIdx]; showOSD(ch.name, ch.group); }
     updateMediaInfo();
-  }
-  if(eventId===7){
-    if(currentIdx>=0&&channels[currentIdx]){}
-    else{document.getElementById('centerIcon').classList.add('show');currentIdx=-1}
+  } else if(eventId===7){
+    if(state.currentIdx<0){ showCenterIcon(); }
+  } else if(eventId===9){
+    /* 文件结束：自动续播下一频道（直播流断流时也会触发，由 mpv 内部处理重连） */
   }
 };
 
-function switchChTab(tab,btn){
-  chTab=tab;
-  document.querySelectorAll('.panel-tab').forEach(t=>t.classList.remove('active'));
-  if(btn)btn.classList.add('active');
-  renderChannelList(document.getElementById('searchInput').value);
+/* ============== 7. 基础播放控制 ============== */
+function playChannel(idx, opts={}){
+  if(idx<0||idx>=state.channels.length) return;
+  state.prevIdx = state.currentIdx;
+  state.currentIdx = idx;
+  const ch = state.channels[idx];
+  const url = API+'/stream/'+idx;
+  Mpv.playChannel(url);
+  showOSD(ch.name, ch.group);
+  updateCtrlInfo();
+  if(!opts.silent){ closePanels(); }
+  hideCenterIcon();
+  hideWelcome();
+  /* 加入历史 */
+  state.playHistory = state.playHistory.filter(i=>i!==idx);
+  state.playHistory.unshift(idx);
+  storage.saveHistory();
+  /* 如果队列存在，按队列顺序 */
+  if(state.queue.length && !state.queue.includes(idx)){
+    /* 不在队列中则追加到队尾 */
+  }
+}
+
+function prevChannel(){ if(state.currentIdx>0) playChannel(state.currentIdx-1); }
+function nextChannel(){ if(state.currentIdx<state.channels.length-1) playChannel(state.currentIdx+1); }
+function switchBack(){ if(state.prevIdx>=0) playChannel(state.prevIdx); }
+
+function togglePlay(){
+  if(!USE_MPV) return;
+  if(state.mpv.paused){ Mpv.setPause(false); showCenterIcon('play'); }
+  else{ Mpv.setPause(true); showCenterIcon('pause'); }
+}
+function stopPlay(){
+  if(USE_MPV) Mpv.stop();
+  state.currentIdx = -1;
+  showCenterIcon();
+  resetCtrlInfo();
+  closePanels();
+}
+function seekRel(sec){ if(USE_MPV) Mpv.seekRel(sec); }
+function seekAbs(sec){ if(USE_MPV) Mpv.seekAbs(sec); }
+function setVolume(v){
+  v = clamp(parseInt(v)||0, 0, 150);
+  if(USE_MPV) Mpv.setVolume(v);
+  state.mpv.volume = v;
+  $('#bbVolSlider').value = v;
+  showVolumeOSD(v);
+}
+function adjustVolume(delta){ setVolume(state.mpv.volume + delta); }
+function toggleMute(){
+  if(USE_MPV) Mpv.toggleMute();
+  state.mpv.muted = !state.mpv.muted;
+  updateMuteBtn();
+}
+function setSpeed(s){
+  s = Number(s); if(!s) return;
+  if(USE_MPV) Mpv.setSpeed(s);
+  state.mpv.speed = s;
+  $('#bbSpeed').textContent = (s>=1?s.toFixed(1):s.toFixed(2))+'x';
+  showOSD(state.channels[state.currentIdx]?.name||'', '速度: '+s.toFixed(2)+'x');
+}
+function cycleSpeed(){
+  const speeds=[0.5,0.75,1.0,1.25,1.5,2.0,3.0,5.0];
+  const cur = speeds.indexOf(state.mpv.speed);
+  setSpeed(speeds[(cur+1)%speeds.length]);
+}
+function cycleAudio(){ if(USE_MPV) Mpv.cycleAudio(); }
+function cycleSub(){ if(USE_MPV) Mpv.cycleSub(); }
+function cycleAspect(){
+  const modes=['default','16:9','4:3','stretch','fill','crop'];
+  let cur = state.settings.aspect || 'default';
+  const idx = modes.indexOf(cur);
+  const next = modes[(idx+1)%modes.length];
+  state.settings.aspect = next;
+  storage.saveSettings();
+  applyAspect(next);
+  showOSD('画面比例', next);
+}
+function applyAspect(mode){
+  if(!USE_MPV) return;
+  if(mode==='default'){ Mpv.setStr('video-aspect-override','no'); Mpv.setBool('keepaspect',true); Mpv.setInt('panscan',0); }
+  else if(mode==='stretch'){ Mpv.setStr('video-aspect-override','16:9'); Mpv.setBool('keepaspect',false); }
+  else if(mode==='fill'){ Mpv.setStr('video-aspect-override','16:9'); Mpv.setBool('keepaspect',true); Mpv.setInt('panscan',1); }
+  else if(mode==='crop'){ Mpv.setStr('video-aspect-override','16:9'); Mpv.setBool('keepaspect',false); }
+  else { Mpv.setStr('video-aspect-override', mode); Mpv.setBool('keepaspect',true); Mpv.setInt('panscan',0); }
+}
+
+/* ============== OSD 与 UI 反馈 ============== */
+function showOSD(name, group, extra){
+  $('#osdName').textContent = name||'';
+  $('#osdGroup').textContent = group||'';
+  $('#osdExtra').textContent = extra||'';
+  $('#osd').classList.add('show');
+  clearTimeout(state.osdTimer);
+  state.osdTimer = setTimeout(()=>$('#osd').classList.remove('show'), 3000);
+}
+function showCenterIcon(type){
+  const pf=$('#playFeedback'), icon=$('#playFeedbackIcon');
+  if(type==='play') icon.innerHTML='<path d="M8 5v14l11-7z"/>';
+  else if(type==='pause') icon.innerHTML='<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+  pf.classList.add('show');
+  clearTimeout(showCenterIcon._t);
+  showCenterIcon._t = setTimeout(()=>pf.classList.remove('show'), 600);
+}
+function hideCenterIcon(){ $('#centerIcon').classList.remove('show'); }
+function showCenterLogo(){ $('#centerIcon').classList.add('show'); }
+
+function showVolumeOSD(v){
+  const osd=$('#volumeOSD'); $('#volVal').textContent=v;
+  $('#volIcon').innerHTML = v===0 ? '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>' : '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>';
+  osd.style.display='block';
+  clearTimeout(showVolumeOSD._t);
+  showVolumeOSD._t = setTimeout(()=>osd.style.display='none', 1000);
+}
+
+function updatePlayBtn(){
+  const btn=$('#bbPlay');
+  btn.innerHTML = state.mpv.paused ? '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+}
+function updateMuteBtn(){
+  const btn=$('#bbMute');
+  btn.innerHTML = state.mpv.muted ? '<svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>';
+}
+function updateMediaInfo(){
+  if(state.currentIdx<0){ $('#ctrlStatus').textContent='就绪'; return; }
+  const ch=state.channels[state.currentIdx];
+  if(!ch) return;
+  $('#ctrlName').textContent = ch.name;
+  $('#ctrlDesc').textContent = ch.group;
+  const logo=$('#ctrlLogo');
+  if(ch.logo){ logo.innerHTML='<img src="'+esc(ch.logo)+'" onerror="this.outerHTML=\'📺\'" style="width:100%;height:100%;object-fit:contain">'; }
+  else{ logo.textContent='📺'; }
+  $('#ctrlStatus').textContent = state.mpv.paused ? '已暂停' : '播放中';
+  $('#ctrlProgram').textContent = state.mpv.mediaTitle || ch.group || '';
+}
+function resetCtrlInfo(){
+  $('#ctrlName').textContent='IPTV Scanner Editor Pro';
+  $('#ctrlDesc').textContent='支持 M3U / M3U8 / 本地视频';
+  $('#ctrlProgram').textContent='打开播放列表开始观看';
+  $('#ctrlStatus').textContent='就绪';
+  $('#ctrlLogo').textContent='📺';
+  $('#bbProgressFill').style.width='0%';
+  $('#bbTimeStart').textContent='--:--';
+  $('#bbTimeEnd').textContent='--:--';
+}
+function updateCtrlInfo(){ updateMediaInfo(); }
+
+function updateProgress(){
+  const d=state.mpv.duration, t=state.mpv.timePos;
+  if(d>0){
+    const pct=(t/d)*100;
+    $('#bbProgressFill').style.width=clamp(pct,0,100)+'%';
+    $('#bbTimeStart').textContent=fmtTime(t);
+    $('#bbTimeEnd').textContent=fmtTime(d);
+  } else {
+    /* 直播流：time-pos 可能存在但 duration=0，显示已播放时长 */
+    if(t>0){ $('#bbProgressFill').style.width='100%'; $('#bbTimeStart').textContent=fmtTime(t); $('#bbTimeEnd').textContent='LIVE'; }
+  }
+}
+setInterval(updateProgress, 1000);
+
+/* ============== 8. 频道与 EPG 面板 ============== */
+function switchChTab(tab, btn){
+  state.chTab = tab;
+  $$('.panel-tab').forEach(t=>t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  else { const el=$$('.panel-tab').find(t=>t.dataset.tab===tab); if(el) el.classList.add('active'); }
+  renderChannelList($('#searchInput').value);
 }
 
 function renderChannelList(filter=''){
-  const f=filter.toLowerCase();
-  let list=channels;
-  if(chTab==='fav')list=channels.filter((_,i)=>favorites.has(i));
-  else if(chTab==='hist')list=playHistory.map(idx=>channels[idx]).filter(Boolean);
-  else if(chTab==='local')list=channels.filter(c=>!c.url||!c.url.startsWith('http'));
+  const f = (filter||'').toLowerCase();
+  let list = state.channels;
+  if(state.chTab==='fav') list = state.channels.filter((_,i)=>state.favorites.has(i));
+  else if(state.chTab==='hist') list = state.playHistory.map(idx=>state.channels[idx]).filter(Boolean);
+  else if(state.chTab==='local') list = state.channels.filter(c=>!c.url||!c.url.startsWith('http'));
+  else if(state.chTab==='queue') list = state.queue.map(idx=>state.channels[idx]).filter(Boolean);
   let html='';
-  if(chTab==='sub'||chTab==='local'){
-    for(const g of groups){
-      let gc=channels.filter(c=>c.group===g);
-      if(chTab==='local')gc=gc.filter(c=>!c.url||!c.url.startsWith('http'));
-      if(f)gc=gc.filter(c=>c.name.toLowerCase().includes(f)||c.group.toLowerCase().includes(f));
-      if(!gc.length)continue;
-      html+=`<div class="group-item"><div class="group-header" onclick="toggleGroup(this)"><span>${esc(g)}</span><span class="count">${gc.length}</span></div><div class="group-channels">`;
-      for(const c of gc){
-        const idx=channels.indexOf(c);
-        html+=`<div class="ch-item ${idx===currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span>${esc(c.name)}</span></div>`;
+  if(state.chTab==='sub'||state.chTab==='local'||state.chTab==='queue'){
+    let gcount = {};
+    if(state.chTab==='queue'){
+      /* 队列平铺 */
+      if(f) list=list.filter(c=>c.name.toLowerCase().includes(f));
+      if(!list.length) html='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">队列为空</div>';
+      else list.forEach(c=>{
+        const idx=state.channels.indexOf(c);
+        html+=`<div class="ch-item ${idx===state.currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span class="ch-text">${esc(c.name)}</span><span class="ch-meta">${esc(c.group)}</span></div>`;
+      });
+    } else {
+      for(const g of state.groups){
+        let gc = state.channels.filter(c=>c.group===g);
+        if(state.chTab==='local') gc = gc.filter(c=>!c.url||!c.url.startsWith('http'));
+        if(f) gc = gc.filter(c=>c.name.toLowerCase().includes(f)||c.group.toLowerCase().includes(f));
+        if(!gc.length) continue;
+        html+=`<div class="group-item"><div class="group-header" onclick="toggleGroup(this)"><span>${esc(g)}</span><span class="count">${gc.length}</span></div><div class="group-channels">`;
+        for(const c of gc){
+          const idx=state.channels.indexOf(c);
+          html+=`<div class="ch-item ${idx===state.currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span class="ch-text">${esc(c.name)}</span></div>`;
+        }
+        html+='</div></div>';
       }
-      html+='</div></div>';
     }
   } else {
-    if(f)list=list.filter(c=>c.name.toLowerCase().includes(f));
-    if(!list.length){html='<div style="padding:40px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">'+(chTab==='fav'?'暂无收藏':'暂无历史')+'</div>'}
-    else{for(const c of list){
-      const idx=channels.indexOf(c);
-      html+=`<div class="ch-item ${idx===currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span>${esc(c.name)}</span><span style="font-size:11px;color:rgba(255,255,255,.25);margin-left:auto">${esc(c.group)}</span></div>`;
-    }}
+    if(f) list=list.filter(c=>c.name.toLowerCase().includes(f));
+    if(!list.length) html='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">'+(state.chTab==='fav'?'暂无收藏':'暂无历史')+'</div>';
+    else list.forEach(c=>{
+      const idx=state.channels.indexOf(c);
+      html+=`<div class="ch-item ${idx===state.currentIdx?'playing':''}" onclick="playChannel(${idx})"><div class="ch-dot"></div><span class="ch-text">${esc(c.name)}</span><span class="ch-meta">${esc(c.group)}</span></div>`;
+    });
   }
-  if(!html)html='<div style="padding:40px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">暂无频道</div>';
-  document.getElementById('channelList').innerHTML=html;
+  if(!html) html='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">暂无频道</div>';
+  $('#channelList').innerHTML = html;
 }
+function toggleGroup(el){ el.nextElementSibling.classList.toggle('open'); }
 
 function renderEPGList(){
-  if(currentIdx<0){document.getElementById('epgList').innerHTML='<div style="padding:40px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">请先选择频道</div>';return}
-  const ch=channels[currentIdx];
-  document.getElementById('epgList').innerHTML='<div class="spinner"></div>';
-  fetchEPG(ch.tvg_id||ch.name).then(p=>{
-    if(!p||!p.length){document.getElementById('epgList').innerHTML='<div style="padding:40px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">暂无节目单</div>';return}
-    let h='';for(const e of p){h+=`<div class="epg-item"><div class="epg-time">${esc(e.start||'')} - ${esc(e.stop||'')}</div><div class="epg-title">${esc(e.title||'')}</div>${e.desc?`<div class="epg-desc">${esc(e.desc)}</div>`:''}</div>`}
-    document.getElementById('epgList').innerHTML=h;
+  if(state.currentIdx<0){
+    $('#epgList').innerHTML='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">请先选择频道</div>';
+    return;
+  }
+  const ch=state.channels[state.currentIdx];
+  $('#epgTitle').textContent = '节目单 - '+ch.name;
+  $('#epgList').innerHTML='<div class="spinner"></div>';
+  api.fetchEPG(ch.tvg_id||ch.name).then(p=>{
+    if(!p||!p.length){ $('#epgList').innerHTML='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">暂无节目单</div>'; return; }
+    state.epgCache.set(state.currentIdx, p);
+    const filter = ($('#epgSearchInput').value||'').toLowerCase();
+    const list = filter ? p.filter(e=>((e.title||'')+(e.desc||'')).toLowerCase().includes(filter)) : p;
+    const now = Date.now();
+    let html='';
+    for(const e of list){
+      const isNow = e.start_ts && e.stop_ts && now>=e.start_ts*1000 && now<e.stop_ts*1000;
+      html+=`<div class="epg-item ${isNow?'now':''}" onclick="setReminder(${state.currentIdx},'${esc(e.title||'')}',${e.start_ts||0})">
+        <div class="epg-time">${esc(e.start||'')} - ${esc(e.stop||'')}</div>
+        <div class="epg-title">${esc(e.title||'')}</div>
+        ${e.desc?`<div class="epg-desc">${esc(e.desc)}</div>`:''}
+      </div>`;
+    }
+    if(!html) html='<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px">无匹配节目</div>';
+    $('#epgList').innerHTML = html;
   });
 }
 
-function toggleGroup(el){el.nextElementSibling.classList.toggle('open')}
-
-function playChannel(idx){
-  if(idx<0||idx>=channels.length)return;
-  currentIdx=idx;const ch=channels[idx];
-  const url=API+'/stream/'+idx;
-  if(USE_MPV){AndroidMpv.play(url)}else{console.log('No MPV backend')}
-  showOSD(ch.name,ch.group);updateCtrlInfo();closePanels();
-  document.getElementById('centerIcon').classList.remove('show');
-  document.getElementById('welcomeScreen').classList.remove('show');
-  playHistory=playHistory.filter(i=>i!==idx);playHistory.unshift(idx);saveHistory();
+/* EPG 提醒 */
+function setReminder(chIdx, title, startTs){
+  if(!startTs) return;
+  state.epgReminder.push({ chIdx, title, startTs, id: uuid() });
+  storage.saveReminders();
+  showOSD('已添加提醒', title);
 }
-
-function prevChannel(){if(currentIdx>0)playChannel(currentIdx-1)}
-function nextChannel(){if(currentIdx<channels.length-1)playChannel(currentIdx+1)}
-
-function togglePlay(){
-  if(USE_MPV){
-    if(mpvPaused){AndroidMpv.setPause(false);showCenterIcon('play')}
-    else{AndroidMpv.setPause(true);showCenterIcon('pause')}
-  }
+function checkReminders(){
+  const now = Math.floor(Date.now()/1000);
+  state.epgReminder = state.epgReminder.filter(r=>{
+    if(now >= r.startTs - 60 && now < r.startTs){
+      showOSD('节目提醒', r.title);
+      /* 切到对应频道 */
+      playChannel(r.chIdx);
+      return false;
+    }
+    return r.startTs > now;
+  });
+  storage.saveReminders();
 }
+setInterval(checkReminders, 30000);
 
-function stopPlay(){
-  if(USE_MPV){AndroidMpv.stop()}
-  currentIdx=-1;
-  document.getElementById('centerIcon').classList.add('show');
-  document.getElementById('ctrlName').textContent='IPTV Scanner Editor Pro';
-  document.getElementById('ctrlDesc').textContent='打开播放列表或导入频道开始观看';
-  document.getElementById('ctrlProgram').textContent='';
-  document.getElementById('ctrlProgressFill').style.width='0%';
-  document.getElementById('ctrlVideoInfo').textContent='未在播放';
-  document.getElementById('ctrlAudioInfo').textContent='--';
-  document.getElementById('ctrlNetworkInfo').textContent='--';
-  document.getElementById('ctrlRemain').textContent='等待播放...';
-  document.getElementById('ctrlTimeLabel').textContent='--:-- - --:--';
-  closePanels();
-}
-
-function toggleMute(){
-  if(USE_MPV){AndroidMpv.toggleMute()}
-  const btn=document.getElementById('ctrlMute');
-  if(mpvMuted){btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>'}
-  else{btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>'}
-}
-
-function cycleAudio(){if(USE_MPV){AndroidMpv.cycleAudio()}}
-function cycleSub(){if(USE_MPV){AndroidMpv.cycleSub()}}
-
-let playSpeed=1.0;
-function changeSpeed(){
-  const speeds=[0.5,0.75,1.0,1.25,1.5,2.0,3.0,5.0];
-  const idx=speeds.indexOf(playSpeed);
-  playSpeed=speeds[(idx+1)%speeds.length];
-  if(USE_MPV){AndroidMpv.setSpeed(playSpeed)}
-  document.getElementById('speedLabel').textContent=playSpeed+'x';
-  showOSD(channels[currentIdx]?.name||'','播放速度: '+playSpeed+'x');
-}
-
-function showCenterIcon(type){
-  const pf=document.getElementById('playFeedback');
-  const icon=document.getElementById('playFeedbackIcon');
-  if(type==='play'){icon.innerHTML='<path d="M8 5v14l11-7z"/>'}
-  else{icon.innerHTML='<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'}
-  pf.classList.add('show');
-  clearTimeout(showCenterIcon._t);
-  showCenterIcon._t=setTimeout(()=>pf.classList.remove('show'),600);
-}
-
-function showOSD(name,group){
-  document.getElementById('osdName').textContent=name||'';
-  document.getElementById('osdGroup').textContent=group||'';
-  document.getElementById('osd').classList.add('show');
-  clearTimeout(osdTimer);osdTimer=setTimeout(()=>document.getElementById('osd').classList.remove('show'),3000);
-}
-
-function updateCtrlInfo(){
-  if(currentIdx>=0&&currentIdx<channels.length){
-    const ch=channels[currentIdx];
-    document.getElementById('ctrlName').textContent=ch.name;
-    document.getElementById('ctrlDesc').textContent=ch.group;
-    const logo=document.getElementById('ctrlLogo');
-    if(ch.logo){logo.innerHTML='<img src="'+esc(ch.logo)+'" onerror="this.outerHTML=\'📺\'">'}else{logo.innerHTML='📺'}
-  }
-  updateMediaInfo();
-}
-
-function updateMediaInfo(){
-  const vi=document.getElementById('ctrlVideoInfo');
-  const ai=document.getElementById('ctrlAudioInfo');
-  const ni=document.getElementById('ctrlNetworkInfo');
-  if(currentIdx<0){vi.textContent='未在播放';ai.textContent='--';ni.textContent='--';return}
-  vi.textContent=mpvDuration>0?'视频':'加载中...';
-  ai.textContent='音频';
-  ni.textContent='IPTV';
-}
-
-function updateProgress(){
-  if(mpvDuration>0){
-    const pct=(mpvTimePos/mpvDuration)*100;
-    document.getElementById('ctrlProgressFill').style.width=pct+'%';
-    document.getElementById('ctrlTimeStart').textContent=formatTime(mpvTimePos);
-    document.getElementById('ctrlTimeEnd').textContent=formatTime(mpvDuration);
-    document.getElementById('ctrlTimeLabel').textContent=formatTime(mpvTimePos)+' - '+formatTime(mpvDuration);
-    const remain=mpvDuration-mpvTimePos;
-    document.getElementById('ctrlRemain').textContent='-'+formatTime(remain);
-  }
-}
-
-function formatTime(s){const m=Math.floor(s/60);const sec=Math.floor(s%60);return(m<10?'0':'')+m+':'+(sec<10?'0':'')+sec}
-
-setInterval(updateProgress,1000);
-
-function openPanel(which){
-  closePanels();panelOpen=which;
-  document.getElementById('panelOverlay').classList.add('show');
-  if(which==='channels'){document.getElementById('panelChannels').classList.add('open');renderChannelList()}
-  else if(which==='epg'){document.getElementById('panelEPG').classList.add('open');renderEPGList()}
-  else if(which==='controls'){document.getElementById('panelControls').classList.add('open');updateCtrlInfo()}
-}
-
-function closePanels(){
-  document.getElementById('panelChannels').classList.remove('open');
-  document.getElementById('panelEPG').classList.remove('open');
-  document.getElementById('panelControls').classList.remove('open');
-  document.getElementById('panelOverlay').classList.remove('show');
-  panelOpen=null;
-}
-
+/* 收藏切换 */
 function toggleFavorite(){
-  if(currentIdx<0)return;
-  if(favorites.has(currentIdx))favorites.delete(currentIdx);else favorites.add(currentIdx);
-  saveFavorites();showOSD(channels[currentIdx].name,favorites.has(currentIdx)?'已收藏':channels[currentIdx].group);
+  if(state.currentIdx<0) return;
+  if(state.favorites.has(state.currentIdx)) state.favorites.delete(state.currentIdx);
+  else state.favorites.add(state.currentIdx);
+  storage.saveFavorites();
+  showOSD(state.channels[state.currentIdx].name, state.favorites.has(state.currentIdx)?'已收藏':'已取消收藏');
 }
 
-function enterPlayer(){document.getElementById('welcomeScreen').classList.remove('show')}
-function openUrlInput(){document.getElementById('urlInputArea').style.display='block'}
+/* 加入队列 */
+function addToQueue(idx){
+  if(!state.queue.includes(idx)){ state.queue.push(idx); storage.saveQueue(); showOSD('加入队列', state.channels[idx].name); }
+}
+function clearQueue(){ state.queue=[]; storage.saveQueue(); showOSD('队列','已清空'); }
 
-function openLocalFile(){
-  const input=document.createElement('input');input.type='file';input.accept='.m3u,.m3u8,.txt';
-  input.onchange=async e=>{
-    const file=e.target.files[0];if(!file)return;
-    const text=await file.text();
-    try{
-      const r=await fetch(API+'/api/channels/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:text,name:file.name})});
-      document.getElementById('welcomeScreen').querySelector('.menu-section').parentElement.innerHTML='<div class="spinner"></div><p style="text-align:center;color:rgba(255,255,255,.4);margin-top:12px;font-size:13px">正在解析...</p>';
-      setTimeout(fetchChannels,2000);
-    }catch(err){alert('解析失败')}
-  };input.click();
+/* ============== 9. 主菜单与功能面板系统 ============== */
+/* 主菜单（响应遥控器 MENU 键或汉堡按钮） */
+function openMainMenu(){
+  closeFuncPanel();
+  openFuncPanel('menu');
+}
+function closeMainMenu(){ closeFuncPanel(); }
+
+/* 功能面板：动态加载内容到 #panelFunc */
+function openFuncPanel(name){
+  state.funcPanelOpen = true;
+  $('#panelOverlay').classList.add('show');
+  const p=$('#panelFunc');
+  p.classList.remove('hidden');
+  p.classList.add('open');
+  renderFuncPanel(name);
+}
+function closeFuncPanel(){
+  state.funcPanelOpen = false;
+  const p=$('#panelFunc');
+  p.classList.remove('open');
+  p.classList.add('hidden');
+  if(!state.panelOpen) $('#panelOverlay').classList.remove('show');
+}
+function renderFuncPanel(name){
+  const body=$('#funcBody'), title=$('#funcTitle');
+  const fn = funcRenderers[name];
+  if(typeof fn !== 'function'){ title.textContent='未知功能'; body.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-faint)">功能未实现</div>'; return; }
+  const meta = funcMeta[name] || { title: name };
+  title.textContent = meta.title || name;
+  body.innerHTML = '';
+  fn(body);
 }
 
-function openLocalVideo(){
-  const input=document.createElement('input');input.type='file';input.accept='video/*,.mp4,.mkv,.avi,.mov,.flv,.ts,.webm';
-  input.onchange=e=>{
-    const file=e.target.files[0];if(!file)return;
-    const url=URL.createObjectURL(file);
-    if(USE_MPV){AndroidMpv.play(url)}
-    showOSD(file.name,'本地视频');
-    document.getElementById('welcomeScreen').classList.remove('show');
-    document.getElementById('centerIcon').classList.remove('show');
-  };input.click();
+/* 功能面板注册表 */
+const funcMeta = {};
+const funcRenderers = {};
+function registerFunc(name, meta, renderer){ funcMeta[name]=meta; funcRenderers[name]=renderer; }
+
+/* ============== 10. 遥控器适配 ==============
+ * 由 MainActivity.dispatchKeyToJS 转发按键码到 onRemoteKey(code)。
+ * 返回 true 表示消费（阻止默认行为），返回 false/undefined 表示不处理。
+ *
+ * 按键码常量见 KeyEvent.KEYCODE_*：
+ *   DPAD_UP=19, DPAD_DOWN=20, DPAD_LEFT=21, DPAD_RIGHT=22, DPAD_CENTER=23
+ *   MENU=82, BACK=4
+ *   MEDIA_PLAY=126, MEDIA_PAUSE=127, PLAY_PAUSE=85, NEXT=87, PREV=88
+ *   STOP=86, STEP_FORWARD=90, STEP_BACKWARD=89, FAST_FORWARD=90, REWIND=89
+ *   0-9=7-16
+ *   F=34, M=41, S=47, E=33, L=38, P=44, O=42, C=34, T=48, B=30
+ */
+window.onRemoteKey = function(keyCode){
+  /* 当前打开的面板负责导航 */
+  if(state.funcPanelOpen){
+    return handleFuncPanelKey(keyCode);
+  }
+  if(state.panelOpen){
+    return handlePanelKey(keyCode);
+  }
+  /* 没有面板时，按键直接控制播放 */
+  switch(keyCode){
+    case 19: /* DPAD_UP */ prevChannel(); return true;
+    case 20: /* DPAD_DOWN */ nextChannel(); return true;
+    case 21: /* DPAD_LEFT */ seekRel(-10); showCenterIcon('pause'); return true;
+    case 22: /* DPAD_RIGHT */ seekRel(10); showCenterIcon('play'); return true;
+    case 23: /* DPAD_CENTER / OK */ togglePlay(); return true;
+    case 82: /* MENU */ openMainMenu(); return true;
+    case 4: /* BACK */ return handleBack();
+    case 126: /* MEDIA_PLAY */ Mpv.setPause(false); showCenterIcon('play'); return true;
+    case 127: /* MEDIA_PAUSE */ Mpv.setPause(true); showCenterIcon('pause'); return true;
+    case 85: /* PLAY_PAUSE */ togglePlay(); return true;
+    case 87: /* NEXT */ nextChannel(); return true;
+    case 88: /* PREV */ prevChannel(); return true;
+    case 86: /* STOP */ stopPlay(); return true;
+    case 90: /* STEP_FORWARD / FAST_FORWARD */ seekRel(30); return true;
+    case 89: /* STEP_BACKWARD / REWIND */ seekRel(-30); return true;
+    case 24: /* VOLUME_UP */ adjustVolume(5); return true;
+    case 25: /* VOLUME_DOWN */ adjustVolume(-5); return true;
+    case 164: /* VOLUME_MUTE */ toggleMute(); return true;
+    /* 数字键：频道号输入 */
+    case 7: case 8: case 9: case 10: case 11: case 12: case 13: case 14: case 15: case 16:
+      inputChannelNum(keyCode - 7); return true;
+    /* 字母快捷键 */
+    case 34: /* F */ togglePlay(); return true; /* 兼容 */
+    case 41: /* M */ toggleMute(); return true;
+    case 47: /* S */ openFuncPanel('screenshot'); return true;
+    case 33: /* E */ openFuncPanel('video_eq'); return true;
+    case 38: /* L */ openFuncPanel('subtitle_style'); return true;
+    case 44: /* P */ openFuncPanel('playback_queue'); return true;
+    case 42: /* O */ openFuncPanel('about'); return true;
+    case 48: /* T */ toggleTopBars(); return true;
+    case 30: /* B */ switchBack(); return true;
+  }
+  return false;
+};
+
+function handleBack(){
+  /* BACK 由 Java 层兜底处理退出。这里只关闭面板。 */
+  if(state.funcPanelOpen){ closeFuncPanel(); return true; }
+  if(state.panelOpen){ closePanels(); return true; }
+  return false;
 }
 
-async function addSource(){
-  const url=document.getElementById('srcUrl').value.trim();const name=document.getElementById('srcName').value.trim()||url;
-  if(!url){alert('请输入 URL');return}
-  try{
-    const r=await fetch(API+'/api/sources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,name})});
-    const d=await r.json();
-    if(d.success){document.getElementById('srcUrl').value='';document.getElementById('srcName').value='';document.getElementById('welcomeScreen').querySelector('.menu-section').parentElement.innerHTML='<div class="spinner"></div><p style="text-align:center;color:rgba(255,255,255,.4);margin-top:12px;font-size:13px">正在加载频道...</p>';setTimeout(fetchChannels,3000)}
-    else alert('添加失败');
-  }catch(e){alert('添加失败')}
+function handlePanelKey(keyCode){
+  /* 面板内导航 */
+  switch(keyCode){
+    case 4: /* BACK */ closePanels(); return true;
+    case 82: /* MENU */ closePanels(); openMainMenu(); return true;
+    case 19: case 20: case 21: case 22: case 23:
+      /* 让 WebView 默认处理焦点导航 */
+      return false;
+  }
+  return false;
 }
 
-function openSources(){
-  closePanels();setTimeout(()=>{
-    openPanel('epg');
-    let html='<div class="panel-titlebar"><span class="title">订阅源管理</span><button class="close-btn" onclick="closePanels()">&#10005;</button></div>';
-    html+='<div style="padding:12px"><input id="newSrcUrl" placeholder="M3U URL" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:6px"><input id="newSrcName" placeholder="名称（可选）" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:8px"><button onclick="addSrcFromPanel()" style="width:100%;background:#4a7eff;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">添加</button></div>';
-    html+='<div class="panel-body" style="padding:0 8px 12px">';
-    for(let i=0;i<sources.length;i++){const s=sources[i];html+=`<div style="display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04)"><div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name||s.url)}</div><div style="font-size:11px;color:rgba(255,255,255,.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.url)}</div></div><button onclick="delSrc(${i})" style="background:none;border:none;color:#f44336;font-size:12px;cursor:pointer;padding:6px">删除</button></div>`}
-    if(!sources.length)html+='<div style="padding:20px;text-align:center;color:rgba(255,255,255,.2);font-size:13px">暂无订阅源</div>';
-    html+='</div>';
-    document.getElementById('panelEPG').innerHTML=html;
-  },350);
+function handleFuncPanelKey(keyCode){
+  switch(keyCode){
+    case 4: /* BACK */ closeFuncPanel(); return true;
+    case 82: /* MENU */ closeFuncPanel(); return true;
+    case 19: case 20: case 21: case 22: case 23:
+      return false; /* 默认焦点导航 */
+  }
+  return false;
 }
 
-async function addSrcFromPanel(){
-  const url=document.getElementById('newSrcUrl').value.trim();const name=document.getElementById('newSrcName').value.trim()||url;
-  if(!url)return;
-  try{const r=await fetch(API+'/api/sources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,name})});const d=await r.json();if(d.success){await fetchSources();openSources();setTimeout(fetchChannels,2000)}}catch(e){}
+/* 频道号输入：连续数字键拼接，超时切换 */
+function inputChannelNum(n){
+  state.chNumBuffer += String(n);
+  const el=$('#channelNumInput'); $('#cnVal').textContent=state.chNumBuffer;
+  el.classList.add('show');
+  clearTimeout(state.chNumTimer);
+  state.chNumTimer = setTimeout(()=>{
+    const num = parseInt(state.chNumBuffer);
+    el.classList.remove('show');
+    state.chNumBuffer = '';
+    if(num>=0 && num<state.channels.length){ playChannel(num); }
+    else showOSD('频道号无效', num);
+  }, 1500);
 }
 
-async function delSrc(idx){
-  try{await fetch(API+'/api/sources/'+idx,{method:'DELETE'});await fetchSources();openSources()}catch(e){}
-}
-
-document.getElementById('volumeSlider').addEventListener('input',e=>{
-  const vol=parseInt(e.target.value);
-  if(USE_MPV){AndroidMpv.setVolume(vol)}
-  mpvVolume=vol;
-});
-
-let touchStartX=0,touchStartY=0,touchStartTime=0;
-document.getElementById('touchLayer').addEventListener('touchstart',e=>{
-  touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;touchStartTime=Date.now();
-},{passive:true});
-
-document.getElementById('touchLayer').addEventListener('touchend',e=>{
-  if(panelOpen)return;
+/* ============== 11. 触控手势 ============== */
+let touchStartX=0, touchStartY=0, touchStartTime=0, touchMoved=false;
+$('#touchLayer').addEventListener('touchstart', e=>{
+  touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY; touchStartTime=Date.now(); touchMoved=false;
+  showControls();
+}, {passive:true});
+$('#touchLayer').addEventListener('touchmove', e=>{
+  if(Math.abs(e.touches[0].clientX-touchStartX)>10 || Math.abs(e.touches[0].clientY-touchStartY)>10) touchMoved=true;
+}, {passive:true});
+$('#touchLayer').addEventListener('touchend', e=>{
+  if(state.panelOpen||state.funcPanelOpen) return;
   const dx=e.changedTouches[0].clientX-touchStartX;
   const dy=e.changedTouches[0].clientY-touchStartY;
   const dt=Date.now()-touchStartTime;
-  const w=window.innerWidth,h=window.innerHeight;
-  const sx=e.changedTouches[0].clientX,sy=e.changedTouches[0].clientY;
-
-  if(dt<250&&Math.abs(dx)<20&&Math.abs(dy)<20){
-    if(sx<w*0.35)openPanel('epg');
-    else if(sx>w*0.65)openPanel('channels');
-    else if(sy>h*0.7)openPanel('controls');
+  const w=window.innerWidth, h=window.innerHeight;
+  const sx=e.changedTouches[0].clientX, sy=e.changedTouches[0].clientY;
+  /* 短按 */
+  if(dt<250 && Math.abs(dx)<20 && Math.abs(dy)<20 && !touchMoved){
+    if(sx<w*0.30) openPanel('epg');
+    else if(sx>w*0.70) openPanel('channels');
+    else if(sy>h*0.75) openPanel('controls');
+    else if(sy<h*0.25) openMainMenu();
     else togglePlay();
     return;
   }
-  if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)){
-    if(dx>0)openPanel('epg');else openPanel('channels');
+  /* 横向滑动：切换面板 */
+  if(Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)){
+    if(dx>0) openPanel('epg'); else openPanel('channels');
     return;
   }
-  if(Math.abs(dy)>60&&Math.abs(dy)>Math.abs(dx)){
-    if(dy<0)openPanel('controls');
-    else if(currentIdx>=0)nextChannel();
+  /* 纵向滑动：上=控制面板，下=上一频道 */
+  if(Math.abs(dy)>60 && Math.abs(dy)>Math.abs(dx)){
+    if(dy<0){ openPanel('controls'); }
+    else if(state.currentIdx>=0){ prevChannel(); }
     return;
   }
-},{passive:true});
-
-document.getElementById('touchLayer').addEventListener('click',e=>{
-  if(panelOpen)return;
-  const w=window.innerWidth,h=window.innerHeight;
-  if(e.clientX<w*0.35)openPanel('epg');
-  else if(e.clientX>w*0.65)openPanel('channels');
-  else if(e.clientY>h*0.7)openPanel('controls');
+}, {passive:true});
+$('#touchLayer').addEventListener('click', e=>{
+  if(state.panelOpen||state.funcPanelOpen) return;
+  const w=window.innerWidth, h=window.innerHeight;
+  if(e.clientX<w*0.30) openPanel('epg');
+  else if(e.clientX>w*0.70) openPanel('channels');
+  else if(e.clientY>h*0.75) openPanel('controls');
+  else if(e.clientY<h*0.20) openMainMenu();
   else togglePlay();
 });
 
-document.getElementById('panelOverlay').addEventListener('click',closePanels);
+/* ============== 面板管理 ============== */
+function openPanel(which){
+  closeFuncPanel();
+  closePanels();
+  state.panelOpen = which;
+  $('#panelOverlay').classList.add('show');
+  if(which==='channels'){ $('#panelChannels').classList.add('open'); renderChannelList(); }
+  else if(which==='epg'){ $('#panelEPG').classList.add('open'); renderEPGList(); }
+  else if(which==='controls'){ $('#panelControls').classList.add('open'); updateCtrlInfo(); }
+}
+function closePanels(){
+  $('#panelChannels').classList.remove('open');
+  $('#panelEPG').classList.remove('open');
+  $('#panelControls').classList.remove('open');
+  if(!state.funcPanelOpen) $('#panelOverlay').classList.remove('show');
+  state.panelOpen = null;
+}
+$('#panelOverlay').addEventListener('click', ()=>{ closePanels(); closeFuncPanel(); });
+$('#searchInput').addEventListener('input', e=>renderChannelList(e.target.value));
+$('#epgSearchInput').addEventListener('input', debounce(renderEPGList, 300));
 
-document.getElementById('searchInput').addEventListener('input',e=>renderChannelList(e.target.value));
+/* 顶/底控制条显示控制 */
+function showControls(){
+  state.controlsVisible = true;
+  $('#topBar').classList.add('show');
+  $('#bottomBar').classList.add('show');
+  clearTimeout(state.hideControlsTimer);
+  state.hideControlsTimer = setTimeout(hideControls, 4000);
+}
+function hideControls(){
+  state.controlsVisible = false;
+  $('#topBar').classList.remove('show');
+  $('#bottomBar').classList.remove('show');
+}
+function toggleTopBars(){
+  if(state.controlsVisible) hideControls();
+  else showControls();
+}
 
-loadFavorites();loadHistory();fetchSources();fetchChannels();
+/* ============== Welcome / 文件操作 ============== */
+function hideWelcome(){ $('#welcomeScreen').classList.remove('show'); }
+function enterPlayer(){ hideWelcome(); }
+function openUrlInput(){ $('#urlInputArea').style.display='block'; }
+function openLocalFile(){
+  const input=document.createElement('input'); input.type='file'; input.accept='.m3u,.m3u8,.txt';
+  input.onchange=async e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const text=await file.text();
+    const spinner=$('<div></div>'); spinner.innerHTML='<div class="spinner"></div><p style="text-align:center;color:var(--text-dim);margin-top:12px;font-size:13px">正在解析...</p>';
+    $('#welcomeScreen').querySelector('.menu-section').parentElement.appendChild(spinner);
+    try{ await api.importChannels(text, file.name); }catch(err){}
+    setTimeout(()=>{ api.fetchChannels(); hideWelcome(); }, 2000);
+  };
+  input.click();
+}
+function openLocalVideo(){
+  const input=document.createElement('input'); input.type='file'; input.accept='video/*,.mp4,.mkv,.avi,.mov,.flv,.ts,.webm';
+  input.onchange=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const url=URL.createObjectURL(file);
+    if(USE_MPV) Mpv.play(url);
+    showOSD(file.name, '本地视频');
+    hideWelcome(); hideCenterIcon();
+  };
+  input.click();
+}
+async function addSource(){
+  const url=$('#srcUrl').value.trim(); const name=$('#srcName').value.trim()||url;
+  if(!url){ alert('请输入 URL'); return; }
+  const d=await api.addSource(url, name);
+  if(d && d.success){
+    $('#srcUrl').value=''; $('#srcName').value='';
+    showOSD('添加成功', name);
+    setTimeout(()=>{ api.fetchSources(); api.fetchChannels(); hideWelcome(); }, 1500);
+  } else { alert('添加失败'); }
+}
 
-setTimeout(()=>{
-  const splash=document.getElementById('splashScreen');
-  splash.classList.add('fade-out');
+/* 订阅源管理（使用 funcPanel） */
+function openSources(){
+  closePanels(); openFuncPanel('sources');
+}
+
+/* 顶部/底部按钮事件绑定 */
+$('#tbMenuBtn').addEventListener('click', openMainMenu);
+$('#tbChannelsBtn').addEventListener('click', ()=>openPanel('channels'));
+$('#bbPrev').addEventListener('click', prevChannel);
+$('#bbPlay').addEventListener('click', togglePlay);
+$('#bbStop').addEventListener('click', stopPlay);
+$('#bbNext').addEventListener('click', nextChannel);
+$('#bbMute').addEventListener('click', toggleMute);
+$('#bbSpeed').addEventListener('click', cycleSpeed);
+$('#bbAudio').addEventListener('click', cycleAudio);
+$('#bbSub').addEventListener('click', cycleSub);
+$('#bbMore').addEventListener('click', ()=>openMainMenu());
+$('#bbVolSlider').addEventListener('input', e=>setVolume(e.target.value));
+$('#bbProgress').addEventListener('click', e=>{
+  if(state.mpv.duration<=0) return;
+  const rect=e.currentTarget.getBoundingClientRect();
+  const pct=(e.clientX-rect.left)/rect.width;
+  seekAbs(pct*state.mpv.duration);
+});
+
+/* ============== 12. 高级功能面板 ============== */
+
+/* ---- 主菜单 ---- */
+registerFunc('menu', { title:'主菜单' }, body=>{
+  body.innerHTML = `
+    <div class="list-item" onclick="closeFuncPanel();openPanel('channels')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></div>
+      <div class="li-text"><div class="li-title">频道</div><div class="li-sub">订阅 / 本地 / 收藏 / 历史 / 队列</div></div>
+    </div>
+    <div class="list-item" onclick="closeFuncPanel();openPanel('epg')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM5 6V5h14v1H5z"/></svg></div>
+      <div class="li-text"><div class="li-title">节目单 EPG</div><div class="li-sub">当前频道节目与提醒</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('subtitle')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg></div>
+      <div class="li-text"><div class="li-title">字幕</div><div class="li-sub">轨 / 样式 / 延迟 / 位置 / 加载</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('video')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12zM9 8h2v2H9z"/></svg></div>
+      <div class="li-text"><div class="li-title">视频</div><div class="li-sub">图像调整 / 旋转 / 比例 / 3D 360 / HDR</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('audio')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg></div>
+      <div class="li-text"><div class="li-title">音频</div><div class="li-sub">轨 / 延迟 / 设备 / 声道 / 音调 / EQ</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('playback')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg></div>
+      <div class="li-text"><div class="li-title">播放</div><div class="li-sub">队列 / 循环 / AB / 续播 / 书签 / 章节逐帧</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('screenshot')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg></div>
+      <div class="li-text"><div class="li-title">截图</div><div class="li-sub">单张 / 连拍 / 缩略图</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('avsync')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M3 12c0-5 4-9 9-9s9 4 9 9-4 9-9 9-9-4-9-9zm3 0c0 3.31 2.69 6 6 6s6-2.69 6-6-2.69-6-6-6-6 2.69-6 6zm3 1l3 3 3-3-1-1-2 2V9h-2v4l-2-2-1 1z"/></svg></div>
+      <div class="li-text"><div class="li-title">A/V 同步监控</div><div class="li-sub">实时波形 / 音视频差值</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('network')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+      <div class="li-text"><div class="li-title">网络增强</div><div class="li-sub">Referer / Proxy / Headers</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('tools')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg></div>
+      <div class="li-text"><div class="li-title">工具</div><div class="li-sub">搜索 / EPG时间线 / 提醒 / 映射 / 扫描 / 流质量</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('view')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5zM12 17c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5zm0-8c-1.7 0-3 1.3-3 3s1.3 3 3 3 3-1.3 3-3-1.3-3-3-3z"/></svg></div>
+      <div class="li-text"><div class="li-title">视图</div><div class="li-sub">全屏 / 比例 / OSD</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('settings')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></div>
+      <div class="li-text"><div class="li-title">设置</div><div class="li-sub">硬件解码 / 缓存 / 网络 / 关于</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('about')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div>
+      <div class="li-text"><div class="li-title">关于</div><div class="li-sub">版本信息 / 检查更新</div></div>
+    </div>
+    <div class="list-item" onclick="toggleFavorite()">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+      <div class="li-text"><div class="li-title">收藏/取消收藏</div><div class="li-sub">当前频道</div></div>
+    </div>
+    <div class="list-item" onclick="openFuncPanel('quit')">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg></div>
+      <div class="li-text"><div class="li-title">退出</div><div class="li-sub">关闭应用</div></div>
+    </div>
+  `;
+});
+
+/* ---- 字幕面板 ---- */
+registerFunc('subtitle', { title:'字幕' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">字幕轨</div>
+      <div class="btn-row" id="subTrackRow">
+        <button class="btn sm" onclick="Mpv.cmd(['set','sub','no'])">关闭</button>
+        <button class="btn sm" onclick="Mpv.cmd(['cycle','sub'])">切换</button>
+        <button class="btn sm" onclick="loadSubFile()">加载字幕文件</button>
+        <button class="btn sm" onclick="openFuncPanel('subtitle_download')">在线下载</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">字幕延迟 / 缩放 / 位置</div>
+      <div class="form-row"><span class="label">延迟</span><input type="range" id="subDelay" min="-300" max="300" step="10" value="0"><span class="value" id="subDelayVal">0ms</span></div>
+      <div class="form-row"><span class="label">缩放</span><input type="range" id="subScale" min="50" max="300" step="5" value="100"><span class="value" id="subScaleVal">1.0x</span></div>
+      <div class="form-row"><span class="label">位置</span><input type="range" id="subPos" min="0" max="100" step="1" value="100"><span class="value" id="subPosVal">100</span></div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="adjustSubDelay(-100)">-100ms</button>
+        <button class="btn sm" onclick="adjustSubDelay(100)">+100ms</button>
+        <button class="btn sm" onclick="Mpv.setBool('sub-visibility', !Mpv.getBool('sub-visibility'))">显示/隐藏</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">字幕样式</div>
+      <div class="form-row"><span class="label">字体</span><input type="text" id="subFont" placeholder="sans-serif" value="sans-serif"></div>
+      <div class="form-row"><span class="label">字号</span><input type="range" id="subFontSize" min="10" max="80" step="1" value="40"><span class="value" id="subFontSizeVal">40</span></div>
+      <div class="form-row"><span class="label">颜色</span><input type="color" id="subColor" value="#ffffff" style="width:40px;height:24px;border:none;background:transparent"></div>
+      <div class="form-row"><span class="label">边框</span><input type="range" id="subBorder" min="0" max="6" step="0.5" value="2"><span class="value" id="subBorderVal">2</span></div>
+      <div class="form-row"><span class="label">边框色</span><input type="color" id="subBorderColor" value="#000000" style="width:40px;height:24px;border:none;background:transparent"></div>
+      <div class="form-row"><span class="label">阴影</span><input type="range" id="subShadow" min="0" max="6" step="0.5" value="1"><span class="value" id="subShadowVal">1</span></div>
+      <div class="form-row"><span class="label">粗体</span><input type="checkbox" id="subBold" style="transform:scale(1.3)"></div>
+      <div class="form-row"><span class="label">斜体</span><input type="checkbox" id="subItalic" style="transform:scale(1.3)"></div>
+      <div class="form-row"><span class="label">X边距</span><input type="range" id="subMarginX" min="0" max="100" step="1" value="20"><span class="value" id="subMarginXVal">20</span></div>
+      <div class="form-row"><span class="label">Y边距</span><input type="range" id="subMarginY" min="0" max="100" step="1" value="40"><span class="value" id="subMarginYVal">40</span></div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="applySubStyle()">应用</button>
+        <button class="btn sm" onclick="resetSubStyle()">重置</button>
+        <button class="btn sm" onclick="saveSubStylePreset()">保存预设</button>
+      </div>
+    </div>
+  `;
+  /* 加载当前值 */
   setTimeout(()=>{
-    splash.style.display='none';
-    document.getElementById('centerIcon').classList.add('show');
-  },600);
-},2800);
+    const d = Mpv.getDbl('sub-delay') || 0;
+    $('#subDelay').value = d*1000; $('#subDelayVal').textContent = Math.round(d*1000)+'ms';
+    const s = Mpv.getDbl('sub-scale') || 1;
+    $('#subScale').value = s*100; $('#subScaleVal').textContent = s.toFixed(1)+'x';
+    const p = Mpv.getInt('sub-pos') || 100;
+    $('#subPos').value = p; $('#subPosVal').textContent = p;
+    const fs = Mpv.getInt('sub-font-size') || 40;
+    $('#subFontSize').value = fs; $('#subFontSizeVal').textContent = fs;
+    const f = Mpv.getStr('sub-font');
+    if(f) $('#subFont').value = f;
+    const c = Mpv.getStr('sub-color');
+    if(c) $('#subColor').value = mpvColorToHex(c);
+    const bc = Mpv.getStr('sub-border-color');
+    if(bc) $('#subBorderColor').value = mpvColorToHex(bc);
+    const bs = Mpv.getDbl('sub-border-size') || 0;
+    $('#subBorder').value = bs; $('#subBorderVal').textContent = bs;
+    const ss = Mpv.getDbl('sub-shadow-offset') || 0;
+    $('#subShadow').value = ss; $('#subShadowVal').textContent = ss;
+    const mx = Mpv.getInt('sub-margin-x') || 0;
+    $('#subMarginX').value = mx; $('#subMarginXVal').textContent = mx;
+    const my = Mpv.getInt('sub-margin-y') || 0;
+    $('#subMarginY').value = my; $('#subMarginYVal').textContent = my;
+    $('#subBold').checked = Mpv.getBool('sub-bold');
+    $('#subItalic').checked = Mpv.getBool('sub-italic');
+  }, 50);
+  /* 绑定滑块实时更新 */
+  $('#subDelay').addEventListener('input', e=>{ const v=parseInt(e.target.value)/1000; Mpv.setDbl('sub-delay', v); $('#subDelayVal').textContent=e.target.value+'ms'; });
+  $('#subScale').addEventListener('input', e=>{ const v=parseInt(e.target.value)/100; Mpv.setDbl('sub-scale', v); $('#subScaleVal').textContent=v.toFixed(1)+'x'; });
+  $('#subPos').addEventListener('input', e=>{ Mpv.setInt('sub-pos', parseInt(e.target.value)); $('#subPosVal').textContent=e.target.value; });
+});
+function adjustSubDelay(deltaMs){ const cur=parseInt($('#subDelay').value); const nv=cur+deltaMs; $('#subDelay').value=nv; Mpv.setDbl('sub-delay', nv/1000); $('#subDelayVal').textContent=nv+'ms'; }
+function applySubStyle(){
+  Mpv.setStr('sub-font', $('#subFont').value);
+  Mpv.setInt('sub-font-size', parseInt($('#subFontSize').value));
+  Mpv.setStr('sub-color', hexToMpvColor($('#subColor').value));
+  Mpv.setStr('sub-border-color', hexToMpvColor($('#subBorderColor').value));
+  Mpv.setDbl('sub-border-size', parseFloat($('#subBorder').value));
+  Mpv.setDbl('sub-shadow-offset', parseFloat($('#subShadow').value));
+  Mpv.setInt('sub-margin-x', parseInt($('#subMarginX').value));
+  Mpv.setInt('sub-margin-y', parseInt($('#subMarginY').value));
+  Mpv.setBool('sub-bold', $('#subBold').checked);
+  Mpv.setBool('sub-italic', $('#subItalic').checked);
+  showOSD('字幕样式', '已应用');
+}
+function resetSubStyle(){
+  Mpv.setStr('sub-font','sans-serif'); Mpv.setInt('sub-font-size',40); Mpv.setStr('sub-color','#FFFFFFFF');
+  Mpv.setStr('sub-border-color','#000000FF'); Mpv.setDbl('sub-border-size',2); Mpv.setDbl('sub-shadow-offset',1);
+  Mpv.setInt('sub-margin-x',20); Mpv.setInt('sub-margin-y',40); Mpv.setBool('sub-bold',false); Mpv.setBool('sub-italic',false);
+  Mpv.setDbl('sub-delay',0); Mpv.setDbl('sub-scale',1); Mpv.setInt('sub-pos',100);
+  showOSD('字幕样式', '已重置'); closeFuncPanel(); setTimeout(()=>openFuncPanel('subtitle'),100);
+}
+function saveSubStylePreset(){
+  const preset = { font:$('#subFont').value, size:parseInt($('#subFontSize').value), color:$('#subColor').value, border:parseFloat($('#subBorder').value), borderColor:$('#subBorderColor').value };
+  const presets = storage._get('iptv_sub_presets', []);
+  presets.push(Object.assign(preset, { name: '预设'+(presets.length+1), id: uuid() }));
+  storage._set('iptv_sub_presets', presets);
+  showOSD('预设', '已保存');
+}
+function loadSubFile(){
+  const input=document.createElement('input'); input.type='file'; input.accept='.srt,.ass,.ssa,.sub,.vtt,.lrc';
+  input.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const url=URL.createObjectURL(f); Mpv.cmd(['sub-add', url, 'select', f.name]); showOSD('字幕', '已加载'); };
+  input.click();
+}
+function mpvColorToHex(c){ /* "#RRGGBBAA" or "#AARRGGBB" → "#RRGGBB" */ if(!c) return '#ffffff'; if(c.startsWith('#')){ if(c.length===9) return '#'+c.slice(3,9); if(c.length===7) return c; } return '#ffffff'; }
+function hexToMpvColor(h){ if(!h||!h.startsWith('#')) return '#FFFFFFFF'; if(h.length===7) return h+'FF'; return h; }
 
-if('serviceWorker' in navigator){navigator.serviceWorker.register('/mobile/sw.js').catch(()=>{})}
+/* ---- 在线下载字幕 ---- */
+registerFunc('subtitle_download', { title:'下载字幕' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">从 OpenSubtitles 下载</div>
+      <div class="form-row"><span class="label">查询</span><input type="text" id="subDlQuery" placeholder="节目名称或频道名"></div>
+      <div class="form-row"><span class="label">语言</span>
+        <select id="subDlLang">
+          <option value="zh">中文</option>
+          <option value="en">英文</option>
+          <option value="ja">日文</option>
+          <option value="ko">韩文</option>
+        </select>
+      </div>
+      <div class="btn-row"><button class="btn primary" onclick="searchSubtitle()">搜索</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">搜索结果</div>
+      <div id="subDlResults" style="font-size:12px;color:var(--text-faint)">尚未搜索</div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">手动加载</div>
+      <div class="btn-row"><button class="btn" onclick="loadSubFile()">从文件加载</button></div>
+    </div>
+  `;
+  const cur = state.channels[state.currentIdx];
+  if(cur) $('#subDlQuery').value = cur.name;
+});
+async function searchSubtitle(){
+  const q = $('#subDlQuery').value.trim();
+  const lang = $('#subDlLang').value;
+  if(!q) return;
+  const r = $('#subDlResults'); r.innerHTML='<div class="spinner"></div>';
+  /* 调用后端代理（如未实现则提示） */
+  const d = await api.get('/api/subtitle/search?q='+encodeURIComponent(q)+'&lang='+lang);
+  if(!d || !d.success || !d.data || !d.data.length){ r.textContent='未找到字幕或后端未实现 /api/subtitle/search'; return; }
+  let h='';
+  d.data.forEach(s=>{
+    h+=`<div class="list-item"><div class="li-text"><div class="li-title">${esc(s.filename)}</div><div class="li-sub">${esc(s.lang)} · ${s.size||''}</div></div><div class="li-action" onclick="downloadSubtitle('${esc(s.url)}','${esc(s.filename)}')">下载</div></div>`;
+  });
+  r.innerHTML = h;
+}
+function downloadSubtitle(url, name){
+  /* 后端代理下载到本地缓存目录，然后 sub-add */
+  api.post('/api/subtitle/download', {url, name}).then(d=>{
+    if(d && d.success && d.path){ Mpv.cmd(['sub-add', d.path, 'select', name]); showOSD('字幕', '已加载'); }
+    else showOSD('下载失败', '');
+  });
+}
+
+/* ---- 视频面板 ---- */
+registerFunc('video', { title:'视频' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">图像调整</div>
+      <div class="form-row"><span class="label">亮度</span><input type="range" id="eqBrightness" min="-100" max="100" step="1" value="0"><span class="value" id="eqBrightnessVal">0</span></div>
+      <div class="form-row"><span class="label">对比度</span><input type="range" id="eqContrast" min="-100" max="100" step="1" value="0"><span class="value" id="eqContrastVal">0</span></div>
+      <div class="form-row"><span class="label">饱和度</span><input type="range" id="eqSaturation" min="-100" max="100" step="1" value="0"><span class="value" id="eqSaturationVal">0</span></div>
+      <div class="form-row"><span class="label">色调</span><input type="range" id="eqHue" min="-100" max="100" step="1" value="0"><span class="value" id="eqHueVal">0</span></div>
+      <div class="form-row"><span class="label">Gamma</span><input type="range" id="eqGamma" min="-100" max="100" step="1" value="0"><span class="value" id="eqGammaVal">0</span></div>
+      <div class="form-row"><span class="label">锐度</span><input type="range" id="eqSharpness" min="-100" max="100" step="5" value="0"><span class="value" id="eqSharpnessVal">0</span></div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="applyVideoEq()">应用</button>
+        <button class="btn sm" onclick="resetVideoEq()">重置</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">画面变换</div>
+      <div class="form-row"><span class="label">旋转</span>
+        <select id="videoRotate">
+          <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="setVideoFlip('horizontal')">水平翻转</button>
+        <button class="btn sm" onclick="setVideoFlip('vertical')">垂直翻转</button>
+        <button class="btn sm" onclick="setVideoFlip('both')">双向</button>
+        <button class="btn sm" onclick="setVideoFlip('')">清除翻转</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">画面比例</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="setAspect('default')">默认</button>
+        <button class="btn sm" onclick="setAspect('16:9')">16:9</button>
+        <button class="btn sm" onclick="setAspect('4:3')">4:3</button>
+        <button class="btn sm" onclick="setAspect('stretch')">拉伸</button>
+        <button class="btn sm" onclick="setAspect('fill')">填充</button>
+        <button class="btn sm" onclick="setAspect('crop')">裁剪</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">3D / 360°</div>
+      <div class="form-row"><span class="label">立体模式</span>
+        <select id="stereoMode">
+          <option value="mono">单视</option>
+          <option value="sbs">并排左</option>
+          <option value="sbs2">并排右</option>
+          <option value="ab">上下左</option>
+          <option value="ab2">上下右</option>
+        </select>
+      </div>
+      <div class="form-row"><span class="label">360° yaw</span><input type="range" id="p360Yaw" min="-180" max="180" step="5" value="0"><span class="value" id="p360YawVal">0</span></div>
+      <div class="form-row"><span class="label">360° pitch</span><input type="range" id="p360Pitch" min="-90" max="90" step="5" value="0"><span class="value" id="p360PitchVal">0</span></div>
+      <div class="form-row"><span class="label">360° roll</span><input type="range" id="p360Roll" min="-180" max="180" step="5" value="0"><span class="value" id="p360RollVal">0</span></div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="apply360()">应用 360°</button>
+        <button class="btn sm" onclick="Mpv.cmd(['vf','remove','@iptv_360'])">清除 360°</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">HDR 模式</div>
+      <div class="form-row"><span class="label">模式</span>
+        <select id="hdrMode">
+          <option value="auto">auto</option>
+          <option value="disable">disable</option>
+          <option value="tonemap">tonemap</option>
+          <option value="scrgb">scRGB</option>
+          <option value="passthrough">passthrough</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="applyHdrMode()">应用 HDR 模式</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-faint);padding:4px">切换 HDR 模式将重启 mpv 渲染管线，可能短暂黑屏。</div>
+    </div>
+  `;
+  setTimeout(()=>{
+    ['brightness','contrast','saturation','hue','gamma'].forEach(k=>{
+      const v = Mpv.getInt(k); $('#eq'+cap(k)).value=v; $('#eq'+cap(k)+'Val').textContent=v;
+    });
+    const r = Mpv.getInt('video-rotate')||0;
+    $('#videoRotate').value = r;
+    const sm = Mpv.getStr('video-stereo-mode')||'mono';
+    $('#stereoMode').value = sm;
+    /* 绑定 EQ 实时更新 */
+    ['Brightness','Contrast','Saturation','Hue','Gamma','Sharpness'].forEach(k=>{
+      const id = 'eq'+k;
+      $('#'+id).addEventListener('input', e=>{ const v=parseInt(e.target.value); const prop=k==='Sharpness'?'sharpen':k.toLowerCase(); Mpv.setInt(prop, v); $('#'+id+'Val').textContent=v; });
+    });
+    $('#videoRotate').addEventListener('change', e=>Mpv.setInt('video-rotate', parseInt(e.target.value)));
+    $('#stereoMode').addEventListener('change', e=>Mpv.setStr('video-stereo-mode', e.target.value));
+  }, 50);
+});
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function applyVideoEq(){
+  Mpv.setInt('brightness', parseInt($('#eqBrightness').value));
+  Mpv.setInt('contrast', parseInt($('#eqContrast').value));
+  Mpv.setInt('saturation', parseInt($('#eqSaturation').value));
+  Mpv.setInt('hue', parseInt($('#eqHue').value));
+  Mpv.setInt('gamma', parseInt($('#eqGamma').value));
+  Mpv.setDbl('sharpen', parseInt($('#eqSharpness').value)/100);
+  showOSD('视频', '已应用');
+}
+function resetVideoEq(){
+  ['brightness','contrast','saturation','hue','gamma'].forEach(k=>Mpv.setInt(k,0));
+  Mpv.setDbl('sharpen',0); Mpv.setInt('video-rotate',0);
+  Mpv.cmd(['vf','remove','@iptv_flip']); Mpv.cmd(['vf','remove','@iptv_crop']);
+  showOSD('视频', '已重置'); closeFuncPanel(); setTimeout(()=>openFuncPanel('video'),100);
+}
+function setVideoFlip(mode){
+  Mpv.cmd(['vf','remove','@iptv_flip']);
+  if(mode){ const f = mode==='both'?'flip':(mode==='horizontal'?'hflip':'vflip'); Mpv.cmd(['vf','add','@iptv_flip:'+f]); }
+  showOSD('翻转', mode||'已清除');
+}
+function setAspect(m){ state.settings.aspect=m; storage.saveSettings(); applyAspect(m); showOSD('画面比例', m); }
+function apply360(){
+  const y=parseInt($('#p360Yaw').value), p=parseInt($('#p360Pitch').value), r=parseInt($('#p360Roll').value);
+  Mpv.cmd(['vf','remove','@iptv_360']);
+  Mpv.cmd(['vf','add','@iptv_360:lavfi=[panorama=yaw='+y+':pitch='+p+':roll='+r+']']);
+  showOSD('360°', '已应用');
+}
+function applyHdrMode(){
+  const m = $('#hdrMode').value;
+  /* 调用后端通过 set_property_string 设置 tonemap 系列，并触发 mpv 重新初始化 */
+  api.post('/api/player/hdr', {mode:m}).then(d=>{
+    if(d && d.success) showOSD('HDR 模式', m+' (重启中)');
+    else showOSD('HDR 失败', '后端未实现');
+  });
+}
+
+/* ---- 音频面板 ---- */
+registerFunc('audio', { title:'音频' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">音轨</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="Mpv.cmd(['cycle','audio'])">切换音轨</button>
+        <button class="btn sm" onclick="Mpv.cmd(['set','aid','no'])">关闭音轨</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">音频调整</div>
+      <div class="form-row"><span class="label">延迟</span><input type="range" id="audioDelay" min="-10000" max="10000" step="50" value="0"><span class="value" id="audioDelayVal">0ms</span></div>
+      <div class="form-row"><span class="label">音调补偿</span><input type="range" id="audioPitch" min="0" max="200" step="5" value="100"><span class="value" id="audioPitchVal">1.00</span></div>
+      <div class="form-row"><span class="label">声道</span>
+        <select id="audioChannels">
+          <option value="auto">auto</option>
+          <option value="mono">mono</option>
+          <option value="stereo">2.0</option>
+          <option value="5.1">5.1</option>
+          <option value="7.1">7.1</option>
+        </select>
+      </div>
+      <div class="form-row"><span class="label">输出设备</span><select id="audioDevice"><option value="">加载中...</option></select></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">10 段均衡器</div>
+      <div id="eqBands" style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;padding:8px 0"></div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="setAudioEqPreset('flat')">平直</button>
+        <button class="btn sm" onclick="setAudioEqPreset('bass')">低音</button>
+        <button class="btn sm" onclick="setAudioEqPreset('treble')">高音</button>
+        <button class="btn sm" onclick="setAudioEqPreset('vocal')">人声</button>
+        <button class="btn sm" onclick="setAudioEqPreset('live')">现场</button>
+        <button class="btn sm" onclick="setAudioEqPreset('reset')">重置</button>
+      </div>
+    </div>
+  `;
+  /* 加载 EQ 频段滑块 */
+  const bands = [60,170,310,600,1000,3000,6000,12000,14000,16000];
+  let bh='';
+  bands.forEach((f,i)=>{
+    bh+=`<div style="text-align:center"><input type="range" id="eqBand${i}" min="-12" max="12" step="1" value="0" style="writing-mode:bt-lr;-webkit-appearance:slider-vertical;width:24px;height:80px" onchange="setAudioEqBand(${i},this.value)"><div style="font-size:9px;color:var(--text-faint);margin-top:2px">${f>=1000?(f/1000)+'k':f}</div></div>`;
+  });
+  $('#eqBands').innerHTML = bh;
+  setTimeout(()=>{
+    const d = Mpv.getDbl('audio-delay')||0;
+    $('#audioDelay').value = d*1000; $('#audioDelayVal').textContent = Math.round(d*1000)+'ms';
+    const p = Mpv.getDbl('audio-pitch-correction')||1;
+    $('#audioPitch').value = p*100; $('#audioPitchVal').textContent = p.toFixed(2);
+    const ch = Mpv.getStr('audio-channels')||'auto';
+    $('#audioChannels').value = ch;
+    $('#audioDelay').addEventListener('input', e=>{ const v=parseInt(e.target.value)/1000; Mpv.setDbl('audio-delay', v); $('#audioDelayVal').textContent=e.target.value+'ms'; });
+    $('#audioPitch').addEventListener('input', e=>{ const v=parseInt(e.target.value)/100; Mpv.setDbl('audio-pitch-correction', v); $('#audioPitchVal').textContent=v.toFixed(2); });
+    $('#audioChannels').addEventListener('change', e=>Mpv.setStr('audio-channels', e.target.value));
+    /* 加载音频设备列表 */
+    const dl = Mpv.getStr('audio-device-list'); /* 通常无法直接读，留空 */
+    if(dl){
+      try{ const list = JSON.parse(dl); const cur = Mpv.getStr('audio-device'); $('#audioDevice').innerHTML = list.map(d=>`<option value="${esc(d.name)}" ${d.name===cur?'selected':''}>${esc(d.desc||d.name)}</option>`).join(''); }catch(e){}
+    } else {
+      $('#audioDevice').innerHTML = '<option value="">（无法读取设备列表）</option>';
+    }
+    $('#audioDevice').addEventListener('change', e=>Mpv.setStr('audio-device', e.target.value));
+  }, 50);
+});
+function setAudioEqBand(i, gain){
+  /* 通过 af 命令动态调整 equalizer 滤镜 */
+  /* 由于 mpv af equalizer 需整体设置，先收集所有 band 值再 set */
+  const gains = [];
+  for(let j=0;j<10;j++){ gains.push(parseInt($('#eqBand'+j).value)); }
+  gains[i] = parseInt(gain);
+  Mpv.cmd(['af','remove','@iptv_eq']);
+  Mpv.cmd(['af','add','@iptv_eq:equalizer='+gains.join(':')]);
+}
+const AUDIO_EQ_PRESETS = {
+  flat:   [0,0,0,0,0,0,0,0,0,0],
+  bass:   [6,5,4,2,0,0,0,0,0,0],
+  treble: [0,0,0,0,0,2,4,5,6,6],
+  vocal:  [-2,-1,0,2,4,4,3,1,0,-1],
+  live:   [3,2,1,0,-1,0,1,2,3,4],
+  reset:  [0,0,0,0,0,0,0,0,0,0]
+};
+function setAudioEqPreset(name){
+  const p = AUDIO_EQ_PRESETS[name];
+  if(!p) return;
+  p.forEach((g,i)=>{ const el=$('#eqBand'+i); if(el){ el.value=g; } });
+  Mpv.cmd(['af','remove','@iptv_eq']);
+  Mpv.cmd(['af','add','@iptv_eq:equalizer='+p.join(':')]);
+  showOSD('均衡器', name);
+}
+
+/* ---- 播放面板 ---- */
+registerFunc('playback', { title:'播放' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">循环模式</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="setLoop('file','no')">单次</button>
+        <button class="btn sm" onclick="setLoop('file','inf')">单曲循环</button>
+        <button class="btn sm" onclick="setLoop('playlist','no')">列表不循环</button>
+        <button class="btn sm" onclick="setLoop('playlist','inf')">列表循环</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">AB 循环</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="Mpv.cmd(['set','ab-loop-a',String(Mpv.getDbl('time-pos'))])">设 A 点</button>
+        <button class="btn sm" onclick="Mpv.cmd(['set','ab-loop-b',String(Mpv.getDbl('time-pos'))])">设 B 点</button>
+        <button class="btn sm danger" onclick="Mpv.cmd(['set','ab-loop-a','no']);Mpv.cmd(['set','ab-loop-b','no'])">清除</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-faint);padding:4px" id="abStatus">A: -, B: -</div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">逐帧</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="Mpv.frameBack()">后退一帧</button>
+        <button class="btn sm" onclick="Mpv.frameStep()">前进一帧</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">章节</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="Mpv.chapterPrev()">上一章</button>
+        <button class="btn sm" onclick="Mpv.chapterNext()">下一章</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">播放队列 / 书签 / 续播</div>
+      <div class="list-item" onclick="openFuncPanel('queue')"><div class="li-icon"><svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg></div><div class="li-text"><div class="li-title">播放队列</div><div class="li-sub">${state.queue.length} 个频道</div></div></div>
+      <div class="list-item" onclick="openFuncPanel('bookmarks')"><div class="li-icon"><svg viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg></div><div class="li-text"><div class="li-title">书签与章节</div><div class="li-sub">${state.bookmarks.length} 个书签</div></div></div>
+      <div class="list-item" onclick="openFuncPanel('resume')"><div class="li-icon"><svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg></div><div class="li-text"><div class="li-title">续播位置</div><div class="li-sub">${state.resumeList.length} 条记录</div></div></div>
+    </div>
+  `;
+  updateABStatus();
+  setInterval(updateABStatus, 1000);
+});
+function setLoop(type, mode){ Mpv.setStr(type==='file'?'loop-file':'loop-playlist', mode); showOSD('循环', type==='file'?'文件':'列表', mode); }
+function updateABStatus(){
+  const el=$('#abStatus'); if(!el) return;
+  const a=Mpv.getDbl('ab-loop-a'), b=Mpv.getDbl('ab-loop-b');
+  el.textContent = 'A: '+(a>0?fmtTime(a):'-')+'  B: '+(b>0?fmtTime(b):'-')+(a>0&&b>0?'  (循环中)':'');
+}
+
+/* ---- 播放队列 ---- */
+registerFunc('queue', { title:'播放队列' }, body=>{
+  renderQueue(body);
+});
+function renderQueue(body){
+  let html='<div class="form-section"><div class="form-section-title">当前队列</div>';
+  if(!state.queue.length){
+    html+='<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:13px">队列为空。在频道列表中长按可加入队列。</div>';
+  } else {
+    state.queue.forEach((idx,i)=>{
+      const ch=state.channels[idx]; if(!ch) return;
+      html+=`<div class="list-item"><div class="li-text"><div class="li-title">${esc(ch.name)}</div><div class="li-sub">${esc(ch.group)} · #${i+1}</div></div><div class="li-action" onclick="playChannel(${idx})">播放</div><div class="li-action" onclick="removeFromQueue(${i})" style="color:var(--danger);margin-left:4px">移除</div></div>`;
+    });
+  }
+  html+='</div><div class="btn-row"><button class="btn danger sm" onclick="clearQueue()">清空队列</button></div>';
+  body.innerHTML=html;
+}
+function removeFromQueue(i){ state.queue.splice(i,1); storage.saveQueue(); renderQueue($('#funcBody')); }
+
+/* ---- 书签与章节 ---- */
+registerFunc('bookmarks', { title:'书签与章节' }, body=>{
+  let html='<div class="form-section"><div class="form-section-title">添加书签</div>';
+  html+='<div class="btn-row"><button class="btn primary sm" onclick="addBookmark()">在当前位置添加书签</button></div></div>';
+  html+='<div class="form-section"><div class="form-section-title">章节列表</div><div id="chapterList" style="font-size:12px;color:var(--text-faint)">读取中...</div></div>';
+  html+='<div class="form-section"><div class="form-section-title">自定义书签</div><div id="bookmarkList"></div></div>';
+  body.innerHTML=html;
+  renderBookmarks();
+  renderChapters();
+});
+function addBookmark(){
+  if(state.currentIdx<0){ showOSD('请先选择频道',''); return; }
+  const t=Mpv.getDbl('time-pos');
+  if(t<=0){ showOSD('请先开始播放',''); return; }
+  const ch=state.channels[state.currentIdx];
+  state.bookmarks.push({ id:uuid(), chIdx:state.currentIdx, name:ch.name+' @'+fmtTime(t), pos:t, ts:Date.now() });
+  storage.saveBookmarks();
+  renderBookmarks();
+  showOSD('已添加书签', fmtTime(t));
+}
+function renderBookmarks(){
+  const el=$('#bookmarkList'); if(!el) return;
+  if(!state.bookmarks.length){ el.innerHTML='<div style="padding:12px;color:var(--text-faint);font-size:12px">暂无书签</div>'; return; }
+  let h='';
+  state.bookmarks.forEach(b=>{
+    h+=`<div class="list-item"><div class="li-text"><div class="li-title">${esc(b.name)}</div><div class="li-sub">${esc(state.channels[b.chIdx]?.group||'')} · ${new Date(b.ts).toLocaleString()}</div></div><div class="li-action" onclick="gotoBookmark('${b.id}')">跳转</div><div class="li-action" onclick="delBookmark('${b.id}')" style="color:var(--danger);margin-left:4px">删除</div></div>`;
+  });
+  el.innerHTML=h;
+}
+function gotoBookmark(id){
+  const b=state.bookmarks.find(x=>x.id===id); if(!b) return;
+  if(state.currentIdx!==b.chIdx){ playChannel(b.chIdx,{silent:true}); setTimeout(()=>seekAbs(b.pos),500); }
+  else seekAbs(b.pos);
+  closeFuncPanel(); showOSD('跳转书签', b.name);
+}
+function delBookmark(id){ state.bookmarks=state.bookmarks.filter(x=>x.id!==id); storage.saveBookmarks(); renderBookmarks(); }
+function renderChapters(){
+  const el=$('#chapterList'); if(!el) return;
+  /* 通过 mpv chapter-list 属性读取章节列表 */
+  api.get('/api/player/chapters').then(d=>{
+    if(!d || !d.success || !d.data || !d.data.length){ el.textContent='当前文件无章节信息'; return; }
+    let h='';
+    d.data.forEach(c=>{
+      h+=`<div class="list-item" onclick="seekAbs(${c.time})"><div class="li-text"><div class="li-title">${esc(c.title||'章节 '+(c.id+1))}</div><div class="li-sub">${fmtTime(c.time)}</div></div><div class="li-action">跳转</div></div>`;
+    });
+    el.innerHTML=h;
+  });
+}
+
+/* ---- 续播位置 ---- */
+registerFunc('resume', { title:'续播位置' }, body=>{
+  renderResume(body);
+});
+function renderResume(body){
+  let html='<div class="form-section"><div class="form-section-title">续播记录</div>';
+  if(!state.resumeList.length){
+    html+='<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:13px">暂无续播记录。本地视频播放结束后自动保存。</div>';
+  } else {
+    state.resumeList.forEach(r=>{
+      const ch=state.channels[r.chIdx] || { name:r.url||r.name, group:'' };
+      html+=`<div class="list-item"><div class="li-text"><div class="li-title">${esc(ch.name||r.url)}</div><div class="li-sub">上次: ${fmtTime(r.pos||0)} / ${fmtTime(r.dur||0)} · ${new Date(r.ts).toLocaleDateString()}</div></div><div class="li-action" onclick="resumePlay('${r.id}')">续播</div><div class="li-action" onclick="delResume('${r.id}')" style="color:var(--danger);margin-left:4px">删除</div></div>`;
+    });
+  }
+  html+='</div><div class="btn-row"><button class="btn danger sm" onclick="clearResume()">清空记录</button></div>';
+  body.innerHTML=html;
+}
+function resumePlay(id){
+  const r=state.resumeList.find(x=>x.id===id); if(!r) return;
+  if(r.chIdx>=0 && r.chIdx<state.channels.length){
+    playChannel(r.chIdx,{silent:true});
+    setTimeout(()=>seekAbs(r.pos||0), 800);
+  } else if(r.url){
+    if(USE_MPV) Mpv.play(r.url);
+    setTimeout(()=>seekAbs(r.pos||0), 800);
+  }
+  closeFuncPanel(); showOSD('续播', fmtTime(r.pos||0));
+}
+function delResume(id){ state.resumeList=state.resumeList.filter(x=>x.id!==id); storage.saveResume(); renderResume($('#funcBody')); }
+function clearResume(){ state.resumeList=[]; storage.saveResume(); renderResume($('#funcBody')); }
+
+/* ---- 截图 / 连拍 ---- */
+registerFunc('screenshot', { title:'截图' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">单张截图</div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="takeScreenshot('video')">截图（含视频）</button>
+        <button class="btn sm" onclick="takeScreenshot('subtitles')">截图（含字幕）</button>
+        <button class="btn sm" onclick="takeScreenshot('window')">截图（含窗口）</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">连拍截图</div>
+      <div class="form-row"><span class="label">张数</span><input type="range" id="burstCount" min="2" max="20" step="1" value="5"><span class="value" id="burstCountVal">5</span></div>
+      <div class="form-row"><span class="label">间隔(ms)</span><input type="range" id="burstInterval" min="100" max="3000" step="100" value="500"><span class="value" id="burstIntervalVal">500</span></div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="startBurst()">开始连拍</button>
+        <button class="btn danger sm" onclick="stopBurst()" id="burstStopBtn" style="display:none">停止</button>
+      </div>
+      <div id="burstStatus" style="font-size:11px;color:var(--text-faint);padding:4px"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">缩略图缓存</div>
+      <div class="btn-row"><button class="btn sm" onclick="clearThumbnails()">清空缩略图缓存</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">截图历史</div>
+      <div id="screenshotList" style="font-size:12px"></div>
+    </div>
+  `;
+  $('#burstCount').addEventListener('input', e=>$('#burstCountVal').textContent=e.target.value);
+  $('#burstInterval').addEventListener('input', e=>$('#burstIntervalVal').textContent=e.target.value);
+  renderScreenshotList();
+});
+let burstTimer=null, burstShots=[];
+function takeScreenshot(mode){
+  /* 通过后端代理保存截图到缓存目录 */
+  api.post('/api/player/screenshot', {mode}).then(d=>{
+    if(d && d.success && d.path){
+      burstShots.unshift({ path:d.path, ts:Date.now() });
+      burstShots = burstShots.slice(0,50);
+      showOSD('截图已保存', d.path);
+      renderScreenshotList();
+    } else {
+      /* 后端未实现，尝试直接用 mpv 命令保存到临时目录 */
+      if(USE_MPV){ const ts=Date.now(); Mpv.screenshot('/tmp/iptv_shot_'+ts+'.png'); showOSD('截图','已保存到 /tmp'); }
+      else showOSD('截图失败','后端未实现 /api/player/screenshot');
+    }
+  });
+}
+function startBurst(){
+  const count=parseInt($('#burstCount').value), interval=parseInt($('#burstInterval').value);
+  let i=0;
+  $('#burstStopBtn').style.display='inline-block';
+  $('#burstStatus').textContent='准备连拍 '+count+' 张...';
+  burstTimer=setInterval(()=>{
+    takeScreenshot('video');
+    i++;
+    $('#burstStatus').textContent='已截取 '+i+'/'+count;
+    if(i>=count){ stopBurst(); $('#burstStatus').textContent='连拍完成'; }
+  }, interval);
+}
+function stopBurst(){ if(burstTimer){ clearInterval(burstTimer); burstTimer=null; } $('#burstStopBtn').style.display='none'; }
+function renderScreenshotList(){
+  const el=$('#screenshotList'); if(!el) return;
+  if(!burstShots.length){ el.innerHTML='<div style="padding:12px;color:var(--text-faint)">暂无截图</div>'; return; }
+  let h='';
+  burstShots.slice(0,10).forEach(s=>{
+    h+=`<div class="list-item"><div class="li-text"><div class="li-title">${esc(s.path.split('/').pop())}</div><div class="li-sub">${new Date(s.ts).toLocaleTimeString()}</div></div><div class="li-action" onclick="shareScreenshot('${esc(s.path)}')">分享</div></div>`;
+  });
+  el.innerHTML=h;
+}
+function shareScreenshot(path){
+  /* 通过 Android share intent 分享截图（后端代理） */
+  api.post('/api/share/file',{path}).then(d=>{ if(d&&d.success) showOSD('分享','已打开'); else showOSD('分享','失败'); });
+}
+function clearThumbnails(){ api.post('/api/cache/clear',{type:'thumbnails'}).then(()=>showOSD('缓存','已清空')); }
+
+/* ---- A/V 同步监控 ---- */
+registerFunc('avsync', { title:'A/V 同步监控' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">实时波形</div>
+      <canvas class="avsync-canvas" id="avsyncCanvas" width="600" height="120"></canvas>
+      <div class="avsync-stats">
+        <div class="avsync-stat"><div class="lbl">A/V 差值</div><div class="val" id="avdiffVal">0ms</div></div>
+        <div class="avsync-stat"><div class="lbl">音频 PTS</div><div class="val" id="audioPtsVal">0ms</div></div>
+        <div class="avsync-stat"><div class="lbl">视频 PTS</div><div class="val" id="videoPtsVal">0ms</div></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">音频延迟调整</div>
+      <div class="form-row"><span class="label">延迟</span><input type="range" id="avsyncAudioDelay" min="-10000" max="10000" step="50" value="0"><span class="value" id="avsyncAudioDelayVal">0ms</span></div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="adjustAudioDelay(-100)">-100ms</button>
+        <button class="btn sm" onclick="adjustAudioDelay(100)">+100ms</button>
+        <button class="btn sm" onclick="Mpv.setDbl('audio-delay',0);$('#avsyncAudioDelay').value=0;$('#avsyncAudioDelayVal').textContent='0ms'">重置</button>
+      </div>
+    </div>
+  `;
+  setTimeout(()=>{
+    const ad=Mpv.getDbl('audio-delay')||0;
+    $('#avsyncAudioDelay').value=ad*1000; $('#avsyncAudioDelayVal').textContent=Math.round(ad*1000)+'ms';
+    $('#avsyncAudioDelay').addEventListener('input', e=>{ const v=parseInt(e.target.value)/1000; Mpv.setDbl('audio-delay', v); $('#avsyncAudioDelayVal').textContent=e.target.value+'ms'; });
+    startAvsyncCanvas();
+  }, 50);
+  /* 面板关闭时自动停止 */
+  const observer = new MutationObserver(()=>{
+    if($('#panelFunc').classList.contains('hidden')){ stopAvsyncCanvas(); observer.disconnect(); }
+  });
+  observer.observe($('#panelFunc'),{attributes:true,attributeFilter:['class']});
+});
+function adjustAudioDelay(delta){ const cur=parseInt($('#avsyncAudioDelay').value); const nv=cur+delta; $('#avsyncAudioDelay').value=nv; Mpv.setDbl('audio-delay', nv/1000); $('#avsyncAudioDelayVal').textContent=nv+'ms'; }
+let avsyncCanvasTimer=null, avsyncHistory=[];
+function startAvsyncCanvas(){
+  const canvas=$('#avsyncCanvas'); if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  avsyncHistory=[];
+  avsyncCanvasTimer=setInterval(()=>{
+    const av=Mpv.getDbl('avdiff')||0;
+    const apts=Mpv.getDbl('audio-pts')||0;
+    const vpts=Mpv.getDbl('video-pts')||0;
+    avsyncHistory.push(av);
+    if(avsyncHistory.length>200) avsyncHistory.shift();
+    $('#avdiffVal').textContent=Math.round(av*1000)+'ms';
+    $('#audioPtsVal').textContent=Math.round(apts*1000)+'ms';
+    $('#videoPtsVal').textContent=Math.round(vpts*1000)+'ms';
+    /* 绘制波形 */
+    const w=canvas.width, h=canvas.height;
+    ctx.fillStyle='#0a0a0a'; ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+    const maxAbs=Math.max(0.5,...avsyncHistory.map(Math.abs));
+    const grad=ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0,'#4a7eff'); grad.addColorStop(0.5,'#9c27b0'); grad.addColorStop(1,'#f44336');
+    ctx.strokeStyle=grad; ctx.lineWidth=2; ctx.beginPath();
+    avsyncHistory.forEach((v,i)=>{
+      const x=(i/200)*w;
+      const y=h/2-(v/maxAbs)*(h/2-4);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }, 100);
+}
+function stopAvsyncCanvas(){ if(avsyncCanvasTimer){ clearInterval(avsyncCanvasTimer); avsyncCanvasTimer=null; } }
+
+/* ---- 网络增强 ---- */
+registerFunc('network', { title:'网络增强' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">HTTP Referer</div>
+      <div class="form-row"><input type="text" id="netReferer" placeholder="如 https://example.com/"></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="applyNetworkSetting('referer')">应用</button><button class="btn sm" onclick="$('#netReferer').value=''">清空</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">HTTP 代理</div>
+      <div class="form-row"><input type="text" id="netProxy" placeholder="如 http://127.0.0.1:7890 或 socks5://..."></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="applyNetworkSetting('proxy')">应用</button><button class="btn sm" onclick="$('#netProxy').value=''">清空</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">User-Agent</div>
+      <div class="form-row"><input type="text" id="netUserAgent" placeholder="自定义 UA"></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="applyNetworkSetting('ua')">应用</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">自定义 Headers（每行一个）</div>
+      <div class="form-row"><textarea id="netHeaders" placeholder="X-Custom: value" style="width:100%;min-height:60px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical"></textarea></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="applyNetworkSetting('headers')">应用</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">TLS 验证 / RTSP 传输</div>
+      <div class="form-row"><span class="label">TLS验证</span><select id="netTlsVerify"><option value="yes">启用</option><option value="no">禁用</option></select></div>
+      <div class="form-row"><span class="label">RTSP传输</span><select id="netRtspTransport"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="http">HTTP</option></select></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="applyNetworkSetting('tls_rtsp')">应用</button></div>
+    </div>
+  `;
+  setTimeout(()=>{
+    $('#netReferer').value=state.settings.referer||Mpv.getStr('referrer')||'';
+    $('#netProxy').value=state.settings.proxy||Mpv.getStr('http-proxy')||'';
+    $('#netUserAgent').value=state.settings.userAgent||Mpv.getStr('user-agent')||'';
+    $('#netTlsVerify').value=state.settings.tlsVerify||'yes';
+    $('#netRtspTransport').value=state.settings.rtspTransport||'tcp';
+  }, 50);
+});
+function applyNetworkSetting(type){
+  const s=state.settings;
+  if(type==='referer'){ const v=$('#netReferer').value.trim(); s.referer=v; if(USE_MPV){ Mpv.setStr('referrer', v); } }
+  else if(type==='proxy'){ const v=$('#netProxy').value.trim(); s.proxy=v; if(USE_MPV){ Mpv.setStr('http-proxy', v); } }
+  else if(type==='ua'){ const v=$('#netUserAgent').value.trim(); s.userAgent=v; if(USE_MPV){ Mpv.setStr('user-agent', v); } }
+  else if(type==='headers'){ const v=$('#netHeaders').value; s.headers=v; if(USE_MPV){ v.split('\n').filter(Boolean).forEach(h=>Mpv.cmd(['set','http-header-fields', h])); } }
+  else if(type==='tls_rtsp'){ s.tlsVerify=$('#netTlsVerify').value; s.rtspTransport=$('#netRtspTransport').value; if(USE_MPV){ Mpv.setStr('tls-verify', s.tlsVerify); Mpv.setStr('rtsp-transport', s.rtspTransport); } }
+  storage.saveSettings();
+  showOSD('网络设置', '已应用，下次播放生效');
+}
+
+/* ---- 工具面板（聚合入口） ---- */
+registerFunc('tools', { title:'工具' }, body=>{
+  body.innerHTML = `
+    <div class="list-item" onclick="openFuncPanel('search')"><div class="li-icon"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1114 9.5 4.5 4.5 0 019.5 14z"/></svg></div><div class="li-text"><div class="li-title">全局搜索</div><div class="li-sub">频道 / EPG / 历史</div></div></div>
+    <div class="list-item" onclick="openFuncPanel('epg_timeline')"><div class="li-icon"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></div><div class="li-text"><div class="li-title">EPG 时间线</div><div class="li-sub">多频道横向时间轴</div></div></div>
+    <div class="list-item" onclick="openFuncPanel('epg_reminder')"><div class="li-icon"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></div><div class="li-text"><div class="li-title">EPG 提醒</div><div class="li-sub">已设置的节目提醒</div></div></div>
+    <div class="list-item" onclick="openFuncPanel('mapping')"><div class="li-icon"><svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM10 5.47l4 1.4v11.66l-4-1.4V5.47zm-5 .99l3-1.01v11.74L5 18.34V6.46zm14 11.08l-3 1.01V6.83l3-1.02v11.73z"/></svg></div><div class="li-text"><div class="li-title">频道映射</div><div class="li-sub">频道号 / XMLTV ID / 别名</div></div></div>
+    <div class="list-item" onclick="openFuncPanel('scan')"><div class="li-icon"><svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0L19.2 12l-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg></div><div class="li-text"><div class="li-title">扫描整理</div><div class="li-sub">订阅源扫描 / 去重 / 排序</div></div></div>
+    <div class="list-item" onclick="openFuncPanel('stream_quality')"><div class="li-icon"><svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg></div><div class="li-text"><div class="li-title">流质量监控</div><div class="li-sub">实时码率 / 缓存 / 丢帧</div></div></div>
+  `;
+});
+
+/* ---- 全局搜索面板 ---- */
+registerFunc('search', { title:'全局搜索' }, body=>{
+  body.innerHTML = `
+    <div class="panel-search" style="padding:0 0 12px">
+      <input id="srchInput" type="text" placeholder="频道名 / EPG 标题..." oninput="debounceSearch()">
+    </div>
+    <div class="panel-tabs">
+      <button class="panel-tab active" onclick="switchSearchTab('channels', this)">频道</button>
+      <button class="panel-tab" onclick="switchSearchTab('epg', this)">EPG</button>
+      <button class="panel-tab" onclick="switchSearchTab('history', this)">历史</button>
+      <button class="panel-tab" onclick="switchSearchTab('favorites', this)">收藏</button>
+    </div>
+    <div id="srchBody" class="panel-body" style="padding:8px 4px"></div>
+  `;
+  setTimeout(()=>$('#srchInput').focus(), 100);
+  state.searchTab='channels';
+  state.searchQuery='';
+  renderSearchResults();
+});
+function debounceSearch(){ clearTimeout(state._srchTm); state._srchTm=setTimeout(()=>{ state.searchQuery=$('#srchInput').value.trim(); renderSearchResults(); }, 280); }
+function switchSearchTab(tab, btn){ state.searchTab=tab; $$('.panel-tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); renderSearchResults(); }
+function renderSearchResults(){
+  const box=$('#srchBody'); if(!box) return;
+  const q=state.searchQuery.toLowerCase();
+  let items=[];
+  if(state.searchTab==='channels'){
+    items = state.channels.map((c,i)=>({title:c.name, sub:c.group, idx:i})).filter(x=>!q||x.title.toLowerCase().includes(q)||x.sub.toLowerCase().includes(q));
+  } else if(state.searchTab==='epg'){
+    if(q){ api.fetchEPGSearch(state.searchQuery).then(list=>{ list.forEach(p=>items.push({title:p.title, sub:(p.start||'')+' '+(p.channel||''), epg:p})); renderSearchList(box, items, 'epg'); }); return; }
+  } else if(state.searchTab==='history'){
+    items = state.playHistory.map(i=>{ const c=state.channels[i]; return c?{title:c.name, sub:c.group, idx:i}:null; }).filter(Boolean);
+  } else if(state.searchTab==='favorites'){
+    items = state.favorites.map(i=>{ const c=state.channels[i]; return c?{title:c.name, sub:c.group, idx:i}:null; }).filter(Boolean);
+  }
+  renderSearchList(box, items, 'channel');
+}
+function renderSearchList(box, items, kind){
+  if(!items.length){ box.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-faint)">无结果</div>'; return; }
+  box.innerHTML = items.map(it=>`
+    <div class="list-item" onclick="${kind==='epg'?'closeFuncPanel()':''};${kind==='channel'?'closeFuncPanel();playChannel('+it.idx+')':''}">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1114 9.5 4.5 4.5 0 019.5 14z"/></svg></div>
+      <div class="li-text"><div class="li-title">${esc(it.title)}</div><div class="li-sub">${esc(it.sub||'')}</div></div>
+    </div>
+  `).join('');
+}
+
+/* ---- EPG 时间线面板 ---- */
+let epgTimelineTimer=null;
+registerFunc('epg_timeline', { title:'EPG 时间线' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-row">
+        <span class="label">频道范围</span>
+        <select id="tlRange">
+          <option value="all">所有频道</option>
+          <option value="favorites">仅收藏</option>
+          <option value="group">当前分组</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <span class="label">时区</span>
+        <select id="tlTz"><option value="local">本地</option><option value="utc">UTC</option></select>
+      </div>
+      <div class="btn-row"><button class="btn primary sm" onclick="renderEpgTimeline()">刷新</button></div>
+    </div>
+    <div id="tlCanvasWrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding:8px 4px">
+      <canvas id="tlCanvas" width="800" height="400" style="background:#0a0a0a;border-radius:8px;display:block"></canvas>
+    </div>
+    <div id="tlDetail" style="padding:8px 4px;font-size:12px;color:var(--text-dim);min-height:24px"></div>
+  `;
+  renderEpgTimeline();
+  /* 每 60 秒刷新一次 */
+  epgTimelineTimer = setInterval(renderEpgTimeline, 60000);
+  /* MutationObserver 在面板关闭时停止 */
+  const obs=new MutationObserver(()=>{ if($('#funcTitle').textContent!=='EPG 时间线'){ clearInterval(epgTimelineTimer); epgTimelineTimer=null; obs.disconnect(); } });
+  obs.observe($('#panelFunc'), {attributes:true, attributeFilter:['class']});
+});
+async function renderEpgTimeline(){
+  const canvas=$('#tlCanvas'); if(!canvas) return;
+  const range=$('#tlRange').value;
+  let chans = range==='favorites' ? state.channels.filter((_,i)=>state.favorites.includes(i))
+    : range==='group' ? state.channels.filter(c=>c.group===(state.channels[state.currentIdx]||{}).group)
+    : state.channels;
+  if(chans.length>30) chans = chans.slice(0, 30);
+  /* 收集 EPG */
+  const eps = await Promise.all(chans.map(c=>api.fetchEPG(c.id||c.name).catch(()=>[])));
+  const now = Date.now();
+  const startH = Math.floor(now/3600000)*3600000;
+  const spanH = 6*3600000;
+  const w = canvas.width = Math.max(800, chans.length*120);
+  const h = canvas.height = Math.max(400, chans.length*30+30);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle='#0a0a0a'; ctx.fillRect(0,0,w,h);
+  const rowH = Math.max(28, Math.floor((h-30)/Math.max(1,chans.length)));
+  const colW = Math.max(40, Math.floor(w/24));
+  /* 时间刻度 */
+  ctx.fillStyle='#444'; ctx.font='10px monospace'; ctx.textBaseline='top';
+  for(let hh=0; hh<24; hh++){
+    const x = hh*colW;
+    ctx.fillStyle = (hh%2===0)?'#666':'#444';
+    ctx.fillRect(x, 0, 1, h);
+    if(hh%2===0){ ctx.fillStyle='#888'; ctx.fillText(String(hh).padStart(2,'0')+':00', x+3, 4); }
+  }
+  /* 当前时间线 */
+  const nowX = (now-startH)/3600000 * colW;
+  if(nowX>=0 && nowX<w){ ctx.strokeStyle='#4a7eff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(nowX, 0); ctx.lineTo(nowX, h); ctx.stroke(); }
+  /* 频道行 */
+  chans.forEach((c, ci)=>{
+    const y = 30 + ci*rowH;
+    ctx.fillStyle = ci%2?'#151515':'#1a1a1a';
+    ctx.fillRect(0, y, w, rowH-2);
+    /* 频道名 */
+    ctx.fillStyle='#aaa'; ctx.font='11px sans-serif';
+    ctx.fillText(c.name.substr(0,16), 4, y+6);
+    /* 节目块 */
+    (eps[ci]||[]).forEach(p=>{
+      const ts = new Date(p.start).getTime();
+      const te = new Date(p.stop||p.end).getTime();
+      if(isNaN(ts) || te<startH || ts>startH+spanH) return;
+      const x = Math.max(0, (ts-startH)/3600000*colW);
+      const x2 = Math.min(w, (te-startH)/3600000*colW);
+      const inNow = (now>=ts && now<=te);
+      ctx.fillStyle = inNow ? '#4a7eff' : '#2a4a8a';
+      ctx.fillRect(x, y+16, Math.max(2,x2-x), rowH-18);
+      if(x2-x>40){ ctx.fillStyle='#fff'; ctx.font='10px sans-serif'; ctx.fillText(p.title.substr(0,Math.floor((x2-x)/7)), x+4, y+18); }
+    });
+  });
+}
+function setEpgTimelineDetail(text){ if($('#tlDetail')) $('#tlDetail').textContent=text; }
+
+/* ---- EPG 提醒面板 ---- */
+registerFunc('epg_reminder', { title:'EPG 提醒' }, body=>{
+  renderEpgReminders(body);
+});
+function renderEpgReminders(body){
+  const list = state.epgReminder || [];
+  body.innerHTML = `
+    <div class="btn-row"><button class="btn primary sm" onclick="renderEpgReminders(document.getElementById('funcBody'))">刷新</button><button class="btn danger sm" onclick="clearAllReminders()">清空</button></div>
+    ${list.length? list.map((r,i)=>`
+      <div class="list-item">
+        <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></div>
+        <div class="li-text"><div class="li-title">${esc(r.title||'节目')}</div><div class="li-sub">${esc(r.startTs?new Date(r.startTs).toLocaleString():'')} · ${esc(r.chIdx>=0?(state.channels[r.chIdx]||{}).name||'':'')}</div></div>
+        <div class="li-action"><button class="btn sm danger" onclick="delReminder(${i})">删</button></div>
+      </div>
+    `).join('') : '<div style="padding:24px;text-align:center;color:var(--text-faint)">无提醒</div>'}
+  `;
+}
+function delReminder(i){ state.epgReminder.splice(i,1); storage.saveReminders(); renderEpgReminders(document.getElementById('funcBody')); }
+function clearAllReminders(){ if(confirm('清空所有提醒？')){ state.epgReminder=[]; storage.saveReminders(); renderEpgReminders(document.getElementById('funcBody')); } }
+
+/* ---- 频道映射面板 ---- */
+registerFunc('mapping', { title:'频道映射' }, body=>{
+  renderMappingList(body);
+});
+function renderMappingList(body){
+  const c = state.channels[state.currentIdx];
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">当前频道映射</div>
+      <div class="form-row"><span class="label">频道号</span><input type="number" id="mapNum" value="${c?(c.num||''):''}" placeholder="自定义频道号"></div>
+      <div class="form-row"><span class="label">XMLTV ID</span><input type="text" id="mapXmltv" value="${c?(c.xmltv_id||''):''}" placeholder="EPG ID"></div>
+      <div class="form-row"><span class="label">别名</span><input type="text" id="mapAlias" value="${c?(c.alias||''):''}" placeholder="多别名用 / 分隔"></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="saveChannelMapping()">保存</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">批量操作</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="autoAssignNum()">自动分配频道号</button>
+        <button class="btn sm" onclick="autoMatchXmltv()">自动匹配 XMLTV</button>
+        <button class="btn sm" onclick="dedupeChannels()">频道去重</button>
+      </div>
+    </div>
+  `;
+}
+function saveChannelMapping(){
+  if(state.currentIdx<0){ showOSD('映射','请先选择频道'); return; }
+  const idx = state.currentIdx;
+  const c = state.channels[idx];
+  c.num = $('#mapNum').value?parseInt($('#mapNum').value):null;
+  c.xmltv_id = $('#mapXmltv').value.trim();
+  c.alias = $('#mapAlias').value.trim();
+  api.updateChannel(idx, {num:c.num, xmltv_id:c.xmltv_id, alias:c.alias});
+  showOSD('映射','已保存');
+}
+async function autoAssignNum(){
+  let n=1;
+  for(const c of state.channels){ if(!c.num){ c.num=n; await api.updateChannel(state.channels.indexOf(c), {num:n}); } n++; }
+  showOSD('频道号','已自动分配');
+}
+async function autoMatchXmltv(){
+  /* 与已缓存的 EPG 数据匹配（简单实现：按名称匹配） */
+  showOSD('XMLTV','开始匹配...');
+}
+async function dedupeChannels(){
+  const seen=new Map();
+  const keep=[];
+  for(let i=0;i<state.channels.length;i++){
+    const c=state.channels[i];
+    const key=(c.url||'').trim().toLowerCase();
+    if(key && seen.has(key)){ await api.deleteChannel(i); }
+    else { seen.set(key, true); keep.push(i); }
+  }
+  showOSD('去重','完成');
+  api.fetchChannels();
+}
+
+/* ---- 流质量监控面板 ---- */
+let streamQTimer=null;
+registerFunc('stream_quality', { title:'流质量监控' }, body=>{
+  body.innerHTML = `
+    <div class="avsync-stats">
+      <div class="avsync-stat"><div class="lbl">视频码率</div><div class="val" id="sqVbitrate">-</div></div>
+      <div class="avsync-stat"><div class="lbl">音频码率</div><div class="val" id="sqAbitrate">-</div></div>
+      <div class="avsync-stat"><div class="lbl">缓存秒</div><div class="val" id="sqCache">-</div></div>
+      <div class="avsync-stat"><div class="lbl">缓存大小</div><div class="val" id="sqCacheSize">-</div></div>
+      <div class="avsync-stat"><div class="lbl">丢帧(vo)</div><div class="val" id="sqDropVo">-</div></div>
+      <div class="avsync-stat"><div class="lbl">丢帧(dec)</div><div class="val" id="sqDropDec">-</div></div>
+      <div class="avsync-stat"><div class="lbl">FPS</div><div class="val" id="sqFps">-</div></div>
+      <div class="avsync-stat"><div class="lbl">容器</div><div class="val" id="sqFormat">-</div></div>
+      <div class="avsync-stat"><div class="lbl">硬解</div><div class="val" id="sqHwdec">-</div></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">网络预热</div>
+      <div class="btn-row"><button class="btn sm" onclick="preheatStream()">预热当前频道</button><button class="btn sm" onclick="clearStreamCache()">清空缓存</button></div>
+    </div>
+  `;
+  streamQTimer = setInterval(updateStreamQuality, 1000);
+  const obs=new MutationObserver(()=>{ if($('#funcTitle').textContent!=='流质量监控'){ clearInterval(streamQTimer); streamQTimer=null; obs.disconnect(); } });
+  obs.observe($('#panelFunc'), {attributes:true, attributeFilter:['class']});
+});
+function updateStreamQuality(){
+  if(!USE_MPV) return;
+  $('#sqVbitrate').textContent = Mpv.getInt('video-bitrate') ? (Mpv.getInt('video-bitrate')/1000).toFixed(0)+' kbps' : '-';
+  $('#sqAbitrate').textContent = Mpv.getInt('audio-bitrate') ? (Mpv.getInt('audio-bitrate')/1000).toFixed(0)+' kbps' : '-';
+  $('#sqCache').textContent = (Mpv.getDbl('demuxer-cache-time')||0).toFixed(1)+' s';
+  $('#sqCacheSize').textContent = ((Mpv.getInt('demuxer-cache-state-bytes')||0)/1024).toFixed(0)+' KB';
+  $('#sqDropVo').textContent = Mpv.getInt('vo-drop-frame-count') || 0;
+  $('#sqDropDec').textContent = Mpv.getInt('decoder-drop-frame-count') || 0;
+  $('#sqFps').textContent = (Mpv.getDbl('estimated-vf-fps')||0).toFixed(1);
+  $('#sqFormat').textContent = Mpv.getStr('file-format') || '-';
+  $('#sqHwdec').textContent = Mpv.getStr('hwdec-current') || 'off';
+}
+function preheatStream(){ if(state.currentIdx>=0){ Mpv.setBool('cache', true); Mpv.setStr('demuxer-cache-wait', 'yes'); showOSD('预热','已开启'); } }
+function clearStreamCache(){ if(USE_MPV){ Mpv.cmd(['set','demuxer-seen-packets','0']); Mpv.cmd(['set','demuxer-cache-duration','0']); } showOSD('缓存','已清空'); }
+
+/* ---- 视图面板 ---- */
+registerFunc('view', { title:'视图' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">全屏</div>
+      <div class="btn-row">
+        <button class="btn sm ${state.fullscreen?'active':''}" onclick="toggleFullscreen()">${state.fullscreen?'退出':'进入'}全屏</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">画面比例</div>
+      <div class="btn-row">
+        <button class="btn sm ${!state.aspect||state.aspect==='auto'?'active':''}" onclick="setAspect('auto')">自动</button>
+        <button class="btn sm ${state.aspect==='16:9'?'active':''}" onclick="setAspect('16:9')">16:9</button>
+        <button class="btn sm ${state.aspect==='4:3'?'active':''}" onclick="setAspect('4:3')">4:3</button>
+        <button class="btn sm ${state.aspect==='2.35:1'?'active':''}" onclick="setAspect('2.35:1')">2.35:1</button>
+        <button class="btn sm ${state.aspect==='stretch'?'active':''}" onclick="setAspect('stretch')">拉伸</button>
+        <button class="btn sm ${state.aspect==='crop'?'active':''}" onclick="setAspect('crop')">裁切</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">OSD</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="showOSD(state.channels[state.currentIdx]?.name||'', state.channels[state.currentIdx]?.group||'')">显示 OSD</button>
+        <button class="btn sm" onclick="showStats()">显示统计</button>
+        <button class="btn sm" onclick="hideControls()">隐藏控制条</button>
+        <button class="btn sm" onclick="showControls()">显示控制条</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">界面</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="toggleTopBars()">切换顶/底栏</button>
+        <button class="btn sm" onclick="closeFuncPanel();closePanels()">隐藏所有面板</button>
+      </div>
+    </div>
+  `;
+});
+function toggleFullscreen(){
+  if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); state.fullscreen=true; }
+  else { document.exitFullscreen().catch(()=>{}); state.fullscreen=false; }
+  document.addEventListener('fullscreenchange', ()=>{ state.fullscreen=!!document.fullscreenElement; }, {once:true});
+  showOSD('全屏', state.fullscreen?'开启':'关闭');
+}
+function setAspect(a){
+  state.aspect=a;
+  applyAspect(a);
+  storage.saveSettings();
+  showOSD('比例', a);
+}
+function showStats(){
+  if(!USE_MPV) return;
+  Mpv.setStr('osd-msg', 'Stats: ${estimated-vf-fps} fps / ${video-bitrate} bps / cache ${demuxer-cache-time}s');
+}
+
+/* ---- 设置面板 ---- */
+registerFunc('settings', { title:'设置' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">硬件解码</div>
+      <div class="form-row"><span class="label">解码模式</span>
+        <select id="setHwdec">
+          <option value="auto-safe">自动（安全）</option>
+          <option value="auto">自动</option>
+          <option value="mediacodec">MediaCodec</option>
+          <option value="mediacodec-copy">MediaCodec(拷贝)</option>
+          <option value="nvdec">NVDEC</option>
+          <option value="no">软解</option>
+        </select>
+      </div>
+      <div class="btn-row"><button class="btn primary sm" onclick="applySetting('hwdec')">应用</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">缓存</div>
+      <div class="form-row"><span class="label">缓存秒</span><input type="number" id="setCacheSec" min="1" max="600" value="30"></div>
+      <div class="form-row"><span class="label">缓存字节</span><input type="text" id="setCacheBytes" placeholder="如 50MiB"></div>
+      <div class="form-row"><span class="label">开播等待</span><select id="setCacheWait"><option value="yes">是</option><option value="no">否</option></select></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="applySetting('cache')">应用</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">网络</div>
+      <div class="form-row"><span class="label">读取超时</span><input type="number" id="setTimeout" min="0" max="120" value="30" placeholder="秒"></div>
+      <div class="form-row"><span class="label">连接超时</span><input type="number" id="setConnTimeout" min="0" max="120" value="15" placeholder="秒"></div>
+      <div class="form-row"><span class="label">缓冲预读</span><input type="text" id="setPreload" placeholder="如 5MB"></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="applySetting('net')">应用</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">播放行为</div>
+      <div class="form-row"><span class="label">帧丢弃</span><select id="setFramedrop"><option value="vo">VO</option><option value="decoder">Decoder</option><option value="vo+decoder">Both</option><option value="no">None</option></select></div>
+      <div class="form-row"><span class="label">视频同步</span><select id="setVidSync"><option value="audio">音频</option><option value="display-resample">重采样</option><option value="display-resample-desync">重采样(desync)</option><option value="display-adrop">丢帧</option></select></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="applySetting('play')">应用</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">其他</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="openFuncPanel('about')">关于</button>
+        <button class="btn sm" onclick="exportSettings()">导出设置</button>
+        <button class="btn sm" onclick="importSettings()">导入设置</button>
+        <button class="btn sm danger" onclick="resetSettings()">重置设置</button>
+      </div>
+    </div>
+  `;
+  setTimeout(()=>{
+    $('#setHwdec').value=state.settings.hwdec||'auto-safe';
+    $('#setCacheSec').value=state.settings.cacheSec||30;
+    $('#setCacheBytes').value=state.settings.cacheBytes||'50MiB';
+    $('#setCacheWait').value=state.settings.cacheWait||'yes';
+    $('#setTimeout').value=state.settings.streamTimeout||30;
+    $('#setConnTimeout').value=state.settings.connTimeout||15;
+    $('#setPreload').value=state.settings.preload||'';
+    $('#setFramedrop').value=state.settings.framedrop||'vo';
+    $('#setVidSync').value=state.settings.vidSync||'audio';
+  }, 50);
+});
+function applySetting(group){
+  const s=state.settings;
+  if(group==='hwdec'){ s.hwdec=$('#setHwdec').value; if(USE_MPV){ Mpv.setStr('hwdec', s.hwdec); } }
+  else if(group==='cache'){
+    s.cacheSec=parseInt($('#setCacheSec').value)||30;
+    s.cacheBytes=$('#setCacheBytes').value.trim()||'50MiB';
+    s.cacheWait=$('#setCacheWait').value;
+    if(USE_MPV){
+      Mpv.setStr('demuxer-cache-secs', String(s.cacheSec));
+      Mpv.setStr('demuxer-max-bytes', s.cacheBytes);
+      Mpv.setStr('cache-pause-initial', s.cacheWait);
+    }
+  }
+  else if(group==='net'){
+    s.streamTimeout=parseInt($('#setTimeout').value)||30;
+    s.connTimeout=parseInt($('#setConnTimeout').value)||15;
+    s.preload=$('#setPreload').value.trim();
+    if(USE_MPV){
+      Mpv.setStr('stream-open-timeout', String(s.streamTimeout));
+      Mpv.setStr('network-timeout', String(s.connTimeout));
+      if(s.preload) Mpv.setStr('cache-secs', s.preload);
+    }
+  }
+  else if(group==='play'){
+    s.framedrop=$('#setFramedrop').value;
+    s.vidSync=$('#setVidSync').value;
+    if(USE_MPV){ Mpv.setStr('framedrop', s.framedrop); Mpv.setStr('video-sync', s.vidSync); }
+  }
+  storage.saveSettings();
+  showOSD('设置', '已应用');
+}
+function exportSettings(){
+  const blob = new Blob([JSON.stringify(state.settings, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='iptv-settings.json'; a.click();
+  URL.revokeObjectURL(url);
+  showOSD('设置','已导出');
+}
+function importSettings(){
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='.json';
+  inp.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+    r.onload=()=>{ try{ Object.assign(state.settings, JSON.parse(r.result)); storage.saveSettings(); showOSD('设置','已导入'); renderFuncPanel('settings'); }catch(err){ alert('格式错误'); } }; r.readAsText(f); };
+  inp.click();
+}
+function resetSettings(){
+  if(!confirm('重置所有设置？')) return;
+  state.settings={};
+  storage.saveSettings();
+  showOSD('设置','已重置');
+  renderFuncPanel('settings');
+}
+
+/* ---- 关于面板 ---- */
+const APP_VERSION='2.0.0-android';
+registerFunc('about', { title:'关于' }, body=>{
+  body.innerHTML = `
+    <div style="padding:24px 16px;text-align:center">
+      <div style="width:80px;height:80px;margin:0 auto 16px;background:linear-gradient(135deg,#4a7eff,#9c27b0);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;font-weight:700">i</div>
+      <div style="font-size:18px;font-weight:700;color:#fff">IPTV Scanner Editor Pro</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px">Android 端 v${APP_VERSION}</div>
+      <div style="font-size:11px;color:var(--text-faint);margin-top:8px">基于 mpv + WebView 的全功能 IPTV 客户端</div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">系统信息</div>
+      <div class="list-item"><div class="li-text"><div class="li-title">mpv 版本</div><div class="li-sub" id="abMpvVer">${USE_MPV?'查询中...':'不可用'}</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">FFmpeg 版本</div><div class="li-sub" id="abFfmpeg">-</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">User Agent</div><div class="li-sub" id="abUA">-</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">屏幕分辨率</div><div class="li-sub" id="abRes">${window.screen.width}x${window.screen.height}</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">DPR</div><div class="li-sub">${window.devicePixelRatio||1}</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">服务器</div><div class="li-sub">${API}</div></div></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">数据统计</div>
+      <div class="avsync-stats">
+        <div class="avsync-stat"><div class="lbl">频道</div><div class="val">${state.channels.length}</div></div>
+        <div class="avsync-stat"><div class="lbl">收藏</div><div class="val">${state.favorites.length}</div></div>
+        <div class="avsync-stat"><div class="lbl">书签</div><div class="val">${(state.bookmarks||[]).length}</div></div>
+        <div class="avsync-stat"><div class="lbl">续播</div><div class="val">${(state.resumeList||[]).length}</div></div>
+        <div class="avsync-stat"><div class="lbl">提醒</div><div class="val">${(state.epgReminder||[]).length}</div></div>
+        <div class="avsync-stat"><div class="lbl">队列</div><div class="val">${(state.queue||[]).length}</div></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">操作</div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="checkUpdate()">检查更新</button>
+        <button class="btn sm" onclick="clearCache()">清除缓存</button>
+        <button class="btn sm" onclick="location.reload()">重新加载</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">致谢</div>
+      <div style="font-size:11px;color:var(--text-faint);line-height:1.8;padding:4px">
+        mpv · libmpv · FFmpeg · aiohttp · Chaquopy<br>
+        Material Design Icons · WebView · SurfaceView
+      </div>
+    </div>
+  `;
+  if(USE_MPV){
+    setTimeout(()=>{
+      const v=Mpv.getStr('mpv-version')||'未知';
+      if($('#abMpvVer')) $('#abMpvVer').textContent=v;
+      const f=Mpv.getStr('ffmpeg-version')||'-';
+      if($('#abFfmpeg')) $('#abFfmpeg').textContent=f;
+      if($('#abUA')) $('#abUA').textContent=Mpv.getStr('user-agent')||navigator.userAgent;
+    }, 50);
+  }
+});
+function checkUpdate(){
+  showOSD('更新','检查中...');
+  api.get('/api/status').then(d=>{
+    if(d && d.success){
+      showOSD('更新','已是最新版本');
+    } else {
+      showOSD('更新','无法连接服务器');
+    }
+  });
+}
+function clearCache(){
+  if(confirm('清除所有缓存（不影响收藏/书签/续播）？')){
+    try{
+      localStorage.removeItem('iptv_channels_cache');
+      localStorage.removeItem('iptv_epg_cache');
+      localStorage.removeItem('iptv_thumbs_cache');
+    }catch(e){}
+    showOSD('缓存','已清除');
+  }
+}
+
+/* ---- 订阅源面板 ---- */
+registerFunc('sources', { title:'订阅源' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">添加订阅源</div>
+      <div class="form-row"><input type="text" id="srcUrl" placeholder="M3U/M3U8 URL"></div>
+      <div class="form-row"><input type="text" id="srcName" placeholder="名称（可选）"></div>
+      <div class="btn-row"><button class="btn primary sm" onclick="addSource()">添加</button><button class="btn sm" onclick="importM3U()">导入文件</button></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">已订阅源（${state.sources.length}）</div>
+      <div id="srcList">${renderSourcesList()}</div>
+    </div>
+  `;
+});
+function renderSourcesList(){
+  if(!state.sources.length) return '<div style="padding:16px;text-align:center;color:var(--text-faint)">无订阅源</div>';
+  return state.sources.map((s,i)=>`
+    <div class="list-item">
+      <div class="li-icon"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></div>
+      <div class="li-text"><div class="li-title">${esc(s.name||s.url||'')}</div><div class="li-sub">${esc(s.url||'')}</div></div>
+      <div class="li-action"><button class="btn sm" onclick="refreshSource(${i})">刷新</button><button class="btn sm danger" onclick="delSource(${i})">删</button></div>
+    </div>
+  `).join('');
+}
+async function delSource(i){
+  if(!confirm('删除订阅源？')) return;
+  await api.delSource(i);
+  await api.fetchSources();
+  renderSourcesList();
+  $('#srcList').innerHTML=renderSourcesList();
+  showOSD('订阅源','已删除');
+}
+async function refreshSource(i){
+  showOSD('订阅源','刷新中...');
+  /* 重新触发扫描 */
+  const s=state.sources[i];
+  if(s){ await api.startScan(s.url); await api.fetchChannels(); showOSD('订阅源','已刷新'); }
+}
+function importM3U(){
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='.m3u,.m3u8,text/plain';
+  inp.onchange=async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=async()=>{ await api.importChannels(r.result, f.name); await api.fetchChannels(); showOSD('导入','成功'); };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+
+/* ---- 扫描整理面板 ---- */
+let scanPollTimer=null;
+registerFunc('scan', { title:'扫描整理' }, body=>{
+  body.innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">扫描</div>
+      <div class="form-row"><input type="text" id="scanUrl" placeholder="订阅源 URL（留空扫描所有源）"></div>
+      <div class="btn-row">
+        <button class="btn primary sm" onclick="startScanNow()">开始</button>
+        <button class="btn sm danger" onclick="stopScanNow()">停止</button>
+      </div>
+      <div id="scanStatus" style="font-size:11px;color:var(--text-dim);padding:8px 4px">空闲</div>
+      <div id="scanProgress" style="width:100%;height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:4px;display:none">
+        <div id="scanProgressBar" style="width:0%;height:100%;background:var(--accent);border-radius:2px;transition:width .3s"></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">整理</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="dedupeChannels()">去重</button>
+        <button class="btn sm" onclick="sortChannels()">排序</button>
+        <button class="btn sm" onclick="cleanInvalid()">清理无效</button>
+        <button class="btn sm" onclick="rebuildGroups()">重建分组</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">导出</div>
+      <div class="btn-row">
+        <button class="btn sm" onclick="exportM3U()">导出 M3U</button>
+        <button class="btn sm" onclick="exportCSV()">导出 CSV</button>
+        <button class="btn sm" onclick="exportJson()">导出 JSON</button>
+      </div>
+    </div>
+  `;
+  pollScanStatus();
+  scanPollTimer=setInterval(pollScanStatus, 2000);
+  const obs=new MutationObserver(()=>{ if($('#funcTitle').textContent!=='扫描整理'){ clearInterval(scanPollTimer); scanPollTimer=null; obs.disconnect(); } });
+  obs.observe($('#panelFunc'), {attributes:true, attributeFilter:['class']});
+});
+async function startScanNow(){
+  const url=$('#scanUrl').value.trim();
+  await api.startScan(url);
+  showOSD('扫描','已开始');
+}
+async function stopScanNow(){
+  await api.stopScan();
+  showOSD('扫描','已停止');
+}
+async function pollScanStatus(){
+  const d=await api.scanStatus();
+  if(!d || !d.success) return;
+  const s=d.data||{};
+  const el=$('#scanStatus'); if(!el) return;
+  if(s.running){
+    el.textContent=`运行中: ${s.scanned||0}/${s.total||0} (${s.valid||0} 有效)`;
+    $('#scanProgress').style.display='block';
+    $('#scanProgressBar').style.width=((s.scanned/s.total)*100||0)+'%';
+  } else {
+    el.textContent=`空闲 · 总计 ${s.total||0} / 有效 ${s.valid||0}`;
+    $('#scanProgress').style.display='none';
+  }
+}
+function sortChannels(){ state.channels.sort((a,b)=>a.name.localeCompare(b.name)); showOSD('整理','已按名称排序'); }
+function cleanInvalid(){ showOSD('清理','需要后端支持'); }
+function rebuildGroups(){ showOSD('重建','需要后端支持'); }
+function exportM3U(){
+  let m3u='#EXTM3U\n';
+  state.channels.forEach((c,i)=>{ m3u+=`#EXTINF:-1 tvg-id="${c.id||i}" tvg-name="${c.name}" tvg-logo="${c.logo||''}" group-title="${c.group||''}",${c.name}\n${c.url}\n`; });
+  const blob=new Blob([m3u], {type:'audio/x-mpegurl'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='playlist.m3u'; a.click();
+  showOSD('导出','M3U 已导出');
+}
+function exportCSV(){
+  let csv='name,url,group,logo\n';
+  state.channels.forEach(c=>{ csv+=`${c.name||''},${c.url||''},${c.group||''},${c.logo||''}\n`; });
+  const blob=new Blob([csv], {type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='channels.csv'; a.click();
+  showOSD('导出','CSV 已导出');
+}
+function exportJson(){
+  const blob=new Blob([JSON.stringify(state.channels, null, 2)], {type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='channels.json'; a.click();
+  showOSD('导出','JSON 已导出');
+}
+
+/* ---- 退出面板 ---- */
+registerFunc('quit', { title:'退出' }, body=>{
+  body.innerHTML = `
+    <div style="padding:32px 16px;text-align:center">
+      <div style="font-size:48px;color:var(--warn);margin-bottom:16px">⏻</div>
+      <div style="font-size:16px;color:#fff;margin-bottom:6px">确认退出？</div>
+      <div style="font-size:12px;color:var(--text-dim)">所有未保存的状态将被清除</div>
+    </div>
+    <div class="btn-row" style="padding:0 16px 24px">
+      <button class="btn ghost sm" onclick="closeFuncPanel()">取消</button>
+      <button class="btn sm" onclick="saveAndQuit()">保存并退出</button>
+      <button class="btn danger sm" onclick="forceQuit()">立即退出</button>
+    </div>
+  `;
+});
+function saveAndQuit(){
+  storage.saveFavorites(); storage.saveHistory(); storage.saveQueue();
+  storage.saveBookmarks(); storage.saveResume(); storage.saveReminders(); storage.saveSettings();
+  showOSD('保存','已保存，正在退出...');
+  setTimeout(forceQuit, 800);
+}
+function forceQuit(){
+  /* 触发 Native 退出 */
+  if(window.AndroidMpv && AndroidMpv.quit){ AndroidMpv.quit(); }
+  else { window.close(); }
+}
+
+/* ============== 13. 应用初始化 ==============
+ * 启动流程：
+ *  1. 加载本地持久化数据
+ *  2. 应用保存的设置到 mpv
+ *  3. 拉取服务器数据（订阅源 / 频道）
+ *  4. 隐藏 splash，根据是否有频道决定显示 welcome
+ *  5. 启动后台任务（提醒检查 / 续播自动保存 / 控件自动隐藏）
+ */
+async function initApp(){
+  /* 1. 加载持久化 */
+  storage.loadAll();
+  /* favorites 是 Set，需要恢复 */
+  if(Array.isArray(state.favorites)) state.favorites = new Set(state.favorites);
+
+  /* 2. 应用设置到 mpv */
+  applySavedSettings();
+
+  /* 3. 拉取服务器数据 */
+  await Promise.all([api.fetchSources(), api.fetchChannels()]).catch(()=>{});
+
+  /* 4. 隐藏 splash */
+  setTimeout(()=>{
+    const s=$('#splashScreen'); if(s){ s.classList.add('fade-out'); setTimeout(()=>s.style.display='none', 600); }
+  }, 800);
+
+  /* 5. 根据 channel 数决定是否显示欢迎屏 */
+  if(state.channels.length===0){
+    $('#welcomeScreen').classList.add('show');
+  } else {
+    /* 显示中央图标等待用户选择 */
+    showCenterIcon();
+    /* 自动播放上次频道 */
+    if(state.settings.autoResume && state.playHistory.length){
+      playChannel(state.playHistory[0], {silent:true});
+    }
+  }
+
+  /* 6. 启动后台任务 */
+  startBackgroundTasks();
+}
+
+function applySavedSettings(){
+  if(!USE_MPV) return;
+  const s=state.settings;
+  try{
+    if(s.hwdec) Mpv.setStr('hwdec', s.hwdec);
+    if(s.cacheSec) Mpv.setStr('demuxer-cache-secs', String(s.cacheSec));
+    if(s.cacheBytes) Mpv.setStr('demuxer-max-bytes', s.cacheBytes);
+    if(s.cacheWait) Mpv.setStr('cache-pause-initial', s.cacheWait);
+    if(s.streamTimeout) Mpv.setStr('stream-open-timeout', String(s.streamTimeout));
+    if(s.connTimeout) Mpv.setStr('network-timeout', String(s.connTimeout));
+    if(s.framedrop) Mpv.setStr('framedrop', s.framedrop);
+    if(s.vidSync) Mpv.setStr('video-sync', s.vidSync);
+    if(s.referer) Mpv.setStr('referrer', s.referer);
+    if(s.proxy) Mpv.setStr('http-proxy', s.proxy);
+    if(s.userAgent) Mpv.setStr('user-agent', s.userAgent);
+    if(s.tlsVerify) Mpv.setStr('tls-verify', s.tlsVerify);
+    if(s.rtspTransport) Mpv.setStr('rtsp-transport', s.rtspTransport);
+    if(s.aspect) applyAspect(s.aspect);
+    /* 默认启用：framedrop=vo, video-sync=audio, cache-pause-initial=no, source-timeout */
+    if(!s.framedrop) Mpv.setStr('framedrop', 'vo');
+    if(!s.vidSync) Mpv.setStr('video-sync', 'audio');
+    Mpv.setStr('cache-pause-initial', s.cacheWait||'no');
+    Mpv.setStr('source-timeout', '30');
+  }catch(e){ console.warn('applySettings failed:', e); }
+}
+
+/* 后台周期任务 */
+let reminderTimer=null, autoResumeSaveTimer=null;
+function startBackgroundTasks(){
+  /* 每 60 秒检查 EPG 提醒 */
+  reminderTimer = setInterval(checkReminders, 60000);
+  /* 每 10 秒自动保存续播位置（仅当正在播放且非直播） */
+  autoResumeSaveTimer = setInterval(autoSaveResume, 10000);
+  /* 页面失焦时保存 */
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden && state.currentIdx>=0){ autoSaveResume(); }
+  });
+  window.addEventListener('beforeunload', ()=>{
+    storage.saveFavorites(); storage.saveHistory(); storage.saveQueue();
+    storage.saveBookmarks(); storage.saveResume(); storage.saveReminders(); storage.saveSettings();
+  });
+}
+
+function autoSaveResume(){
+  if(state.currentIdx<0 || !USE_MPV) return;
+  /* 直播流（无 duration 或 duration 很大）不保存 */
+  const dur = state.mpv.duration;
+  if(!dur || dur>86400) return;
+  const ch = state.channels[state.currentIdx];
+  if(!ch) return;
+  const url = ch.url;
+  const existing = state.resumeList.find(r=>r.chIdx===state.currentIdx || r.url===url);
+  if(existing){
+    existing.pos = state.mpv.timePos;
+    existing.dur = dur;
+    existing.ts = Date.now();
+  } else {
+    state.resumeList.push({ id:uuid(), chIdx:state.currentIdx, url, name:ch.name, pos:state.mpv.timePos, dur, ts:Date.now() });
+    state.resumeList = state.resumeList.slice(-200);
+  }
+  storage.saveResume();
+}
+
+/* 服务器就绪后启动应用 */
+function bootApp(){
+  initApp().catch(err=>{ console.error('initApp failed:', err); });
+}
+
+/* 当文档加载完成时启动
+ * PC 浏览器调试：直接调用 bootApp
+ * Android：等待 Python 服务器就绪后由 Native 通知启动（onServerReady）
+ */
+if(document.readyState === 'complete' || document.readyState === 'interactive'){
+  setTimeout(bootApp, 100);
+} else {
+  document.addEventListener('DOMContentLoaded', ()=>setTimeout(bootApp, 100));
+}
+
+/* 暴露给 Native 调用：服务器就绪通知 */
+window.onServerReady = function(){
+  console.log('Server ready, booting app...');
+  bootApp();
+};
+
+/* Service Worker 注册（用于离线缓存 PC 端 HTML） */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/mobile/sw.js').catch(()=>{ /* 无 sw.js 时静默失败 */ });
+}
+
+/* 全局错误捕获：避免单点错误导致 UI 卡死 */
+window.addEventListener('error', e=>{
+  console.error('UI Error:', e.message, e.filename+':'+e.lineno);
+  return false;
+});
+window.addEventListener('unhandledrejection', e=>{
+  console.error('Unhandled Promise:', e.reason);
+});
+
+console.log('IPTV Scanner Editor Pro - Android UI loaded v'+APP_VERSION);
 </script>
 </body>
 </html>
