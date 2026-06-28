@@ -946,6 +946,19 @@ async def handle_epg(request):
         if hasattr(epg_parser, 'get_channel_epg'):
             if channel_id:
                 programmes = epg_parser.get_channel_epg(channel_id) or []
+                # 给每个节目添加 Unix 时间戳字段（前端用此判断当前节目）
+                for p in programmes:
+                    if 'start_ts' not in p:
+                        try:
+                            from datetime import datetime
+                            start_str = p.get('start', '')
+                            stop_str = p.get('stop', p.get('end', ''))
+                            if start_str:
+                                p['start_ts'] = int(datetime.fromisoformat(start_str).timestamp())
+                            if stop_str:
+                                p['stop_ts'] = int(datetime.fromisoformat(stop_str).timestamp())
+                        except Exception:
+                            pass
                 return _json_success(programmes=programmes)
             if hasattr(epg_parser, 'get_epg_data_copy'):
                 data = epg_parser.get_epg_data_copy() or {}
@@ -957,6 +970,18 @@ async def handle_epg(request):
         if hasattr(epg_parser, 'get_programmes_for_channel'):
             if channel_id:
                 programmes = epg_parser.get_programmes_for_channel(channel_id)
+                for p in programmes:
+                    if 'start_ts' not in p:
+                        try:
+                            from datetime import datetime
+                            start_str = p.get('start', '')
+                            stop_str = p.get('stop', p.get('end', ''))
+                            if start_str:
+                                p['start_ts'] = int(datetime.fromisoformat(start_str).timestamp())
+                            if stop_str:
+                                p['stop_ts'] = int(datetime.fromisoformat(stop_str).timestamp())
+                        except Exception:
+                            pass
                 return _json_success(programmes=programmes)
         if hasattr(epg_parser, 'get_all_channels'):
             channels = epg_parser.get_all_channels()
