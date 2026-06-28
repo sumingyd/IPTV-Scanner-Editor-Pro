@@ -118,6 +118,7 @@ class MediaController:
 
         if is_playing:
             menu.addAction(tr("ctx_screenshot", "Screenshot\tS"), lambda *a: self._take_screenshot())
+            menu.addAction(tr("ctx_burst_screenshot", "Burst Screenshot..."), lambda *a: self._show_burst_screenshot_dialog())
 
         menu.addAction(tr("ctx_fullscreen", "Fullscreen\tF11"), lambda *a: self.window.toggle_fullscreen())
         menu.addAction(tr("ctx_pip", "Picture-in-Picture\tP"), lambda *a: self.window.pip_ctrl.toggle())
@@ -720,6 +721,18 @@ class MediaController:
             self.window._network_enhance_dialog.activateWindow()
         except Exception as e:
             logger.error(f"打开网络流媒体增强对话框失败: {e}")
+
+    def _show_burst_screenshot_dialog(self):
+        """打开连拍截图对话框"""
+        try:
+            from ui.dialogs.burst_screenshot_dialog import BurstScreenshotDialog
+            if not hasattr(self.window, '_burst_screenshot_dialog') or not self.window._burst_screenshot_dialog:
+                self.window._burst_screenshot_dialog = BurstScreenshotDialog(self.window)
+            self.window._burst_screenshot_dialog.show()
+            self.window._burst_screenshot_dialog.raise_()
+            self.window._burst_screenshot_dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"打开连拍截图对话框失败: {e}")
 
     def get_queue_controller(self):
         return getattr(self.window, 'file_queue_ctrl', None)

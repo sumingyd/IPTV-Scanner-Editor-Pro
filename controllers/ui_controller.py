@@ -1251,6 +1251,10 @@ class UIController:
             screenshot.triggered.connect(lambda: self.window.media_ctrl.take_screenshot())
             playback_menu.addAction(screenshot)
 
+            burst_screenshot = QAction(tr("menu_burst_screenshot", "Burst Screenshot..."), self.window)
+            burst_screenshot.triggered.connect(lambda: self.window.media_ctrl._show_burst_screenshot_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(burst_screenshot)
+
             playback_menu.addSeparator()
 
             audio_menu = playback_menu.addMenu(tr("ctx_audio_track", "Audio Track"))
