@@ -108,6 +108,8 @@ class MpvPlayerController(QObject):
     thumbnail_captured = Signal(str)
     file_loaded = Signal()
     local_file_ended = Signal(str)
+    # 本地文件结束时需保存播放位置：参数 (url, position_sec, duration_sec)
+    local_file_position_to_save = Signal(str, float, float)
 
     def __init__(self, video_widget, channel_model=None):
         super().__init__()
@@ -987,6 +989,14 @@ class MpvPlayerController(QObject):
                             else:
                                 self.logger.debug("END_FILE_EOF: 非网络流，正常结束")
                                 ended_url = self.current_url or ''
+                                # 保存播放位置（用于断点续播）
+                                try:
+                                    pos_sec = self._get_mpv_property_double('time-pos') or 0.0
+                                    dur_sec = self._get_mpv_property_double('duration') or 0.0
+                                    if ended_url and pos_sec > 0:
+                                        self._safe_emit(self.local_file_position_to_save, ended_url, float(pos_sec), float(dur_sec))
+                                except Exception as e:
+                                    self.logger.debug(f"保存播放位置失败: {e}")
                                 self.is_playing = False
                                 self.is_paused = False
                                 self._safe_emit(self.play_state_changed, False)

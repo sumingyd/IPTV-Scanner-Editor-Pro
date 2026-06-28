@@ -128,10 +128,13 @@ class FileQueueController(QObject):
         if next_idx == current_idx and len(channels) == 1:
             # 只有一个文件，重新播放
             channel = channels[current_idx]
+            self._notify_skip_resume(channel)
             self._replay_channel(channel)
             return
 
         channel = channels[next_idx]
+        # 通知断点续播控制器跳过下次自动恢复
+        self._notify_skip_resume(channel)
         # 更新 UI 选中项
         self._select_channel_in_list(next_idx)
         # 播放
@@ -143,6 +146,17 @@ class FileQueueController(QObject):
             QTimer.singleShot(100, lambda: self.window.play_channel(channel))
         except Exception as e:
             logger.debug(f"重新播放失败: {e}")
+
+    def _notify_skip_resume(self, channel: dict):
+        """通知断点续播控制器跳过下次自动恢复"""
+        try:
+            resume_ctrl = getattr(self.window, 'resume_ctrl', None)
+            if resume_ctrl and hasattr(resume_ctrl, 'set_skip_next_resume'):
+                url = channel.get('url', '') if isinstance(channel, dict) else ''
+                if url:
+                    resume_ctrl.set_skip_next_resume(url)
+        except Exception as e:
+            logger.debug(f"通知跳过断点恢复失败: {e}")
 
     def _get_local_channels(self) -> list:
         """获取本地频道列表（即文件队列）"""
@@ -208,6 +222,7 @@ class FileQueueController(QObject):
             idx = (idx + 1) % len(channels)
         self._select_channel_in_list(idx)
         channel = channels[idx]
+        self._notify_skip_resume(channel)
         QTimer.singleShot(100, lambda: self.window.play_channel(channel))
 
     def play_previous(self):
@@ -224,6 +239,7 @@ class FileQueueController(QObject):
             idx = (idx - 1) % len(channels)
         self._select_channel_in_list(idx)
         channel = channels[idx]
+        self._notify_skip_resume(channel)
         QTimer.singleShot(100, lambda: self.window.play_channel(channel))
 
     # ---------- AB 循环 ----------

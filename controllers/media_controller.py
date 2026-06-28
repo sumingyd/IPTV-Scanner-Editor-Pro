@@ -88,6 +88,8 @@ class MediaController:
         if is_playing:
             # 播放队列与控制入口
             menu.addAction(tr("ctx_playback_queue", "Playback Queue..."), lambda *a: self._show_playback_queue_dialog())
+            # 断点续播列表入口
+            menu.addAction(tr("ctx_resume_list", "Resume Positions..."), lambda *a: self._show_resume_list_dialog())
 
             audio_menu = menu.addMenu(tr("ctx_audio_track", "Audio Track"))
             audio_menu.setStyleSheet(AppStyles.player_menu_bar_style())
@@ -694,6 +696,15 @@ class MediaController:
             self.window._playback_queue_dialog.activateWindow()
         except Exception as e:
             logger.error(f"打开播放队列对话框失败: {e}")
+
+    def _show_resume_list_dialog(self):
+        """打开断点续播列表对话框"""
+        try:
+            rc = getattr(self.window, 'resume_ctrl', None)
+            if rc and hasattr(rc, 'show_resume_list_dialog'):
+                rc.show_resume_list_dialog()
+        except Exception as e:
+            logger.error(f"打开断点续播列表对话框失败: {e}")
 
     def get_queue_controller(self):
         return getattr(self.window, 'file_queue_ctrl', None)

@@ -1286,6 +1286,11 @@ class UIController:
             playback_queue.triggered.connect(lambda: self.window.media_ctrl._show_playback_queue_dialog() if hasattr(self.window, 'media_ctrl') else None)
             playback_menu.addAction(playback_queue)
 
+            # 断点续播列表入口
+            resume_list = QAction(tr("menu_resume_list", "Resume Positions..."), self.window)
+            resume_list.triggered.connect(lambda: self.window.media_ctrl._show_resume_list_dialog() if hasattr(self.window, 'media_ctrl') else None)
+            playback_menu.addAction(resume_list)
+
             view_menu = menu_bar.addMenu(tr("menu_view", "View"))
 
             show_epg = QAction(tr("menu_epg_list", "EPG List\tE"), self.window)

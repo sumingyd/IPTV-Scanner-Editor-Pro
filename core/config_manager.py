@@ -1,6 +1,7 @@
 import configparser
 import os
 import sys
+import time
 import threading
 from .log_manager import global_logger as logger
 from utils.config_notifier import notify_config_change
@@ -25,6 +26,8 @@ class ConfigManager(Singleton):
         self.config_file = os.path.join(config_dir, config_file)
         self.config = configparser.ConfigParser(interpolation=None)
         self._lock = threading.RLock()
+        self._resume_file = os.path.join(config_dir, 'resume_positions.json')
+        self._resume_cache: dict | None = None
         self.load_config()
         self._initialized = True
 
@@ -753,6 +756,109 @@ class ConfigManager(Singleton):
             'name': self.get_value('Player', 'last_channel_name', ''),
             'index': self._parse_int(self.get_value('Player', 'last_channel_index', '-1'), -1),
         }
+
+    # ---------- 断点续播（JSON 文件存储）----------
+    _RESUME_MAX_ENTRIES = 200  # 最多保存 200 条断点
+    _RESUME_MIN_POSITION_SEC = 5.0  # 少于 5 秒不保存
+    _RESUME_TOLERANCE_SEC = 3.0  # 距离结尾少于 3 秒视为已播完，删除断点
+
+    def _load_resume_cache(self) -> dict:
+        """懒加载断点缓存"""
+        if self._resume_cache is not None:
+            return self._resume_cache
+        cache = {}
+        try:
+            if os.path.exists(self._resume_file):
+                import json
+                with open(self._resume_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        cache = data
+        except Exception as e:
+            logger.debug(f"加载断点缓存失败: {e}")
+        self._resume_cache = cache
+        return cache
+
+    def _save_resume_cache(self):
+        """保存断点缓存到 JSON 文件"""
+        try:
+            import json
+            cache = self._resume_cache or {}
+            with open(self._resume_file, 'w', encoding='utf-8') as f:
+                json.dump(cache, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"保存断点缓存失败: {e}")
+
+    def save_resume_position(self, url: str, position: float, duration: float, name: str = ''):
+        """保存播放位置
+        - position < _RESUME_MIN_POSITION_SEC 时不保存（视为开头）
+        - duration > 0 且 position + _RESUME_TOLERANCE_SEC >= duration 时删除断点（视为已播完）
+        """
+        if not url or position < self._RESUME_MIN_POSITION_SEC:
+            return
+        with self._lock:
+            cache = self._load_resume_cache()
+            # 判断是否已播完
+            if duration and duration > 0 and position + self._RESUME_TOLERANCE_SEC >= duration:
+                if url in cache:
+                    cache.pop(url, None)
+                    self._save_resume_cache()
+                return
+            entry = {
+                'url': url,
+                'position': float(position),
+                'duration': float(duration) if duration else 0.0,
+                'name': name or '',
+                'updated_at': int(time.time()),
+            }
+            cache[url] = entry
+            # 限制最大条数（按 updated_at 升序淘汰最旧的）
+            if len(cache) > self._RESUME_MAX_ENTRIES:
+                sorted_items = sorted(cache.items(), key=lambda kv: kv[1].get('updated_at', 0))
+                while len(cache) > self._RESUME_MAX_ENTRIES:
+                    k, _ = sorted_items.pop(0)
+                    cache.pop(k, None)
+            self._save_resume_cache()
+
+    def load_resume_position(self, url: str) -> dict | None:
+        """加载指定 URL 的播放位置"""
+        if not url:
+            return None
+        with self._lock:
+            cache = self._load_resume_cache()
+            entry = cache.get(url)
+            if not entry:
+                return None
+            # 复制一份避免外部修改
+            return dict(entry)
+
+    def load_all_resume_positions(self) -> list:
+        """加载所有断点（按 updated_at 降序）"""
+        with self._lock:
+            cache = self._load_resume_cache()
+            items = [dict(v) for v in cache.values()]
+        items.sort(key=lambda x: x.get('updated_at', 0), reverse=True)
+        return items
+
+    def clear_resume_position(self, url: str):
+        """清除指定 URL 的断点"""
+        if not url:
+            return
+        with self._lock:
+            cache = self._load_resume_cache()
+            if url in cache:
+                cache.pop(url, None)
+                self._save_resume_cache()
+
+    def clear_all_resume_positions(self):
+        """清除所有断点"""
+        with self._lock:
+            self._resume_cache = {}
+            try:
+                if os.path.exists(self._resume_file):
+                    os.remove(self._resume_file)
+            except Exception as e:
+                logger.debug(f"清除断点文件失败: {e}")
 
     def save_timeshift_settings(self, settings):
         for key, value in settings.items():
