@@ -4,6 +4,14 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// 从 local.properties 读取 chaquopy.buildPython（如果存在），用于在 PATH 中找不到 Python 时指定路径
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localProps.load(new FileInputStream(localPropsFile))
+}
+def buildPythonPath = localProps.getProperty("chaquopy.buildPython")
+
 android {
     namespace 'com.iptv.scanner.editor.pro'
     compileSdk 35
@@ -46,6 +54,15 @@ android {
 chaquopy {
     defaultConfig {
         version = "3.14"
+        // 显式指定 Python 解释器路径，从 local.properties 读取（如果设置）
+        // local.properties 中支持两种形式：
+        //   chaquopy.buildPython=C:/path/to/python.exe
+        //   chaquopy.buildPython=py -3.14
+        if (buildPythonPath != null) {
+            // Groovy 的 spread 操作 (*) 把 List 展开为 vararg 参数
+            def bpParts = buildPythonPath.tokenize(' ')
+            buildPython(*bpParts)
+        }
         pip {
             install "aiohttp"
             install "requests"
