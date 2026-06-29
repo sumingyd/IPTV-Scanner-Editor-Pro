@@ -1975,22 +1975,27 @@ function handlePanelKey(keyCode){
 /* 电视导航模式：OK 键同时显示频道列表、EPG、控制面板 */
 function openTVMode(){
   if(state.tvMode) return;
-  state.tvMode = true;
-  state.tvFocus = 'channels';
-  closeFuncPanel();
-  /* 同时打开三个面板 */
-  state.panelOpen = 'tv';
-  $('#panelOverlay').classList.add('show');
-  $('#panelChannels').classList.add('open');
-  $('#panelEPG').classList.add('open');
-  $('#panelControls').classList.add('open');
-  $('#topBar').classList.add('show');
-  renderChannelList();
-  renderEPGList();
-  updateCtrlInfo();
-  /* 高亮频道列表焦点 */
-  highlightTVFocus('channels');
-  clearTimeout(state.hideControlsTimer);
+  try {
+    state.tvMode = true;
+    state.tvFocus = 'channels';
+    closeFuncPanel();
+    /* 同时打开三个面板 */
+    state.panelOpen = 'tv';
+    $('#panelOverlay').classList.add('show');
+    $('#panelChannels').classList.add('open');
+    $('#panelEPG').classList.add('open');
+    $('#panelControls').classList.add('open');
+    $('#topBar').classList.add('show');
+    renderChannelList();
+    renderEPGList();
+    updateCtrlInfo();
+    /* 高亮频道列表焦点 */
+    highlightTVFocus('channels');
+    clearTimeout(state.hideControlsTimer);
+  } catch(e) {
+    console.error('openTVMode error:', e);
+    document.title = 'TVMode Error: ' + e.message;
+  }
 }
 function closeTVMode(){
   if(!state.tvMode) return;
