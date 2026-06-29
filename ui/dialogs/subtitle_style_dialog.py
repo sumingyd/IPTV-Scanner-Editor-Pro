@@ -599,11 +599,11 @@ class SubtitleDownloadDialog(FloatingDialog):
             self.query_edit.setText(os.path.splitext(os.path.basename(self._video_path))[0])
         search_row.addWidget(self.query_edit, 1)
         self.lang_combo = QComboBox()
-        # 语言代码 - 显示名
-        self.lang_combo.addItem(tr('sub_lang_eng', '英语') + ' (eng)', 'eng')
-        self.lang_combo.addItem(tr('sub_lang_chi', '中文') + ' (chi)', 'chi')
-        self.lang_combo.addItem(tr('sub_lang_cjk', '中日韩') + ' (eng,chi,jpn)', 'eng,chi,jpn')
+        # 语言代码 - 显示名（默认"全部"，避免过滤掉中文字幕）
         self.lang_combo.addItem(tr('sub_lang_all', '全部') + ' (all)', 'all')
+        self.lang_combo.addItem(tr('sub_lang_cjk', '中日韩') + ' (eng,chi,jpn)', 'eng,chi,jpn')
+        self.lang_combo.addItem(tr('sub_lang_chi', '中文') + ' (chi)', 'chi')
+        self.lang_combo.addItem(tr('sub_lang_eng', '英语') + ' (eng)', 'eng')
         search_row.addWidget(self.lang_combo, 0)
         self.search_btn = QPushButton(tr('sub_search', '搜索'))
         self.search_btn.clicked.connect(self._do_search)
@@ -685,10 +685,20 @@ class SubtitleDownloadDialog(FloatingDialog):
         self.status_label.setText(tr('sub_results_count', '找到 {} 条结果').format(len(items)))
         from PySide6.QtWidgets import QListWidgetItem
         for it in items:
-            label = f"[{it['language']}] {it['file_name']}  · {it['movie_name']}  " \
-                    f"· {tr('sub_rating', '评分')}={it['rating']:.1f} " \
-                    f"· {tr('sub_downloads', '下载')}={it['download_count']}"
-            if it['bad']:
+            # 来源标识 + 语言 + 文件名 + 影片名 + 下载数 + 下载方式
+            source = it.get('source', '?')
+            lang = it.get('language', '') or '?'
+            fname = it.get('file_name', '') or ''
+            movie = it.get('movie_name', '') or ''
+            dl_count = it.get('download_count', 0)
+            auto_dl = it.get('auto_download', True)
+            # 下载方式提示：自动下载 / 浏览器跳转
+            dl_mode = tr('sub_auto_dl', '自动下载') if auto_dl else tr('sub_browser_dl', '浏览器下载')
+            label = f"[{source}] [{lang}] {fname}"
+            if movie and movie != fname:
+                label += f"  · {movie}"
+            label += f"  · {tr('sub_downloads', '下载')}={dl_count}  · [{dl_mode}]"
+            if it.get('bad'):
                 label += f"  [{tr('sub_bad', '劣质')}]"
             qi = QListWidgetItem(label)
             self.result_list.addItem(qi)
@@ -705,25 +715,42 @@ class SubtitleDownloadDialog(FloatingDialog):
         if not it.get('download_link'):
             return
         tr = self.window.language_manager.tr
+
+        # SubHD 等不支持自动下载的源：跳转浏览器
+        if not it.get('auto_download', True):
+            detail_url = it.get('detail_url') or it.get('download_link', '')
+            if detail_url and self._service.open_in_browser(detail_url):
+                self.status_label.setText(
+                    tr('sub_open_browser_hint', '已在浏览器打开详情页，请手动下载字幕'))
+            else:
+                self.status_label.setText(tr('sub_dl_failed', '下载失败'))
+            return
+
+        # OpenSubtitles / SubtitleCat：自动下载
         self.progress.setVisible(True)
         self.download_btn.setEnabled(False)
         self.status_label.setText(tr('sub_downloading', '正在下载...'))
+
+        # 获取当前语言选择（SubtitleCat 下载需要）
+        language = self.lang_combo.currentData() or 'all'
 
         from PySide6.QtCore import QThread, Signal
 
         class _DLWorker(QThread):
             done = Signal(str)
 
-            def __init__(self, service, link, dest_dir, fname):
+            def __init__(self, service, link, dest_dir, fname, lang):
                 super().__init__()
                 self._service = service
                 self._link = link
                 self._dest = dest_dir
                 self._fname = fname
+                self._lang = lang
 
             def run(self):
                 try:
-                    path = self._service.download(self._link, self._dest, self._fname)
+                    path = self._service.download(self._link, self._dest, self._fname,
+                                                  language=self._lang)
                 except Exception:
                     path = ''
                 self.done.emit(path)
@@ -735,7 +762,7 @@ class SubtitleDownloadDialog(FloatingDialog):
         else:
             dest_dir = os.path.join(os.getcwd(), 'subtitles')
         fname = it.get('file_name') or 'subtitle.srt'
-        self._dl_worker = _DLWorker(self._service, it['download_link'], dest_dir, fname)
+        self._dl_worker = _DLWorker(self._service, it['download_link'], dest_dir, fname, language)
         self._dl_worker.done.connect(self._on_download_done)
         self._dl_worker.start()
 

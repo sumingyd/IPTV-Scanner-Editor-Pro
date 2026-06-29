@@ -879,6 +879,32 @@ function replaceCatchupVariables(url, startTime, endTime){
   return result;
 }
 
+/* 从 URL 自动检测回看模式（与 PC 端 services/m3u_parser.py:detect_catchup_pattern 对齐）
+ * 支持的单播可回看模式（无需在源里配置 catchup-source）：
+ *   1. PLTV/TVOD 模式：/PLTV/<n>/<n>/<n>/<文件名>，文件名可为 index.m3u8、xxx.smil、xxx.flv 等
+ *   2. SNM/TVOD 模式：/SNM/CHANNEL<数字>/<文件名>
+ * 返回 {type: 'pltv', source: '...catchup_source模板...'} 或 null */
+function detectCatchupPattern(url){
+  if(!url) return null;
+  /* PLTV 模式：匹配 /PLTV/数字/数字/数字/任意文件名（支持 .m3u8/.smil/.flv 等后缀） */
+  let m = url.match(/\/PLTV\/\d+\/\d+\/\d+\/[^/?#]+/i);
+  if(m){
+    const livePath = m[0];
+    const tvodPath = livePath.replace(/^\/PLTV\//i, '/TVOD/');
+    const baseUrl = url.slice(0, m.index);
+    return {type: 'pltv', source: baseUrl + tvodPath + '?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}'};
+  }
+  /* SNM 模式：匹配 /SNM/CHANNEL数字/任意文件名 */
+  m = url.match(/\/SNM\/CHANNEL\d+\/[^/?#]+/i);
+  if(m){
+    const livePath = m[0];
+    const tvodPath = livePath.replace(/^\/SNM\//i, '/TVOD/');
+    const baseUrl = url.slice(0, m.index);
+    return {type: 'pltv', source: baseUrl + tvodPath + '?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}'};
+  }
+  return null;
+}
+
 /* 构建 catchup URL（与 PC 端 build_catchup_url 对齐）
  * 支持：default/append/shift/flussonic/xc/pltv */
 function buildCatchupUrl(channel, startTime, endTime){
@@ -888,47 +914,42 @@ function buildCatchupUrl(channel, startTime, endTime){
   const liveUrl = channel.url || '';
   const tsStart = Math.floor(startTime);
   const tsEnd = Math.floor(endTime);
-  /* PLTV 自动检测：URL 含 /PLTV/ 时自动构建 catchup_source */
-  if(!catchupSource && !catchupType){
-    if(/\/pltv\//i.test(liveUrl) && /index\.m3u8/i.test(liveUrl)){
-      const pltvMatch = liveUrl.match(/(\/PLTV\/\d+\/\d+\/\d+\/index\.m3u8)/i);
-      if(pltvMatch){
-        const tvodPath = pltvMatch[1].replace(/\/PLTV\//i, '/TVOD/');
-        const baseIdx = liveUrl.indexOf(pltvMatch[1]);
-        const baseUrl = liveUrl.slice(0, baseIdx);
-        const s = new Date(startTime*1000);
-        const e = new Date(endTime*1000);
-        const fmtStr = d => {
-          const y=d.getFullYear(); const mo=String(d.getMonth()+1).padStart(2,'0');
-          const da=String(d.getDate()).padStart(2,'0'); const h=String(d.getHours()).padStart(2,'0');
-          const mi=String(d.getMinutes()).padStart(2,'0'); const se=String(d.getSeconds()).padStart(2,'0');
-          return y+mo+da+h+mi+se;
-        };
-        return baseUrl + tvodPath + '?playseek=' + fmtStr(s) + '-' + fmtStr(e);
-      }
+  /* Fallback：catchup 字段为空时，即时从 URL 检测可回看模式（PLTV/TVOD、SNM/TVOD）
+   * 避免依赖 M3U 重新解析；用户手动添加的单播频道也能自动支持回看 */
+  let effType = catchupType;
+  let effSource = catchupSource;
+  if(!effSource && !effType){
+    const detected = detectCatchupPattern(liveUrl);
+    if(detected){
+      effType = detected.type;
+      effSource = detected.source;
     }
-    return '';
   }
-  switch(catchupType){
+  switch(effType){
     case 'append': {
       const sep = liveUrl.includes('?') ? '&' : '?';
-      const built = replaceCatchupVariables(catchupSource, startTime, endTime);
+      const built = replaceCatchupVariables(effSource, startTime, endTime);
       return liveUrl + sep + built;
     }
     case 'flussonic':
     case 'fs': {
+      if(effSource) return replaceCatchupVariables(effSource, startTime, endTime);
       return liveUrl + '/' + tsStart + '-' + tsEnd + '.m3u8';
     }
     case 'xc':
     case 'xtream': {
+      if(effSource) return replaceCatchupVariables(effSource, startTime, endTime);
       const dur = tsEnd - tsStart;
       return liveUrl + '?start=' + tsStart + '&end=' + tsEnd + '&duration=' + dur;
     }
     case 'shift': {
+      if(effSource) return replaceCatchupVariables(effSource, startTime, endTime);
       const offset = Math.max(0, Math.floor(Date.now()/1000) - tsEnd);
       return liveUrl + '?timeshift=' + offset;
     }
     case 'pltv': {
+      if(effSource) return replaceCatchupVariables(effSource, startTime, endTime);
+      /* pltv 但无 catchup_source：即时从 URL 构建（仅 PLTV 路径，SNM 由 detectCatchupPattern 处理） */
       const tvodUrl = liveUrl.replace(/\/PLTV\//i, '/TVOD/');
       const s = new Date(startTime*1000);
       const e = new Date(endTime*1000);
@@ -944,7 +965,7 @@ function buildCatchupUrl(channel, startTime, endTime){
     case 'vod':
     case 'timemachine':
     default: {
-      return replaceCatchupVariables(catchupSource, startTime, endTime);
+      return replaceCatchupVariables(effSource, startTime, endTime);
     }
   }
 }
@@ -958,7 +979,7 @@ function startCatchup(program){
   /* 检查频道是否支持回看 */
   const catchupSource = ch.catchup_source || '';
   const catchupType = ch.catchup || '';
-  if(!catchupSource && !catchupType && !/\/pltv\//i.test(ch.url||'')){
+  if(!catchupSource && !catchupType && !detectCatchupPattern(ch.url||'')){
     showOSD('回看','该频道不支持回看');
     return;
   }
@@ -1009,7 +1030,7 @@ function startLiveTimeshift(targetWallclock){
   /* 检查频道是否支持回看（时移需要 catchup_source） */
   const catchupSource = ch.catchup_source || '';
   const catchupType = ch.catchup || '';
-  if(!catchupSource && !catchupType && !/\/pltv\//i.test(ch.url||'')){
+  if(!catchupSource && !catchupType && !detectCatchupPattern(ch.url||'')){
     showOSD('时移','该频道不支持时移');
     return false;
   }
@@ -1538,27 +1559,54 @@ function updateProgress(){
     $('#bbTimeEnd').textContent='--:--';
     return;
   }
+  /* 拖动进度条时跳过自动更新（与 PC 端 _disable_progress_auto_update 一致） */
+  if(progressDragging) return;
   const d = state.mpv.duration || 0;
   const t = state.mpv.timePos || 0;
   const now = Date.now()/1000;
   /* 判断顺序与 PC 端 progress_controller.py:update_progress 一致：
-   * 1. 回看/时移
-   * 2. 直播+EPG（有当前节目就优先，不管 duration）
-   * 3. VOD（仅本地文件 + duration>0）
-   * 4. 直播无EPG（网络流的默认模式）
-   * 注意：不能把 VOD 放在直播+EPG 之前，否则 HLS 直播流（有 duration）会被误判为 VOD，
-   *      导致进度条基于 mpv timePos 而非墙钟时间，出现"无法移动"的问题 */
+   * 1. 回看（catchup 但不是 timeshift）→ 基于 mpv timePos
+   * 2. 时移（timeshift）→ 基于 now - timeshift - start
+   * 3. 直播+EPG（有当前节目就优先，不管 duration）
+   * 4. VOD（仅本地文件 + duration>0）
+   * 5. 直播无EPG（网络流的默认模式）
+   * 注意：
+   * - 不能把 VOD 放在直播+EPG 之前，否则 HLS 直播流（有 duration）会被误判为 VOD
+   * - 回看模式必须基于 mpv timePos，因为回看节目已结束（now > endTs），
+   *   用墙钟时间会 clamp 到 100%（光点直接在结束位置） */
 
-  /* 模式 1：回看/时移模式（与 PC 端 _update_catchup_progress/_update_timeshift_progress 一致） */
-  if((state.playMode==='catchup' || state.playMode==='timeshift') && state.catchupProgram){
+  /* 模式 1：回看模式（catchup 但不是 timeshift）
+   * 与 PC 端 _update_catchup_progress 一致：基于 mpv timePos（实际播放位置）
+   * 回看节目是已结束的节目，必须用 mpv 播放位置而非墙钟时间 */
+  if(state.playMode==='catchup' && state.catchupProgram){
     const prog = state.catchupProgram;
     const startTs = prog.start_ts || (prog.start ? Date.parse(prog.start)/1000 : 0);
     const endTs = prog.stop_ts || prog.end_ts || (prog.stop||prog.end ? Date.parse(prog.stop||prog.end)/1000 : 0);
     if(startTs && endTs && endTs>startTs){
       const total = endTs - startTs;
-      let elapsed = now - startTs;
-      if(state.playMode==='timeshift' && state.liveTimeshiftSeconds>0){
+      const elapsed = t;  /* 基于 mpv 播放位置 */
+      const pct = clamp((elapsed/total)*100, 0, 100);
+      setProgress(pct);
+      $('#bbTimeStart').textContent = fmtHM(startTs);
+      $('#bbTimeEnd').textContent = fmtHM(endTs);
+      return;
+    }
+  }
+
+  /* 模式 2：时移模式（timeshift）
+   * 与 PC 端 _update_timeshift_progress/_update_timeshift_epg_progress 一致：
+   * 基于 now - timeshift - start（墙钟时间偏移） */
+  if(state.playMode==='timeshift' && state.catchupProgram){
+    const prog = state.catchupProgram;
+    const startTs = prog.start_ts || (prog.start ? Date.parse(prog.start)/1000 : 0);
+    const endTs = prog.stop_ts || prog.end_ts || (prog.stop||prog.end ? Date.parse(prog.stop||prog.end)/1000 : 0);
+    if(startTs && endTs && endTs>startTs){
+      const total = endTs - startTs;
+      let elapsed;
+      if(state.liveTimeshiftSeconds>0){
         elapsed = now - startTs - state.liveTimeshiftSeconds;
+      }else{
+        elapsed = t;  /* 回退到 mpv 播放位置 */
       }
       const pct = clamp((elapsed/total)*100, 0, 100);
       setProgress(pct);
@@ -1568,7 +1616,7 @@ function updateProgress(){
     }
   }
 
-  /* 模式 2：直播+EPG 模式（与 PC 端 _update_epg_progress 一致，优先于 VOD 判断）
+  /* 模式 3：直播+EPG 模式（与 PC 端 _update_epg_progress 一致，优先于 VOD 判断）
    * 有当前节目就用节目的 start/end 作为进度范围：
    * - bbTimeStart = 节目开始时间（start_time.strftime("%H:%M")）
    * - bbTimeEnd = 节目结束时间（end_time.strftime("%H:%M")）
@@ -1590,7 +1638,7 @@ function updateProgress(){
     return;
   }
 
-  /* 模式 3：VOD 模式（仅本地文件 + duration>0，与 PC 端 _update_vod_progress 一致）
+  /* 模式 4：VOD 模式（仅本地文件 + duration>0，与 PC 端 _update_vod_progress 一致）
    * 网络直播流即使有 duration 也不走此模式，避免误判 */
   const ch = state.channels[state.currentIdx];
   const isLocal = ch && ch.url && !ch.url.match(/^(https?|rtp|udp|rtsp):\/\//i);
@@ -1602,7 +1650,7 @@ function updateProgress(){
     return;
   }
 
-  /* 模式 4：直播无EPG模式（与 PC 端 _update_live_progress 一致）
+  /* 模式 5：直播无EPG模式（与 PC 端 _update_live_progress 一致）
    * - bbTimeStart = 当前小时整点（如 "20:00"）
    * - bbTimeEnd = 下一小时整点（如 "21:00"）
    * - 当前位置 = 当前小时内的秒数（基于墙钟时间，每秒更新） */
@@ -2131,75 +2179,135 @@ $('#bbOSD').addEventListener('click', toggleOSD);
 $('#bbFullscreen').addEventListener('click', toggleFullscreen);
 $('#bbExitCatchup').addEventListener('click', exitCatchup);
 $('#bbVolSlider').addEventListener('input', e=>setVolume(e.target.value));
-/* 进度条点击 Seek：与 PC 端 mixins/progress_mixin.py:_seek_live/_seek_vod 对齐
+/* 进度条 Seek：与 PC 端 mixins/progress_mixin.py:_seek_live/_seek_vod 对齐
+ * 实现 pointer 事件支持拖动（与 PC 端 sliderPressed/sliderReleased 对齐）
  * - VOD 模式：直接 seekAbs(pct * duration)
- * - 回看/时移模式：在 mpv 缓冲区内 seek
- * - 直播模式：目标在缓冲区内则 seek，超出缓冲区则调用 startLiveTimeshift 重建 URL */
-$('#bbProgress').addEventListener('click', e=>{
+ * - 回看模式：直接 seekAbs(pct * total)（基于 mpv 位置）
+ * - 时移模式：基于墙钟时间偏移，超出缓冲区调用 startLiveTimeshift
+ * - 直播模式：基于墙钟时间偏移，超出缓冲区调用 startLiveTimeshift
+ * 关键修复（原 click 逻辑的 bug）：
+ *   原逻辑 targetPos = bufferStart + pct*(bufferEnd-bufferStart) 永远在缓冲区内，
+ *   无法触发 startLiveTimeshift。正确逻辑应基于墙钟时间计算 offset_from_live，
+ *   然后用 target_pos = buffer_end - offset 判断是否在缓冲区内 */
+let progressDragging = false;
+function getProgressPct(clientX){
+  const el = $('#bbProgress');
+  const rect = el.getBoundingClientRect();
+  return clamp((clientX-rect.left)/rect.width, 0, 1);
+}
+function handleProgressSeek(pct){
   if(!USE_MPV || state.currentIdx<0) return;
-  const rect = e.currentTarget.getBoundingClientRect();
-  const pct = clamp((e.clientX-rect.left)/rect.width, 0, 1);
+  const now = Math.floor(Date.now()/1000);
 
-  /* VOD 模式：直接 seek */
+  /* VOD 模式：仅本地文件，直接 seek（基于 mpv duration） */
   const d = state.mpv.duration || 0;
-  if(d>0 && d<86400){
+  const ch = state.channels[state.currentIdx];
+  const isLocal = ch && ch.url && !ch.url.match(/^(https?|rtp|udp|rtsp):\/\//i);
+  if(isLocal && d>0 && d<86400){
     seekAbs(pct * d);
     return;
   }
 
-  /* 回看/时移模式：在 mpv 缓冲区内 seek */
-  if(state.playMode==='catchup' || state.playMode==='timeshift'){
-    const t = state.mpv.timePos || 0;
-    const cacheDur = Mpv.getDbl('demuxer-cache-duration') || 0;
-    if(t>0 && cacheDur>0){
-      const bufferStart = Math.max(0, t - cacheDur);
-      const bufferEnd = t + 5;
-      const targetPos = bufferStart + pct * (bufferEnd - bufferStart);
+  /* 回看模式（catchup 但不是 timeshift）：直接 seek mpv 位置 */
+  if(state.playMode==='catchup' && state.catchupProgram){
+    const prog = state.catchupProgram;
+    const startTs = prog.start_ts || 0;
+    const endTs = prog.stop_ts || prog.end_ts || 0;
+    if(startTs && endTs && endTs>startTs){
+      const total = endTs - startTs;
+      const targetPos = pct * total;
       seekAbs(targetPos);
       showOSD('Seek', fmtTime(targetPos));
     }
     return;
   }
 
-  /* 直播模式：计算目标墙钟时间，判断是否在缓冲区内 */
+  /* 时移/直播模式：计算目标墙钟时间 */
+  let targetWallclock = 0;
+  if(state.playMode==='timeshift' && state.catchupProgram){
+    /* 时移模式：基于 catchupProgram */
+    const prog = state.catchupProgram;
+    if(prog && prog.start_ts && prog.stop_ts){
+      targetWallclock = prog.start_ts + pct * (prog.stop_ts - prog.start_ts);
+    }
+  } else {
+    /* 直播模式：基于 EPG 或当前小时 */
+    const epg = state.epgCache.get(state.currentIdx);
+    const curProg = getCurrentProgram(epg);
+    if(curProg && curProg.start_ts && curProg.stop_ts){
+      targetWallclock = curProg.start_ts + pct * (curProg.stop_ts - curProg.start_ts);
+    } else {
+      /* 无 EPG：基于当前小时 */
+      const dd = new Date();
+      dd.setMinutes(0, 0, 0);
+      const hourStart = Math.floor(dd.getTime()/1000);
+      targetWallclock = hourStart + pct * 3600;
+    }
+  }
+
+  if(!targetWallclock) return;
+  /* 限制不超过当前时间（留 2 秒余量） */
+  if(targetWallclock >= now) targetWallclock = now - 2;
+
+  /* 计算偏移量（落后多少秒） */
+  const offset = now - targetWallclock;
+  if(offset <= 0) return;
+
+  /* 获取 mpv 缓冲区（与 PC 端 get_available_seek_range 对齐） */
   const t = state.mpv.timePos || 0;
   const cacheDur = Mpv.getDbl('demuxer-cache-duration') || 0;
   if(t<=0 || cacheDur<=0){
     showOSD('提示', '无法定位播放位置');
     return;
   }
-  /* 缓冲区范围：[t-cacheDur, t]（墙钟时间） */
-  const bufferStart = Math.max(0, t - cacheDur);
   const bufferEnd = t;
-  const targetPos = bufferStart + pct * (bufferEnd - bufferStart);
+  const bufferStart = Math.max(0, t - cacheDur);
+  /* 目标 mpv 流位置 = buffer_end - offset（与 PC 端 _map_slider_to_stream_position 一致） */
+  const targetPos = bufferEnd - offset;
 
-  if(targetPos >= bufferStart && targetPos <= bufferEnd){
+  if(targetPos >= bufferStart){
     /* 目标在缓冲区内：mpv 内部 seek */
     seekAbs(targetPos);
-    const offset = bufferEnd - targetPos;
     if(offset > 2){
       state.liveTimeshiftSeconds = offset;
       showOSD('时移', '落后 ' + Math.round(offset) + ' 秒');
     } else {
       state.liveTimeshiftSeconds = 0;
     }
-  } else if(targetPos < bufferStart){
-    /* 目标超出缓冲区：调用 startLiveTimeshift 重建 catchup URL
-     * 计算目标墙钟时间（当前时间 - 距离） */
-    const nowSec = Math.floor(Date.now()/1000);
-    const targetWallclock = nowSec - Math.round(bufferEnd - targetPos);
-    /* 检查频道是否支持时移（catchup_source/catchup/PLTV） */
-    const ch = state.channels[state.currentIdx];
-    const hasCatchup = ch && (ch.catchup_source || ch.catchup || /\/pltv\//i.test(ch.url||''));
+  } else {
+    /* 目标超出缓冲区：调用 startLiveTimeshift 重建 catchup URL */
+    const hasCatchup = ch && (ch.catchup_source || ch.catchup || detectCatchupPattern(ch.url||''));
     if(!hasCatchup){
       showOSD('提示', '该频道不支持时移回看');
       return;
     }
-    /* 调用 startLiveTimeshift 切换到时移模式 */
     if(!startLiveTimeshift(targetWallclock)){
       showOSD('提示', '时移失败，请稍后重试');
     }
   }
+}
+$('#bbProgress').addEventListener('pointerdown', e=>{
+  if(!USE_MPV || state.currentIdx<0) return;
+  progressDragging = true;
+  const pct = getProgressPct(e.clientX);
+  setProgress(pct * 100);
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch(err) {}
+  e.preventDefault();
+});
+$('#bbProgress').addEventListener('pointermove', e=>{
+  if(!progressDragging) return;
+  const pct = getProgressPct(e.clientX);
+  setProgress(pct * 100);
+});
+$('#bbProgress').addEventListener('pointerup', e=>{
+  if(!progressDragging) return;
+  progressDragging = false;
+  const pct = getProgressPct(e.clientX);
+  handleProgressSeek(pct);
+  try { e.currentTarget.releasePointerCapture(e.pointerId); } catch(err) {}
+});
+$('#bbProgress').addEventListener('pointercancel', ()=>{
+  progressDragging = false;
 });
 
 /* ============== 12. 高级功能面板 ============== */
@@ -2580,7 +2688,11 @@ function resetVideoEq(){
 }
 function setVideoFlip(mode){
   Mpv.cmd(['vf','remove','@iptv_flip']);
-  if(mode){ const f = mode==='both'?'flip':(mode==='horizontal'?'hflip':'vflip'); Mpv.cmd(['vf','add','@iptv_flip:'+f]); }
+  if(mode){
+    // 使用 lavfi 包装 FFmpeg hflip/vflip；方括号内逗号属 filter_graph，不被 mpv 当滤镜分隔符
+    const f = mode==='both'?'lavfi=[hflip,vflip]':(mode==='horizontal'?'lavfi=[hflip]':'lavfi=[vflip]');
+    Mpv.cmd(['vf','add','@iptv_flip:'+f]);
+  }
   showOSD('翻转', mode||'已清除');
 }
 function setAspect(m){ state.settings.aspect=m; storage.saveSettings(); applyAspect(m); showOSD('画面比例', m); }
@@ -3461,7 +3573,7 @@ const BUILD_DATE='2026-06-21';
 registerFunc('about', { title:'关于 IPTV Scanner Editor Pro' }, body=>{
   body.innerHTML = `
     <div style="padding:24px 16px;text-align:center">
-      <div style="width:96px;height:96px;margin:0 auto 16px;background:linear-gradient(135deg,#4a7eff,#9c27b0);border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:42px">📺</div>
+      <div style="width:96px;height:96px;margin:0 auto 16px;background:linear-gradient(135deg,#4a7eff,#9c27b0);border-radius:24px;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="logo.png" style="width:80px;height:80px;object-fit:contain" alt="logo"></div>
       <div style="font-size:20px;font-weight:700;color:#fff">IPTV Scanner Editor Pro</div>
       <div style="font-size:12px;color:var(--text-faint);margin-top:4px">基于 mpv + WebView 的全功能 IPTV 客户端</div>
     </div>

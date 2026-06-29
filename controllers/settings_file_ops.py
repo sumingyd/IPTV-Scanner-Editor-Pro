@@ -247,10 +247,26 @@ class SettingsFileOperations:
                 break
         layout.addRow(tr("rtsp_transport_colon", "RTSP Transport:"), rtsp_transport_combo)
 
-        hwdec_check = QCheckBox(tr("hwdec_label", "Hardware Decoding"))
-        hwdec_check.setObjectName("hwdec_check")
-        hwdec_check.setChecked(playback_settings.get('hwdec', True))
-        layout.addRow(hwdec_check)
+        hwdec_combo = QComboBox()
+        hwdec_combo.setObjectName("hwdec_combo")
+        # 兼容旧配置：bool True→auto-copy，False→no；新配置直接用字符串
+        hwdec_raw = playback_settings.get('hwdec', 'auto-copy')
+        if isinstance(hwdec_raw, bool):
+            hwdec_value = 'auto-copy' if hwdec_raw else 'no'
+        else:
+            hwdec_value = str(hwdec_raw) if hwdec_raw in ('auto', 'auto-copy', 'no') else 'auto-copy'
+        hwdec_items = [
+            (tr("hwdec_auto_copy", "HW Copy-back (filters)"), 'auto-copy'),
+            (tr("hwdec_auto", "HW Native (fastest)"), 'auto'),
+            (tr("hwdec_no", "Software"), 'no'),
+        ]
+        for display, value in hwdec_items:
+            hwdec_combo.addItem(display, value)
+        for i in range(hwdec_combo.count()):
+            if hwdec_combo.itemData(i) == hwdec_value:
+                hwdec_combo.setCurrentIndex(i)
+                break
+        layout.addRow(tr("hwdec_label", "Hardware Decoding"), hwdec_combo)
 
         tls_check = QCheckBox(tr("tls_verify_label", "TLS Verify"))
         tls_check.setObjectName("tls_check")
@@ -469,9 +485,9 @@ class SettingsFileOperations:
         combo = dialog.findChild(QComboBox, "rtsp_transport_combo")
         if combo:
             settings['rtsp_transport'] = combo.currentData() or combo.currentText().lower()
-        check = dialog.findChild(QCheckBox, "hwdec_check")
-        if check:
-            settings['hwdec'] = check.isChecked()
+        combo = dialog.findChild(QComboBox, "hwdec_combo")
+        if combo:
+            settings['hwdec'] = combo.currentData() if combo.currentData() else 'auto-copy'
         check = dialog.findChild(QCheckBox, "tls_check")
         if check:
             settings['tls_verify'] = check.isChecked()

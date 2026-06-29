@@ -193,6 +193,18 @@ class CatchupController:
         catchup_correction = channel.get('catchup_correction', '')
         live_url = channel.get('url', '')
 
+        # Fallback：catchup 字段为空时，即时从 URL 检测可回看模式（PLTV/TVOD、SNM/TVOD）
+        # 避免依赖 M3U 重新解析；用户手动添加的单播频道也能自动支持回看
+        if not catchup_type and not catchup_source and live_url:
+            try:
+                from services.m3u_parser import detect_catchup_pattern
+                detected = detect_catchup_pattern(live_url)
+                if detected:
+                    catchup_type, catchup_source = detected
+                    logger.debug(f"build_catchup_url: 自动检测回看模式 type={catchup_type}, url={live_url}")
+            except Exception as e:
+                logger.debug(f"build_catchup_url: 自动检测回看模式失败: {e}")
+
         logger.debug(f"build_catchup_url: type={catchup_type}, correction={catchup_correction}, "
                      f"start={start_time}, end={end_time}, "
                      f"start_ts={int(start_time.timestamp())}, end_ts={int(end_time.timestamp())}")
@@ -449,6 +461,16 @@ class CatchupController:
 
             catchup_source = self.original_channel.get('catchup_source', '')
             catchup_type = (self.original_channel.get('catchup', '') or '').lower().strip()
+
+            # Fallback：catchup 字段为空时，即时从 URL 检测可回看模式
+            if not catchup_source and not catchup_type:
+                try:
+                    from services.m3u_parser import detect_catchup_pattern
+                    detected = detect_catchup_pattern(self.original_channel.get('url', ''))
+                    if detected:
+                        catchup_type, catchup_source = detected
+                except Exception:
+                    pass
 
             if not catchup_source and not catchup_type:
                 w.status_bar_show_message(w.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))

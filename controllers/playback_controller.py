@@ -438,6 +438,15 @@ class PlaybackController:
 
         if target_pos < buffer_start:
             catchup_source = w.current_channel.get('catchup_source', '') if w.current_channel else ''
+            # Fallback：catchup_source 为空时，即时从 URL 检测可回看模式（PLTV/TVOD、SNM/TVOD）
+            if not catchup_source and w.current_channel:
+                try:
+                    from services.m3u_parser import detect_catchup_pattern
+                    detected = detect_catchup_pattern(w.current_channel.get('url', ''))
+                    if detected:
+                        catchup_source = detected[1]
+                except Exception:
+                    pass
             if catchup_source:
                 has_epg = getattr(w, '_progress_time_mode', None) == 'epg' and w._progress_program_start
                 w._start_live_timeshift_from_progress(position, catchup_source, has_epg=has_epg)

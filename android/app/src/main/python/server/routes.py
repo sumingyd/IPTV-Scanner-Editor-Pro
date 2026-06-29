@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 from aiohttp import web, web_response
 
@@ -137,6 +138,16 @@ def create_app() -> web.Application:
     app.router.add_post('/api/mappings/refresh', handle_mappings_refresh)
     app.router.add_get('/api/epg', handle_epg)
     app.router.add_get('/stream/{id}', handle_stream_proxy)
+    # 播放器远程控制
+    app.router.add_get('/api/player/chapters', handle_player_chapters)
+    app.router.add_post('/api/player/hdr', handle_player_hdr)
+    app.router.add_post('/api/player/screenshot', handle_player_screenshot)
+    # 字幕在线下载
+    app.router.add_get('/api/subtitle/search', handle_subtitle_search)
+    app.router.add_post('/api/subtitle/download', handle_subtitle_download)
+    # 文件分享与缓存清理
+    app.router.add_post('/api/share/file', handle_share_file)
+    app.router.add_post('/api/cache/clear', handle_cache_clear)
     return app
 
 
@@ -1026,3 +1037,235 @@ async def handle_stream_proxy(request):
     except Exception as e:
         logger.error(f"流代理失败: {stream_url} - {e}")
         return _json_error(f'流代理失败: {e}', 502)
+
+
+# ===================== 播放器远程控制 =====================
+
+def _get_player():
+    """获取主窗口的 player_controller"""
+    mw = get_main_window()
+    if mw and hasattr(mw, 'player_controller'):
+        return mw.player_controller
+    return None
+
+
+def _get_cache_dir(sub: str) -> str:
+    """获取缓存子目录绝对路径，不存在则创建"""
+    base = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', sub)
+    os.makedirs(base, exist_ok=True)
+    return base
+
+
+async def handle_player_chapters(request):
+    """读取当前播放文件的章节列表"""
+    pc = _get_player()
+    if not pc:
+        return _json_error('播放器未初始化', 503)
+    try:
+        chapters = pc.get_chapter_list()
+        return _json_success(data=chapters)
+    except Exception as e:
+        logger.error(f"获取章节列表失败: {e}")
+        return _json_error(f'获取章节失败: {e}', 500)
+
+
+async def handle_player_hdr(request):
+    """切换 HDR 输出模式（需要重新初始化 mpv）"""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    mode = (body or {}).get('mode', '').strip().lower()
+    valid_modes = {'disable', 'tonemap', 'passthrough', 'scrgb', 'auto'}
+    if mode not in valid_modes:
+        return _json_error(f'无效的 HDR 模式: {mode}，支持: {", ".join(sorted(valid_modes))}')
+    pc = _get_player()
+    if not pc:
+        return _json_error('播放器未初始化', 503)
+    try:
+        # reinit_for_hdr_change 是阻塞操作（涉及 mpv 重新初始化）
+        # 放到线程池执行，避免阻塞 event loop
+        await asyncio.to_thread(pc.reinit_for_hdr_change, mode)
+        return _json_success(mode=mode)
+    except Exception as e:
+        logger.error(f"切换 HDR 模式失败: {e}")
+        return _json_error(f'切换 HDR 失败: {e}', 500)
+
+
+async def handle_player_screenshot(request):
+    """截图保存到缓存目录，返回路径"""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    mode = (body or {}).get('mode', 'video').strip().lower()
+    # mpv screenshot-to-file 支持: video / subtitles / window / each-frame
+    if mode not in ('video', 'subtitles', 'window', 'each-frame'):
+        mode = 'video'
+    pc = _get_player()
+    if not pc or not pc.is_playing:
+        return _json_error('当前无播放内容', 400)
+    try:
+        import time as _t
+        cache_dir = _get_cache_dir('screenshots')
+        fname = f"shot_{int(_t.time())}.png"
+        fpath = os.path.join(cache_dir, fname)
+        # 在线程池执行截图（send_command 是带锁的同步调用）
+        ret = await asyncio.to_thread(pc.send_command, ['screenshot-to-file', fpath, mode])
+        if ret != 0 and not os.path.exists(fpath):
+            return _json_error('截图失败（mpv 返回错误）', 500)
+        return _json_success(path=fpath)
+    except Exception as e:
+        logger.error(f"截图失败: {e}")
+        return _json_error(f'截图失败: {e}', 500)
+
+
+# ===================== 字幕在线下载 =====================
+
+_subtitle_service_lock = asyncio.Lock()
+
+
+async def handle_subtitle_search(request):
+    """通过 OpenSubtitles 搜索字幕
+
+    Query 参数：
+      q: 关键词（片名，可中英文）
+      lang: 语言代码（eng/chi/all），默认 all
+      imdb: IMDb ID（可选）
+      file_path: 视频文件路径（可选，用于哈希精准匹配）
+    """
+    q = request.rel_url.query.get('q', '').strip()
+    lang = request.rel_url.query.get('lang', 'all').strip().lower() or 'all'
+    imdb = request.rel_url.query.get('imdb', '').strip()
+    file_path = request.rel_url.query.get('file_path', '').strip()
+    # URL 解码处理（前端可能传 file:// 路径）
+    if file_path:
+        from urllib.parse import unquote
+        file_path = unquote(file_path)
+    if not q and not file_path and not imdb:
+        return _json_error('请提供搜索关键词或文件路径')
+    try:
+        from services.subtitle_download_service import SubtitleDownloadService
+        # 复用单例（保持登录 token）
+        svc = getattr(handle_subtitle_search, '_svc', None)
+        if svc is None:
+            svc = SubtitleDownloadService()
+            handle_subtitle_search._svc = svc
+        # OpenSubtitles 调用是阻塞的，放到线程池
+        async with _subtitle_service_lock:
+            items = await asyncio.to_thread(svc.search, q, imdb, lang, file_path)
+        if not items:
+            err = getattr(svc, 'last_error', '') or '未找到字幕'
+            return _json_success(data=[], message=err)
+        # 转成前端期望的格式
+        data = [{
+            'filename': it.get('file_name', ''),
+            'lang': it.get('language', ''),
+            'size': it.get('size', 0),
+            'url': it.get('download_link', ''),
+            'rating': it.get('rating', 0),
+            'movie_name': it.get('movie_name', ''),
+        } for it in items]
+        return _json_success(data=data)
+    except Exception as e:
+        logger.error(f"字幕搜索失败: {e}")
+        return _json_error(f'字幕搜索失败: {e}', 500)
+
+
+async def handle_subtitle_download(request):
+    """下载字幕文件到缓存目录，返回本地路径"""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    url = (body or {}).get('url', '').strip()
+    name = (body or {}).get('name', '').strip()
+    if not url:
+        return _json_error('URL 不能为空')
+    try:
+        from services.subtitle_download_service import SubtitleDownloadService
+        svc = getattr(handle_subtitle_search, '_svc', None) or SubtitleDownloadService()
+        handle_subtitle_search._svc = svc
+        cache_dir = _get_cache_dir('subtitles')
+        # 下载是阻塞的，放到线程池
+        path = await asyncio.to_thread(svc.download, url, cache_dir, name)
+        if not path:
+            err = getattr(svc, 'last_error', '') or '下载失败'
+            return _json_error(err)
+        return _json_success(path=path)
+    except Exception as e:
+        logger.error(f"字幕下载失败: {e}")
+        return _json_error(f'字幕下载失败: {e}', 500)
+
+
+# ===================== 文件分享与缓存清理 =====================
+
+async def handle_share_file(request):
+    """分享文件
+
+    PC 端：使用系统默认程序打开文件所在目录
+    Android：通过 share intent 分享（由原生层处理，这里仅返回成功）
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    path = (body or {}).get('path', '').strip()
+    if not path or not os.path.exists(path):
+        return _json_error('文件不存在', 404)
+    try:
+        import sys
+        if sys.platform == 'win32':
+            # Windows: 在资源管理器中选中文件
+            import subprocess
+            subprocess.Popen(['explorer', '/select,', path])
+        elif sys.platform == 'darwin':
+            import subprocess
+            subprocess.Popen(['open', '-R', path])
+        else:
+            # Linux/Android: 打开所在目录
+            import subprocess
+            subprocess.Popen(['xdg-open', os.path.dirname(path)])
+        return _json_success()
+    except Exception as e:
+        logger.error(f"分享文件失败: {e}")
+        return _json_error(f'分享失败: {e}', 500)
+
+
+async def handle_cache_clear(request):
+    """清空缓存目录
+
+    Body: {type: 'thumbnails'/'screenshots'/'subtitles'/'all'}
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    cache_type = (body or {}).get('type', 'all').strip().lower()
+    valid_types = {'thumbnails', 'screenshots', 'subtitles', 'all'}
+    if cache_type not in valid_types:
+        return _json_error(f'无效的缓存类型: {cache_type}')
+    try:
+        cache_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache')
+        targets = [cache_type] if cache_type != 'all' else ['thumbnails', 'screenshots', 'subtitles']
+        cleared = []
+        for sub in targets:
+            sub_dir = os.path.join(cache_root, sub)
+            if not os.path.isdir(sub_dir):
+                continue
+            # 删除目录下所有文件（保留目录本身）
+            for fname in os.listdir(sub_dir):
+                fpath = os.path.join(sub_dir, fname)
+                try:
+                    if os.path.isfile(fpath):
+                        os.remove(fpath)
+                    elif os.path.isdir(fpath):
+                        import shutil
+                        shutil.rmtree(fpath, ignore_errors=True)
+                except Exception as e:
+                    logger.warning(f"删除 {fpath} 失败: {e}")
+            cleared.append(sub)
+        return _json_success(cleared=cleared)
+    except Exception as e:
+        logger.error(f"清空缓存失败: {e}")
+        return _json_error(f'清空缓存失败: {e}', 500)

@@ -346,26 +346,29 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 遥控器/键盘事件分发：
-     *  - BACK 由 Java 层处理（关闭面板或退出）
+     *  - BACK 由 Java 层处理（关闭面板或退出应用）
      *  - DPAD/确认/菜单/媒体键转发给 HTML UI 的 onRemoteKey(code)
+     *
+     * BACK 键处理逻辑（与 PC 端行为一致）：
+     * 1. 先异步询问 JS（onRemoteKey）是否处理了 BACK（关闭打开的面板）
+     * 2. JS 返回 true 表示已处理（有面板关闭），不做任何事
+     * 3. JS 返回 false 表示没有面板要关闭，调用 finish() 退出应用
+     * 注意：不再调用 webView.goBack()，避免回到 about:blank 加载页面
      */
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            // 先让 JS 处理（关闭打开的面板），JS 不处理则退出
             webView.evaluateJavascript(
-                "if(window.onRemoteKey){if(onRemoteKey(" + keyCode + ")){}}",
+                "if(window.onRemoteKey){onRemoteKey(" + keyCode + ");}else{false;}",
                 value -> {
-                    // evaluateJavascript 完成后无返回值时 value 为 null 或 "null"
-                    // 这里简单处理：直接由 JS 决定，BACK 总是允许返回
+                    boolean handled = "true".equals(value);
+                    if (!handled) {
+                        // JS 没处理（没有面板要关闭），退出应用
+                        finish();
+                    }
                 }
             );
-            // BACK 键同时由 Java 层兜底：如果 WebView 可后退则后退，否则退出
-            if (webView.canGoBack()) {
-                webView.goBack();
-                return true;
-            }
-            // 不主动 finish，让 JS 处理；如果 JS 不处理，用户再按一次 BACK 由系统处理
+            return true;  // 总是消费 BACK 事件，由异步回调决定是否退出
         }
 
         // 转发给 HTML UI 的遥控器按键

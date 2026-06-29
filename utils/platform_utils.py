@@ -214,6 +214,33 @@ def get_ffprobe_path():
     return None
 
 
+def get_ffmpeg_filename():
+    if is_windows():
+        return 'ffmpeg.exe'
+    return 'ffmpeg'
+
+
+def get_ffmpeg_path():
+    """获取 ffmpeg 可执行文件路径
+
+    优先级：
+    1. 打包目录下的 ffmpeg/ffmpeg(.exe)
+    2. 系统 PATH 中的 ffmpeg
+    """
+    base_path = get_app_base_path()
+    ffmpeg_dir = os.path.join(base_path, 'ffmpeg')
+    filename = get_ffmpeg_filename()
+    ffmpeg_exe = os.path.join(ffmpeg_dir, filename)
+    if os.path.exists(ffmpeg_exe):
+        return ffmpeg_exe
+    # 退回到系统 PATH
+    import shutil as _sh
+    sys_ffmpeg = _sh.which('ffmpeg')
+    if sys_ffmpeg:
+        return sys_ffmpeg
+    return None
+
+
 def get_subprocess_creation_flags():
     if is_windows():
         import subprocess

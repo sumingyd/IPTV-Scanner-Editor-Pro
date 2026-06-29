@@ -844,6 +844,46 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
             logger.error(f"初始化断点续播控制器失败: {e}")
             self.resume_ctrl = None
 
+        # 初始化播放设置持久化控制器（按 URL 保存音量/字幕轨/音轨/比例/翻转/旋转等）
+        try:
+            from controllers.playback_settings_controller import PlaybackSettingsController
+            self.playback_settings_ctrl = PlaybackSettingsController(self)
+        except Exception as e:
+            logger.error(f"初始化播放设置持久化控制器失败: {e}")
+            self.playback_settings_ctrl = None
+
+        # 初始化跳过片头片尾控制器（仅本地视频文件生效）
+        try:
+            from controllers.skip_intro_outro_controller import SkipIntroOutroController
+            self.skip_intro_outro_ctrl = SkipIntroOutroController(self)
+        except Exception as e:
+            logger.error(f"初始化跳过片头片尾控制器失败: {e}")
+            self.skip_intro_outro_ctrl = None
+
+        # 初始化动态裁剪黑边服务
+        try:
+            from services.autocrop_service import AutoCropService
+            self.autocrop_service = AutoCropService(self)
+        except Exception as e:
+            logger.error(f"初始化动态裁剪黑边服务失败: {e}")
+            self.autocrop_service = None
+
+        # 初始化撤销/重做栈
+        try:
+            from services.undo_stack import UndoStack
+            self.undo_stack = UndoStack(self)
+        except Exception as e:
+            logger.error(f"初始化撤销/重做栈失败: {e}")
+            self.undo_stack = None
+
+        # 初始化切片导出 + GIF 制作服务
+        try:
+            from services.clip_export_service import ClipExportService
+            self.clip_export_service = ClipExportService(self)
+        except Exception as e:
+            logger.error(f"初始化切片导出服务失败: {e}")
+            self.clip_export_service = None
+
         # 初始化书签与章节控制器（在 player_controller 创建后）
         try:
             from controllers.bookmark_controller import BookmarkController

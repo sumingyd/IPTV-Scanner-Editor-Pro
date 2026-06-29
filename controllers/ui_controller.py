@@ -1187,6 +1187,34 @@ class UIController:
             if not skip_recent_files:
                 self.window.update_recent_files_menu()
 
+            # ===== Edit 菜单（撤销/重做） =====
+            edit_menu = menu_bar.addMenu(tr("menu_edit", "Edit"))
+            if edit_menu:
+                from PySide6.QtGui import QKeySequence, QShortcut
+                undo_stack = getattr(self.window, 'undo_stack', None)
+                # 撤销动作
+                undo_action = QAction(tr("menu_undo", "Undo\tCtrl+Z"), self.window)
+                undo_action.setEnabled(False)
+                undo_action.triggered.connect(lambda: undo_stack.undo() if undo_stack else None)
+                edit_menu.addAction(undo_action)
+                # 重做动作
+                redo_action = QAction(tr("menu_redo", "Redo\tCtrl+Shift+Z"), self.window)
+                redo_action.setEnabled(False)
+                redo_action.triggered.connect(lambda: undo_stack.redo() if undo_stack else None)
+                edit_menu.addAction(redo_action)
+                edit_menu.addSeparator()
+                # 清空历史
+                clear_history_action = QAction(tr("menu_clear_history", "Clear History"), self.window)
+                clear_history_action.triggered.connect(lambda: undo_stack.clear() if undo_stack else None)
+                edit_menu.addAction(clear_history_action)
+                # 绑定信号
+                if undo_stack:
+                    undo_stack.can_undo_changed.connect(undo_action.setEnabled)
+                    undo_stack.can_redo_changed.connect(redo_action.setEnabled)
+                    # 也支持 Ctrl+Y 快捷键
+                    ctrl_y = QShortcut(QKeySequence("Ctrl+Y"), self.window)
+                    ctrl_y.activated.connect(lambda: undo_stack.redo() if undo_stack.can_redo() else None)
+
             playback_menu = menu_bar.addMenu(tr("menu_playback", "Playback"))
 
             prev_channel = QAction(tr("menu_prev_channel", "Previous Channel\t↑"), self.window)
@@ -1294,6 +1322,11 @@ class UIController:
             audio_eq = QAction(tr("menu_audio_eq", "Audio Equalizer..."), self.window)
             audio_eq.triggered.connect(lambda: self.window.media_ctrl._show_audio_eq_dialog() if hasattr(self.window, 'media_ctrl') else None)
             playback_menu.addAction(audio_eq)
+
+            # 切片导出 + GIF 制作入口
+            clip_export = QAction(tr("menu_clip_export", "Clip Export / GIF..."), self.window)
+            clip_export.triggered.connect(self._open_clip_export_dialog)
+            playback_menu.addAction(clip_export)
 
             playback_menu.addSeparator()
 
@@ -1600,4 +1633,10 @@ class UIController:
     def _show_reminder_manager(self):
         from ui.dialogs.reminder_manager_dialog import ReminderManagerDialog
         dialog = ReminderManagerDialog(self.window, parent=self.window)
+        dialog.show()
+
+    def _open_clip_export_dialog(self):
+        """打开切片导出 / GIF 制作对话框"""
+        from ui.dialogs.clip_export_dialog import ClipExportDialog
+        dialog = ClipExportDialog(self.window, parent=self.window)
         dialog.show()

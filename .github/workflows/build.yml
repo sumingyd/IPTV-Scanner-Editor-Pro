@@ -206,7 +206,7 @@ jobs:
       - name: Prepare FFmpeg
         run: |
           mkdir -p ffmpeg
-          
+
           # Try BtbN FFmpeg build first
           echo "Trying BtbN FFmpeg ARM64 build..."
           wget -q "$FFMPEG_LINUX_ARM64_URL" -O /tmp/ffmpeg-arm64.tar.xz 2>/dev/null && {
@@ -214,7 +214,7 @@ jobs:
             find /tmp -name "ffprobe" -type f -exec cp {} ffmpeg/ \;
             find /tmp -name "ffmpeg" -type f -exec cp {} ffmpeg/ \;
           } || echo "BtbN download failed, trying apt..."
-          
+
           # Fallback: use system ffmpeg from apt
           if [ ! -f ./ffmpeg/ffprobe ]; then
             echo "Using system ffmpeg from apt..."
@@ -222,12 +222,12 @@ jobs:
             cp /usr/bin/ffprobe ffmpeg/
             cp /usr/bin/ffmpeg ffmpeg/
           fi
-          
+
           if [ ! -f ./ffmpeg/ffprobe ]; then
             echo "ffprobe not found"
             exit 1
           fi
-          
+
           chmod +x ffmpeg/ffprobe ffmpeg/ffmpeg 2>/dev/null || true
           ls -la ffmpeg/
 
@@ -265,6 +265,66 @@ jobs:
         with:
           tag_name: ${{ inputs.release_tag }}
           files: dist/IPTV Scanner Editor Pro-Linux-ARM64.tar.gz
+          fail_on_unmatched_files: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Python 3.14 (for Chaquopy)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-35
+            build-tools;35.0.0
+
+      - name: Create local.properties
+        working-directory: android
+        run: |
+          echo "chaquopy.buildPython=python3" > local.properties
+
+      - name: Grant execute permission for gradlew
+        working-directory: android
+        run: chmod +x gradlew
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --rerun-tasks
+
+      - name: Verify APK
+        working-directory: android
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK" ]; then
+            echo "Expected APK was not found"
+            exit 1
+          fi
+          ls -la "$APK"
+          file "$APK"
+
+      - name: Upload APK to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: android/app/build/outputs/apk/release/app-release.apk
           fail_on_unmatched_files: true
           overwrite_files: true
         env:

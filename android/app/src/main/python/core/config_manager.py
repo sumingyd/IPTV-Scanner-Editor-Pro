@@ -664,7 +664,7 @@ class ConfigManager(Singleton):
 
     def save_playback_settings(self, settings=None):
         defaults = {
-            'hwdec': True,
+            'hwdec': 'auto-copy',
             'cache_secs': 1.0,
             'demuxer_max_bytes_mib': 16,
             'demuxer_max_back_bytes_mib': 4,
@@ -684,6 +684,10 @@ class ConfigManager(Singleton):
             'queue_mode': 'none',
             'http_referer': '',
             'http_proxy': '',
+            'auto_skip_intro': False,
+            'skip_intro_seconds': 0.0,
+            'auto_skip_outro': False,
+            'skip_outro_seconds': 0.0,
         }
         if settings:
             defaults.update(settings)
@@ -700,7 +704,7 @@ class ConfigManager(Singleton):
 
     def load_playback_settings(self):
         defaults = {
-            'hwdec': True,
+            'hwdec': 'auto-copy',
             'cache_secs': 1.0,
             'demuxer_max_bytes_mib': 16,
             'demuxer_max_back_bytes_mib': 4,
@@ -720,6 +724,10 @@ class ConfigManager(Singleton):
             'queue_mode': 'none',
             'http_referer': '',
             'http_proxy': '',
+            'auto_skip_intro': False,
+            'skip_intro_seconds': 0.0,
+            'auto_skip_outro': False,
+            'skip_outro_seconds': 0.0,
         }
         result = {}
         need_save = False

@@ -22,26 +22,27 @@ class MPVView @JvmOverloads constructor(context: Context, attrs: AttributeSet? =
         MPVLib.setOptionString("hwdec", "auto-safe")
         MPVLib.setOptionString("keep-open", "yes")
 
-        /* 性能与音画同步（与 PC 端 _ensure_mpv_initialized 行 339-363 一致）：
-         * - framedrop=vo：视频输出慢时丢帧，避免渲染积压阻塞 GUI
+        /* 性能与音画同步（与 PC 端 _ensure_mpv_initialized 行 339-363 对齐，但 framedrop 调整）：
+         * - framedrop=all：解码慢或输出慢时都丢帧
+         *   PC 端用 framedrop=vo（只在输出慢时丢帧），但 Android 模拟器/低端设备解码慢，
+         *   仅 vo 模式会导致解码队列积压、视频帧延迟显示（音频比画面快）。
+         *   改用 all 模式在解码阶段就丢帧，减少积压延迟。性能充足时不会丢帧，无害。
          * - video-sync=audio：以音频时钟为同步基准，视频帧迟到时丢帧而非阻塞
-         * - cache-pause-initial=no：初始缓存阶段不暂停，避免直播流启动卡顿
-         * 这三个参数是解决音画不同步和帧率低的核心 */
-        MPVLib.setOptionString("framedrop", "vo")
+         * - cache-pause-initial=no：初始缓存阶段不暂停，避免直播流启动卡顿 */
+        MPVLib.setOptionString("framedrop", "all")
         MPVLib.setOptionString("video-sync", "audio")
         MPVLib.setOptionString("cache-pause-initial", "no")
 
         /* 音画同步增强：
-         * - audio-stream-silence=yes：启动时填充静音帧，避免音频启动延迟导致的音画不同步
+         * 注意：不启用 audio-stream-silence（PC 端没有），该参数会让音频提前播放导致音画不同步
          * 注意：不启用 video-latency-hacks（PC 端也没有），该参数可能导致 PTS 处理偏差 */
-        MPVLib.setOptionString("audio-stream-silence", "yes")
 
-        /* 缓冲与预读：与 PC 端 _load_playback_settings 默认值对齐
+        /* 缓冲与预读：与 PC 端 _load_playback_settings 默认值完全对齐
          * PC 端默认：cache-secs=1.0, demuxer-max-bytes=16MiB, demuxer-max-back-bytes=4MiB
-         * 之前 Android 端设为 readahead=10s/max=50MiB，导致视频解码队列过长产生 600ms 延迟
-         * 现在对齐 PC 端的小缓冲策略，保持低延迟 */
+         * 之前 Android 端设为 readahead=10s/max=50MiB/back=25MiB，导致视频解码队列过长产生 600ms 延迟
+         * 现在完全对齐 PC 端的小缓冲策略，保持低延迟 */
         MPVLib.setOptionString("demuxer-max-bytes", "16MiB")
-        MPVLib.setOptionString("demuxer-max-back-bytes", "8MiB")
+        MPVLib.setOptionString("demuxer-max-back-bytes", "4MiB")
         MPVLib.setOptionString("demuxer-readahead-secs", "1")
         MPVLib.setOptionString("demuxer-seekable-cache", "yes")
         MPVLib.setOptionString("force-seekable", "yes")
@@ -51,8 +52,12 @@ class MPVView @JvmOverloads constructor(context: Context, attrs: AttributeSet? =
         MPVLib.setOptionString("source-timeout", "10")
         MPVLib.setOptionString("stream-open-timeout", "30")
 
-        /* 移动端解码优化：2 线程（PC 端 max(2, cpu//2)） */
-        MPVLib.setOptionString("vd-lavc-threads", "2")
+        /* 移动端解码优化：动态获取 CPU 核数（与 PC 端 _ensure_mpv_initialized 行 361-363 一致）
+         * PC 端：threads = max(2, cpu_count // 2)
+         * 之前 Android 端固定为 2，在多核设备上解码线程不足导致解码队列积压 */
+        val cpuCount = Runtime.getRuntime().availableProcessors()
+        val threads = maxOf(2, cpuCount / 2)
+        MPVLib.setOptionString("vd-lavc-threads", threads.toString())
 
         /* 注意：不启用 vd-queue-enable/ad-queue-enable
          * 这两个参数会让解码器队列化数据，增加延迟导致音画不同步

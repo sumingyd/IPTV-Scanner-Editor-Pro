@@ -279,23 +279,55 @@ def _extract_fcc_to_channel(url: str, channel: Dict[str, Any]):
         pass
 
 
+def detect_catchup_pattern(url: str) -> Optional[Tuple[str, str]]:
+    """从频道URL自动检测回看模式，返回 (catchup_type, catchup_source) 或 None。
+
+    支持的模式（均为单播可回看地址，无需在源里配置 catchup-source）：
+      1. PLTV/TVOD 模式（华为/电信/移动 IPTV 平台）
+         - 协议：http/https/rtsp/rtmp
+         - 路径：/PLTV/<n>/<n>/<n>/<文件名>，文件名可为 index.m3u8、xxx.smil、xxx.flv 等
+         - 回看 URL：将 /PLTV/ 替换为 /TVOD/，追加 ?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+      2. SNM/TVOD 模式（华为 IPTV 平台另一种路径）
+         - 协议：http/https/rtsp/rtmp
+         - 路径：/SNM/CHANNEL<数字>/<文件名>
+         - 回看 URL：将 /SNM/ 替换为 /TVOD/，追加 ?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}
+    """
+    if not url:
+        return None
+    try:
+        import re as _re
+        # PLTV 模式：匹配 /PLTV/数字/数字/数字/任意文件名（支持 .m3u8/.smil/.flv 等后缀）
+        m = _re.search(r'/PLTV/\d+/\d+/\d+/[^/?#]+', url, _re.IGNORECASE)
+        if m:
+            live_path = m.group(0)
+            tvod_path = _re.sub(r'^/PLTV/', '/TVOD/', live_path, flags=_re.IGNORECASE)
+            base_url = url[:m.start()]
+            catchup_source = base_url + tvod_path + '?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}'
+            return 'pltv', catchup_source
+        # SNM 模式：匹配 /SNM/CHANNEL数字/任意文件名
+        m = _re.search(r'/SNM/CHANNEL\d+/[^/?#]+', url, _re.IGNORECASE)
+        if m:
+            live_path = m.group(0)
+            tvod_path = _re.sub(r'^/SNM/', '/TVOD/', live_path, flags=_re.IGNORECASE)
+            base_url = url[:m.start()]
+            catchup_source = base_url + tvod_path + '?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}'
+            return 'pltv', catchup_source
+    except Exception:
+        pass
+    return None
+
+
 def _auto_detect_catchup_from_url(url: str, channel: Dict[str, Any]):
-    """从频道URL中自动检测回看模式并填充catchup字段（如PLTV/TVOD模式）"""
+    """从频道URL中自动检测回看模式并填充catchup字段（如PLTV/TVOD、SNM/TVOD模式）"""
     try:
         if not url or channel.get('catchup') or channel.get('catchup_source'):
             return
-        url_lower = url.lower()
-        if '/pltv/' in url_lower and '/index.m3u8' in url_lower:
-            import re as _re
-            match = _re.search(r'(/PLTV/\d+/\d+/\d+/index\.m3u8)', url, _re.IGNORECASE)
-            if match:
-                pltv_path = match.group(1)
-                tvod_path = pltv_path.replace('/PLTV/', '/TVOD/').replace('/pltv/', '/TVOD/')
-                base_url = url[:match.start()]
-                catchup_source = base_url + tvod_path + '?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}'
-                channel['catchup'] = 'pltv'
-                channel['catchup_days'] = channel.get('catchup_days') or '3'
-                channel['catchup_source'] = catchup_source
+        result = detect_catchup_pattern(url)
+        if result:
+            catchup_type, catchup_source = result
+            channel['catchup'] = catchup_type
+            channel['catchup_days'] = channel.get('catchup_days') or '3'
+            channel['catchup_source'] = catchup_source
     except Exception:
         pass
 

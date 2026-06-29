@@ -135,6 +135,17 @@ class VideoEqualizerDialog(FloatingDialog):
         self.reset_on_new_check.toggled.connect(self._on_reset_on_new_toggled)
         tform.addRow('', self.reset_on_new_check)
 
+        # 自动裁剪黑边按钮
+        crop_row = QHBoxLayout()
+        self.autocrop_btn = QPushButton(tr('video_eq_autocrop', '自动裁剪黑边'))
+        self.autocrop_btn.clicked.connect(self._on_autocrop_clicked)
+        self.remove_crop_btn = QPushButton(tr('video_eq_remove_crop', '移除裁剪'))
+        self.remove_crop_btn.clicked.connect(self._on_remove_crop_clicked)
+        crop_row.addWidget(self.autocrop_btn)
+        crop_row.addWidget(self.remove_crop_btn)
+        crop_row.addStretch()
+        tform.addRow('', crop_row)
+
         layout.addWidget(transform_group)
 
         # ===== 操作按钮 =====
@@ -268,6 +279,39 @@ class VideoEqualizerDialog(FloatingDialog):
             self.window.config.save_video_eq(cfg)
         except Exception as e:
             logger.warning(f"保存 reset_on_new_file 失败: {e}")
+
+    def _on_autocrop_clicked(self):
+        """触发动态裁剪黑边"""
+        svc = getattr(self.window, 'autocrop_service', None)
+        if not svc:
+            self._show_osd(self.window.language_manager.tr('osd_autocrop_unavailable', '裁剪服务未初始化'))
+            return
+        tr = self.window.language_manager.tr
+        self.autocrop_btn.setEnabled(False)
+        self._show_osd(tr('osd_autocrop_analyzing', '正在分析黑边...'))
+
+        def _on_done(success, crop, message):
+            # 子线程回调，切回主线程
+            from PySide6.QtCore import QTimer
+            def _ui_update():
+                self.autocrop_btn.setEnabled(True)
+                self._show_osd(message)
+            QTimer.singleShot(0, _ui_update)
+
+        try:
+            svc.analyze_and_apply(_on_done)
+        except Exception as e:
+            self.autocrop_btn.setEnabled(True)
+            logger.error(f"自动裁剪黑边失败: {e}")
+            self._show_osd(f"失败: {e}")
+
+    def _on_remove_crop_clicked(self):
+        """移除裁剪滤镜"""
+        svc = getattr(self.window, 'autocrop_service', None)
+        if svc:
+            ok = svc.remove_crop()
+            tr = self.window.language_manager.tr
+            self._show_osd(tr('osd_crop_removed', '已移除裁剪') if ok else tr('osd_crop_remove_failed', '移除失败'))
 
     def _apply_now(self, silent: bool = False):
         """应用所有参数到当前播放"""

@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt, QTimer, QRectF
 from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient, QFont
 from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGroupBox, QSlider, QWidget,
+    QGroupBox, QSlider, QWidget, QCheckBox, QDoubleSpinBox,
 )
 
 from ui.floating_dialog import FloatingDialog
@@ -161,6 +161,14 @@ class AVSyncDialog(FloatingDialog):
         self._ui_timer.timeout.connect(self._refresh_values)
         self._ui_timer.start()
         QTimer.singleShot(50, self._refresh_values)
+        # 字幕自动同步定时器（每 500ms 检查一次）
+        self._sub_sync_enabled = False
+        self._sub_sync_timer = QTimer(self)
+        self._sub_sync_timer.setInterval(500)
+        self._sub_sync_timer.timeout.connect(self._sub_sync_tick)
+        # 字幕同步最近 N 次采样窗口（用于平滑 avdiff）
+        self._sub_sync_history = deque(maxlen=6)
+        self._sub_sync_last_adjust_ts = 0.0
 
     def _apply_theme(self):
         c = AppStyles._get_colors()
@@ -279,6 +287,38 @@ class AVSyncDialog(FloatingDialog):
 
         layout.addWidget(adj_group)
 
+        # ===== 字幕自动同步组 =====
+        sub_group = QGroupBox(tr('av_sync_group_sub_sync', 'Subtitle Auto-Sync'))
+        sub_layout = QVBoxLayout(sub_group)
+        # 启用开关
+        enable_row = QHBoxLayout()
+        self._sub_sync_checkbox = QCheckBox(tr('av_sync_sub_sync_enable', 'Enable auto-sync (align subtitle to audio by avdiff)'))
+        self._sub_sync_checkbox.toggled.connect(self._on_sub_sync_toggled)
+        enable_row.addWidget(self._sub_sync_checkbox)
+        enable_row.addStretch()
+        sub_layout.addLayout(enable_row)
+        # 阈值与步长配置
+        param_row = QHBoxLayout()
+        param_row.addWidget(QLabel(tr('av_sync_sub_sync_threshold', 'Threshold (s):')))
+        self._sub_sync_threshold = QDoubleSpinBox()
+        self._sub_sync_threshold.setRange(0.01, 1.0)
+        self._sub_sync_threshold.setSingleStep(0.01)
+        self._sub_sync_threshold.setValue(0.05)
+        param_row.addWidget(self._sub_sync_threshold)
+        param_row.addSpacing(12)
+        param_row.addWidget(QLabel(tr('av_sync_sub_sync_factor', 'Gain:')))
+        self._sub_sync_factor = QDoubleSpinBox()
+        self._sub_sync_factor.setRange(0.05, 1.0)
+        self._sub_sync_factor.setSingleStep(0.05)
+        self._sub_sync_factor.setValue(0.30)
+        param_row.addWidget(self._sub_sync_factor)
+        param_row.addStretch()
+        sub_layout.addLayout(param_row)
+        # 状态显示
+        self._sub_sync_status = QLabel('--')
+        sub_layout.addWidget(self._sub_sync_status)
+        layout.addWidget(sub_group)
+
         # 关闭按钮
         close_row = QHBoxLayout()
         close_row.addStretch()
@@ -385,6 +425,62 @@ class AVSyncDialog(FloatingDialog):
         except Exception as e:
             logger.debug(f"重置音频延迟失败: {e}")
 
+    # ---------- 字幕自动同步 ----------
+    def _on_sub_sync_toggled(self, checked: bool):
+        """启用/禁用字幕自动同步"""
+        self._sub_sync_enabled = checked
+        if checked:
+            self._sub_sync_history.clear()
+            self._sub_sync_timer.start()
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(tr('osd_sub_sync_on', 'Subtitle auto-sync on'))
+        else:
+            self._sub_sync_timer.stop()
+            self._sub_sync_status.setText('--')
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(tr('osd_sub_sync_off', 'Subtitle auto-sync off'))
+
+    def _sub_sync_tick(self):
+        """字幕自动同步主循环：
+        - 采样 avdiff，存入历史窗口
+        - 取最近 N 次平均，若超过阈值则用比例增益调整 sub_delay
+        - 调整方向：avdiff = audio_pts - video_pts；avdiff > 0 表示音频领先，
+          字幕应延后跟随音频 → sub_delay += avg * gain
+        - 避免在极端 avdiff（>1s）下调整（可能是 seek/暂停）
+        """
+        try:
+            pc = self.window.player_controller
+            if not pc or not pc.is_playing or not hasattr(pc, 'get_avdiff'):
+                return
+            if not hasattr(pc, 'adjust_sub_delay'):
+                return
+            avdiff = pc.get_avdiff()
+            # 跳过 NaN/None
+            if avdiff is None or (isinstance(avdiff, float) and (avdiff != avdiff)):
+                return
+            self._sub_sync_history.append(float(avdiff))
+            if len(self._sub_sync_history) < 3:
+                return
+            avg = sum(self._sub_sync_history) / len(self._sub_sync_history)
+            threshold = float(self._sub_sync_threshold.value())
+            gain = float(self._sub_sync_factor.value())
+            # 极端值跳过（seek/暂停后短暂异常）
+            if abs(avg) > 1.0:
+                self._sub_sync_status.setText(f'avdiff={avg:+.3f}s (skipped, too large)')
+                return
+            if abs(avg) < threshold:
+                self._sub_sync_status.setText(f'avdiff={avg:+.3f}s (in sync)')
+                return
+            # 调整量：将字幕朝向音频对齐方向移动（比例控制）
+            delta = avg * gain
+            new_delay = pc.adjust_sub_delay(delta)
+            self._sub_sync_status.setText(
+                f'avdiff={avg:+.3f}s → sub_delay={new_delay:+.3f}s (delta={delta:+.3f})')
+        except Exception as e:
+            logger.debug(f"字幕自动同步失败: {e}")
+
     # ---------- 生命周期 ----------
     def showEvent(self, event):
         super().showEvent(event)
@@ -397,6 +493,7 @@ class AVSyncDialog(FloatingDialog):
     def closeEvent(self, event):
         self._sample_timer.stop()
         self._ui_timer.stop()
+        self._sub_sync_timer.stop()
         try:
             from ui.theme_manager import get_theme_manager
             get_theme_manager().unregister_window(self)

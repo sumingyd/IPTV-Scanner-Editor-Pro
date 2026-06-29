@@ -1177,6 +1177,19 @@ class MediaController:
             ):
                 indicator.setText(self.window.language_manager.tr('catchup_available', '可回放'))
                 indicator.show()
+            elif self.window.current_channel:
+                # Fallback：catchup 字段为空时，即时从 URL 检测可回看模式（PLTV/TVOD、SNM/TVOD）
+                ch_url = self.window.current_channel.get('url', '')
+                if ch_url:
+                    try:
+                        from services.m3u_parser import detect_catchup_pattern
+                        if detect_catchup_pattern(ch_url):
+                            indicator.setText(self.window.language_manager.tr('catchup_available', '可回放'))
+                            indicator.show()
+                            return
+                    except Exception:
+                        pass
+                indicator.hide()
             else:
                 indicator.hide()
         except Exception as e:

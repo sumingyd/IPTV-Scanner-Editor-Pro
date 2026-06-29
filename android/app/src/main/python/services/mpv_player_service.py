@@ -69,7 +69,7 @@ DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.
 
 def _load_playback_settings():
     settings = {
-        'hwdec': True,
+        'hwdec': 'auto-copy',
         'cache_secs': 1.0,
         'demuxer_max_bytes_mib': 16,
         'demuxer_max_back_bytes_mib': 4,
@@ -288,7 +288,19 @@ class MpvPlayerController(QObject):
 
             if not (is_macos() and getattr(self, '_use_render_api', False)):
                 _mpv_set_option_string(self.mpv_handle, 'vo', vo)
-            hwdec = 'auto' if self._playback_settings.get('hwdec', True) else 'no'
+            # 硬解模式：auto-copy（默认，copy-back 保证 vf 滤镜可用）/ auto（原生，最快但滤镜受限）/ no（软解）
+            # 兼容旧配置：bool True→auto-copy，False→no；字符串 'True'/'False' 同样处理
+            hwdec_raw = self._playback_settings.get('hwdec', 'auto-copy')
+            if isinstance(hwdec_raw, bool):
+                hwdec = 'auto-copy' if hwdec_raw else 'no'
+            else:
+                hwdec_str = str(hwdec_raw).lower()
+                if hwdec_str in ('auto', 'auto-copy', 'no'):
+                    hwdec = hwdec_str
+                elif hwdec_str in ('true', '1', 'yes'):
+                    hwdec = 'auto-copy'  # 旧 bool True 升级到 auto-copy，保证滤镜可用
+                else:
+                    hwdec = 'no'
             _mpv_set_option_string(self.mpv_handle, 'hwdec', hwdec)
             _mpv_set_option_string(self.mpv_handle, 'osc', 'no')
             _mpv_set_option_string(self.mpv_handle, 'osd-bar', 'no')
@@ -435,37 +447,43 @@ class MpvPlayerController(QObject):
     def _apply_tonemap_config(self):
         # HDR→SDR 色调映射：显式指定目标色域和 gamma，避免 mpv 自动推断失败
         # （PQ 是绝对 OETF，依赖明确的 target-trc 才能正确逆转换；HLG 有 OOTF 兼容路径不受影响）
-        self._set_mpv_string('tone-mapping', 'bt.2390')      # EETF，比 hable 更适合 HDR→SDR
+        # 关键：hdr-compute-peak 必须为 no，否则 mpv 会自行计算信号峰值，覆盖 HDR10+ 动态元数据
+        # （mpv 文档明确：hdr-compute-peak=yes 会 override HDR10+ dynamic metadata，导致画面偏暗）
+        # tone-mapping=auto 让 mpv 自动选择：HDR10+→st2094-40，HDR10/HLG→bt.2390
+        self._set_mpv_string('tone-mapping', 'auto')         # 自动选择 HDR10+→st2094-40 / HDR10/HLG→bt.2390
         self._set_mpv_string('tone-mapping-mode', 'auto')
         self._set_mpv_string('tone-mapping-desat', '0.5')    # 高光去饱和，避免画面发灰
-        self._set_mpv_string('hdr-compute-peak', 'yes')
+        self._set_mpv_string('hdr-compute-peak', 'no')       # 信任 HDR10+ 动态元数据，不自行计算峰值
+        self._set_mpv_string('hdr10-opt', 'yes')             # 启用 HDR10+ 动态元数据（逐场景色调映射）
         self._set_mpv_string('d3d11-output-csp', 'srgb')
         self._set_mpv_string('target-prim', 'bt.709')        # SDR 显示器色域
         self._set_mpv_string('target-trc', 'bt.1886')        # SDR 显示器 gamma
         self._set_mpv_string('target-colorspace-hint', 'no')  # 避免从 passthrough 切过来残留
-        self.logger.info("HDR配置: tonemap → SDR (bt.2390, bt.709/bt.1886)")
+        self.logger.info("HDR配置: tonemap → SDR (auto/bt.2390, bt.709/bt.1886, hdr10-opt, 信任元数据)")
 
     def _apply_passthrough_config(self):
         self._set_mpv_string('tone-mapping', 'clip')
         self._set_mpv_string('hdr-compute-peak', 'no')
+        self._set_mpv_string('hdr10-opt', 'yes')             # 让 mpv 读取 HDR10+ 动态元数据
         self._set_mpv_string('d3d11-output-csp', 'pq')
         self._set_mpv_string('target-colorspace-hint', 'yes')
         # 显式指定 HDR 目标色域和传递特性（PQ OETF 依赖明确 target-trc 才能正确转换）
         # 留空时 mpv 自动推断对 HDR10 不稳定，会导致画面偏暗；HLG 因有 OOTF 兼容路径影响较小
         self._set_mpv_string('target-prim', 'bt.2020')   # HDR 标准色域
         self._set_mpv_string('target-trc', 'pq')           # HDR10 PQ 传递特性
-        self.logger.info("HDR配置: passthrough → PQ直通 (bt.2020/pq)")
+        self.logger.info("HDR配置: passthrough → PQ直通 (bt.2020/pq, hdr10-opt)")
 
     def _apply_scrgb_config(self):
         self._set_mpv_string('tone-mapping', 'clip')
         self._set_mpv_string('hdr-compute-peak', 'no')
+        self._set_mpv_string('hdr10-opt', 'yes')             # 让 mpv 读取 HDR10+ 动态元数据
         self._set_mpv_string('d3d11-output-csp', 'pq')
         self._set_mpv_string('target-colorspace-hint', 'yes')
         # 显式指定 HDR 目标色域和传递特性（与 passthrough 一致）
         # auto 模式下系统 HDR 开启时走此分支，输出 PQ HDR 信号给显示器
         self._set_mpv_string('target-prim', 'bt.2020')
         self._set_mpv_string('target-trc', 'pq')
-        self.logger.info("HDR配置: scrgb → PQ直通 (bt.2020/pq)")
+        self.logger.info("HDR配置: scrgb → PQ直通 (bt.2020/pq, hdr10-opt)")
 
     def _reset_hdr_params(self):
         # 非 HDR 视频：显式指定 SDR 目标，确保 bt.2020 色域（WCG）视频能正确映射到 bt.709
@@ -473,6 +491,7 @@ class MpvPlayerController(QObject):
         self._set_mpv_string('tone-mapping-mode', '')
         self._set_mpv_string('tone-mapping-desat', '')
         self._set_mpv_string('hdr-compute-peak', '')
+        self._set_mpv_string('hdr10-opt', 'no')              # 非 HDR 视频关闭 HDR10+ 优化
         self._set_mpv_string('d3d11-output-csp', 'srgb')
         self._set_mpv_string('target-prim', 'bt.709')        # SDR 显示器色域
         self._set_mpv_string('target-trc', 'bt.1886')        # SDR 显示器 gamma
@@ -2384,7 +2403,7 @@ class MpvPlayerController(QObject):
                 self.set_sharpness(eq['sharpness'])
             if 'video_rotate' in eq and eq['video_rotate'] is not None:
                 self.set_video_rotate(int(eq['video_rotate']))
-            if 'video_flip' in eq and eq['video_flip']:
+            if 'video_flip' in eq and eq['video_flip'] is not None:
                 self.set_video_flip(eq['video_flip'])
             if 'crop_w' in eq and 'crop_h' in eq:
                 self.set_video_crop(int(eq.get('crop_x', 0)), int(eq.get('crop_y', 0)),
@@ -2431,6 +2450,12 @@ class MpvPlayerController(QObject):
     def set_video_flip(self, mode: str) -> bool:
         """设置画面翻转
         mode: '' / 'horizontal' / 'vertical' / 'both'
+        使用 mpv 的 lavfi 滤镜包装 FFmpeg 的 hflip/vflip：
+          - horizontal: lavfi=[hflip]
+          - vertical:   lavfi=[vflip]
+          - both:       lavfi=[hflip,vflip]  （方括号内的逗号属于 FFmpeg filter_graph，不会被 mpv 当滤镜分隔符）
+        注意：lavfi 滤镜需要 copy-back 硬解（hwdec=auto-copy）或软解（hwdec=no）。
+              原生硬解（hwdec=auto）下解码帧留在 GPU，lavfi 无法访问帧数据，滤镜不生效。
         """
         if not self.mpv_handle or self._terminated:
             return False
@@ -2442,15 +2467,25 @@ class MpvPlayerController(QObject):
         if not mode:
             return True
         if mode == 'horizontal':
-            args = ['hflip']
+            filter_str = 'lavfi=[hflip]'
         elif mode == 'vertical':
-            args = ['vflip']
+            filter_str = 'lavfi=[vflip]'
         elif mode == 'both':
-            args = ['flip', 'y', 'y']  # 二次翻转
+            filter_str = 'lavfi=[hflip,vflip]'
         else:
             return False
         # 使用命名标签便于后续替换
-        return self.send_command(['vf', 'add', f'@iptv_flip:{",".join(args)}']) == 0
+        ret = self.send_command(['vf', 'add', f'@iptv_flip:{filter_str}'])
+        if ret != 0:
+            # 滤镜添加失败：常见原因是原生硬解（hwdec=auto）下 lavfi 不可用
+            cur_hwdec = self._get_mpv_property_string('hwdec') or ''
+            self.logger.warning(
+                f"翻转滤镜添加失败(ret={ret})，filter='{filter_str}'，当前 hwdec='{cur_hwdec}'。"
+                f"若为原生硬解(auto)，请在播放设置中改为 copy-back(auto-copy) 或软解(no)"
+            )
+            return False
+        self.logger.info(f"翻转滤镜已添加: {filter_str}")
+        return True
 
     def get_video_flip(self) -> str:
         """读取当前 flip 状态"""
@@ -2460,12 +2495,24 @@ class MpvPlayerController(QObject):
                 return ''
             import json
             data = json.loads(vf) if isinstance(vf, str) else vf
+            # mpv 返回的 vf JSON 结构：
+            # {"vf": [{"name": "lavfi", "params": {"graph": "hflip"}, "label": "iptv_flip"}, ...]}
+            # 通过 label 识别本程序添加的翻转滤镜，再解析 graph 判断方向
             for item in data.get('vf', []):
-                params = item.get('params', {})
-                name = params.get('name', '')
-                if name == 'hflip':
+                label = item.get('label', '') or ''
+                if label != 'iptv_flip':
+                    continue
+                name = item.get('name', '')
+                if name != 'lavfi':
+                    continue
+                graph = (item.get('params', {}) or {}).get('graph', '') or ''
+                has_hflip = 'hflip' in graph
+                has_vflip = 'vflip' in graph
+                if has_hflip and has_vflip:
+                    return 'both'
+                if has_hflip:
                     return 'horizontal'
-                if name == 'vflip':
+                if has_vflip:
                     return 'vertical'
             return ''
         except Exception:
@@ -2925,12 +2972,16 @@ class MpvPlayerController(QObject):
     @staticmethod
     def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float, video_format: str = '') -> str:
         vf_lower = (video_format or '').lower()
-        if 'dovi' in vf_lower or 'dolbyvision' in vf_lower or 'dolby_vision' in vf_lower:
-            return 'DV'
+        has_dovi = ('dovi' in vf_lower or 'dolbyvision' in vf_lower or 'dolby_vision' in vf_lower)
+        # 注意：libmpv 无法解码 DV RPU 增强层，只能播放 HDR10/HDR10+ 基础层
+        # 对于 DV+HDR10+ 双层片源，应按 HDR10+ 处理（基础层是 PQ + 动态元数据）
+        # 先检查 PQ，再回退到纯 DV 标记
         if gamma and ('pq' in gamma.lower() or 'smpte2084' in gamma.lower()):
             if sig_peak > 1000:
                 return 'HDR10+'
             return 'HDR10'
+        if has_dovi:
+            return 'DV'
         if gamma and ('hlg' in gamma.lower() or 'arib-std-b67' in gamma.lower()):
             return 'HLG'
         if colormatrix:
