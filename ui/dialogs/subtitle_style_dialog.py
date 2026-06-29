@@ -675,7 +675,12 @@ class SubtitleDownloadDialog(FloatingDialog):
         tr = self.window.language_manager.tr
         self._results = items
         if not items:
-            self.status_label.setText(tr('sub_no_results', '没有找到字幕'))
+            # 区分"真没找到"和"出错"，让用户知道是网络问题还是真的没字幕
+            err = getattr(self._service, 'last_error', '') or ''
+            if err:
+                self.status_label.setText(tr('sub_search_error', '搜索失败') + f': {err}')
+            else:
+                self.status_label.setText(tr('sub_no_results', '没有找到字幕'))
             return
         self.status_label.setText(tr('sub_results_count', '找到 {} 条结果').format(len(items)))
         from PySide6.QtWidgets import QListWidgetItem

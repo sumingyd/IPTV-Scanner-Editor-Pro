@@ -450,18 +450,22 @@ class MpvPlayerController(QObject):
         self._set_mpv_string('hdr-compute-peak', 'no')
         self._set_mpv_string('d3d11-output-csp', 'pq')
         self._set_mpv_string('target-colorspace-hint', 'yes')
-        self._set_mpv_string('target-prim', '')
-        self._set_mpv_string('target-trc', '')
-        self.logger.info("HDR配置: passthrough → PQ直通 (自动色域)")
+        # 显式指定 HDR 目标色域和传递特性（PQ OETF 依赖明确 target-trc 才能正确转换）
+        # 留空时 mpv 自动推断对 HDR10 不稳定，会导致画面偏暗；HLG 因有 OOTF 兼容路径影响较小
+        self._set_mpv_string('target-prim', 'bt.2020')   # HDR 标准色域
+        self._set_mpv_string('target-trc', 'pq')           # HDR10 PQ 传递特性
+        self.logger.info("HDR配置: passthrough → PQ直通 (bt.2020/pq)")
 
     def _apply_scrgb_config(self):
         self._set_mpv_string('tone-mapping', 'clip')
         self._set_mpv_string('hdr-compute-peak', 'no')
         self._set_mpv_string('d3d11-output-csp', 'pq')
         self._set_mpv_string('target-colorspace-hint', 'yes')
-        self._set_mpv_string('target-prim', '')
-        self._set_mpv_string('target-trc', '')
-        self.logger.info("HDR配置: scrgb → PQ直通 (自动色域)")
+        # 显式指定 HDR 目标色域和传递特性（与 passthrough 一致）
+        # auto 模式下系统 HDR 开启时走此分支，输出 PQ HDR 信号给显示器
+        self._set_mpv_string('target-prim', 'bt.2020')
+        self._set_mpv_string('target-trc', 'pq')
+        self.logger.info("HDR配置: scrgb → PQ直通 (bt.2020/pq)")
 
     def _reset_hdr_params(self):
         # 非 HDR 视频：显式指定 SDR 目标，确保 bt.2020 色域（WCG）视频能正确映射到 bt.709

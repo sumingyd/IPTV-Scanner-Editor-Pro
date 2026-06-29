@@ -444,6 +444,13 @@ class FloatingDialog(QDialog):
             return
         if not is_windows():
             return
+        # Windows: 隐藏任务栏图标（与 FloatingDockWidget.show 行为一致）
+        # 通过设置 WS_EX_TOOLWINDOW 让窗口不出现在任务栏
+        # 这对所有 FloatingDialog 子类生效，无论 parent 是否为 None、无论 exec 还是 show
+        try:
+            _hide_from_taskbar(self)
+        except Exception:
+            pass
 
     def _try_enable_macos_blur(self):
         try:

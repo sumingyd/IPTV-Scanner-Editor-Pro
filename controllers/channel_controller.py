@@ -131,12 +131,22 @@ class ChannelController:
                         outer_layout.addLayout(row_layout, 1)
 
                         # 评分条：名称下方红→黄→绿渐变指示
+                        # 优先读持久化 quality_score 字段（订阅源/本地 M3U 自带评分的场景）
+                        # 否才按 valid 判断（未检测 valid is None 不显示）
                         quality_bar = QualityBarWidget(item_widget)
-                        score_info = StreamQualityScorer.score_from_channel_safe(channel)
-                        if score_info is not None:
-                            quality_bar.set_score(score_info.get('total'), score_info.get('grade', ''))
+                        persisted_score = channel.get('quality_score')
+                        persisted_grade = channel.get('quality_grade') or ''
+                        if persisted_score is not None and persisted_score != '':
+                            try:
+                                quality_bar.set_score(float(persisted_score), persisted_grade)
+                            except (TypeError, ValueError):
+                                quality_bar.set_score(None)
                         else:
-                            quality_bar.set_score(None)
+                            score_info = StreamQualityScorer.score_from_channel_safe(channel)
+                            if score_info is not None:
+                                quality_bar.set_score(score_info.get('total'), score_info.get('grade', ''))
+                            else:
+                                quality_bar.set_score(None)
                         outer_layout.addWidget(quality_bar, 0)
 
                         item = QListWidgetItem()
