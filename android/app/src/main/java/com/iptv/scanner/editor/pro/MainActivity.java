@@ -190,8 +190,16 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("SetJavaScriptEnabled")
     private void setupWebView() {
+        /* 清除 WebView 的所有缓存和 Service Worker 缓存
+         * 旧版 sw.js 使用 stale-while-revalidate 策略缓存了旧 HTML
+         * 必须在每次启动时清除，确保加载最新版本 */
         webView.clearCache(true);
         webView.clearHistory();
+        try {
+            android.webkit.WebStorage.getInstance().deleteAllData();
+        } catch (Exception e) {
+            Log.w(TAG, "Clear WebStorage failed", e);
+        }
         WebView.setWebContentsDebuggingEnabled(true);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);

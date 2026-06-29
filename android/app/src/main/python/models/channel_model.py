@@ -6,6 +6,10 @@ from core.log_manager import global_logger as logger
 from ui.styles import AppStyles
 from models.channel_mappings import extract_channel_name_from_url
 
+# 自定义数据角色：用于 delegate 从 QModelIndex 取评分（与 ui.quality_bar 中常量保持一致）
+QUALITY_SCORE_ROLE = 0x0100 + 100  # Qt.ItemDataRole.UserRole + 100
+QUALITY_GRADE_ROLE = 0x0100 + 101  # Qt.ItemDataRole.UserRole + 101
+
 
 class ChannelListModel(QtCore.QAbstractTableModel):
     """频道列表数据模型"""
@@ -252,6 +256,39 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 return color_to_qcolor(colors.get('placeholder', '#999999'))
             else:
                 return color_to_qcolor(colors['window_text'])
+        elif role == QUALITY_SCORE_ROLE:
+            # 显示评分条的条件：
+            # - 频道已检测（valid 非 None），按数据计算/读取
+            # - 或频道从 M3U 加载且带有 quality_score 字段（持久化的扫描结果）
+            valid = channel.get('valid')
+            has_persisted_score = 'quality_score' in channel
+            if valid is None and not has_persisted_score:
+                return None
+            score = channel.get('quality_score', None)
+            if score is None or score == '':
+                if valid is None:
+                    return None
+                # 评分字段缺失但已检测，按现有数据动态计算（不写入）
+                from services.stream_quality_scorer import StreamQualityScorer
+                info = StreamQualityScorer.score_from_channel(channel)
+                return info.get('total')
+            try:
+                return float(score)
+            except (TypeError, ValueError):
+                return None
+        elif role == QUALITY_GRADE_ROLE:
+            valid = channel.get('valid')
+            has_persisted_score = 'quality_score' in channel
+            if valid is None and not has_persisted_score:
+                return None
+            grade = channel.get('quality_grade', None)
+            if not grade:
+                if valid is None:
+                    return None
+                from services.stream_quality_scorer import StreamQualityScorer
+                info = StreamQualityScorer.score_from_channel(channel)
+                return info.get('grade')
+            return grade
 
         return None
 
@@ -650,6 +687,25 @@ class ChannelListModel(QtCore.QAbstractTableModel):
                 extinf_parts.append(f'catchup-correction="{catchup_correction}"')
             if resolution and not self.is_column_hidden(2):  # 分辨率列
                 extinf_parts.append(f'resolution="{resolution}"')
+
+            # 流质量评分（持久化到 EXTINF，便于加载后直接显示评分条）
+            # valid 为 None（未检测）时不写入
+            if channel.get('valid') is not None:
+                qs = channel.get('quality_score')
+                qg = channel.get('quality_grade')
+                # 若评分字段缺失但有 valid，按现有数据计算并回填
+                if qs is None:
+                    try:
+                        from services.stream_quality_scorer import StreamQualityScorer
+                        info = StreamQualityScorer.score_from_channel(channel)
+                        qs = info.get('total')
+                        qg = info.get('grade')
+                    except Exception:
+                        qs = None
+                if qs is not None:
+                    extinf_parts.append(f'quality-score="{qs}"')
+                if qg:
+                    extinf_parts.append(f'quality-grade="{qg}"')
 
             # 添加频道名称
             extinf_parts.append(f",{channel_name}")

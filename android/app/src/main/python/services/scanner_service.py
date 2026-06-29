@@ -284,11 +284,19 @@ class ScannerController(QObject):
                 'valid': valid,
                 'latency': latency,
                 'resolution': result.get('resolution', ''),
+                'codec': result.get('codec', '') or '',
+                'bitrate': result.get('bitrate', '') or '',
                 'status': '有效' if valid else '无效',
                 'group': '未分类',  # 默认分组，异步线程中更新
                 'logo': None,   # 默认无logo，异步线程中更新
                 'needs_details': False  # 重要：这里设为False，异步线程中再决定是否需要获取详情
             }
+
+            # 计算流质量评分（基于 latency/bitrate/resolution/valid）
+            from services.stream_quality_scorer import StreamQualityScorer
+            score_info = StreamQualityScorer.score_from_channel(channel_info)
+            channel_info['quality_score'] = score_info.get('total', 0)
+            channel_info['quality_grade'] = score_info.get('grade', 'F')
 
             # 注意：这里不启动异步获取详细信息
             # 异步获取将在 _start_async_mapping_check 方法中决定
@@ -297,19 +305,26 @@ class ScannerController(QObject):
 
         except Exception as e:
             # 返回基本的频道信息，即使构建失败
-            return {
+            from services.stream_quality_scorer import StreamQualityScorer
+            fallback_info = {
                 'url': url,
                 'name': extract_channel_name_from_url(url),
                 'raw_name': extract_channel_name_from_url(url),
                 'valid': valid,
                 'latency': latency,
                 'resolution': result.get('resolution', ''),
+                'codec': result.get('codec', '') or '',
+                'bitrate': result.get('bitrate', '') or '',
                 'status': '有效' if valid else '无效',
                 'group': '未分类',
                 'logo': None,
                 'error': str(e),
                 'needs_details': False
             }
+            score_info = StreamQualityScorer.score_from_channel(fallback_info)
+            fallback_info['quality_score'] = score_info.get('total', 0)
+            fallback_info['quality_grade'] = score_info.get('grade', 'F')
+            return fallback_info
 
     def _start_async_details_fetch(self, channel_info: dict):
         if self._mapping_executor is None:
@@ -896,7 +911,7 @@ class ScannerController(QObject):
                 latency = result['latency']
                 resolution = result.get('resolution', '')
 
-                self._run_on_main(self._handle_validation_result, url, valid, index, latency, resolution)
+                self._run_on_main(self._handle_validation_result, url, valid, index, latency, resolution, result)
 
                 with self.stats_lock:
                     if valid:
@@ -918,10 +933,10 @@ class ScannerController(QObject):
             except Exception as e:
                 self.logger.error(f"验证线程错误: {e}", exc_info=True)
 
-    def _handle_validation_result(self, url, valid, index, latency, resolution):
+    def _handle_validation_result(self, url, valid, index, latency, resolution, result=None):
         """攒批处理验证结果，减少视图通知"""
         with self._pending_lock:
-            self._pending_validations.append((url, valid))
+            self._pending_validations.append((url, valid, result))
             if self._validation_flush_timer is None:
                 self._validation_flush_timer = True
                 QtCore.QTimer.singleShot(100, self._flush_pending_validations)
@@ -935,12 +950,27 @@ class ScannerController(QObject):
             self._validation_flush_timer = None
 
         if validations:
+            from services.stream_quality_scorer import StreamQualityScorer
             self.model.beginResetModel()
-            for url, valid in validations:
+            for url, valid, result in validations:
                 for ch in self.model.channels:
                     if ch.get('url') == url:
                         ch['valid'] = valid
                         ch['status'] = '有效' if valid else '无效'
+                        # 同步更新验证时探测到的字段（保留最新值）
+                        if result:
+                            if result.get('latency') is not None:
+                                ch['latency'] = result['latency']
+                            if result.get('resolution'):
+                                ch['resolution'] = result['resolution']
+                            if result.get('codec'):
+                                ch['codec'] = result['codec']
+                            if result.get('bitrate'):
+                                ch['bitrate'] = result['bitrate']
+                        # 重新计算流质量评分
+                        score_info = StreamQualityScorer.score_from_channel(ch)
+                        ch['quality_score'] = score_info.get('total', 0)
+                        ch['quality_grade'] = score_info.get('grade', 'F')
                         break
             self.model.endResetModel()
 

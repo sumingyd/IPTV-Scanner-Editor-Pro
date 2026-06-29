@@ -126,3 +126,15 @@ class StreamQualityScorer:
         is_valid = channel.get('valid', None)
 
         return StreamQualityScorer.score(latency, bitrate, resolution, is_valid)
+
+    @staticmethod
+    def score_from_channel_safe(channel: Dict[str, Any]):
+        """评分安全版本：valid 为 None（待检测）时返回 None，表示不展示评分条。
+
+        Returns:
+            None：频道尚未检测（valid is None），UI 不应绘制评分条
+            dict：已检测频道（valid is True/False），返回标准评分结构
+        """
+        if channel.get('valid') is None:
+            return None
+        return StreamQualityScorer.score_from_channel(channel)

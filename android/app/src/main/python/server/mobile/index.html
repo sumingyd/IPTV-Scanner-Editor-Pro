@@ -64,8 +64,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;color:#e
 .bb-btn.active{background:var(--accent);color:#fff;box-shadow:0 0 8px var(--accent)}
 .bb-btn.text-btn{width:auto;padding:0 10px;font-size:12px;font-weight:600}
 .bb-btn svg{width:18px;height:18px;fill:#fff}
-.bb-progress{flex:1;min-width:80px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;cursor:pointer;position:relative}
+.bb-progress{flex:1;min-width:80px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:visible;cursor:pointer;position:relative}
 .bb-progress-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s}
+.bb-progress-handle{position:absolute;top:50%;left:0%;width:12px;height:12px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--accent),0 1px 4px rgba(0,0,0,.4);transition:left .3s;pointer-events:none}
 .bb-time{font-size:11px;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums;flex-shrink:0;min-width:38px;text-align:center}
 .bb-vol{width:60px;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.15);outline:none;flex-shrink:0}
 .bb-vol::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer}
@@ -289,17 +290,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;color:#e
       <span class="ctrl-badge" id="ctrlBufferInfo" style="font-size:11px;color:#4caf50;background:rgba(76,175,80,.12);border-radius:4px;padding:2px 6px;display:none">--</span>
     </div>
     <div class="ctrl-line" style="height:1px;background:var(--border);margin:4px 0"></div>
-    <!-- 第 2 行：节目信息行 -->
+    <!-- 第 2 行：节目信息行（与 PC 端 _create_info_row 对齐）
+         布局：[logo] | 频道名 · 节目名 | 时间徽章 | 回看指示器 | 状态徽章
+                            节目描述 -->
     <div class="ctrl-info-row" style="display:flex;align-items:flex-start;gap:12px;padding:8px 4px">
       <div style="width:64px;height:40px;border-radius:6px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-faint);flex-shrink:0;overflow:hidden" id="ctrlLogo">📺</div>
       <div style="flex:1;min-width:0">
+        <!-- 子行 1：频道名 + 节目名 + 时间 + catchup + 状态（同一行） -->
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="ctrlName">IPTV Scanner Editor Pro</span>
-          <span style="font-size:11px;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:2px 6px" id="ctrlStatus">就绪</span>
-      <span style="font-size:11px;color:#ff9800;background:rgba(255,152,0,.12);border-radius:4px;padding:2px 6px;display:none" id="ctrlCatchupIndicator">回看</span>
+          <span style="font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%" id="ctrlName">IPTV Scanner Editor Pro</span>
+          <span style="font-size:12px;color:var(--accent);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="ctrlProgram">打开播放列表开始观看</span>
+          <span style="font-size:11px;color:var(--text-dim);background:rgba(255,255,255,.06);border-radius:4px;padding:2px 6px;white-space:nowrap" id="ctrlTimeLabel">--:--</span>
+          <span style="font-size:11px;color:#ff9800;background:rgba(255,152,0,.12);border-radius:4px;padding:2px 6px;display:none;white-space:nowrap" id="ctrlCatchupIndicator">回看</span>
+          <span style="font-size:11px;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:2px 6px;white-space:nowrap;min-width:50px;text-align:center" id="ctrlStatus">就绪</span>
         </div>
-        <div style="font-size:12px;color:var(--accent);margin-top:3px" id="ctrlProgram">打开播放列表开始观看</div>
-        <div style="font-size:11px;color:var(--text-faint);margin-top:2px" id="ctrlDesc">支持 M3U / M3U8 / 本地视频</div>
+        <!-- 子行 2：节目描述 -->
+        <div style="font-size:11px;color:var(--text-faint);margin-top:3px" id="ctrlDesc">支持 M3U / M3U8 / 本地视频</div>
       </div>
     </div>
     <div class="ctrl-line" style="height:1px;background:var(--border);margin:4px 0"></div>
@@ -310,7 +316,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;color:#e
       <button class="bb-btn" id="bbStop" title="停止"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
       <button class="bb-btn" id="bbNext" title="下一频道"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
       <span class="bb-time" id="bbTimeStart">--:--</span>
-      <div class="bb-progress" id="bbProgress" style="flex:1;min-width:80px"><div class="bb-progress-fill" id="bbProgressFill"></div></div>
+      <div class="bb-progress" id="bbProgress" style="flex:1;min-width:80px"><div class="bb-progress-fill" id="bbProgressFill"></div><div class="bb-progress-handle" id="bbProgressHandle"></div></div>
       <span class="bb-time" id="bbTimeEnd">--:--</span>
       <button class="bb-btn" id="bbMute" title="静音"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>
       <input type="range" class="bb-vol" id="bbVolSlider" min="0" max="100" value="100">
@@ -634,6 +640,16 @@ function switchBack(){ if(state.prevIdx>=0) playChannel(state.prevIdx); }
 
 function togglePlay(){
   if(!USE_MPV) return;
+  /* 停止状态下（currentIdx<0）点击播放按钮：恢复上一个频道
+   * 避免在空 mpv 上 setPause(false) 污染状态导致后续切换频道无法播放 */
+  if(state.currentIdx < 0){
+    if(state.playHistory.length > 0){
+      playChannel(state.playHistory[0]);
+    } else {
+      showOSD('提示', '请先选择频道');
+    }
+    return;
+  }
   /* 直接从 mpv 读取实时 pause 状态，避免事件回调延迟导致 state.mpv.paused 不同步 */
   const paused = Mpv.getBool('pause');
   if(paused){ Mpv.setPause(false); showCenterIcon('play'); state.mpv.paused = false; }
@@ -1296,48 +1312,84 @@ function fetchEpgForCurrent(){
 }
 
 function updateMediaInfo(){
-  if(state.currentIdx<0){ $('#ctrlStatus').textContent='就绪'; return; }
+  if(state.currentIdx<0){
+    $('#ctrlStatus').textContent='就绪';
+    $('#ctrlTimeLabel').textContent='--:--';
+    return;
+  }
   const ch=state.channels[state.currentIdx];
   if(!ch) return;
   $('#ctrlName').textContent = ch.name;
   const logo=$('#ctrlLogo');
   if(ch.logo){ logo.innerHTML='<img src="'+esc(ch.logo)+'" onerror="this.outerHTML=\'📺\'" style="width:100%;height:100%;object-fit:contain">'; }
   else{ logo.textContent='📺'; }
-  /* 状态标签：与 PC 端 remain_label 对齐
-     - 直播/VOD 播放中：'播放中'
+
+  /* 时间徽章（ctrlTimeLabel）：与 PC 端 time_label 对齐
+     - 回看模式：'{start} - {end}'（如 '20:00 - 21:00'）
+     - 直播模式：当前时间（如 '20:30'）
+     - VOD 模式：'{current} / {total}'（如 '12:34 / 56:78'） */
+  const timeLabel = $('#ctrlTimeLabel');
+
+  /* 状态徽章（ctrlStatus）：与 PC 端 remain_label 对齐
+     - 直播/EPG：'播放中'
      - 暂停：'已暂停'
-     - VOD 显示剩余时间（-mm:ss） */
+     - VOD：'-{remaining}'（如 '-12:34'） */
   if(state.mpv.paused){
     $('#ctrlStatus').textContent = '已暂停';
   } else {
     const dur = state.mpv.duration || 0;
     const t = state.mpv.timePos || 0;
-    /* VOD 且有剩余时间时显示 -mm:ss（与 PC 端 remain_label 一致） */
     if(dur>0 && dur<86400 && t>0 && t<dur){
       const remain = dur - t;
-      const mm = Math.floor(remain/60);
+      const hh = Math.floor(remain/3600);
+      const mm = Math.floor((remain%3600)/60);
       const ss = Math.floor(remain%60);
-      $('#ctrlStatus').textContent = '-'+mm+':'+String(ss).padStart(2,'0');
+      $('#ctrlStatus').textContent = hh>0
+        ? '-'+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')
+        : '-'+mm+':'+String(ss).padStart(2,'0');
     } else {
       $('#ctrlStatus').textContent = '播放中';
     }
   }
-  /* 节目信息：与 PC 端 current_program 格式一致（· {title}） */
+
+  /* 节目名（ctrlProgram）：与 PC 端 current_program 格式一致（· {title}） */
   const epg = state.epgCache.get(state.currentIdx);
   const prog = getCurrentProgram(epg);
-  if(prog){
-    /* 节目名带 · 前缀（与 PC 端 current_program = '· {title}' 一致） */
+
+  /* 回看/时移模式：用 catchupProgram 的时间 */
+  if((state.playMode==='catchup' || state.playMode==='timeshift') && state.catchupProgram){
+    const cp = state.catchupProgram;
+    const startStr = cp.start || fmtHM(cp.start_ts);
+    const endStr = cp.stop || cp.end || fmtHM(cp.end_ts);
+    timeLabel.textContent = startStr + ' - ' + endStr;
+    const title = cp.title || '';
+    $('#ctrlProgram').textContent = title ? ('· ' + title) : '';
+    $('#ctrlDesc').textContent = cp.desc || (startStr + ' - ' + endStr);
+  } else if(prog){
+    /* 直播+EPG 模式 */
     const title = prog.title || '';
     $('#ctrlProgram').textContent = title ? ('· ' + title) : '';
-    /* 节目描述：时间范围 + 描述（与 PC 端 program_desc 一致） */
     const timeRange = (prog.start||'') + ' - ' + (prog.stop||prog.end||'');
     $('#ctrlDesc').textContent = timeRange + (prog.desc ? ' · ' + prog.desc : '');
+    /* 直播模式时间标签显示当前时间 */
+    const now = new Date();
+    timeLabel.textContent = pad2(now.getHours())+':'+pad2(now.getMinutes());
   } else {
-    /* 无 EPG 时显示 mediaTitle 或分组 */
+    /* 无 EPG 模式 */
     const mediaTitle = state.mpv.mediaTitle || '';
     $('#ctrlProgram').textContent = mediaTitle ? ('· ' + mediaTitle) : (ch.group ? ('· ' + ch.group) : '');
     $('#ctrlDesc').textContent = ch.group || '';
+    /* VOD 模式显示 current/total */
+    const dur = state.mpv.duration || 0;
+    const t = state.mpv.timePos || 0;
+    if(dur>0 && dur<86400 && t>0){
+      timeLabel.textContent = fmtTime(t) + ' / ' + fmtTime(dur);
+    } else {
+      const now = new Date();
+      timeLabel.textContent = pad2(now.getHours())+':'+pad2(now.getMinutes());
+    }
   }
+
   /* 回看/时移指示器：与 PC 端 catchup_indicator 一致 */
   const catchupIndicator = $('#ctrlCatchupIndicator');
   if(catchupIndicator){
@@ -1375,8 +1427,10 @@ function resetCtrlInfo(){
   $('#ctrlDesc').textContent='支持 M3U / M3U8 / 本地视频';
   $('#ctrlProgram').textContent='打开播放列表开始观看';
   $('#ctrlStatus').textContent='就绪';
+  $('#ctrlTimeLabel').textContent='--:--';
+  $('#ctrlCatchupIndicator').style.display='none';
   $('#ctrlLogo').textContent='📺';
-  $('#bbProgressFill').style.width='0%';
+  setProgress(0);
   $('#bbTimeStart').textContent='--:--';
   $('#bbTimeEnd').textContent='--:--';
   /* 重置媒体信息徽章 */
@@ -1388,10 +1442,8 @@ function resetCtrlInfo(){
 }
 /* 更新媒体信息徽章（视频/音频/网络/缓冲/HDR）
  * 与 PC 端 controllers/ui_controller.py:format_media_info 对齐
- * PC 端格式：HW: {hwdec} │ Video: {codec} │ Resolution: {w}x{h} │ FPS: {fps} │ V.Bitrate: {br}
- *           Audio: {codec} │ Channels: {ch}ch │ Sample Rate: {sr}Hz │ Bitrate: {br}
- *           Format: {container} │ Protocol: {proto} │ Bitrate: {total_br} │ Cache: {cache_speed}
- * 移动端用 · 分隔（比 │ 更紧凑），保留 label 前缀 */
+ * PC 端中文标签：硬件解码/视频/分辨率/帧率/视频码率 | 音频/声道/采样率/码率 | 格式/协议/码率/缓存速度
+ * 分隔符：与 PC 端一致使用 " | " */
 function updateMediaBadges(){
   const vEl=$('#ctrlVideoInfo'), hEl=$('#ctrlHdrBadge'), aEl=$('#ctrlAudioInfo'),
         nEl=$('#ctrlNetworkInfo'), bEl=$('#ctrlBufferInfo');
@@ -1401,19 +1453,19 @@ function updateMediaBadges(){
     return;
   }
   try{
-    /* 视频徽章：HW: {hwdec} · Video: {codec} · Resolution: {w}x{h} · FPS: {fps} · V.Bitrate: {br} */
+    /* 视频徽章：硬件解码: {hwdec} | 视频: {codec} | 分辨率: {w}x{h} | 帧率: {fps}fps | 视频码率: {br} */
     const w=Mpv.getInt('width'), h=Mpv.getInt('height');
     const fps=Mpv.getDbl('container-fps')||Mpv.getDbl('estimated-vf-fps');
     const vcodec=Mpv.getStr('video-codec');
     const hw=Mpv.getStr('hwdec-current')||state.mpv.hwdec;
     const vBr=Mpv.getInt('video-bitrate');
     const vp=[];
-    if(hw && hw!=='no') vp.push('HW: '+hw);
-    if(vcodec) vp.push('Video: '+vcodec);
-    if(w>0 && h>0) vp.push('Resolution: '+w+'x'+h);
-    if(fps>0) vp.push('FPS: '+(fps<10?fps.toFixed(2):fps.toFixed(1)));
-    if(vBr>0) vp.push('V.Bitrate: '+formatBitrate(vBr));
-    vEl.textContent = vp.length ? vp.join(' · ') : '直播流';
+    if(hw && hw!=='no') vp.push('硬件解码: '+hw);
+    if(vcodec) vp.push('视频: '+vcodec);
+    if(w>0 && h>0) vp.push('分辨率: '+w+'x'+h);
+    if(fps>0) vp.push('帧率: '+Math.round(fps)+'fps');
+    if(vBr>0) vp.push('视频码率: '+formatBitrate(vBr));
+    vEl.textContent = vp.length ? vp.join(' | ') : '直播流';
     /* HDR 徽章：与 PC 端 detect_hdr_type 对齐（综合 gamma 判断） */
     const gamma=Mpv.getStr('video-params/gamma');
     let hdr='';
@@ -1421,32 +1473,32 @@ function updateMediaBadges(){
     else if(/hlg/i.test(gamma)) hdr='HLG';
     if(hdr){ hEl.textContent=hdr; hEl.style.display=''; }
     else { hEl.style.display='none'; }
-    /* 音频徽章：Audio: {codec} · Channels: {ch}ch · Sample Rate: {sr}Hz · Bitrate: {br} */
+    /* 音频徽章：音频: {codec} | 声道: {ch} | 采样率: {sr} | 码率: {br} */
     const acodec=Mpv.getStr('audio-codec');
     const ch=Mpv.getInt('audio-params/channels');
     const sr=Mpv.getInt('audio-params/samplerate');
     const aBr=Mpv.getInt('audio-bitrate');
     const ap=[];
-    if(acodec) ap.push('Audio: '+acodec);
+    if(acodec) ap.push('音频: '+acodec);
     if(ch>0){
-      const chMap={1:'Mono',2:'Stereo',6:'5.1',8:'7.1'};
-      ap.push('Channels: '+(chMap[ch]||(ch+'ch')));
+      const chMap={1:'单声道',2:'立体声',6:'5.1声道',8:'7.1声道'};
+      ap.push('声道: '+(chMap[ch]||(ch+'ch')));
     }
-    if(sr>0) ap.push('Sample Rate: '+(sr>=1000?(sr/1000).toFixed(1)+'kHz':sr+'Hz'));
-    if(aBr>0) ap.push('Bitrate: '+formatBitrate(aBr));
-    aEl.textContent = ap.length ? ap.join(' · ') : '--';
-    /* 网络徽章：Format: {container} · Protocol: {proto} · Bitrate: {total_br} · Cache: {cache_speed} */
+    if(sr>0) ap.push('采样率: '+(sr>=1000?(sr/1000).toFixed(1)+'kHz':sr+'Hz'));
+    if(aBr>0) ap.push('码率: '+formatBitrate(aBr));
+    aEl.textContent = ap.length ? ap.join(' | ') : '无音频信息';
+    /* 网络徽章：格式: {container} | 协议: {proto} | 码率: {total_br} | 缓存速度: {cache_speed} */
     const fmt=Mpv.getStr('file-format')||state.mpv.fileFormat;
     const proto=Mpv.getStr('protocol');
     const cacheDur=Mpv.getDbl('demuxer-cache-duration');
     const demuxBr=Mpv.getInt('demuxer-bitrate');
     let totalBr=((vBr||0)+(aBr||0))||demuxBr||0;
     const np=[];
-    if(fmt && fmt!=='unknown' && fmt!=='') np.push('Format: '+fmt);
-    if(proto && proto!=='unknown' && proto!=='') np.push('Protocol: '+proto);
-    if(totalBr>0) np.push('Bitrate: '+formatBitrate(totalBr));
-    if(cacheDur>0) np.push('Cache: '+cacheDur.toFixed(1)+'s');
-    nEl.textContent = np.length ? np.join(' · ') : '--';
+    if(fmt && fmt!=='unknown' && fmt!=='') np.push('格式: '+fmt);
+    if(proto && proto!=='unknown' && proto!=='') np.push('协议: '+proto);
+    if(totalBr>0) np.push('码率: '+formatBitrate(totalBr));
+    if(cacheDur>0) np.push('缓存速度: '+cacheDur.toFixed(1)+'s');
+    nEl.textContent = np.length ? np.join(' | ') : '无网络信息';
     /* 缓冲徽章：仅在缓冲中显示（与 PC 端 buffer_info 一致，显示百分比） */
     const bufState=Mpv.getInt('cache-buffering-state');
     if(bufState>0 && bufState<100){
@@ -1473,9 +1525,15 @@ function fmtHM(ts){
   const d = new Date(ts*1000);
   return pad2(d.getHours())+':'+pad2(d.getMinutes());
 }
+/* 统一设置进度条 fill 宽度和 handle 位置（与 PC 端 QSlider.setValue 对齐） */
+function setProgress(pct){
+  pct = clamp(pct, 0, 100);
+  $('#bbProgressFill').style.width = pct+'%';
+  $('#bbProgressHandle').style.left = pct+'%';
+}
 function updateProgress(){
   if(state.currentIdx<0 || !USE_MPV){
-    $('#bbProgressFill').style.width='0%';
+    setProgress(0);
     $('#bbTimeStart').textContent='--:--';
     $('#bbTimeEnd').textContent='--:--';
     return;
@@ -1483,6 +1541,14 @@ function updateProgress(){
   const d = state.mpv.duration || 0;
   const t = state.mpv.timePos || 0;
   const now = Date.now()/1000;
+  /* 判断顺序与 PC 端 progress_controller.py:update_progress 一致：
+   * 1. 回看/时移
+   * 2. 直播+EPG（有当前节目就优先，不管 duration）
+   * 3. VOD（仅本地文件 + duration>0）
+   * 4. 直播无EPG（网络流的默认模式）
+   * 注意：不能把 VOD 放在直播+EPG 之前，否则 HLS 直播流（有 duration）会被误判为 VOD，
+   *      导致进度条基于 mpv timePos 而非墙钟时间，出现"无法移动"的问题 */
+
   /* 模式 1：回看/时移模式（与 PC 端 _update_catchup_progress/_update_timeshift_progress 一致） */
   if((state.playMode==='catchup' || state.playMode==='timeshift') && state.catchupProgram){
     const prog = state.catchupProgram;
@@ -1495,21 +1561,18 @@ function updateProgress(){
         elapsed = now - startTs - state.liveTimeshiftSeconds;
       }
       const pct = clamp((elapsed/total)*100, 0, 100);
-      $('#bbProgressFill').style.width = pct+'%';
+      setProgress(pct);
       $('#bbTimeStart').textContent = fmtHM(startTs);
       $('#bbTimeEnd').textContent = fmtHM(endTs);
       return;
     }
   }
-  /* 模式 2：VOD 模式（duration>0 且 < 86400 秒，排除直播流的大 duration） */
-  if(d>0 && d<86400){
-    const pct = (t/d)*100;
-    $('#bbProgressFill').style.width = clamp(pct,0,100)+'%';
-    $('#bbTimeStart').textContent = fmtTime(t);
-    $('#bbTimeEnd').textContent = fmtTime(d);
-    return;
-  }
-  /* 模式 3：直播+EPG 模式（用当前节目的 start/end 作为进度范围） */
+
+  /* 模式 2：直播+EPG 模式（与 PC 端 _update_epg_progress 一致，优先于 VOD 判断）
+   * 有当前节目就用节目的 start/end 作为进度范围：
+   * - bbTimeStart = 节目开始时间（start_time.strftime("%H:%M")）
+   * - bbTimeEnd = 节目结束时间（end_time.strftime("%H:%M")）
+   * - 当前位置 = now - start_time（节目已播秒数，基于墙钟时间） */
   const epg = state.epgCache.get(state.currentIdx);
   const prog = getCurrentProgram(epg);
   if(prog && prog.start_ts && prog.stop_ts && prog.stop_ts>prog.start_ts){
@@ -1521,32 +1584,40 @@ function updateProgress(){
       elapsed = now - startTs - state.liveTimeshiftSeconds;
     }
     const pct = clamp((elapsed/total)*100, 0, 100);
-    $('#bbProgressFill').style.width = pct+'%';
-    /* 时移时显示有效时间，否则显示当前时间 */
-    if(state.liveTimeshiftSeconds>0){
-      const effTs = now - state.liveTimeshiftSeconds;
-      $('#bbTimeStart').textContent = fmtHM(effTs);
-    } else {
-      $('#bbTimeStart').textContent = fmtHM(now);
-    }
+    setProgress(pct);
+    $('#bbTimeStart').textContent = fmtHM(startTs);
     $('#bbTimeEnd').textContent = fmtHM(endTs);
     return;
   }
-  /* 模式 4：直播无EPG模式（用当前小时起止，与 PC 端 _update_live_progress 一致） */
+
+  /* 模式 3：VOD 模式（仅本地文件 + duration>0，与 PC 端 _update_vod_progress 一致）
+   * 网络直播流即使有 duration 也不走此模式，避免误判 */
+  const ch = state.channels[state.currentIdx];
+  const isLocal = ch && ch.url && !ch.url.match(/^(https?|rtp|udp|rtsp):\/\//i);
+  if(isLocal && d>0 && d<86400){
+    const pct = (t/d)*100;
+    setProgress(pct);
+    $('#bbTimeStart').textContent = fmtTime(t);
+    $('#bbTimeEnd').textContent = fmtTime(d);
+    return;
+  }
+
+  /* 模式 4：直播无EPG模式（与 PC 端 _update_live_progress 一致）
+   * - bbTimeStart = 当前小时整点（如 "20:00"）
+   * - bbTimeEnd = 下一小时整点（如 "21:00"）
+   * - 当前位置 = 当前小时内的秒数（基于墙钟时间，每秒更新） */
   const nowDate = new Date();
   const hourStart = new Date(nowDate);
   hourStart.setMinutes(0, 0, 0);
   const hourEnd = new Date(hourStart.getTime() + 3600*1000);
-  const elapsed = nowDate.getMinutes()*60 + nowDate.getSeconds();
-  const pct = clamp((elapsed/3600)*100, 0, 100);
-  $('#bbProgressFill').style.width = pct+'%';
+  let elapsed = nowDate.getMinutes()*60 + nowDate.getSeconds();
   if(state.liveTimeshiftSeconds>0){
-    const effTs = now - state.liveTimeshiftSeconds;
-    $('#bbTimeStart').textContent = fmtHM(effTs);
-  } else {
-    $('#bbTimeStart').textContent = pad2(nowDate.getHours())+':'+pad2(nowDate.getMinutes());
+    elapsed = Math.max(0, elapsed - state.liveTimeshiftSeconds);
   }
-  $('#bbTimeEnd').textContent = 'LIVE';
+  const pct = clamp((elapsed/3600)*100, 0, 100);
+  setProgress(pct);
+  $('#bbTimeStart').textContent = pad2(hourStart.getHours())+':00';
+  $('#bbTimeEnd').textContent = pad2(hourEnd.getHours())+':00';
 }
 setInterval(updateProgress, 1000);
 
@@ -2062,8 +2133,8 @@ $('#bbExitCatchup').addEventListener('click', exitCatchup);
 $('#bbVolSlider').addEventListener('input', e=>setVolume(e.target.value));
 /* 进度条点击 Seek：与 PC 端 mixins/progress_mixin.py:_seek_live/_seek_vod 对齐
  * - VOD 模式：直接 seekAbs(pct * duration)
- * - 直播模式：计算目标位置，限制在 demuxer 缓冲区内
- * - 时移/回看：先尝试 mpv 内部 seek，超出缓冲区则提示 */
+ * - 回看/时移模式：在 mpv 缓冲区内 seek
+ * - 直播模式：目标在缓冲区内则 seek，超出缓冲区则调用 startLiveTimeshift 重建 URL */
 $('#bbProgress').addEventListener('click', e=>{
   if(!USE_MPV || state.currentIdx<0) return;
   const rect = e.currentTarget.getBoundingClientRect();
@@ -2076,23 +2147,58 @@ $('#bbProgress').addEventListener('click', e=>{
     return;
   }
 
-  /* 直播模式：计算目标位置并限制在缓冲区内 */
+  /* 回看/时移模式：在 mpv 缓冲区内 seek */
+  if(state.playMode==='catchup' || state.playMode==='timeshift'){
+    const t = state.mpv.timePos || 0;
+    const cacheDur = Mpv.getDbl('demuxer-cache-duration') || 0;
+    if(t>0 && cacheDur>0){
+      const bufferStart = Math.max(0, t - cacheDur);
+      const bufferEnd = t + 5;
+      const targetPos = bufferStart + pct * (bufferEnd - bufferStart);
+      seekAbs(targetPos);
+      showOSD('Seek', fmtTime(targetPos));
+    }
+    return;
+  }
+
+  /* 直播模式：计算目标墙钟时间，判断是否在缓冲区内 */
   const t = state.mpv.timePos || 0;
   const cacheDur = Mpv.getDbl('demuxer-cache-duration') || 0;
   if(t<=0 || cacheDur<=0){
     showOSD('提示', '无法定位播放位置');
     return;
   }
-  /* 缓冲区范围：[t-cacheDur, t] */
+  /* 缓冲区范围：[t-cacheDur, t]（墙钟时间） */
   const bufferStart = Math.max(0, t - cacheDur);
   const bufferEnd = t;
   const targetPos = bufferStart + pct * (bufferEnd - bufferStart);
-  /* 若目标在缓冲区内：seek */
-  seekAbs(targetPos);
-  /* 更新时移偏移（用于进度条显示） */
-  state.liveTimeshiftSeconds = bufferEnd - targetPos;
-  if(state.liveTimeshiftSeconds>0){
-    showOSD('时移', '落后 ' + Math.round(state.liveTimeshiftSeconds) + ' 秒');
+
+  if(targetPos >= bufferStart && targetPos <= bufferEnd){
+    /* 目标在缓冲区内：mpv 内部 seek */
+    seekAbs(targetPos);
+    const offset = bufferEnd - targetPos;
+    if(offset > 2){
+      state.liveTimeshiftSeconds = offset;
+      showOSD('时移', '落后 ' + Math.round(offset) + ' 秒');
+    } else {
+      state.liveTimeshiftSeconds = 0;
+    }
+  } else if(targetPos < bufferStart){
+    /* 目标超出缓冲区：调用 startLiveTimeshift 重建 catchup URL
+     * 计算目标墙钟时间（当前时间 - 距离） */
+    const nowSec = Math.floor(Date.now()/1000);
+    const targetWallclock = nowSec - Math.round(bufferEnd - targetPos);
+    /* 检查频道是否支持时移（catchup_source/catchup/PLTV） */
+    const ch = state.channels[state.currentIdx];
+    const hasCatchup = ch && (ch.catchup_source || ch.catchup || /\/pltv\//i.test(ch.url||''));
+    if(!hasCatchup){
+      showOSD('提示', '该频道不支持时移回看');
+      return;
+    }
+    /* 调用 startLiveTimeshift 切换到时移模式 */
+    if(!startLiveTimeshift(targetWallclock)){
+      showOSD('提示', '时移失败，请稍后重试');
+    }
   }
 });
 
@@ -3349,22 +3455,28 @@ function resetSettings(){
   renderFuncPanel('settings');
 }
 
-/* ---- 关于面板 ---- */
-const APP_VERSION='2.0.0-android';
-registerFunc('about', { title:'关于' }, body=>{
+/* ---- 关于面板（与 PC 端 AboutDialog 对齐） ---- */
+const APP_VERSION='47.1.1.4';
+const BUILD_DATE='2026-06-21';
+registerFunc('about', { title:'关于 IPTV Scanner Editor Pro' }, body=>{
   body.innerHTML = `
     <div style="padding:24px 16px;text-align:center">
-      <div style="width:80px;height:80px;margin:0 auto 16px;background:linear-gradient(135deg,#4a7eff,#9c27b0);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;font-weight:700">i</div>
-      <div style="font-size:18px;font-weight:700;color:#fff">IPTV Scanner Editor Pro</div>
-      <div style="font-size:12px;color:var(--text-dim);margin-top:4px">Android 端 v${APP_VERSION}</div>
-      <div style="font-size:11px;color:var(--text-faint);margin-top:8px">基于 mpv + WebView 的全功能 IPTV 客户端</div>
+      <div style="width:96px;height:96px;margin:0 auto 16px;background:linear-gradient(135deg,#4a7eff,#9c27b0);border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:42px">📺</div>
+      <div style="font-size:20px;font-weight:700;color:#fff">IPTV Scanner Editor Pro</div>
+      <div style="font-size:12px;color:var(--text-faint);margin-top:4px">基于 mpv + WebView 的全功能 IPTV 客户端</div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">版本信息</div>
+      <div class="list-item"><div class="li-text"><div class="li-title">当前版本</div><div class="li-sub" style="color:var(--accent);font-weight:600">${APP_VERSION}</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">最新版本</div><div class="li-sub" id="abLatestVer" style="color:var(--accent)">检测中...</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">编译日期</div><div class="li-sub">${BUILD_DATE}</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">mpv 版本</div><div class="li-sub" id="abMpvVer">${USE_MPV?'查询中...':'不可用'}</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">FFmpeg 版本</div><div class="li-sub" id="abFfmpeg">-</div></div></div>
     </div>
     <div class="form-section">
       <div class="form-section-title">系统信息</div>
-      <div class="list-item"><div class="li-text"><div class="li-title">mpv 版本</div><div class="li-sub" id="abMpvVer">${USE_MPV?'查询中...':'不可用'}</div></div></div>
-      <div class="list-item"><div class="li-text"><div class="li-title">FFmpeg 版本</div><div class="li-sub" id="abFfmpeg">-</div></div></div>
-      <div class="list-item"><div class="li-text"><div class="li-title">User Agent</div><div class="li-sub" id="abUA">-</div></div></div>
-      <div class="list-item"><div class="li-text"><div class="li-title">屏幕分辨率</div><div class="li-sub" id="abRes">${window.screen.width}x${window.screen.height}</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">平台</div><div class="li-sub">Android</div></div></div>
+      <div class="list-item"><div class="li-text"><div class="li-title">屏幕分辨率</div><div class="li-sub">${window.screen.width}x${window.screen.height}</div></div></div>
       <div class="list-item"><div class="li-text"><div class="li-title">DPR</div><div class="li-sub">${window.devicePixelRatio||1}</div></div></div>
       <div class="list-item"><div class="li-text"><div class="li-title">服务器</div><div class="li-sub">${API}</div></div></div>
     </div>
@@ -3387,12 +3499,12 @@ registerFunc('about', { title:'关于' }, body=>{
         <button class="btn sm" onclick="location.reload()">重新加载</button>
       </div>
     </div>
-    <div class="form-section">
-      <div class="form-section-title">致谢</div>
-      <div style="font-size:11px;color:var(--text-faint);line-height:1.8;padding:4px">
-        mpv · libmpv · FFmpeg · aiohttp · Chaquopy<br>
-        Material Design Icons · WebView · SurfaceView
+    <div style="padding:12px 16px;text-align:center;font-size:11px;color:var(--text-faint);line-height:1.8">
+      <div>© 2025 IPTV Scanner Editor Pro 版权所有</div>
+      <div style="margin-top:4px">
+        <a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" target="_blank" style="color:var(--accent);text-decoration:none">GitHub 仓库</a>
       </div>
+      <div style="margin-top:8px;font-size:10px">mpv · libmpv · FFmpeg · aiohttp · Chaquopy</div>
     </div>
   `;
   if(USE_MPV){
@@ -3401,10 +3513,30 @@ registerFunc('about', { title:'关于' }, body=>{
       if($('#abMpvVer')) $('#abMpvVer').textContent=v;
       const f=Mpv.getStr('ffmpeg-version')||'-';
       if($('#abFfmpeg')) $('#abFfmpeg').textContent=f;
-      if($('#abUA')) $('#abUA').textContent=Mpv.getStr('user-agent')||navigator.userAgent;
     }, 50);
   }
+  checkLatestVersion();
 });
+/* 异步查询 GitHub 最新版本（与 PC 端 AboutDialog 对齐） */
+function checkLatestVersion(){
+  fetch('https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest', {headers:{'User-Agent':'IPTV-Scanner-Editor-Pro'}})
+    .then(r => {
+      if(!r.ok){
+        if(r.status===403) return Promise.reject('(API限制)');
+        return Promise.reject('(获取失败)');
+      }
+      return r.json();
+    })
+    .then(d => {
+      const ver = (d.tag_name||'').replace(/^v/, '') || '未知';
+      const el = $('#abLatestVer');
+      if(el) el.textContent = ver;
+    })
+    .catch(msg => {
+      const el = $('#abLatestVer');
+      if(el) el.textContent = typeof msg==='string'?msg:'(获取失败)';
+    });
+}
 function checkUpdate(){
   showOSD('更新','检查中...');
   api.get('/api/status').then(d=>{
@@ -3984,9 +4116,27 @@ window.onServerReady = function(){
   bootApp();
 };
 
-/* Service Worker 注册（用于离线缓存 PC 端 HTML） */
+/* Service Worker 注册 + 强制清除旧版本缓存
+ * 旧版 sw.js 使用 stale-while-revalidate 策略导致 HTML 修改不生效
+ * 这里通过更新版本号强制清除旧缓存，确保加载最新版本 */
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/mobile/sw.js').catch(()=>{ /* 无 sw.js 时静默失败 */ });
+  /* 先清除所有旧的 Service Worker 缓存 */
+  caches.keys().then(keys => {
+    keys.forEach(k => {
+      console.log('Removing old cache:', k);
+      caches.delete(k);
+    });
+  });
+  /* 注销旧的 Service Worker，注册新的 */
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
+  }).then(() => {
+    navigator.serviceWorker.register('/mobile/sw.js?v=2').then(reg => {
+      console.log('New SW registered:', reg.scope);
+      /* 强制更新 */
+      if(reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+    }).catch(err => console.warn('SW register failed:', err));
+  });
 }
 
 /* 全局错误捕获：避免单点错误导致 UI 卡死 */
@@ -3998,7 +4148,7 @@ window.addEventListener('unhandledrejection', e=>{
   console.error('Unhandled Promise:', e.reason);
 });
 
-console.log('IPTV Scanner Editor Pro - Android UI loaded v'+APP_VERSION);
+console.log('IPTV Scanner Editor Pro - Android UI loaded v'+APP_VERSION+' (build '+BUILD_DATE+')');
 </script>
 </body>
 </html>

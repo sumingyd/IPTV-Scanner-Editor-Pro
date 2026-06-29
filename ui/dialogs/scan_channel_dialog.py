@@ -10,6 +10,7 @@ from PySide6 import QtWidgets, QtCore, QtGui
 from models.channel_model import ChannelListModel
 from services.scanner_service import ScannerController
 from ui.styles import AppStyles
+from ui.quality_bar import QualityBarDelegate
 from services.url_parser_service import URLRangeParser
 
 from utils.resource_cleaner import register_cleanup
@@ -810,6 +811,11 @@ class ScanChannelDialog(FloatingDialog):
         self.header.setSortIndicatorShown(True)
         self.header.setSortIndicator(-1, QtCore.Qt.SortOrder.AscendingOrder)  # 初始无排序
         self.header.sectionClicked.connect(self._on_header_clicked)
+
+        # 在频道名称列挂载质量评分条 delegate（红→黄→绿渐变）
+        # COL_NAME 在默认配置下不隐藏，逻辑列号 = 1
+        self._quality_delegate = QualityBarDelegate(self.channel_list)
+        self.channel_list.setItemDelegateForColumn(ChannelListModel.COL_NAME, self._quality_delegate)
 
         self.channel_list.doubleClicked.connect(self._on_channel_double_clicked)
 
@@ -2469,6 +2475,15 @@ class ScanChannelDialog(FloatingDialog):
             'resolution': resolution,
             'status': self.language_manager.tr('valid', '有效') if valid else self.language_manager.tr('invalid', '无效')
         }
+
+        # 即时计算质量评分，避免等待批量刷新的 100ms 视觉延迟
+        try:
+            from services.stream_quality_scorer import StreamQualityScorer
+            score_info = StreamQualityScorer.score_from_channel(channel_info)
+            channel_info['quality_score'] = score_info.get('total', 0)
+            channel_info['quality_grade'] = score_info.get('grade', 'F')
+        except Exception:
+            pass
 
         self.model.update_channel(index, channel_info)
 

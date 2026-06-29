@@ -15,6 +15,8 @@ from core.application_state import app_state
 from core.log_manager import global_logger as logger
 from utils.general_utils import get_display_channel_name
 from controllers.main_window_protocol import MainWindowProtocol
+from services.stream_quality_scorer import StreamQualityScorer
+from ui.quality_bar import QualityBarWidget
 
 
 class ChannelController:
@@ -104,9 +106,13 @@ class ChannelController:
                         item_widget = QtWidgets.QWidget()
                         item_widget.style_type = 'channel_item'
                         item_widget.setStyleSheet("background-color: transparent; border: none;")
-                        item_layout = QtWidgets.QHBoxLayout(item_widget)
-                        item_layout.setContentsMargins(5, 2, 5, 2)
-                        item_layout.setSpacing(8)
+                        outer_layout = QtWidgets.QVBoxLayout(item_widget)
+                        outer_layout.setContentsMargins(5, 2, 5, 2)
+                        outer_layout.setSpacing(0)
+
+                        row_layout = QtWidgets.QHBoxLayout()
+                        row_layout.setContentsMargins(0, 0, 0, 0)
+                        row_layout.setSpacing(8)
 
                         logo_label = QtWidgets.QLabel()
                         logo_label.setFixedSize(44, 32)
@@ -119,11 +125,22 @@ class ChannelController:
                         name_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
                         name_label.setWordWrap(False)
 
-                        item_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
-                        item_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
+                        row_layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
+                        row_layout.addWidget(name_label, 1, Qt.AlignmentFlag.AlignVCenter)
+
+                        outer_layout.addLayout(row_layout, 1)
+
+                        # 评分条：名称下方红→黄→绿渐变指示
+                        quality_bar = QualityBarWidget(item_widget)
+                        score_info = StreamQualityScorer.score_from_channel_safe(channel)
+                        if score_info is not None:
+                            quality_bar.set_score(score_info.get('total'), score_info.get('grade', ''))
+                        else:
+                            quality_bar.set_score(None)
+                        outer_layout.addWidget(quality_bar, 0)
 
                         item = QListWidgetItem()
-                        item.setSizeHint(QSize(0, 40))
+                        item.setSizeHint(QSize(0, 46))
                         item.setData(Qt.ItemDataRole.UserRole, idx)
 
                         list_widget.addItem(item)

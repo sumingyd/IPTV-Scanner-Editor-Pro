@@ -31,19 +31,18 @@ class MPVView @JvmOverloads constructor(context: Context, attrs: AttributeSet? =
         MPVLib.setOptionString("video-sync", "audio")
         MPVLib.setOptionString("cache-pause-initial", "no")
 
-        /* 缓冲与预读：与 PC 端 _setup_protocol_options 对齐
-         * - cache=yes：启用 demuxer 缓存
-         * - cache-secs=10：移动端 10 秒（PC 端直播 3600s，但移动端内存有限）
-         * - demuxer-max-bytes=50MiB：与 JS 默认对齐
-         * - demuxer-max-back-bytes=25MiB：允许向后 seek
-         * - demuxer-readahead-secs=10：预读 10 秒
-         * - demuxer-seekable-cache=yes：缓存可 seek（时移/回看必需）
-         * - force-seekable=yes：强制可 seek */
-        MPVLib.setOptionString("cache", "yes")
-        MPVLib.setOptionString("cache-secs", "10")
-        MPVLib.setOptionString("demuxer-max-bytes", "50MiB")
-        MPVLib.setOptionString("demuxer-max-back-bytes", "25MiB")
-        MPVLib.setOptionString("demuxer-readahead-secs", "10")
+        /* 音画同步增强：
+         * - audio-stream-silence=yes：启动时填充静音帧，避免音频启动延迟导致的音画不同步
+         * 注意：不启用 video-latency-hacks（PC 端也没有），该参数可能导致 PTS 处理偏差 */
+        MPVLib.setOptionString("audio-stream-silence", "yes")
+
+        /* 缓冲与预读：与 PC 端 _load_playback_settings 默认值对齐
+         * PC 端默认：cache-secs=1.0, demuxer-max-bytes=16MiB, demuxer-max-back-bytes=4MiB
+         * 之前 Android 端设为 readahead=10s/max=50MiB，导致视频解码队列过长产生 600ms 延迟
+         * 现在对齐 PC 端的小缓冲策略，保持低延迟 */
+        MPVLib.setOptionString("demuxer-max-bytes", "16MiB")
+        MPVLib.setOptionString("demuxer-max-back-bytes", "8MiB")
+        MPVLib.setOptionString("demuxer-readahead-secs", "1")
         MPVLib.setOptionString("demuxer-seekable-cache", "yes")
         MPVLib.setOptionString("force-seekable", "yes")
 
@@ -55,9 +54,9 @@ class MPVView @JvmOverloads constructor(context: Context, attrs: AttributeSet? =
         /* 移动端解码优化：2 线程（PC 端 max(2, cpu//2)） */
         MPVLib.setOptionString("vd-lavc-threads", "2")
 
-        /* 队列优化：移动端 GPU 调度抖动大，启用队列平滑输出 */
-        MPVLib.setOptionString("vd-queue-enable", "yes")
-        MPVLib.setOptionString("ad-queue-enable", "yes")
+        /* 注意：不启用 vd-queue-enable/ad-queue-enable
+         * 这两个参数会让解码器队列化数据，增加延迟导致音画不同步
+         * PC 端也没有这两个参数 */
 
         MPVLib.init()
 
