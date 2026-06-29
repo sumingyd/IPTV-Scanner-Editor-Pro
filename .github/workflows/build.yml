@@ -284,10 +284,10 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Python 3.14 (for Chaquopy)
+      - name: Set up Python 3.11 (for Chaquopy)
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: '3.11'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -295,26 +295,30 @@ jobs:
       - name: Install Android SDK packages
         run: yes | sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Download universal mpv APK for native libraries
+      - name: Download mpv native libraries for Android
         working-directory: android
         run: |
-          # 下载 universal mpv APK（包含 arm64-v8a, armeabi-v7a, x86_64, x86 所有架构的 .so）
-          MPV_URL="https://github.com/mpv-android/mpv-android/releases/download/2026-04-25/app-default-universal-release.apk"
-          curl -fsSL -o mpv-universal.apk "$MPV_URL"
-          echo "Downloaded mpv-universal.apk ($(ls -lh mpv-universal.apk | awk '{print $5}'))"
+          # 下载所有 4 种架构的 mpv APK 来提取 .so 文件
+          BASE_URL="https://github.com/mpv-android/mpv-android/releases/download/2026-04-25"
+          ARCHS=("arm64-v8a" "armeabi-v7a" "x86_64" "x86")
+
+          for arch in "${ARCHS[@]}"; do
+            APK="app-default-${arch}-release.apk"
+            curl -fsSL -o "mpv-${arch}.apk" "${BASE_URL}/${APK}"
+            echo "Downloaded mpv-${arch}.apk ($(ls -lh "mpv-${arch}.apk" | awk '{print $5}'))"
+          done
 
       - name: Extract mpv native libraries for Android
         working-directory: android
         run: |
           JNILIBS_DIR="app/src/main/jniLibs"
-          # 所有支持的 ABI 架构
           ARCHS=("arm64-v8a" "armeabi-v7a" "x86_64" "x86")
 
           for arch in "${ARCHS[@]}"; do
             mkdir -p "$JNILIBS_DIR/$arch"
-            unzip -o mpv-universal.apk "lib/$arch/*.so" -d /tmp/mpv-extract
-            if [ -d "/tmp/mpv-extract/lib/$arch" ]; then
-              cp /tmp/mpv-extract/lib/$arch/*.so "$JNILIBS_DIR/$arch/"
+            unzip -o "mpv-${arch}.apk" "lib/${arch}/*.so" -d /tmp/mpv-extract
+            if [ -d "/tmp/mpv-extract/lib/${arch}" ]; then
+              cp /tmp/mpv-extract/lib/${arch}/*.so "$JNILIBS_DIR/$arch/"
               echo "$arch .so files:"
               ls -la "$JNILIBS_DIR/$arch/"
             else
@@ -326,8 +330,8 @@ jobs:
       - name: Create local.properties
         working-directory: android
         run: |
-          # 查找 setup-python 安装的 Python 3.14 可执行文件路径
-          PYTHON_PATH=$(which python3.14 2>/dev/null || which python3 2>/dev/null || echo "python3")
+          # 查找 setup-python 安装的 Python 3.11 可执行文件路径
+          PYTHON_PATH=$(which python3.11 2>/dev/null || which python3 2>/dev/null || echo "python3")
           echo "chaquopy.buildPython=$PYTHON_PATH" > local.properties
           echo "Using Python: $PYTHON_PATH"
 

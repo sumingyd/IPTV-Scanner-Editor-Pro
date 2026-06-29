@@ -45,6 +45,8 @@ android {
         versionName versionNameStr
 
         ndk {
+            // Chaquopy 16.1.0 + Python 3.11 支持所有 4 种 ABI
+            // armeabi-v7a 用于老旧电视/盒子设备
             abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
         }
     }
@@ -96,11 +98,11 @@ android {
 
 chaquopy {
     defaultConfig {
-        version = "3.14"
+        version = "3.11"
         // 显式指定 Python 解释器路径，从 local.properties 读取（如果设置）
         // local.properties 中支持两种形式：
         //   chaquopy.buildPython=C:/path/to/python.exe
-        //   chaquopy.buildPython=py -3.14
+        //   chaquopy.buildPython=py -3.11
         if (buildPythonPath != null) {
             // Groovy 的 spread 操作 (*) 把 List 展开为 vararg 参数
             def bpParts = buildPythonPath.tokenize(' ')
