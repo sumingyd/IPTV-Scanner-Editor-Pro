@@ -3,9 +3,11 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
 [![PySide6](https://img.shields.io/badge/PySide6-6.4+-green.svg)](https://www.qt.io/qt-for-python)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-lightgrey.svg)](https://github.com/sumingyd/IPTV-Scanner-Editor-Pro)
 
-一款功能全面的 IPTV 频道扫描、验证、播放和管理工具。集成 MPV 播放引擎与 FFprobe 流探测，支持 EPG 电子节目单、频道台标自动匹配、多主题界面、中英双语，从扫描到观看一站式完成。
+一款功能全面的 IPTV 频道扫描、验证、播放和管理工具，跨平台支持 Windows / macOS / Linux 桌面端与 Android 移动端。集成 MPV 播放引擎与 FFprobe 流探测，支持 EPG 电子节目单、频道台标自动匹配、HDR 显示、在线字幕下载、音频可视化、断点续播、片段导出等高级功能，多主题界面、中英双语，从扫描到观看一站式完成。
+
+> **当前版本**：v48.0.0.0（构建日期 2026-06-29）
 
 ## 📸 程序截图
 
@@ -21,16 +23,20 @@
 
 | 功能类别 | 核心功能 |
 |---------|---------|
-| 播放器 | MPV 引擎驱动、FCC 快速换台、完整播放控制、倍速、画面比例、全屏、硬件解码、HDR 显示、画中画、多屏预览(4/9屏)、截图、音轨/字幕切换 |
+| 播放器 | MPV 引擎驱动、FCC 快速换台、完整播放控制、倍速、画面比例、全屏、硬件解码、HDR 显示（5种模式）、画中画、多屏预览(4/9屏)、截图、连拍截图、音轨/字幕切换、3D/360°视频、视频旋转翻转、自动裁剪黑边、视频图像调整 |
+| 字幕系统 | 字幕样式调整、在线字幕下载（OpenSubtitles/SubHD/SubtitleCat 三源聚合）、IMDB 中转中文搜索、字幕自动同步、字幕延迟/缩放/位置调整 |
+| 音频 | 10段均衡器、声道布局、音调补偿、音频延迟、A/V 同步监控（实时波形图）、音频可视化（7种3D样式）、歌词显示 |
+| 播放增强 | 断点续播、每文件播放设置持久化、跳过片头/片尾、播放队列（循环/AB循环/逐帧）、书签管理、切片导出/GIF制作、网络流增强（Referer/代理/Headers） |
 | 时移/回看 | 5种回看类型(default/append/shift/flussonic/xtream)、时间变量替换、时区偏移、catchup-correction、全局回看参数继承 |
 | EPG | XMLTV/JSON 解析、智能匹配(tvg-id→tvg-name→频道名)、日期导航、实时进度条、Gzip 兼容、M3U 内嵌 EPG、EPG 时间轴、EPG 搜索、全局搜索、统一搜索、节目提醒 |
 | 台标系统 | 400+ 内置规则、在线加载、异步下载、本地缓存、智能预加载、High-DPI 支持 |
 | 频道扫描 | IP 范围扫描、多协议(单播/组播/HTTP)、FFprobe 探测、自定义参数、追加扫描、智能重试 |
 | 批量操作 | 自动分类、清理名称、匹配台标、分配字段、按组排序、批量验证 |
-| 频道管理 | M3U 导入导出、拖拽排序、分组筛选、右键操作、智能映射、频道分类、名称清理、拼音排序、多格式导出(M3U/TXT/Excel)、收藏、历史、去重、评分、批量编辑、快速跳转 |
+| 频道管理 | M3U 导入导出、拖拽排序、分组筛选、右键操作、智能映射、频道分类、名称清理、拼音排序、多格式导出(M3U/TXT/Excel)、收藏、历史、去重、评分、批量编辑、快速跳转、撤销/重做 |
 | 界面 | 21种主题组合、中英双语、三栏布局、悬浮面板、系统托盘、文件关联、拖放打开、丰富快捷键 |
 | 订阅 | 多源管理、独立缓存、智能更新(增量)、编辑功能、缓存回退、过期策略 |
 | Web 服务器 | 内置 aiohttp 服务器、频道列表和播放接口 |
+| Android 端 | Java+Kotlin+Python 三层混合架构、MPV Native 渲染、WebView 触屏 UI、PWA、遥控器适配、画中画、与 PC 端共用业务后端 |
 
 ## ✨ 核心功能
 
@@ -51,12 +57,23 @@
 - **悬浮控制面板**：底部浮动面板显示频道信息、节目进度、媒体参数
 - **OSD 信息遮罩**：Tab 键切换显示详细媒体参数（分辨率、编码、帧率、硬解、HDR、像素格式、色彩参数、码率等），支持永久显示
 - **窗口置顶**：标题栏置顶按钮，一键将窗口设为最顶层
-- **硬件解码**：支持 D3D11VA / NVDEC / VAAPI 等硬件加速解码
-- **HDR 显示**：支持 HDR 内容在 HDR 屏幕上正确渲染显示，OSD 中显示 HDR 标识
+- **硬件解码**：支持 D3D11VA / NVDEC / VAAPI 等硬件加速解码，提供 HW Copy-back（auto-copy，默认，保证 vf 滤镜可用）/ HW Native（auto，最快但滤镜受限）/ Software（no）三种模式
+- **HDR 显示**：支持 HDR10 / HDR10+ / HLG / DV 内容，OSD 中显示 HDR 标识，提供 5 种输出模式
+  - `disable`：关闭 HDR 处理
+  - `tonemap`：HDR→SDR 色调映射（`tone-mapping=auto` 自动选择算法：HDR10+→st2094-40，HDR10/HLG→bt.2390；`hdr-compute-peak=no` 信任动态元数据，避免画面偏暗）
+  - `passthrough`：HDR PQ 直通（`target-prim=bt.2020`、`target-trc=pq`，需 HDR 屏幕）
+  - `scrgb`：scRGB 模式（auto 模式下系统 HDR 开启时走此分支）
+  - `auto`：根据系统 HDR 状态自动选择 passthrough / scrgb
+- **视频图像调整**：亮度、对比度、饱和度、色调、Gamma、锐度滑块实时调整，支持切换文件时自动重置
+- **视频旋转翻转**：支持 0/90/180/270 度旋转，水平/垂直/双向镜像翻转（使用 `@iptv_flip` 命名 lavfi 滤镜，需 copy-back 硬解）
+- **自动裁剪黑边**：基于帧分析自动检测并裁剪视频黑边（PIL 灰度 + numpy 边缘分析，`@iptv_autocrop` 命名滤镜），可一键移除
+- **3D / 360° 视频**：支持 3D 立体模式（mono/sbs/sbs2/ab/ab2）和 360° 投影（equirect/cubemap/flat），可调整 yaw/pitch/roll 视角
+- **网络流增强**：可配置 Referer、HTTP 代理、自定义 HTTP Headers，适配各种防盗链和受限流媒体源
 - **软件图标占位**：未播放时视频区域显示程序图标
 - **画中画**：PiP 模式，在独立小窗口中继续观看，视图菜单或快捷键切换
 - **多屏预览**：支持 4 屏 / 9 屏同时预览多个频道，视图菜单中切换
 - **截图**：一键截取当前视频画面保存到 `screenshots/` 目录
+- **连拍截图**：定时连续截图，可设置间隔和数量，用于制作动态预览
 - **音轨/字幕切换**：播放菜单和右键菜单支持切换音轨和字幕轨道
 - **最近打开文件**：文件菜单记录最近访问的播放列表，快速重开
 - **视频文件打开**：支持直接打开本地视频文件播放（Ctrl+Shift+O）
@@ -128,6 +145,43 @@
 - **频道快速跳转**：支持按首字母/拼音快速跳转到目标频道
 - **HDR 显示**：支持 HDR 内容在 HDR 屏幕上正确渲染显示，OSD 中显示 HDR 标识
 
+### 🎵 音频增强
+- **10 段均衡器**：支持 10 段 EQ 调节，内置预设（flat/bass/treble/vocal/classical/pop/rock/electronic）
+- **声道布局**：支持 auto / mono / 1.0-7.1 多种声道布局切换
+- **音调补偿**：调整音频音调
+- **音频延迟**：调整音频延迟（-10s~+10s，精度 0.01s），与视频同步
+- **A/V 同步监控**：实时显示 A/V Diff、Audio PTS、Video PTS，带历史趋势波形图（200 采样点，颜色随偏差变化）
+- **字幕自动同步**：根据 A/V Diff 自动调整字幕延迟（可配置阈值和增益，500ms 采样周期，避免 seek/暂停误判）
+- **音频可视化**：纯音频文件自动启用 7 种 3D 可视化样式
+  - `spectrum` 3D 频谱、`waves` 3D 波形、`circular` 3D 环形、`terrain` 3D 地形
+  - `cosmos` 3D 宇宙、`fluid` 3D 流体、`ripple` 粒子震荡
+  - `random` 随机切换（15 秒）、`none` 关闭
+  - FFT 频谱分析（4096 点 FFT，64 频段，Hanning 窗，线性+对数频率分布）
+- **歌词显示**：自动提取音频文件内嵌歌词（LRC/SYLT/USLT 标签），LRC 时间标签解析 + 自动滚动
+
+### 🔤 字幕系统
+- **字幕样式调整**：颜色、边框颜色、阴影颜色、字体、字体大小（8-200）、边框粗细、阴影偏移、加粗/斜体、边距、对齐，实时预览应用
+- **字幕控制**：延迟（-300~300s，0.001 步长）、缩放（0.1-10.0）、位置（0-100）、可见性切换
+- **快速预设**：默认、黄色描边、粗描边、无阴影
+- **在线字幕下载**：三源聚合搜索（OpenSubtitles + SubHD + SubtitleCat），并行查询合并去重
+  - **OpenSubtitles**：XML-RPC 接口，支持文件哈希精准匹配 + IMDB ID + 关键词搜索，gzip 解压自动下载
+  - **SubHD**：中文字幕站，自动搜索 + 浏览器跳转下载（需验证码）
+  - **SubtitleCat**：免登录无验证码，直接下载 .srt
+  - **IMDB 中转中文搜索**：检测 CJK 字符 → `SearchMoviesOnIMDB` 获取 IMDB ID → 用 IMDB ID 搜索字幕，解决中文片名命中率低问题
+  - **语言过滤**：全部 / 中日韩 / 中文 / 英语
+- **字幕自动同步**：见音频增强章节
+
+### ⏯️ 播放增强
+- **断点续播**：自动保存本地视频播放位置，重新打开时恢复（最小恢复位置 5 秒，距结尾 3 秒内不恢复），支持断点列表管理
+- **每文件播放设置持久化**：按 URL 持久化音轨/字幕轨/音量/静音/画面比例/旋转/翻转/字幕延迟/音频延迟，LRU 淘汰（最多 300 个文件）
+- **跳过片头/片尾**：可配置片头秒数和片尾秒数，自动跳过（安全限制：跳过秒数必须小于 duration 的 80%）
+- **播放队列**：循环模式、AB 循环、逐帧播放，支持队列管理
+- **书签管理**：为视频关键时间点添加书签，快速跳转
+- **切片导出 / GIF 制作**：
+  - 视频片段导出（mp4/mkv/webm），支持流复制（快）和重编码（H.264 + AAC，CRF 22）
+  - GIF 制作（两步法：ffmpeg 抽帧 + Pillow 合成，避免色板失真），可配置宽度和 FPS
+- **撤销/重做**：频道编辑操作支持撤销/重做（Ctrl+Z / Ctrl+Shift+Z），最大栈深度 200，支持批量命令原子操作
+
 ### 🎨 界面与体验
 - **颜色模式 × 视觉风格组合主题**：3 种颜色模式与 7 种视觉风格任意组合，共 21 种搭配
   - **颜色模式**：自动（跟随系统）、暗黑、日间
@@ -151,8 +205,11 @@
   - `←` / `→` 快退 / 快进 10 秒
   - `Backspace` 切换到上一个频道
   - `.` / `,` 增加 / 降低播放速度 0.1
+  - `,` / `.` 逐帧后退 / 前进（播放队列模式）
   - `滚轮` 调整音量
   - `S` 截图
+  - `Ctrl+Z` 撤销
+  - `Ctrl+Shift+Z` / `Ctrl+Y` 重做
   - `Ctrl+O` 打开播放列表
   - `Ctrl+Shift+O` 打开视频文件
   - `Ctrl+S` 另存为
@@ -176,8 +233,53 @@
 - **配置持久化**：所有设置自动保存到 config.ini
 
 ### 🌐 内置 Web 服务器
-- **本地服务**：内置轻量级 Web 服务器，提供频道列表和播放接口
+- **本地服务**：内置 aiohttp 轻量级 Web 服务器，提供频道列表、播放接口、EPG、扫描、订阅等完整 RESTful API
 - **远程控制**：通过浏览器访问频道列表和控制播放
+- **流代理**：`/stream/{id}` 路由提供频道流代理，支持直连播放
+- **PWA 支持**：移动端 UI 支持 PWA 安装，Service Worker 采用 network-first 缓存策略
+
+### 📱 Android 移动端
+Android 端采用 **Java + Kotlin + Python 三层混合架构**，与 PC 端共用同一套 Python 业务后端，通过 WebView 加载触屏 UI。
+
+#### 架构
+| 层 | 技术 | 职责 |
+|---|---|---|
+| 底层渲染 | Kotlin（MPVView.kt + MPVLib.kt） | SurfaceView + JNI 调用 libmpv.so 渲染视频 |
+| 中层 UI | HTML/JS/CSS（server/mobile/） | WebView 透明叠加，加载 aiohttp 服务的移动端单页应用 |
+| 业务层 | Python（Chaquopy 3.14） | aiohttp 服务器（127.0.0.1:8080），复用 PC 端 core/services 模块 |
+
+#### 核心功能
+- **视频播放**：MPV Native 渲染，支持播放/暂停/停止、音量、倍速、画面比例、音轨/字幕切换、截图、HDR 徽章、hwdec 切换
+- **控制面板**：3 行布局对齐 PC 端——媒体信息徽章、节目信息行、控制行（上一/下一频道、播放/暂停/停止、进度条、音量、倍速、画面比例、音轨、字幕）
+- **频道列表**：5 个 Tab（订阅 / 本地 / 收藏 / 历史 / 队列），搜索框、分组筛选
+- **EPG 节目单**：节目列表、当前节目 LIVE 徽章 + 自动居中、过去节目点击触发回看、当前/未来节目设置提醒
+- **时移 / 回看**：对齐 PC 端逻辑，进度条点击触发时移，EPG 过去节目点击触发 catchup
+- **频道扫描**：独立 `StandaloneScanner`（requests + threading），支持 IP 范围扫描
+- **订阅管理**：多源管理、独立缓存、状态显示（优先 `/api/sources/status` 的 channels 字段）
+- **字幕下载**：在线字幕搜索与下载
+- **画中画**：`onUserLeaveHint()` 自动进入 PiP，`onPictureInPictureModeChanged()` 通知 JS
+- **全屏切换**：沉浸式全屏
+- **遥控器适配**：DPAD 方向键（频道切换/快退快进）、确认键（播放暂停）、菜单键（主菜单）、返回键（关闭面板/退出）、数字键（频道输入）、音量键
+- **本地文件打开**：`<input type="file">` 支持打开本地播放列表和视频
+- **PWA**：manifest.json + Service Worker（network-first 策略，避免缓存陈旧 HTML）
+
+#### 构建要求
+- Android Studio + Gradle 8.7.0
+- compileSdk 35 / minSdk 28 / targetSdk 35
+- Chaquopy 17.0.0（Python 3.14）
+- Kotlin 2.0.21 / JVM 21
+- ABI：arm64-v8a、x86_64
+- 依赖原生库：libmpv.so、libplayer.so、FFmpeg 系列（libavcodec/libavformat/libavfilter/libavutil/libswscale/libswresample）
+
+#### 构建与安装
+```bash
+cd android
+./gradlew.bat assembleDebug          # 构建 Debug APK
+adb uninstall com.iptv.scanner.editor.pro
+adb install -g app/build/outputs/apk/debug/app-debug.apk
+```
+
+> **MPV 原生库来源**：仓库 `android/` 目录下附带的 `mpv-arm64.apk` 和 `mpv-x86_64.apk` 用于提取 libmpv.so 等原生库到 `app/src/main/jniLibs/`。
 
 ## 🚀 快速开始
 
@@ -198,8 +300,8 @@ python pyqt_player.py
 ```
 
 ### 系统要求
-- **操作系统**：Windows 10/11, macOS 10.15+, Linux (x86_64 / ARM64)
-- **Python**：3.8+
+- **操作系统**：Windows 10/11, macOS 10.15+, Linux (x86_64 / ARM64), Android 9.0+ (API 28)
+- **Python**：3.8+（PC 端）/ Python 3.14（Android 端，由 Chaquopy 内嵌）
 - **内存**：2GB RAM 以上
 - **网络**：需要网络连接用于频道扫描、EPG 下载和流媒体播放
 
@@ -216,6 +318,13 @@ python pyqt_player.py
 ### macOS 支持
 - 运行前请安装依赖：`brew install mpv ffmpeg`
 - 打包为 `.app` bundle，可直接分发
+
+### Android 支持
+- Android 端代码位于 `android/` 目录，采用 Java + Kotlin + Python 三层混合架构
+- 需 Android Studio + Gradle 8.7.0 构建，详见上文「Android 移动端」章节
+- 内嵌 Python 3.14（Chaquopy），与 PC 端共用业务后端代码
+- 支持 arm64-v8a 和 x86_64 两种 ABI
+- 详见 `android/app/build.gradle` 构建配置
 
 ## 📖 使用指南
 
@@ -318,22 +427,28 @@ IPTV-Scanner-Editor-Pro/
 │   ├── log_manager.py          # 日志管理
 │   ├── panel_visibility.py     # 面板可见性状态
 │   ├── play_state.py           # 播放状态枚举
+│   ├── playback_settings_store.py # 每文件播放设置存储（LRU 持久化）
 │   ├── subscription_manager.py # 订阅源管理（多源/独立缓存/增量更新）
 │   └── version.py              # 版本信息
 ├── controllers/                # 控制器层
+│   ├── bookmark_controller.py  # 书签控制器
 │   ├── catchup_controller.py   # 时移/回看控制器
 │   ├── channel_controller.py   # 频道管理控制器
 │   ├── epg_controller.py      # EPG 电子节目单控制器
 │   ├── epg_reminder_controller.py # EPG 节目提醒控制器
 │   ├── event_handler.py       # 事件处理器
 │   ├── favorites_controller.py # 收藏控制器
+│   ├── file_queue_controller.py # 播放队列控制器（循环/AB循环/逐帧）
 │   ├── main_window_protocol.py # 主窗口协议接口
 │   ├── media_controller.py    # 媒体控制器
 │   ├── multi_screen_controller.py # 多屏控制器
 │   ├── pip_controller.py      # 画中画控制器
 │   ├── playback_controller.py  # 播放控制
+│   ├── playback_settings_controller.py # 每文件播放设置控制器
 │   ├── progress_controller.py  # 进度控制器
+│   ├── resume_playback_controller.py # 断点续播控制器
 │   ├── settings_file_ops.py    # 设置文件操作
+│   ├── skip_intro_outro_controller.py # 跳过片头/片尾控制器
 │   ├── subscription_controller.py      # 订阅控制器
 │   ├── subscription_ui_controller.py   # 订阅 UI 控制器
 │   ├── ui_controller.py       # UI 控制器
@@ -343,12 +458,15 @@ IPTV-Scanner-Editor-Pro/
 │   ├── channel_model.py       # 频道数据模型
 │   └── channel_mappings.py    # 频道映射模型
 ├── services/                   # 服务层
+│   ├── audio_visual_service.py # 音频可视化服务（7种3D样式 + FFT + 歌词）
+│   ├── autocrop_service.py    # 自动裁剪黑边服务（PIL+numpy 边缘分析）
 │   ├── batch_edit_service.py  # 批量编辑服务
 │   ├── channel_classifier.py  # 频道自动分类服务（正则规则引擎）
 │   ├── channel_cleaner.py     # 频道名称清理服务
 │   ├── channel_dedup_service.py # 频道去重服务
 │   ├── channel_quick_jump_service.py # 频道快速跳转服务
 │   ├── channel_rating_service.py # 频道评分服务
+│   ├── clip_export_service.py # 切片导出/GIF制作服务（FFmpeg+Pillow）
 │   ├── epg_matcher.py         # EPG 模糊匹配引擎
 │   ├── epg_reminder_service.py # EPG 提醒服务
 │   ├── epg_search_service.py  # EPG 搜索服务
@@ -359,35 +477,57 @@ IPTV-Scanner-Editor-Pro/
 │   ├── logo_matcher.py        # 台标智能匹配服务（400+ 规则）
 │   ├── m3u_parser.py          # M3U 播放列表解析器
 │   ├── mpv_common.py          # MPV 公共模块
-│   ├── mpv_player_service.py # MPV 播放引擎（libmpv）
+│   ├── mpv_gl_widget.py       # MPV OpenGL 渲染组件
+│   ├── mpv_player_service.py # MPV 播放引擎（libmpv，HDR/翻转/旋转/A-V同步）
 │   ├── mpv_validator_service.py # MPV 频道验证服务（旧版）
 │   ├── network_preheat_service.py # 网络预热服务
 │   ├── scanner_service.py     # 频道扫描服务
 │   ├── stream_quality_scorer.py # 流质量评分服务
+│   ├── subtitle_download_service.py # 在线字幕下载服务（3源聚合+IMDB中转）
 │   ├── thumbnail_service.py   # 缩略图服务
+│   ├── undo_stack.py          # 撤销/重做栈（命令模式）
 │   └── url_parser_service.py  # URL 解析服务
 ├── server/                     # 内置 Web 服务器
 │   ├── app.py                 # Web 应用入口
-│   └── routes.py              # 路由定义
+│   ├── context.py             # 服务器上下文/单例
+│   ├── routes.py              # 路由定义
+│   └── mobile/                # 移动端 UI（PWA）
+│       ├── index.html         # 移动端单页应用
+│       ├── manifest.json      # PWA 清单
+│       ├── sw.js              # Service Worker（network-first）
+│       └── logo.png           # 移动端 Logo
 ├── ui/
 │   ├── dialogs/
 │   │   ├── about_dialog.py    # 关于对话框（含版本检查）
+│   │   ├── audio_eq_dialog.py # 音频均衡器对话框（10段EQ+预设+声道）
+│   │   ├── av_sync_dialog.py  # A/V 同步监控对话框（波形图+字幕自动同步）
+│   │   ├── bookmark_dialog.py # 书签管理对话框
+│   │   ├── burst_screenshot_dialog.py # 连拍截图对话框
+│   │   ├── clip_export_dialog.py # 切片导出/GIF制作对话框
 │   │   ├── epg_search_dialog.py # EPG 搜索对话框
 │   │   ├── epg_timeline_dialog.py # EPG 时间轴对话框
 │   │   ├── file_association_dialog.py # 文件关联对话框
 │   │   ├── global_search_dialog.py # 全局搜索对话框
 │   │   ├── mapping_manager_dialog.py # 映射管理器
+│   │   ├── network_enhance_dialog.py # 网络流增强对话框（Referer/代理/Headers）
+│   │   ├── playback_queue_dialog.py # 播放队列对话框（循环/AB循环/逐帧）
 │   │   ├── reminder_manager_dialog.py # 提醒管理对话框
 │   │   ├── reminder_popup.py  # 节目提醒弹窗
+│   │   ├── resume_position_dialog.py # 断点续播列表对话框
 │   │   ├── scan_channel_dialog.py # 扫描频道对话框
+│   │   ├── subtitle_style_dialog.py # 字幕样式+在线下载对话框
 │   │   ├── unified_search_dialog.py # 统一搜索对话框
+│   │   ├── video_3d_dialog.py # 3D/360°视频对话框
+│   │   ├── video_eq_dialog.py # 视频图像调整对话框（亮度/对比度/旋转/翻转/裁剪）
 │   │   └── video_open_dialog.py # 视频文件打开对话框
 │   ├── cache_progress_slider.py # 缓存进度滑块组件
 │   ├── channel_transition_overlay.py # 频道切换遮罩组件
 │   ├── epg_timeline_widget.py # EPG 时间轴组件
-│   ├── floating_dialog.py     # 悬浮对话框基类
+│   ├── floating_dialog.py     # 悬浮对话框基类（Windows 隐藏任务栏图标）
+│   ├── lyrics_widget.py       # 歌词显示组件（LRC 解析+滚动）
 │   ├── menu_proxy_style.py    # 菜单代理样式
 │   ├── multi_screen_widget.py # 多屏窗口组件
+│   ├── quality_bar.py         # 质量评分条组件
 │   ├── styles.py              # 21 套主题样式定义
 │   ├── theme_manager.py       # 主题管理器
 │   └── virtual_channel_list.py # 虚拟频道列表组件
@@ -398,6 +538,7 @@ IPTV-Scanner-Editor-Pro/
 │   ├── hdr_detect.py          # HDR 检测工具
 │   ├── logging_helper.py      # 日志辅助函数
 │   ├── memory_manager.py      # 内存管理器
+│   ├── platform_utils.py      # 平台工具（ffmpeg 路径定位等）
 │   ├── progress_manager.py    # 进度管理器
 │   ├── resource_cleaner.py    # 资源清理器
 │   ├── scan_state_manager.py  # 扫描状态管理器
@@ -412,24 +553,49 @@ IPTV-Scanner-Editor-Pro/
 │   ├── epg_cache.json         # EPG 数据缓存（全量合并）
 │   ├── playlist_cache_0.m3u   # 播放列表源 #0 的独立缓存
 │   ├── playlist_cache_1.m3u   # 播放列表源 #1 的独立缓存
+│   ├── playback_settings.json # 每文件播放设置持久化（LRU）
 │   └── ...                    # 每个播放列表源一个独立缓存文件
-└── logo/                       # 本地频道台标图片库
+├── logo/                       # 本地频道台标图片库
+└── android/                    # Android 移动端工程
+    ├── app/                    # 主应用模块
+    │   ├── src/main/
+    │   │   ├── java/com/iptv/scanner/editor/pro/
+    │   │   │   ├── MainActivity.java  # 唯一 Activity（入口，三层架构编排）
+    │   │   │   └── mpv/               # mpv 渲染层（Kotlin）
+    │   │   │       ├── MPVView.kt     # SurfaceView + mpv 渲染
+    │   │   │       └── MpvJsBridge.kt # JS↔Native mpv 桥接
+    │   │   ├── python/                # 内嵌 Python 后端（Chaquopy 3.14）
+    │   │   │   ├── android_bridge.py  # Python 服务启动入口
+    │   │   │   ├── core/              # 核心模块（复用 PC 端）
+    │   │   │   ├── services/          # 业务服务（复用 PC 端）
+    │   │   │   └── server/            # aiohttp 服务器 + mobile/ UI
+    │   │   ├── jniLibs/               # 原生库（arm64-v8a / x86_64）
+    │   │   └── AndroidManifest.xml
+    │   └── build.gradle               # 应用级构建脚本
+    ├── mpv-arm64.apk                  # 预打包 mpv 库 APK（arm64）
+    ├── mpv-x86_64.apk                 # 预打包 mpv 库 APK（x86_64）
+    └── gradlew / gradlew.bat          # Gradle 包装器
 ```
 
 ## 🛠️ 技术栈
 
 | 组件 | 技术 |
 |---|---|
-| GUI 框架 | PySide6 |
+| GUI 框架（PC） | PySide6 |
+| 移动端框架（Android） | Java Activity + Kotlin + WebView + Chaquopy Python |
 | 播放引擎 | libmpv (MPV) |
 | 流探测 | FFprobe (FFmpeg) |
+| 片段导出 / GIF | FFmpeg + Pillow |
 | HTTP 客户端 | requests / aiohttp |
 | 图像处理 | Pillow |
+| 音频元数据 | mutagen（封面/歌词提取） |
+| 频谱分析 | numpy（FFT） |
 | Excel 处理 | openpyxl |
 | 拼音排序 | pypinyin |
 | 系统监控 | psutil |
 | 配置管理 | configparser |
 | 类型扩展 | typing-extensions |
+| 字幕下载 | OpenSubtitles XML-RPC / SubHD / SubtitleCat |
 
 ## 🤝 贡献指南
 
