@@ -235,6 +235,16 @@ def _json_error(message, status=400):
 
 
 async def handle_index(request):
+    # 优先返回管理后台页面（admin/index.html）
+    admin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'admin')
+    admin_index = os.path.join(admin_dir, 'index.html')
+    if os.path.isfile(admin_index):
+        with open(admin_index, 'rb') as f:
+            content = f.read()
+        return web.Response(body=content, content_type='text/html', charset='utf-8',
+                          headers={'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                   'Pragma': 'no-cache', 'Expires': '0'})
+    # fallback: 原来的 API 文档页面
     server = get_server()
     base_url = f"http://{request.host}"
     lang = _get_lang(request)

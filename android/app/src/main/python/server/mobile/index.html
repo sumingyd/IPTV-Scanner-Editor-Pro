@@ -1918,7 +1918,10 @@ window.onRemoteKey = function(keyCode){
     case 20: /* DPAD_DOWN */ nextChannel(); return true;
     case 21: /* DPAD_LEFT */ seekRel(-10); showCenterIcon('pause'); return true;
     case 22: /* DPAD_RIGHT */ seekRel(10); showCenterIcon('play'); return true;
-    case 23: /* DPAD_CENTER / OK */ openTVMode(); return true;
+    case 23: /* DPAD_CENTER / OK */
+      /* 强制显示一个可见的反馈：修改文档标题 */
+      document.title = 'OK pressed - ' + new Date().toLocaleTimeString();
+      openTVMode(); return true;
     case 82: /* MENU */ openMainMenu(); return true;
     case 4: /* BACK */ return handleBack();
     case 126: /* MEDIA_PLAY */ Mpv.setPause(false); showCenterIcon('play'); return true;
