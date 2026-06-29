@@ -4345,12 +4345,14 @@ function autoSaveResume(){
 
 /* 服务器就绪后启动应用 */
 function bootApp(){
-  /* 拦截 WebView 方向键/OK 键的默认焦点导航
-   * 所有按键由 onRemoteKey 统一控制，阻止 WebView 内部移动焦点显示选择框 */
+  /* 拦截 WebView 方向键的默认焦点导航
+   * 方向键由 onRemoteKey 统一控制，阻止 WebView 内部移动焦点显示选择框
+   * 注意：不拦截 OK 键(23)，因为 OK 键在 onRemoteKey 中触发 openTVMode
+   * 如果拦截了 OK 键的 keydown 事件，WebView 可能无法正确响应 evaluateJavascript 调用 */
   document.addEventListener('keydown', e=>{
     const kc = e.keyCode || e.which;
     switch(kc){
-      case 19: case 20: case 21: case 22: case 23: /* DPAD */
+      case 19: case 20: case 21: case 22: /* DPAD 方向键 */
       case 82: /* MENU */
         e.preventDefault();
         e.stopPropagation();
