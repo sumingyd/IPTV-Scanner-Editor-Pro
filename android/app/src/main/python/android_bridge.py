@@ -88,7 +88,7 @@ def _find_mobile_dir():
 _server_started = False
 
 
-def start_server(host='127.0.0.1', port=8080):
+def start_server(host='0.0.0.0', port=8080):
     global _server_started
     if _server_started:
         return

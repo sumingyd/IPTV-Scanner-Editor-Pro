@@ -97,6 +97,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;color:#e
 #panelControls{left:0;right:0;bottom:0;transform:translateY(100%);opacity:0;border-radius:18px 18px 0 0;width:100%;max-width:none}
 #panelControls.open{transform:translateY(0);opacity:1}
 
+/* 电视导航模式焦点高亮 */
+.tv-focused{outline:3px solid var(--accent);outline-offset:-3px;box-shadow:inset 0 0 20px rgba(74,126,255,.08)}
+
 .panel-titlebar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
 .panel-titlebar .title{font-size:14px;font-weight:700;color:rgba(255,255,255,.95)}
 .panel-titlebar .close-btn{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1;border-radius:6px}
@@ -461,6 +464,7 @@ const state = {
   chNumBuffer: '', chNumTimer: null,
   /* UI 状态 */
   panelOpen: null, funcPanelOpen: false, controlsVisible: false,
+  tvMode: false, tvFocus: 'channels', /* 电视导航模式：焦点在 channels/epg/controls */
   osdTimer: null, hideControlsTimer: null,
   /* 持续 OSD（与 PC 端 toggle_osd 一致）：O 键或控制面板按钮切换显示/隐藏 */
   osdVisible: false, osdRefreshTimer: null,
@@ -1893,10 +1897,15 @@ function registerFunc(name, meta, renderer){ funcMeta[name]=meta; funcRenderers[
  *   F=34, M=41, S=47, E=33, L=38, P=44, O=42, C=34, T=48, B=30
  */
 window.onRemoteKey = function(keyCode){
-  /* 当前打开的面板负责导航 */
+  /* 当前打开的功能面板负责导航 */
   if(state.funcPanelOpen){
     return handleFuncPanelKey(keyCode);
   }
+  /* 电视导航模式：三面板同时显示 */
+  if(state.tvMode){
+    return handleTVModeKey(keyCode);
+  }
+  /* 普通面板打开时 */
   if(state.panelOpen){
     return handlePanelKey(keyCode);
   }
@@ -1906,7 +1915,7 @@ window.onRemoteKey = function(keyCode){
     case 20: /* DPAD_DOWN */ nextChannel(); return true;
     case 21: /* DPAD_LEFT */ seekRel(-10); showCenterIcon('pause'); return true;
     case 22: /* DPAD_RIGHT */ seekRel(10); showCenterIcon('play'); return true;
-    case 23: /* DPAD_CENTER / OK */ togglePlay(); return true;
+    case 23: /* DPAD_CENTER / OK */ openTVMode(); return true;
     case 82: /* MENU */ openMainMenu(); return true;
     case 4: /* BACK */ return handleBack();
     case 126: /* MEDIA_PLAY */ Mpv.setPause(false); showCenterIcon('play'); return true;
@@ -1939,6 +1948,7 @@ window.onRemoteKey = function(keyCode){
 
 function handleBack(){
   /* BACK 由 Java 层兜底处理退出。这里只关闭面板。 */
+  if(state.tvMode){ closeTVMode(); return true; }
   if(state.funcPanelOpen){ closeFuncPanel(); return true; }
   if(state.panelOpen){ closePanels(); return true; }
   return false;
@@ -1954,6 +1964,128 @@ function handlePanelKey(keyCode){
       return false;
   }
   return false;
+}
+
+/* 电视导航模式：OK 键同时显示频道列表、EPG、控制面板 */
+function openTVMode(){
+  if(state.tvMode) return;
+  state.tvMode = true;
+  state.tvFocus = 'channels';
+  closeFuncPanel();
+  /* 同时打开三个面板 */
+  state.panelOpen = 'tv';
+  $('#panelOverlay').classList.add('show');
+  $('#panelChannels').classList.add('open');
+  $('#panelEPG').classList.add('open');
+  $('#panelControls').classList.add('open');
+  $('#topBar').classList.add('show');
+  renderChannelList();
+  renderEPGList();
+  updateCtrlInfo();
+  /* 高亮频道列表焦点 */
+  highlightTVFocus('channels');
+  clearTimeout(state.hideControlsTimer);
+}
+function closeTVMode(){
+  if(!state.tvMode) return;
+  state.tvMode = false;
+  state.tvFocus = 'channels';
+  $('#panelChannels').classList.remove('open');
+  $('#panelEPG').classList.remove('open');
+  $('#panelControls').classList.remove('open');
+  $('#topBar').classList.remove('show');
+  if(!state.funcPanelOpen) $('#panelOverlay').classList.remove('show');
+  state.panelOpen = null;
+  /* 移除焦点高亮 */
+  document.querySelectorAll('.tv-focused').forEach(el => el.classList.remove('tv-focused'));
+}
+function handleTVModeKey(keyCode){
+  switch(keyCode){
+    case 4: /* BACK */ closeTVMode(); return true;
+    case 82: /* MENU */ closeTVMode(); openMainMenu(); return true;
+    case 19: /* DPAD_UP */
+      if(state.tvFocus === 'channels'){
+        /* 频道列表中向上切换 */
+        const prev = state.currentIdx - 1;
+        if(prev >= 0 && prev < state.channels.length){
+          playChannel(prev);
+          renderChannelList();
+          renderEPGList();
+          updateCtrlInfo();
+        }
+      } else if(state.tvFocus === 'epg'){
+        /* EPG 列表滚动 */
+        const epgBody = $('#epgBody');
+        if(epgBody) epgBody.scrollTop = Math.max(0, epgBody.scrollTop - 60);
+      } else if(state.tvFocus === 'controls'){
+        /* 控制面板：音量+ */
+        adjustVolume(5);
+        updateCtrlInfo();
+      }
+      return true;
+    case 20: /* DPAD_DOWN */
+      if(state.tvFocus === 'channels'){
+        /* 频道列表中向下切换 */
+        const next = state.currentIdx + 1;
+        if(next >= 0 && next < state.channels.length){
+          playChannel(next);
+          renderChannelList();
+          renderEPGList();
+          updateCtrlInfo();
+        }
+      } else if(state.tvFocus === 'epg'){
+        /* EPG 列表滚动 */
+        const epgBody = $('#epgBody');
+        if(epgBody) epgBody.scrollTop += 60;
+      } else if(state.tvFocus === 'controls'){
+        /* 控制面板：音量- */
+        adjustVolume(-5);
+        updateCtrlInfo();
+      }
+      return true;
+    case 21: /* DPAD_LEFT */
+      /* 切换焦点：controls → epg → channels */
+      if(state.tvFocus === 'channels') state.tvFocus = 'epg';
+      else if(state.tvFocus === 'epg') state.tvFocus = 'controls';
+      else state.tvFocus = 'channels';
+      highlightTVFocus(state.tvFocus);
+      return true;
+    case 22: /* DPAD_RIGHT */
+      /* 切换焦点：channels → epg → controls */
+      if(state.tvFocus === 'channels') state.tvFocus = 'epg';
+      else if(state.tvFocus === 'epg') state.tvFocus = 'controls';
+      else state.tvFocus = 'channels';
+      highlightTVFocus(state.tvFocus);
+      return true;
+    case 23: /* DPAD_CENTER / OK */
+      if(state.tvFocus === 'channels'){
+        /* 播放当前选中的频道（已在播放中则切换播放/暂停） */
+        togglePlay();
+      } else if(state.tvFocus === 'epg'){
+        /* 展开当前频道的 EPG 详情 */
+        openFuncPanel('epg_detail');
+      } else if(state.tvFocus === 'controls'){
+        /* 切换播放/暂停 */
+        togglePlay();
+      }
+      return true;
+  }
+  return false;
+}
+function highlightTVFocus(focus){
+  /* 移除所有焦点高亮 */
+  document.querySelectorAll('.tv-focused').forEach(el => el.classList.remove('tv-focused'));
+  /* 高亮当前焦点区域 */
+  if(focus === 'channels'){
+    const panel = $('#panelChannels');
+    if(panel) panel.classList.add('tv-focused');
+  } else if(focus === 'epg'){
+    const panel = $('#panelEPG');
+    if(panel) panel.classList.add('tv-focused');
+  } else if(focus === 'controls'){
+    const panel = $('#panelControls');
+    if(panel) panel.classList.add('tv-focused');
+  }
 }
 
 function handleFuncPanelKey(keyCode){
@@ -2044,6 +2176,7 @@ function openPanel(which){
   else if(which==='epg'){ $('#panelEPG').classList.add('open'); renderEPGList(); }
 }
 function closePanels(){
+  if(state.tvMode) closeTVMode();
   $('#panelChannels').classList.remove('open');
   $('#panelEPG').classList.remove('open');
   $('#panelControls').classList.remove('open');
