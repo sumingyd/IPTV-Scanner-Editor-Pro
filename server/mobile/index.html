@@ -12,6 +12,9 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
 html,body{width:100%;height:100%;overflow:hidden;background:transparent;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px}
+/* 禁用 WebView 方向键焦点导航，所有按键由 JS onRemoteKey 控制 */
+*{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important}
+:focus{outline:none!important}
 
 :root{
   --bg:#1a1a1a;--panel:rgba(30,30,30,.94);--panel-solid:#1e1e1e;
@@ -4342,6 +4345,18 @@ function autoSaveResume(){
 
 /* 服务器就绪后启动应用 */
 function bootApp(){
+  /* 拦截 WebView 方向键/OK 键的默认焦点导航
+   * 所有按键由 onRemoteKey 统一控制，阻止 WebView 内部移动焦点显示选择框 */
+  document.addEventListener('keydown', e=>{
+    const kc = e.keyCode || e.which;
+    switch(kc){
+      case 19: case 20: case 21: case 22: case 23: /* DPAD */
+      case 82: /* MENU */
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+  }, true);
   initApp().catch(err=>{ console.error('initApp failed:', err); });
 }
 

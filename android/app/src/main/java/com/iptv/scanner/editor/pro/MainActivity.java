@@ -258,23 +258,9 @@ public class MainActivity extends AppCompatActivity {
          * 遥控器方向键由 onKeyDown → dispatchKeyToJS → onRemoteKey 完全控制
          * 如果不禁用，WebView 内部的方向键焦点移动会显示一个选择框，干扰用户体验 */
         webView.setDefaultFocusHighlightEnabled(false);
-        /* 通过 dispatchKeyEvent 拦截方向键，阻止 WebView 内部焦点导航
-         * 注意：不能 setFocusable(false)，否则 Activity.onKeyDown 收不到按键事件 */
-        webView.setOnKeyListener((v, keyCode, event) -> {
-            // 方向键由 Activity.onKeyDown 统一处理，这里全部拦截
-            // 避免 WebView 内部移动焦点显示选择框
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                switch (keyCode) {
-                    case KeyEvent.KEYCODE_DPAD_UP:
-                    case KeyEvent.KEYCODE_DPAD_DOWN:
-                    case KeyEvent.KEYCODE_DPAD_LEFT:
-                    case KeyEvent.KEYCODE_DPAD_RIGHT:
-                    case KeyEvent.KEYCODE_DPAD_CENTER:
-                        return true; // 消费事件，不让 WebView 处理
-                }
-            }
-            return false;
-        });
+        /* 通过 requestFocus 确保 WebView 能收到按键事件 */
+        webView.requestFocus();
+        webView.requestFocusFromTouch();
     }
 
     private void startServer() {
@@ -394,8 +380,6 @@ public class MainActivity extends AppCompatActivity {
 
         // 转发给 HTML UI 的遥控器按键
         if (dispatchKeyToJS(keyCode)) {
-            // 阻止 WebView 默认的焦点导航（方向键选择框）
-            // 让 JS 层的 onRemoteKey 完全控制按键行为
             return true;
         }
 
