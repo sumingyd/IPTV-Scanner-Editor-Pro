@@ -47,9 +47,13 @@ def _register_admin_routes(app):
                           headers={'Cache-Control': 'no-cache, no-store, must-revalidate',
                                    'Pragma': 'no-cache', 'Expires': '0'})
 
-    app.router.add_get('/admin/', _handle_admin)
-    app.router.add_get('/admin/{path:.*}', _handle_admin)
-    logger.info(f'Admin UI registered from: {admin_dir}')
+    try:
+        app.router.add_get('/admin/', _handle_admin)
+        app.router.add_get('/admin/{path:.*}', _handle_admin)
+        logger.info(f'Admin UI registered from: {admin_dir}')
+    except ValueError:
+        # Android 端可能已由 android_bridge.py 注册，忽略重复注册错误
+        logger.debug('Admin routes already registered, skipping')
 
 
 def _get_all_channels():

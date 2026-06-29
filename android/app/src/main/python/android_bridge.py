@@ -211,3 +211,32 @@ def _register_mobile_routes(app, base_dir):
 
     app.router.add_get('/mobile/', _handle_mobile)
     app.router.add_get('/mobile/{path:.*}', _handle_mobile)
+
+    # 注册管理后台路由（局域网 Web 管理页面）
+    # 注意：routes.py 中的 _register_admin_routes 在 Android 上可能找不到目录
+    # 因为 Chaquopy 打包后 server.__file__ 可能指向非标准路径
+    # 这里用 _find_mobile_dir 找到的 server_dir 来定位 admin 目录
+    server_dir = os.path.dirname(base_dir)
+    admin_dir = os.path.join(server_dir, 'admin')
+    if os.path.isdir(admin_dir):
+        async def _handle_admin(request):
+            from aiohttp import web
+            rel_path = request.match_info.get('path', 'index.html')
+            if not rel_path or rel_path.endswith('/'):
+                rel_path += 'index.html'
+            file_path = os.path.join(admin_dir, rel_path)
+            if not os.path.isfile(file_path):
+                return web.Response(text='404: Not Found', status=404)
+            ext = os.path.splitext(rel_path)[1].lower()
+            content_type = _MIME_TYPES.get(ext, 'application/octet-stream')
+            with open(file_path, 'rb') as f:
+                content = f.read()
+            return web.Response(body=content, content_type=content_type,
+                              headers={'Cache-Control':'no-cache, no-store, must-revalidate',
+                                       'Pragma':'no-cache','Expires':'0'})
+
+        app.router.add_get('/admin/', _handle_admin)
+        app.router.add_get('/admin/{path:.*}', _handle_admin)
+        _log(f'admin UI registered from: {admin_dir}')
+    else:
+        _log(f'admin directory not found: {admin_dir}', 'W')
