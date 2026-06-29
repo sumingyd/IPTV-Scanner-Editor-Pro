@@ -9,6 +9,48 @@ from server.app import get_channel_model, get_config, get_main_window, get_serve
 
 logger = logging.getLogger('server.routes')
 
+_MIME_TYPES = {
+    '.html': 'text/html',
+    '.css': 'text/css',
+    '.js': 'application/javascript',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.webmanifest': 'application/manifest+json',
+}
+
+
+def _register_admin_routes(app):
+    """注册管理后台静态文件路由"""
+    admin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'admin')
+    if not os.path.isdir(admin_dir):
+        logger.warning(f'Admin directory not found: {admin_dir}')
+        return
+
+    async def _handle_admin(request):
+        rel_path = request.match_info.get('path', 'index.html')
+        if not rel_path or rel_path.endswith('/'):
+            rel_path += 'index.html'
+        file_path = os.path.join(admin_dir, rel_path)
+        if not os.path.isfile(file_path):
+            return web.Response(text='404: Not Found', status=404)
+        ext = os.path.splitext(rel_path)[1].lower()
+        content_type = _MIME_TYPES.get(ext, 'application/octet-stream')
+        with open(file_path, 'rb') as f:
+            content = f.read()
+        return web.Response(body=content, content_type=content_type,
+                          headers={'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                   'Pragma': 'no-cache', 'Expires': '0'})
+
+    app.router.add_get('/admin/', _handle_admin)
+    app.router.add_get('/admin/{path:.*}', _handle_admin)
+    logger.info(f'Admin UI registered from: {admin_dir}')
+
 
 def _get_all_channels():
     ctx = get_context()
@@ -148,6 +190,8 @@ def create_app() -> web.Application:
     # 文件分享与缓存清理
     app.router.add_post('/api/share/file', handle_share_file)
     app.router.add_post('/api/cache/clear', handle_cache_clear)
+    # 管理后台静态文件（局域网 Web 管理页面）
+    _register_admin_routes(app)
     return app
 
 

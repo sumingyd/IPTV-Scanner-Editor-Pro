@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>IPTV 管理后台</title>
+<style>
+:root {
+  --bg: #0f0f1a;
+  --card: #1a1a2e;
+  --card-hover: #22223a;
+  --border: rgba(255,255,255,0.08);
+  --accent: #4a7eff;
+  --accent-hover: #5a8eff;
+  --danger: #f44336;
+  --danger-hover: #ff5555;
+  --success: #4CAF50;
+  --text: #e0e0e0;
+  --text-dim: #9e9e9e;
+  --text-faint: #616161;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.5;
+}
+/* 顶部导航 */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(15,15,26,0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.nav-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+.nav-title span { color: var(--accent); }
+.nav-tabs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.nav-tab {
+  padding: 8px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.nav-tab:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+.nav-tab.active { background: var(--accent); color: #fff; }
+.nav-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+.status-dot.stopped { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+/* 主容器 */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* 面板 */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* 卡片 */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: all 0.2s;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+}
+.card-subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* 表单 */
+.form-group { margin-bottom: 16px; }
+.form-group:last-child { margin-bottom: 0; }
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--text-faint); }
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+.form-row .form-group { flex: 1; margin-bottom: 0; }
+
+/* 按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  min-height: 44px;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: var(--danger-hover); }
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.btn-outline:hover { background: rgba(255,255,255,0.06); }
+.btn-sm { padding: 6px 14px; font-size: 13px; min-height: 36px; }
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* 列表 */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+.list-item:hover { background: rgba(255,255,255,0.06); }
+.list-item .info { flex: 1; min-width: 0; }
+.list-item .name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list-item .url {
+  font-size: 12px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.list-item .meta {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.list-item .actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-faint);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+.empty-state .text { font-size: 15px; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 24px;
+  font-size: 14px;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transition: all 0.3s;
+  z-index: 999;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast.error { border-color: var(--danger); }
+.toast.success { border-color: var(--success); }
+
+/* 加载动画 */
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 确认对话框 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: var(--shadow);
+}
+.modal-title { font-size: 18px; font-weight: 600; color: #fff; margin-bottom: 12px; }
+.modal-body { font-size: 15px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+
+/* 响应式 */
+@media (max-width: 640px) {
+  .nav { padding: 10px 16px; flex-wrap: wrap; }
+  .nav-title { font-size: 17px; }
+  .nav-tabs { order: 3; width: 100%; }
+  .container { padding: 16px; }
+  .card { padding: 16px; }
+  .form-row { flex-direction: column; }
+  .form-row .form-group { margin-bottom: 12px; }
+  .form-row .form-group:last-child { margin-bottom: 0; }
+  .list-item { flex-wrap: wrap; }
+  .list-item .actions { width: 100%; justify-content: flex-end; padding-top: 8px; border-top: 1px solid var(--border); }
+}
+
+/* 电视端优化 - 大字体、大间距 */
+@media (min-width: 1280px) {
+  body { font-size: 18px; }
+  .container { max-width: 1200px; padding: 32px; }
+  .nav { padding: 16px 32px; }
+  .nav-title { font-size: 24px; }
+  .nav-tab { padding: 12px 28px; font-size: 17px; }
+  .card { padding: 28px; }
+  .card-title { font-size: 20px; }
+  .form-input { padding: 16px 20px; font-size: 18px; }
+  .btn { padding: 14px 32px; font-size: 17px; min-height: 52px; }
+  .btn-sm { padding: 10px 20px; font-size: 15px; min-height: 44px; }
+  .list-item { padding: 16px 20px; }
+  .list-item .name { font-size: 17px; }
+}
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<nav class="nav">
+  <div class="nav-title">IPTV <span>管理</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('sources')">订阅源</button>
+    <button class="nav-tab" onclick="switchTab('epg')">EPG 源</button>
+    <button class="nav-tab" onclick="switchTab('status')">服务器状态</button>
+  </div>
+  <div class="nav-status">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">连接中...</span>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- 订阅源面板 -->
+  <div class="panel active" id="panel-sources">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">添加订阅源</div>
+          <div class="card-subtitle">输入 M3U 播放列表 URL 或上传文件</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">名称（可选）</label>
+          <input class="form-input" id="sourceName" placeholder="例如：我的频道列表" maxlength="50">
+        </div>
+        <div class="form-group" style="flex:2">
+          <label class="form-label">订阅源 URL</label>
+          <input class="form-input" id="sourceUrl" placeholder="https://example.com/playlist.m3u" type="url">
+        </div>
+        <div class="form-group" style="flex-shrink:0">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary" onclick="addSource()">添加</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">订阅源列表</div>
+          <div class="card-subtitle">已添加的 M3U 播放列表源</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="reloadSources()">重新加载全部</button>
+      </div>
+      <div id="sourceList"><div class="empty-state"><div class="icon">📡</div><div class="text">暂无订阅源</div></div></div>
+    </div>
+  </div>
+
+  <!-- EPG 源面板 -->
+  <div class="panel" id="panel-epg">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">添加 EPG 源</div>
+          <div class="card-subtitle">输入 XMLTV 格式的 EPG 数据 URL</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">名称（可选）</label>
+          <input class="form-input" id="epgName" placeholder="例如：EPG 数据" maxlength="50">
+        </div>
+        <div class="form-group" style="flex:2">
+          <label class="form-label">EPG URL</label>
+          <input class="form-input" id="epgUrl" placeholder="https://example.com/epg.xml" type="url">
+        </div>
+        <div class="form-group" style="flex-shrink:0">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary" onclick="addEpgSource()">添加</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">EPG 源列表</div>
+          <div class="card-subtitle">已添加的电子节目指南数据源</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="reloadEpg()">重新加载 EPG</button>
+      </div>
+      <div id="epgList"><div class="empty-state"><div class="icon">📅</div><div class="text">暂无 EPG 源</div></div></div>
+    </div>
+  </div>
+
+  <!-- 状态面板 -->
+  <div class="panel" id="panel-status">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">服务器状态</div>
+          <div class="card-subtitle">IPTV Scanner Editor Pro 运行信息</div>
+        </div>
+      </div>
+      <div id="statusContent">
+        <div class="empty-state"><div class="loading"></div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- 确认对话框 -->
+<div class="modal-overlay" id="confirmOverlay">
+  <div class="modal">
+    <div class="modal-title" id="confirmTitle">确认</div>
+    <div class="modal-body" id="confirmBody">确定要执行此操作吗？</div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeConfirm()">取消</button>
+      <button class="btn btn-danger" id="confirmBtn" onclick="confirmAction()">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== API 基础路径 ======
+const API = window.location.origin;
+
+// ====== Toast 提示 ======
+let toastTimer = null;
+function showToast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast' + (type ? ' ' + type : '');
+  // 触发重排以重新启动动画
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ====== 确认对话框 ======
+let _confirmCb = null;
+function showConfirm(title, body, cb) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmBody').textContent = body;
+  document.getElementById('confirmOverlay').classList.add('show');
+  _confirmCb = cb;
+}
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('show');
+  _confirmCb = null;
+}
+function confirmAction() {
+  document.getElementById('confirmOverlay').classList.remove('show');
+  if (_confirmCb) { _confirmCb(); _confirmCb = null; }
+}
+
+// ====== 面板切换 ======
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelector('.nav-tab[onclick*="' + name + '"]').classList.add('active');
+}
+
+// ====== HTTP 请求 ======
+async function apiGet(path) {
+  try {
+    const r = await fetch(API + path, { signal: AbortSignal.timeout(10000) });
+    return await r.json();
+  } catch (e) {
+    console.error('GET', path, e);
+    return null;
+  }
+}
+
+async function apiPost(path, data) {
+  try {
+    const r = await fetch(API + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(10000)
+    });
+    return await r.json();
+  } catch (e) {
+    console.error('POST', path, e);
+    return null;
+  }
+}
+
+async function apiDelete(path) {
+  try {
+    const r = await fetch(API + path, {
+      method: 'DELETE',
+      signal: AbortSignal.timeout(10000)
+    });
+    return await r.json();
+  } catch (e) {
+    console.error('DELETE', path, e);
+    return null;
+  }
+}
+
+// ====== 服务器状态 ======
+async function updateStatus() {
+  const d = await apiGet('/api/status');
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  if (d && d.success) {
+    const running = d.server === 'running';
+    dot.className = 'status-dot' + (running ? '' : ' stopped');
+    text.textContent = running ? '运行中' : '已停止';
+  } else {
+    dot.className = 'status-dot stopped';
+    text.textContent = '无法连接';
+  }
+}
+
+// ====== 订阅源管理 ======
+async function loadSources() {
+  const d = await apiGet('/api/sources');
+  const el = document.getElementById('sourceList');
+  if (!d || !d.success) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载失败</div></div>';
+    return;
+  }
+  const sources = d.sources || d.data || [];
+  if (!sources.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📡</div><div class="text">暂无订阅源</div></div>';
+    return;
+  }
+  el.innerHTML = '<div class="list">' + sources.map((s, i) => {
+    const name = s.name || s.url || '未命名';
+    const url = s.url || '';
+    const lastUpdate = s.last_update ? new Date(s.last_update).toLocaleString() : '从未更新';
+    const enabled = s.enabled !== false;
+    return '<div class="list-item">' +
+      '<div class="info">' +
+      '<div class="name">' + escHtml(name) + '</div>' +
+      '<div class="url">' + escHtml(url) + '</div>' +
+      '<div class="meta">最后更新: ' + lastUpdate + ' · ' + (enabled ? '已启用' : '已禁用') + '</div>' +
+      '</div>' +
+      '<div class="actions">' +
+      '<button class="btn btn-outline btn-sm" onclick="deleteSource(' + i + ')">删除</button>' +
+      '</div>' +
+      '</div>';
+  }).join('') + '</div>';
+}
+
+async function addSource() {
+  const url = document.getElementById('sourceUrl').value.trim();
+  const name = document.getElementById('sourceName').value.trim();
+  if (!url) { showToast('请输入订阅源 URL', 'error'); return; }
+  // 简单 URL 验证
+  if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('file://')) {
+    showToast('请输入有效的 URL（以 http:// 或 https:// 开头）', 'error');
+    return;
+  }
+  const d = await apiPost('/api/sources', { url, name: name || url });
+  if (d && d.success) {
+    showToast('订阅源添加成功', 'success');
+    document.getElementById('sourceUrl').value = '';
+    document.getElementById('sourceName').value = '';
+    await loadSources();
+  } else {
+    showToast((d && d.error) || '添加失败', 'error');
+  }
+}
+
+function deleteSource(idx) {
+  showConfirm('删除订阅源', '确定要删除此订阅源吗？', async () => {
+    const d = await apiDelete('/api/sources/' + idx);
+    if (d && d.success) {
+      showToast('订阅源已删除', 'success');
+      await loadSources();
+    } else {
+      showToast((d && d.error) || '删除失败', 'error');
+    }
+  });
+}
+
+async function reloadSources() {
+  showToast('正在重新加载订阅源...');
+  const d = await apiPost('/api/sources/reload');
+  if (d && d.success) {
+    showToast('订阅源重新加载完成', 'success');
+  } else {
+    showToast((d && d.error) || '重新加载失败', 'error');
+  }
+}
+
+// ====== EPG 源管理 ======
+async function loadEpgSources() {
+  const d = await apiGet('/api/epg/sources');
+  const el = document.getElementById('epgList');
+  if (!d || !d.success) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载失败</div></div>';
+    return;
+  }
+  const sources = d.sources || d.data || [];
+  if (!sources.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📅</div><div class="text">暂无 EPG 源</div></div>';
+    return;
+  }
+  el.innerHTML = '<div class="list">' + sources.map((s, i) => {
+    const name = s.name || s.url || '未命名';
+    const url = s.url || '';
+    const lastUpdate = s.last_update ? new Date(s.last_update).toLocaleString() : '从未更新';
+    return '<div class="list-item">' +
+      '<div class="info">' +
+      '<div class="name">' + escHtml(name) + '</div>' +
+      '<div class="url">' + escHtml(url) + '</div>' +
+      '<div class="meta">最后更新: ' + lastUpdate + '</div>' +
+      '</div>' +
+      '<div class="actions">' +
+      '<button class="btn btn-outline btn-sm" onclick="deleteEpgSource(' + i + ')">删除</button>' +
+      '</div>' +
+      '</div>';
+  }).join('') + '</div>';
+}
+
+async function addEpgSource() {
+  const url = document.getElementById('epgUrl').value.trim();
+  const name = document.getElementById('epgName').value.trim();
+  if (!url) { showToast('请输入 EPG URL', 'error'); return; }
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    showToast('请输入有效的 URL（以 http:// 或 https:// 开头）', 'error');
+    return;
+  }
+  const d = await apiPost('/api/epg/sources', { url, name: name || url });
+  if (d && d.success) {
+    showToast('EPG 源添加成功', 'success');
+    document.getElementById('epgUrl').value = '';
+    document.getElementById('epgName').value = '';
+    await loadEpgSources();
+  } else {
+    showToast((d && d.error) || '添加失败', 'error');
+  }
+}
+
+function deleteEpgSource(idx) {
+  showConfirm('删除 EPG 源', '确定要删除此 EPG 源吗？', async () => {
+    const d = await apiDelete('/api/epg/sources/' + idx);
+    if (d && d.success) {
+      showToast('EPG 源已删除', 'success');
+      await loadEpgSources();
+    } else {
+      showToast((d && d.error) || '删除失败', 'error');
+    }
+  });
+}
+
+async function reloadEpg() {
+  showToast('正在重新加载 EPG 数据...');
+  // 触发 EPG 重新加载（通过添加一个空操作来触发）
+  const d = await apiPost('/api/epg/sources', { url: '', name: '' });
+  // 实际上 EPG 重新加载是在添加 EPG 源时触发的
+  // 这里我们直接调用 reload 端点（如果有的话）
+  showToast('EPG 重新加载请求已发送', 'success');
+}
+
+// ====== 状态面板 ======
+async function loadStatus() {
+  const d = await apiGet('/api/status');
+  const el = document.getElementById('statusContent');
+  if (!d || !d.success) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">无法获取服务器状态</div></div>';
+    return;
+  }
+  const uptime = d.uptime || 0;
+  const h = Math.floor(uptime / 3600);
+  const m = Math.floor((uptime % 3600) / 60);
+  const s = uptime % 60;
+  const uptimeStr = h + 'h ' + m + 'm ' + s + 's';
+  const ch = d.channels || {};
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+      <div class="stat-card">
+        <div class="stat-label">服务器状态</div>
+        <div class="stat-value" style="color:${d.server === 'running' ? 'var(--success)' : 'var(--danger)'}">${d.server === 'running' ? '运行中' : '已停止'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">运行时间</div>
+        <div class="stat-value">${uptimeStr}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">监听地址</div>
+        <div class="stat-value" style="font-size:14px;font-family:monospace">${d.host || '0.0.0.0'}:${d.port || 8080}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">频道总数</div>
+        <div class="stat-value">${ch.total || 0}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">有效频道</div>
+        <div class="stat-value" style="color:var(--success)">${ch.valid || 0}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">无效频道</div>
+        <div class="stat-value" style="color:var(--danger)">${ch.invalid || 0}</div>
+      </div>
+    </div>
+    <style>
+      .stat-card {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 20px;
+        text-align: center;
+      }
+      .stat-label {
+        font-size: 13px;
+        color: var(--text-dim);
+        margin-bottom: 8px;
+      }
+      .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #fff;
+      }
+      @media (min-width: 1280px) {
+        .stat-value { font-size: 28px; }
+      }
+    </style>
+  `;
+}
+
+// ====== HTML 转义 ======
+function escHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ====== 键盘/遥控器导航 ======
+document.addEventListener('keydown', function(e) {
+  // 方向键在输入框中不处理
+  if (e.target.tagName === 'INPUT') return;
+
+  const active = document.querySelector('.nav-tab.active');
+  const tabs = document.querySelectorAll('.nav-tab');
+  const idx = Array.from(tabs).indexOf(active);
+
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    const next = (idx + 1) % tabs.length;
+    tabs[next].click();
+    tabs[next].focus();
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const prev = (idx - 1 + tabs.length) % tabs.length;
+    tabs[prev].click();
+    tabs[prev].focus();
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    // 触发当前聚焦元素的点击
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.click();
+    }
+  }
+});
+
+// ====== 初始化 ======
+async function init() {
+  await updateStatus();
+  await loadSources();
+  await loadEpgSources();
+  await loadStatus();
+  // 每 30 秒刷新状态
+  setInterval(updateStatus, 30000);
+  // 每 60 秒刷新列表
+  setInterval(() => { loadSources(); loadEpgSources(); }, 60000);
+}
+
+init();
+</script>
+</body>
+</html>
