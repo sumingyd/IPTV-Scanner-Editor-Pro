@@ -309,21 +309,23 @@ jobs:
         run: ./gradlew assembleRelease --rerun-tasks
 
       - name: Verify APK
+        id: apk
         working-directory: android
         run: |
-          APK="app/build/outputs/apk/release/app-release.apk"
-          if [ ! -f "$APK" ]; then
+          APK=$(find app/build/outputs/apk/release -name "IPTV-Scanner-Editor-Pro-v*.apk" -type f | head -1)
+          if [ -z "$APK" ]; then
             echo "Expected APK was not found"
             exit 1
           fi
           ls -la "$APK"
           file "$APK"
+          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: android/app/build/outputs/apk/release/app-release.apk
+          files: android/${{ steps.apk.outputs.apk_path }}
           fail_on_unmatched_files: true
           overwrite_files: true
         env:
