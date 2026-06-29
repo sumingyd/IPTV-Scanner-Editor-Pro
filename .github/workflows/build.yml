@@ -295,27 +295,33 @@ jobs:
       - name: Install Android SDK packages
         run: yes | sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Download universal mpv APK for native libraries
+        working-directory: android
+        run: |
+          # 下载 universal mpv APK（包含 arm64-v8a, armeabi-v7a, x86_64, x86 所有架构的 .so）
+          MPV_URL="https://github.com/mpv-android/mpv-android/releases/download/2026-04-25/app-default-universal-release.apk"
+          curl -fsSL -o mpv-universal.apk "$MPV_URL"
+          echo "Downloaded mpv-universal.apk ($(ls -lh mpv-universal.apk | awk '{print $5}'))"
+
       - name: Extract mpv native libraries for Android
         working-directory: android
         run: |
-          # 从 mpv-arm64.apk 和 mpv-x86_64.apk 中提取 .so 文件到 jniLibs
           JNILIBS_DIR="app/src/main/jniLibs"
-          mkdir -p "$JNILIBS_DIR/arm64-v8a" "$JNILIBS_DIR/x86_64"
+          # 所有支持的 ABI 架构
+          ARCHS=("arm64-v8a" "armeabi-v7a" "x86_64" "x86")
 
-          # 提取 arm64-v8a 的 .so
-          unzip -o mpv-arm64.apk "lib/arm64-v8a/*.so" -d /tmp/mpv-arm64-extract
-          cp /tmp/mpv-arm64-extract/lib/arm64-v8a/*.so "$JNILIBS_DIR/arm64-v8a/"
-          echo "arm64-v8a .so files:"
-          ls -la "$JNILIBS_DIR/arm64-v8a/"
-
-          # 提取 x86_64 的 .so
-          unzip -o mpv-x86_64.apk "lib/x86_64/*.so" -d /tmp/mpv-x86_64-extract
-          cp /tmp/mpv-x86_64-extract/lib/x86_64/*.so "$JNILIBS_DIR/x86_64/"
-          echo "x86_64 .so files:"
-          ls -la "$JNILIBS_DIR/x86_64/"
-
-          # 清理临时目录
-          rm -rf /tmp/mpv-arm64-extract /tmp/mpv-x86_64-extract
+          for arch in "${ARCHS[@]}"; do
+            mkdir -p "$JNILIBS_DIR/$arch"
+            unzip -o mpv-universal.apk "lib/$arch/*.so" -d /tmp/mpv-extract
+            if [ -d "/tmp/mpv-extract/lib/$arch" ]; then
+              cp /tmp/mpv-extract/lib/$arch/*.so "$JNILIBS_DIR/$arch/"
+              echo "$arch .so files:"
+              ls -la "$JNILIBS_DIR/$arch/"
+            else
+              echo "WARNING: No .so files found for $arch"
+            fi
+            rm -rf /tmp/mpv-extract
+          done
 
       - name: Create local.properties
         working-directory: android
