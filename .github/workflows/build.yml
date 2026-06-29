@@ -295,10 +295,35 @@ jobs:
       - name: Install Android SDK packages
         run: yes | sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Extract mpv native libraries for Android
+        working-directory: android
+        run: |
+          # 从 mpv-arm64.apk 和 mpv-x86_64.apk 中提取 .so 文件到 jniLibs
+          JNILIBS_DIR="app/src/main/jniLibs"
+          mkdir -p "$JNILIBS_DIR/arm64-v8a" "$JNILIBS_DIR/x86_64"
+
+          # 提取 arm64-v8a 的 .so
+          unzip -o mpv-arm64.apk "lib/arm64-v8a/*.so" -d /tmp/mpv-arm64-extract
+          cp /tmp/mpv-arm64-extract/lib/arm64-v8a/*.so "$JNILIBS_DIR/arm64-v8a/"
+          echo "arm64-v8a .so files:"
+          ls -la "$JNILIBS_DIR/arm64-v8a/"
+
+          # 提取 x86_64 的 .so
+          unzip -o mpv-x86_64.apk "lib/x86_64/*.so" -d /tmp/mpv-x86_64-extract
+          cp /tmp/mpv-x86_64-extract/lib/x86_64/*.so "$JNILIBS_DIR/x86_64/"
+          echo "x86_64 .so files:"
+          ls -la "$JNILIBS_DIR/x86_64/"
+
+          # 清理临时目录
+          rm -rf /tmp/mpv-arm64-extract /tmp/mpv-x86_64-extract
+
       - name: Create local.properties
         working-directory: android
         run: |
-          echo "chaquopy.buildPython=python3" > local.properties
+          # 查找 setup-python 安装的 Python 3.14 可执行文件路径
+          PYTHON_PATH=$(which python3.14 2>/dev/null || which python3 2>/dev/null || echo "python3")
+          echo "chaquopy.buildPython=$PYTHON_PATH" > local.properties
+          echo "Using Python: $PYTHON_PATH"
 
       - name: Grant execute permission for gradlew
         working-directory: android
@@ -319,13 +344,14 @@ jobs:
           fi
           ls -la "$APK"
           file "$APK"
-          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+          # 输出相对于项目根目录的路径（android/ 前缀）
+          echo "apk_path=android/$APK" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: android/${{ steps.apk.outputs.apk_path }}
+          files: ${{ steps.apk.outputs.apk_path }}
           fail_on_unmatched_files: true
           overwrite_files: true
         env:
