@@ -131,13 +131,12 @@ class MPVView @JvmOverloads constructor(
         // 这是通用配置，不是针对特定 GPU 的 workaround。
         holder.setFormat(PixelFormat.RGBA_8888)
 
-        // 让 SurfaceView 的 surface layer 在所有普通 View（包括 Compose 的
-        // AndroidComposeView）之上，避免被遮挡导致黑屏。
-        // 副作用：SurfaceView 区域内的 Compose 控件会被视频画面盖住。
-        // 当前布局（ComposeSpikeActivity）的 Compose 控件都在 SurfaceView 区域之外，
-        // 所以不会被遮挡。
-        // 注意：setZOrderOnTop 必须在 surface 创建之前（即 addCallback 之前）调用。
-        setZOrderOnTop(true)
+        // 不使用 setZOrderOnTop(true)：让 SurfaceView 用默认 Z-order（在普通 View 之下）。
+        // 这样 Compose 控制层可以显示在 SurfaceView 之上。
+        // 前提：Compose 容器不能有不透明 background，否则会遮挡视频。
+        // MainPlayerScreen 的根 Box 没有设置 background，IptvTheme 也没有用 Surface 包装，
+        // 所以 Compose 层是透明的，SurfaceView 的视频可以透过 Compose 层可见。
+        // 之前用 setZOrderOnTop(true) 会导致 SurfaceView 遮挡所有 Compose 控制层。
         holder.addCallback(this)
         observeProperties()
     }
