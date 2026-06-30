@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.SkipNext
-import androidx.compose.material.icons.automirrored.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
@@ -73,6 +73,7 @@ fun ControlPanel(viewModel: AppViewModel) {
     val videoWidth by mpv.videoWidth.collectAsState()
     val videoHeight by mpv.videoHeight.collectAsState()
     val mediaTitle by mpv.mediaTitle.collectAsState()
+    val fileLoaded by mpv.fileLoaded.collectAsState()
     val currentChannel by viewModel.currentChannel.collectAsState()
     val playbackState by viewModel.playbackState.collectAsState()
     val showExitCatchup by viewModel.showExitCatchup.collectAsState()
@@ -102,7 +103,8 @@ fun ControlPanel(viewModel: AppViewModel) {
                 mpv = mpv,
                 videoWidth = videoWidth,
                 videoHeight = videoHeight,
-                duration = duration
+                duration = duration,
+                fileLoaded = fileLoaded
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -155,14 +157,17 @@ private fun MediaBadgesRow(
     mpv: com.iptv.scanner.editor.pro.mpv.MpvController,
     videoWidth: Int,
     videoHeight: Int,
-    duration: Double
+    duration: Double,
+    fileLoaded: Boolean
 ) {
-    // 从 mpv 实时读取属性（非 StateFlow，每次重组都重新读取）
-    val videoCodec = remember { mpv.getPropertyString("track-list/0/codec") ?: "" }
-    val audioCodec = remember { mpv.getPropertyString("track-list/1/codec") ?: "" }
-    val hwdec = remember { mpv.getPropertyString("hwdec-current") ?: "" }
-    val fps = remember { mpv.getPropertyDouble("container-fps") ?: mpv.getPropertyDouble("estimated-vf-fps") ?: 0.0 }
-    val gamma = remember { mpv.getPropertyString("video-params/gamma") ?: "" }
+    // 从 mpv 实时读取属性（非 StateFlow，用 fileLoaded 作为 key 确保文件加载后才读取）
+    val videoCodec = remember(fileLoaded) { mpv.getPropertyString("track-list/0/codec") ?: "" }
+    val audioCodec = remember(fileLoaded) { mpv.getPropertyString("track-list/1/codec") ?: "" }
+    val hwdec = remember(fileLoaded) { mpv.getPropertyString("hwdec-current") ?: "" }
+    val fps = remember(fileLoaded) {
+        mpv.getPropertyDouble("container-fps") ?: mpv.getPropertyDouble("estimated-vf-fps") ?: 0.0
+    }
+    val gamma = remember(fileLoaded) { mpv.getPropertyString("video-params/gamma") ?: "" }
     val isHdr = gamma == "pq" || gamma == "hlg"
 
     val videoInfo = buildString {
@@ -383,7 +388,7 @@ private fun ControlButtonsRow(
     ) {
         // 左侧：频道切换 + 播放控制
         IconButton(onClick = onPrev, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.AutoMirrored.Filled.SkipPrevious, contentDescription = "上一频道", tint = Color.White)
+            Icon(Icons.Default.SkipPrevious, contentDescription = "上一频道", tint = Color.White)
         }
 
         IconButton(onClick = onPlayPause, modifier = Modifier.size(40.dp)) {
@@ -400,7 +405,7 @@ private fun ControlButtonsRow(
         }
 
         IconButton(onClick = onNext, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.AutoMirrored.Filled.SkipNext, contentDescription = "下一频道", tint = Color.White)
+            Icon(Icons.Default.SkipNext, contentDescription = "下一频道", tint = Color.White)
         }
 
         Spacer(modifier = Modifier.width(8.dp))

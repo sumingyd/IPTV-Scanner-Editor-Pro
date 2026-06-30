@@ -313,7 +313,8 @@ private fun OsdView(
         color = Color(0xE6000000),
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier
-            .padding(top = 56.dp, horizontal = 16.dp)
+            .padding(top = 56.dp)
+            .padding(horizontal = 16.dp)
     ) {
         Column(
             modifier = Modifier

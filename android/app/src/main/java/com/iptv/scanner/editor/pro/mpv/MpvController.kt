@@ -365,11 +365,15 @@ class MpvController : MPVLib.EventObserver {
     fun setPropertyBoolean(name: String, value: Boolean) =
         postOnUiThread { MPVLib.setPropertyBoolean(name, value) }
 
-    /** 同步读取属性（在调用线程执行，注意 mpv 线程安全） */
-    fun getPropertyString(name: String): String? = MPVLib.getPropertyString(name)
-    fun getPropertyInt(name: String): Int? = MPVLib.getPropertyInt(name)
-    fun getPropertyDouble(name: String): Double? = MPVLib.getPropertyDouble(name)
-    fun getPropertyBoolean(name: String): Boolean? = MPVLib.getPropertyBoolean(name)
+    /** 同步读取属性（在调用线程执行，注意 mpv 线程安全）。libmpv 未初始化时返回 null，避免 native 崩溃。 */
+    fun getPropertyString(name: String): String? =
+        if (mpvView != null) MPVLib.getPropertyString(name) else null
+    fun getPropertyInt(name: String): Int? =
+        if (mpvView != null) MPVLib.getPropertyInt(name) else null
+    fun getPropertyDouble(name: String): Double? =
+        if (mpvView != null) MPVLib.getPropertyDouble(name) else null
+    fun getPropertyBoolean(name: String): Boolean? =
+        if (mpvView != null) MPVLib.getPropertyBoolean(name) else null
 
     fun command(args: Array<String>) = postOnUiThread { MPVLib.command(args) }
 
