@@ -3481,6 +3481,26 @@ class AppStyles:
         """
 
     @staticmethod
+    def url_range_input_style() -> str:
+        """URL 范围输入框样式（QPlainTextEdit 版本，支持长 URL 多行显示）"""
+        colors = AppStyles._get_colors()
+        ff = AppStyles._get_style_font_family()
+        inp_dec = AppStyles._style_input_decoration(colors)
+        inp_focus = AppStyles._style_input_decoration(colors, focus=True)
+        return f"""
+            QPlainTextEdit {{
+                color: {colors['window_text']};
+                {inp_dec}
+                padding: 4px 6px;
+                font-size: 12px;
+                font-family: {ff};
+            }}
+            QPlainTextEdit:focus {{
+                {inp_focus}
+            }}
+        """
+
+    @staticmethod
     def table_style() -> str:
         return AppStyles.list_style()
 

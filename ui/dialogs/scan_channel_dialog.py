@@ -35,7 +35,108 @@ class _HomeOnFocusOut(QtCore.QObject):
         if event.type() == QtCore.QEvent.Type.FocusOut:
             if isinstance(obj, QtWidgets.QLineEdit):
                 obj.setCursorPosition(0)
+            elif isinstance(obj, QtWidgets.QPlainTextEdit):
+                cursor = obj.textCursor()
+                cursor.movePosition(QtGui.QTextCursor.MoveOperation.Start)
+                obj.setTextCursor(cursor)
         return False
+
+
+class UrlRangeInputWidget(QtWidgets.QWidget):
+    """URL 范围输入组件：多行文本编辑 + 历史下拉。
+
+    替代 QComboBox，支持长 URL 自动换行显示，方便查看和修改。
+    兼容 QComboBox 的常用 API：currentText/setCurrentText/addItems/clear/count/itemText。
+    兼容 QLineEdit 的 editingFinished 信号和 setCursorPosition。
+    """
+
+    editingFinished = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._history = []  # 历史 URL 列表
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.text_edit = QtWidgets.QPlainTextEdit()
+        self.text_edit.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        layout.addWidget(self.text_edit)
+
+        self._dropdown_btn = QtWidgets.QToolButton()
+        self._dropdown_btn.setArrowType(QtCore.Qt.ArrowType.DownArrow)
+        self._dropdown_btn.setFixedWidth(22)
+        self._dropdown_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._dropdown_btn.clicked.connect(self._show_history_popup)
+        layout.addWidget(self._dropdown_btn)
+
+        # 代理 editingFinished：焦点丢失或 Ctrl+Enter 时触发
+        self.text_edit.focusOutEvent = self._on_focus_out
+
+    def _on_focus_out(self, event):
+        self.editingFinished.emit()
+        # 调用原始 focusOutEvent
+        QtWidgets.QPlainTextEdit.focusOutEvent(self.text_edit, event)
+
+    def keyPressEvent(self, event):
+        # Ctrl+Enter 触发 editingFinished（方便用户确认输入完成）
+        if event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier and event.key() in (QtCore.Qt.Key.Key_Return, QtCore.Qt.Key.Key_Enter):
+            self.editingFinished.emit()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
+    # ---- QComboBox 兼容 API ----
+    def currentText(self) -> str:
+        return self.text_edit.toPlainText().strip()
+
+    def setCurrentText(self, text: str):
+        self.text_edit.setPlainText(text)
+        self.setCursorPosition(0)
+
+    def addItems(self, items):
+        for item in items:
+            if item and item not in self._history:
+                self._history.append(item)
+
+    def clear(self):
+        self._history.clear()
+        self.text_edit.clear()
+
+    def count(self) -> int:
+        return len(self._history)
+
+    def itemText(self, i: int) -> str:
+        return self._history[i] if 0 <= i < len(self._history) else ""
+
+    # ---- QLineEdit 兼容 API ----
+    def setCursorPosition(self, pos: int):
+        cursor = self.text_edit.textCursor()
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.Start)
+        self.text_edit.setTextCursor(cursor)
+
+    def setStyleSheet(self, style: str):
+        self.text_edit.setStyleSheet(style)
+
+    # ---- 历史下拉 ----
+    def _show_history_popup(self):
+        if not self._history:
+            return
+        menu = QtWidgets.QMenu(self)
+        for url in self._history[-50:]:  # 最多显示 50 条
+            action = menu.addAction(url if len(url) <= 120 else url[:117] + "...")
+            action.setToolTip(url)
+            action.triggered.connect(lambda checked, u=url: self._on_history_selected(u))
+        btn_rect = self._dropdown_btn.rect()
+        menu.exec(self._dropdown_btn.mapToGlobal(QtCore.QPoint(0, btn_rect.height())))
+        menu.deleteLater()
+
+    def _on_history_selected(self, url: str):
+        self.text_edit.setPlainText(url)
+        self.setCursorPosition(0)
+        self.editingFinished.emit()
 
 
 class ScanChannelDialog(FloatingDialog):
@@ -330,7 +431,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _connect_input_signals(self):
         """在_load_config加载完所有值后，再连接输入控件的保存信号"""
-        self.ip_range_input.lineEdit().editingFinished.connect(self._save_network_settings)
+        self.ip_range_input.editingFinished.connect(self._save_network_settings)
         self.user_agent_input.editingFinished.connect(self._save_network_settings)
         self.referer_input.editingFinished.connect(self._save_network_settings)
         self.timeout_input.editingFinished.connect(self._save_network_settings)
@@ -385,15 +486,9 @@ class ScanChannelDialog(FloatingDialog):
 
     def _setup_scan_inputs(self):
         """设置扫描输入控件"""
-        self.ip_range_input = QtWidgets.QComboBox()
-        self.ip_range_input.setEditable(True)
-        self.ip_range_input.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
+        self.ip_range_input = UrlRangeInputWidget()
         self.ip_range_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
-        self.ip_range_input.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToContents)
-        self.ip_range_input.setMinimumContentsLength(20)
-        self.ip_range_input.completer().setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
-        self.ip_range_input.setFixedHeight(34)
-        self.ip_range_input.lineEdit().installEventFilter(self._home_on_focus_out)
+        self.ip_range_input.text_edit.installEventFilter(self._home_on_focus_out)
 
         self._setup_user_agent_input()
 
@@ -710,8 +805,8 @@ class ScanChannelDialog(FloatingDialog):
         address_example_label.setMinimumHeight(40)
 
         address_section.addWidget(address_example_label)
-        self.ip_range_input.setMinimumHeight(32)
-        self.ip_range_input.setStyleSheet(AppStyles.url_combo_style())
+        self.ip_range_input.setMinimumHeight(72)
+        self.ip_range_input.text_edit.setStyleSheet(AppStyles.url_range_input_style())
         address_section.addWidget(self.ip_range_input)
 
         scan_layout.addLayout(address_section)
@@ -2014,9 +2109,7 @@ class ScanChannelDialog(FloatingDialog):
                        getattr(self, 'edit_url', None), getattr(self, 'edit_logo', None)):
             if widget and isinstance(widget, QtWidgets.QLineEdit):
                 widget.setCursorPosition(0)
-        ip_line_edit = self.ip_range_input.lineEdit()
-        if ip_line_edit:
-            ip_line_edit.setCursorPosition(0)
+        self.ip_range_input.setCursorPosition(0)
 
     def _register_config_observers(self):
         register_config_observer("Network.*", self._on_network_config_changed)
@@ -2029,7 +2122,7 @@ class ScanChannelDialog(FloatingDialog):
 
         if key == 'url':
             self.ip_range_input.setCurrentText(new_value)
-            self.ip_range_input.lineEdit().setCursorPosition(0)
+            self.ip_range_input.setCursorPosition(0)
         elif key == 'user_agent':
             self.user_agent_input.setText(new_value)
             self.user_agent_input.setCursorPosition(0)
@@ -2988,7 +3081,7 @@ class ScanChannelDialog(FloatingDialog):
                 if hasattr(edit, 'setStyleSheet'):
                     edit.setStyleSheet(AppStyles.common_line_edit_style())
             if hasattr(self, 'ip_range_input'):
-                self.ip_range_input.setStyleSheet(AppStyles.url_combo_style())
+                self.ip_range_input.text_edit.setStyleSheet(AppStyles.url_range_input_style())
             if hasattr(self, 'address_example_label'):
                 self.address_example_label.setStyleSheet(AppStyles.hint_label_style())
             if hasattr(self, 'user_agent_label'):
