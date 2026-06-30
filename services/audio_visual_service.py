@@ -46,6 +46,10 @@ AUDIO_VISUAL_STYLES = {
         'name_key': 'audio_vis_ripple',
         'name_default': '粒子震荡洞洞波',
     },
+    'galaxy': {
+        'name_key': 'audio_vis_galaxy',
+        'name_default': '银河轨道',
+    },
     'none': {
         'name_key': 'audio_vis_none',
         'name_default': '关闭可视化',
@@ -212,6 +216,15 @@ def _project_3d(x, y, z, w, h, cam_dist=8.0, fov_scale=0.1, pitch=0.45, yaw=0.0)
     return sx, sy, depth, scale
 
 
+def _galaxy_rand(seed):
+    """确定性伪随机：基于种子的稳定哈希，保证粒子初始化不随帧抖动。
+
+    与 Mineradio wallpaper.html 中的 rand(seed) 完全一致：
+    Math.abs(Math.sin(seed * 3187.917) * 43758.5453) % 1
+    """
+    return abs(math.sin(seed * 3187.917) * 43758.5453) % 1.0
+
+
 class AudioVisualWidget(QWidget):
     def __init__(self, parent=None, player_controller=None):
         super().__init__(parent)
@@ -226,6 +239,7 @@ class AudioVisualWidget(QWidget):
         self._wave_left = np.zeros(512)
         self._wave_right = np.zeros(512)
         self._cover_pixmap = None
+        self._cover_blurred_pixmap = None  # 预计算的模糊封面（用于光晕渲染，缓存避免每帧重算）
         self._frame_count = 0
 
         self._cosmos_bg_stars = []
@@ -250,6 +264,14 @@ class AudioVisualWidget(QWidget):
         self._ripple_trail_particles = []
         self._ripple_bg_particles = []
         self._ripple_hue = 200.0
+        # galaxy 银河轨道状态：椭圆轨道粒子 + 闪烁 + 节奏触发
+        self._galaxy_particles = []
+        self._galaxy_beat_particles = []
+        self._galaxy_hue = 200.0
+        self._galaxy_time = 0.0
+        self._galaxy_beat_cooldown = 0.0
+        self._galaxy_prev_energy = 0.0
+        self._galaxy_energy_history = []
         self._bar_colors = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 230, 255) for i in range(NUM_BARS)]
         self._bar_colors_dim = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 180, 80) for i in range(NUM_BARS)]
         self._bar_colors_peak = [QColor.fromHsv(int(200 + i * 160 / NUM_BARS) % 360, 160, 255) for i in range(NUM_BARS)]
@@ -304,6 +326,15 @@ class AudioVisualWidget(QWidget):
             self._ripple_trail_particles = []
             self._ripple_bg_particles = []
             self._ripple_hue = 200.0
+        elif style_key == 'galaxy':
+            # 银河轨道：椭圆轨道粒子 + 节奏触发扩散粒子
+            self._galaxy_particles = []
+            self._galaxy_beat_particles = []
+            self._galaxy_hue = 200.0
+            self._galaxy_time = 0.0
+            self._galaxy_beat_cooldown = 0.0
+            self._galaxy_prev_energy = 0.0
+            self._galaxy_energy_history = []
         self._peak_bars = np.zeros(NUM_BARS)
         self._peak_decay = np.zeros(NUM_BARS, dtype=np.int32)
         self._smooth_bars = np.zeros(NUM_BARS)
@@ -341,6 +372,15 @@ class AudioVisualWidget(QWidget):
 
     def set_cover(self, pixmap):
         self._cover_pixmap = pixmap
+        # 预计算模糊封面：先缩小到 1/10 再放大回原尺寸，利用双线性插值实现平滑模糊
+        # 对应 Mineradio wallpaper.html 中的 ctx.filter = 'blur(28px) saturate(1.25)'
+        if pixmap is not None and not pixmap.isNull() and pixmap.width() > 0 and pixmap.height() > 0:
+            small_w = max(1, pixmap.width() // 10)
+            small_h = max(1, pixmap.height() // 10)
+            small = pixmap.scaled(small_w, small_h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self._cover_blurred_pixmap = small.scaled(pixmap.width(), pixmap.height(), Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        else:
+            self._cover_blurred_pixmap = None
 
     def _tick(self):
         if not self._active:
@@ -381,7 +421,7 @@ class AudioVisualWidget(QWidget):
 
     def _update_data(self):
         self._frame_count += 1
-        needs_bars = self._style in ('spectrum', 'circular', 'terrain', 'cosmos', 'fluid', 'ripple')
+        needs_bars = self._style in ('spectrum', 'circular', 'terrain', 'cosmos', 'fluid', 'ripple', 'galaxy')
         if needs_bars:
             samples = self._pcm.get_samples(FFT_SIZE)
             self._bars = compute_spectrum(samples, FFT_SIZE, NUM_BARS)
@@ -406,6 +446,8 @@ class AudioVisualWidget(QWidget):
             self._spectrum_angle += 0.003
         if self._style == 'ripple':
             self._update_ripple()
+        if self._style == 'galaxy':
+            self._update_galaxy()
 
 
     def _update_cosmos(self):
@@ -615,6 +657,77 @@ class AudioVisualWidget(QWidget):
             trail_alive = trail_alive[-1500:]
         self._ripple_trail_particles = trail_alive
 
+    def _update_galaxy(self):
+        """银河轨道：椭圆轨道粒子 + 闪烁色循环 + 节奏触发扩散环。
+
+        移植自 Mineradio wallpaper.html 的椭圆轨道粒子系统：
+        - 粒子分布在多层椭圆环上，按各自速度沿轨道运行
+        - 闪烁强度 = (0.5 + 0.5*sin(t*freq + seed))^4，决定亮度与颜色（暖黄高亮/翠绿次级/冷青光晕）
+        - 节奏触发时从中心发射扩散环粒子（sin 曲线先扩散后收缩）
+        """
+        w = self.width()
+        h = self.height()
+        if w <= 0 or h <= 0:
+            return
+        bass = float(np.mean(self._bars[:8]))
+        mid = float(np.mean(self._bars[8:30]))
+        high = float(np.mean(self._bars[30:]))
+        energy = bass + mid + high
+        self._galaxy_time += 1 / 60.0
+        self._galaxy_hue = (self._galaxy_hue + 0.3 + mid * 0.6) % 360
+        # 自适应粒子数量：根据屏幕面积（与 Mineradio wallpaper 同算法）
+        target = min(760, max(420, int((w * h) / 4200)))
+        while len(self._galaxy_particles) < target:
+            i = len(self._galaxy_particles) + 1
+            self._galaxy_particles.append({
+                'seed': i * 11.37,
+                'phase': _galaxy_rand(i) * math.tau,
+                'lane': _galaxy_rand(i * 2.7),
+                'z': _galaxy_rand(i * 5.9),
+                'size': 0.6 + _galaxy_rand(i * 4.2) * 2.4,
+                'twinkle_freq': 0.50 + _galaxy_rand(i * 9.1) * 0.42,
+                'wobble_freq': 0.22 + _galaxy_rand(i * 8.5) * 0.18,
+                'speed_base': 0.009 + _galaxy_rand(i * 3.1) * 0.021,
+                'y_skew': 1.0 + _galaxy_rand(i * 6.4) * 0.16,
+            })
+        if len(self._galaxy_particles) > target + 80:
+            self._galaxy_particles = self._galaxy_particles[:target + 80]
+        # 更新轨道相位（节奏驱动加速）
+        speed_boost = energy * 0.010
+        for p in self._galaxy_particles:
+            p['phase'] = (p['phase'] + p['speed_base'] + speed_boost) % math.tau
+        # 节奏检测：动态阈值（与 ripple 同思路，无节奏时不发射扩散环）
+        self._galaxy_beat_cooldown -= 1 / 60.0
+        self._galaxy_energy_history.append(energy)
+        if len(self._galaxy_energy_history) > 30:
+            self._galaxy_energy_history.pop(0)
+        avg_energy = sum(self._galaxy_energy_history) / max(1, len(self._galaxy_energy_history))
+        beat_strength = energy - avg_energy
+        if beat_strength > 0.08 and energy > 0.15 and self._galaxy_beat_cooldown <= 0:
+            num_burst = int(24 + beat_strength * 60)
+            base_hue = int(self._galaxy_hue) % 360
+            max_r = 0.4 + beat_strength * 0.8
+            for _ in range(num_burst):
+                self._galaxy_beat_particles.append({
+                    'angle': random.uniform(0, math.tau),
+                    'max_r': max_r * random.uniform(0.85, 1.15),
+                    'age': 0.0,
+                    'max_age': random.uniform(0.8, 1.4),
+                    'hue': (base_hue + random.randint(-20, 20)) % 360,
+                    'size_factor': random.uniform(0.8, 1.4),
+                })
+            self._galaxy_beat_cooldown = 0.12
+        # 更新节奏扩散粒子年龄
+        alive = []
+        for p in self._galaxy_beat_particles:
+            p['age'] += 1 / 60.0
+            if p['age'] < p['max_age']:
+                alive.append(p)
+        if len(alive) > 1500:
+            alive = alive[-1500:]
+        self._galaxy_beat_particles = alive
+        self._galaxy_prev_energy = energy
+
     def paintEvent(self, event):
         if not self._active:
             return
@@ -627,12 +740,28 @@ class AudioVisualWidget(QWidget):
 
         painter.fillRect(0, 0, w, h, QColor(5, 5, 10))
 
+        # 封面光晕：Mineradio wallpaper.html 同款两层渲染
+        # Layer 1: 模糊封面放大 1.24x 作为光晕 halo（低透明度）
+        # Layer 2: 原始封面居中显示（稍高透明度）
+        # 配合 sin 函数实现轻微脉动与上下浮动
         if self._cover_pixmap and not self._cover_pixmap.isNull():
-            painter.setOpacity(0.06)
-            scaled = self._cover_pixmap.scaled(w, h, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
-            x = (w - scaled.width()) // 2
-            y = (h - scaled.height()) // 2
-            painter.drawPixmap(x, y, scaled)
+            now = self._frame_count / 60.0
+            side = min(w, h) * (0.42 + math.sin(now * 0.21) * 0.012)
+            cover_w = side
+            cover_h = side
+            cx = w / 2
+            cy_cover = h / 2 + math.sin(now * 0.37) * 8
+            x = cx - cover_w / 2
+            y = cy_cover - cover_h / 2
+            # Layer 1: 模糊光晕（放大 1.24x，透明度 0.16）
+            if self._cover_blurred_pixmap and not self._cover_blurred_pixmap.isNull():
+                painter.setOpacity(0.16)
+                halo_w = cover_w * 1.24
+                halo_h = cover_h * 1.24
+                painter.drawPixmap(QRectF(x - halo_w * 0.12, y - halo_h * 0.12, halo_w, halo_h), self._cover_blurred_pixmap, QRectF(0, 0, self._cover_blurred_pixmap.width(), self._cover_blurred_pixmap.height()))
+            # Layer 2: 原始封面（透明度 0.20）
+            painter.setOpacity(0.20)
+            painter.drawPixmap(QRectF(x, y, cover_w, cover_h), self._cover_pixmap, QRectF(0, 0, self._cover_pixmap.width(), self._cover_pixmap.height()))
             painter.setOpacity(1.0)
 
         style_map = {
@@ -643,6 +772,7 @@ class AudioVisualWidget(QWidget):
             'cosmos': self._paint_cosmos,
             'fluid': self._paint_fluid,
             'ripple': self._paint_ripple,
+            'galaxy': self._paint_galaxy,
         }
         paint_fn = style_map.get(self._style, self._paint_spectrum)
         painter.setOpacity(self._fade_alpha)
@@ -1374,6 +1504,91 @@ class AudioVisualWidget(QWidget):
         core_grad.setColorAt(1, QColor(20, 30, 80, 0))
         painter.setBrush(QBrush(core_grad))
         painter.drawEllipse(QRectF(core_sx - core_r * 6, core_sy - core_r * 6, core_r * 12, core_r * 12))
+
+    def _paint_galaxy(self, painter, w, h):
+        """银河轨道：椭圆轨道粒子 + 闪烁色循环 + 节奏扩散环 + 中心光晕。
+
+        渲染分层：
+        1. 中心径向光晕（暖黄高亮 + 翠绿次级，bass 驱动亮度）
+        2. 椭圆轨道粒子（Plus 复合模式叠加发光，闪烁决定颜色与亮度）
+        3. 节奏触发扩散环（sin 曲线先扩散后收缩）
+        颜色调色板与 Mineradio wallpaper.html 一致：
+          primary #d6f8ff 冷青 / secondary #9cffdf 翠绿 / highlight #fff0b8 暖黄
+        """
+        bars = self._smooth_bars
+        bass = float(np.mean(bars[:8]))
+        mid = float(np.mean(bars[8:30]))
+        high = float(np.mean(bars[30:]))
+        cx = w / 2
+        # 中心点带轻微上下浮动（呼吸感）
+        cy = h / 2 + math.sin(self._galaxy_time * 0.28) * h * 0.018
+        rx = w * 0.40
+        ry = h * 0.30
+        now = self._galaxy_time
+        # 颜色调色板（Mineradio wallpaper 同款）
+        highlight = QColor(255, 240, 184)   # #fff0b8 暖黄
+        secondary = QColor(156, 255, 223)   # #9cffdf 翠绿
+        glow = QColor(156, 255, 223)        # 同 secondary
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        # 1. 中心径向光晕（bass 驱动亮度）
+        aura_radius = max(w, h) * 0.54
+        aura = QRadialGradient(cx, cy, aura_radius)
+        aura_alpha_core = int(30 + bass * 80)
+        aura_alpha_mid = int(20 + mid * 30)
+        aura.setColorAt(0, QColor(highlight.red(), highlight.green(), highlight.blue(), aura_alpha_core))
+        aura.setColorAt(0.34, QColor(secondary.red(), secondary.green(), secondary.blue(), aura_alpha_mid))
+        aura.setColorAt(1, QColor(0, 0, 0, 0))
+        painter.setBrush(QBrush(aura))
+        painter.drawRect(QRectF(0, 0, w, h))
+
+        # 2. 椭圆轨道粒子（Plus 复合模式叠加发光）
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Plus)
+        for p in self._galaxy_particles:
+            seed = p['seed']
+            angle = (p['phase'] + math.sin(now * 0.07 + seed) * 0.14) % math.tau
+            ring = 0.18 + p['z'] * 0.82
+            wobble = math.sin(now * p['wobble_freq'] + seed) * 12
+            x = cx + math.cos(angle) * rx * ring + math.sin(now * 0.11 + seed) * 24
+            y = cy + math.sin(angle * p['y_skew']) * ry * ring + wobble
+            tw = (0.5 + 0.5 * math.sin(now * p['twinkle_freq'] + seed)) ** 4
+            r = max(0.7, p['size'] * (0.8 + tw * 1.2))
+            if tw > 0.74:
+                col = highlight
+            elif p['lane'] > 0.55:
+                col = secondary
+            else:
+                col = glow
+            alpha = int((0.045 + tw * 0.18 + bass * 0.035) * 255)
+            alpha = max(0, min(255, alpha))
+            if alpha < 4:
+                continue
+            grad = QRadialGradient(x, y, r * 2.2)
+            grad.setColorAt(0, QColor(255, 255, 255, min(255, int(alpha * 0.9))))
+            grad.setColorAt(0.3, QColor(col.red(), col.green(), col.blue(), alpha))
+            grad.setColorAt(1, QColor(col.red(), col.green(), col.blue(), 0))
+            painter.setBrush(QBrush(grad))
+            painter.drawEllipse(QRectF(x - r * 2.2, y - r * 2.2, r * 4.4, r * 4.4))
+
+        # 3. 节奏触发扩散环粒子（sin 曲线先扩散后收缩）
+        for p in self._galaxy_beat_particles:
+            progress = p['age'] / p['max_age']
+            r_norm = p['max_r'] * math.sin(progress * math.pi)
+            x = cx + math.cos(p['angle']) * rx * r_norm
+            y = cy + math.sin(p['angle']) * ry * r_norm
+            alpha = int(220 * (1 - progress))
+            if alpha < 5:
+                continue
+            size = max(1.0, 2.5 * p['size_factor'] * (1.0 + bass * 0.5))
+            hue = p['hue']
+            grad = QRadialGradient(x, y, size * 2)
+            grad.setColorAt(0, QColor(255, 255, 255, min(255, int(alpha * 0.85))))
+            grad.setColorAt(0.3, QColor.fromHsv(hue, 160, 255, alpha))
+            grad.setColorAt(1, QColor.fromHsv(hue, 200, 200, 0))
+            painter.setBrush(QBrush(grad))
+            painter.drawEllipse(QRectF(x - size * 2, y - size * 2, size * 4, size * 4))
+
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
 
 class AudioVisualService:
