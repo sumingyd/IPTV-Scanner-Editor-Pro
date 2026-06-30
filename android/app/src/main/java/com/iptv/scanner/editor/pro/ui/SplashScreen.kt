@@ -14,7 +14,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -37,12 +36,7 @@ fun SplashScreen(viewModel: AppViewModel) {
     val initState by viewModel.initState.collectAsState()
     val iptvStatus by viewModel.iptvStatus.collectAsState()
 
-    LaunchedEffect(Unit) {
-        // 进入 SplashScreen 时自动启动初始化
-        if (viewModel.initState.value is AppViewModel.InitState.Idle) {
-            viewModel.startInitialization()
-        }
-    }
+    // 初始化已在 AppViewModel.init 块中自动启动，这里只负责显示状态。
 
     IptvTheme {
         Box(

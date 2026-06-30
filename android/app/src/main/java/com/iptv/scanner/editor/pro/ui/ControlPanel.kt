@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -79,11 +81,19 @@ fun ControlPanel(viewModel: AppViewModel) {
     val showExitCatchup by viewModel.showExitCatchup.collectAsState()
     val currentProgram = remember { mutableStateOf<com.iptv.scanner.editor.pro.data.IptvEpgProgram?>(null) }
 
-    // 周期刷新：当前节目 + 媒体徽章数据
+    // 周期刷新：当前节目（2 秒）+ 媒体徽章数据（1 秒，对齐 PC 端 updateCtrlInfo 频率）
+    var mediaBadgeTick by remember { mutableStateOf(0L) }
     LaunchedEffect(Unit) {
         while (true) {
             currentProgram.value = viewModel.getCurrentProgram()
             delay(2_000L)
+        }
+    }
+    LaunchedEffect(fileLoaded) {
+        // 文件加载后才需要刷新媒体徽章（码率/缓冲等动态值）
+        while (fileLoaded) {
+            mediaBadgeTick = System.currentTimeMillis()
+            delay(1_000L)
         }
     }
 
@@ -97,14 +107,14 @@ fun ControlPanel(viewModel: AppViewModel) {
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             // -----------------------------------------------------------------
-            // 第 1 行：媒体信息徽章
+            // 第 1 行：媒体信息徽章（对齐 PC 端 updateMediaBadges：5 徽章 13 字段）
             // -----------------------------------------------------------------
             MediaBadgesRow(
                 mpv = mpv,
                 videoWidth = videoWidth,
                 videoHeight = videoHeight,
-                duration = duration,
-                fileLoaded = fileLoaded
+                fileLoaded = fileLoaded,
+                tick = mediaBadgeTick
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -149,53 +159,139 @@ fun ControlPanel(viewModel: AppViewModel) {
 }
 
 // -----------------------------------------------------------------
-// 第 1 行：媒体信息徽章
+// 第 1 行：媒体信息徽章（对齐 PC 端 updateMediaBadges：5 徽章 13 字段）
 // -----------------------------------------------------------------
 
+/**
+ * 媒体信息徽章行：与 PC 端 server/mobile/index.html updateMediaBadges() 完全对齐。
+ *
+ * 5 个徽章（颜色对齐 PC 端 ctrl-badge 样式）：
+ * 1. 视频徽章：硬件解码 + 视频编解码器 + 分辨率 + 帧率 + 视频码率（灰色）
+ * 2. HDR 徽章：HDR10 / HLG（橙色）
+ * 3. 音频徽章：音频编解码器 + 声道 + 采样率 + 码率（灰色）
+ * 4. 网络徽章：格式 + 协议 + 总码率 + 缓存速度（灰色）
+ * 5. 缓冲徽章：缓冲百分比（绿色，仅缓冲中显示）
+ *
+ * 用 FlowRow 自动换行，适配手机窄屏和 TV 宽屏。
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MediaBadgesRow(
     mpv: com.iptv.scanner.editor.pro.mpv.MpvController,
     videoWidth: Int,
     videoHeight: Int,
-    duration: Double,
-    fileLoaded: Boolean
+    fileLoaded: Boolean,
+    tick: Long
 ) {
-    // 从 mpv 实时读取属性（非 StateFlow，用 fileLoaded 作为 key 确保文件加载后才读取）
-    val videoCodec = remember(fileLoaded) { mpv.getPropertyString("track-list/0/codec") ?: "" }
-    val audioCodec = remember(fileLoaded) { mpv.getPropertyString("track-list/1/codec") ?: "" }
-    val hwdec = remember(fileLoaded) { mpv.getPropertyString("hwdec-current") ?: "" }
-    val fps = remember(fileLoaded) {
+    if (!fileLoaded) return
+
+    // 从 mpv 实时读取属性（用 tick + fileLoaded 作为 key，每秒刷新动态值如码率/缓冲）
+    val videoCodec = remember(tick, fileLoaded) { mpv.getPropertyString("video-codec") ?: "" }
+    val audioCodec = remember(tick, fileLoaded) { mpv.getPropertyString("audio-codec") ?: "" }
+    val hwdec = remember(tick, fileLoaded) { mpv.getPropertyString("hwdec-current") ?: "" }
+    val fps = remember(tick, fileLoaded) {
         mpv.getPropertyDouble("container-fps") ?: mpv.getPropertyDouble("estimated-vf-fps") ?: 0.0
     }
-    val gamma = remember(fileLoaded) { mpv.getPropertyString("video-params/gamma") ?: "" }
+    val gamma = remember(tick, fileLoaded) { mpv.getPropertyString("video-params/gamma") ?: "" }
     val isHdr = gamma == "pq" || gamma == "hlg"
 
+    // 新增字段（对齐 PC 端）
+    val videoBitrate = remember(tick, fileLoaded) { mpv.getPropertyDouble("video-bitrate") ?: 0.0 }
+    // 注意：用 channel-count 而非 channels。
+    // mpv-android 不支持用 INT64 读取 audio-params/channels（PC 端桌面版支持，会自动转换 "stereo"->2）。
+    // channels 是字符串（如 "stereo"/"mono"/"5.1"），channel-count 是 int。
+    val audioChannels = remember(tick, fileLoaded) { mpv.getPropertyInt("audio-params/channel-count") ?: 0 }
+    val audioSamplerate = remember(tick, fileLoaded) { mpv.getPropertyInt("audio-params/samplerate") ?: 0 }
+    val audioBitrate = remember(tick, fileLoaded) { mpv.getPropertyDouble("audio-bitrate") ?: 0.0 }
+    val fileFormat = remember(tick, fileLoaded) { mpv.getPropertyString("file-format") ?: "" }
+    val protocol = remember(tick, fileLoaded) { mpv.getPropertyString("protocol") ?: "" }
+    val cacheDuration = remember(tick, fileLoaded) { mpv.getPropertyDouble("demuxer-cache-duration") ?: 0.0 }
+    val demuxerBitrate = remember(tick, fileLoaded) { mpv.getPropertyDouble("demuxer-bitrate") ?: 0.0 }
+    val bufferingState = remember(tick, fileLoaded) { mpv.getPropertyInt("cache-buffering-state") ?: -1 }
+
+    // 视频徽章（对齐 PC 端 ctrlVideoInfo）
     val videoInfo = buildString {
-        if (hwdec.isNotEmpty()) append("硬件解码: $hwdec | ")
+        if (hwdec.isNotEmpty() && hwdec != "no") append("硬件解码: $hwdec | ")
         if (videoCodec.isNotEmpty()) append("视频: $videoCodec | ")
         if (videoWidth > 0 && videoHeight > 0) append("分辨率: ${videoWidth}x${videoHeight} | ")
-        if (fps > 0) append("帧率: ${"%.1f".format(fps)}fps")
+        if (fps > 0) append("帧率: ${"%.0f".format(fps)}fps | ")
+        if (videoBitrate > 0) append("视频码率: ${formatBitrate(videoBitrate)}")
     }.trimEnd(' ', '|', ' ')
 
+    // 音频徽章（对齐 PC 端 ctrlAudioInfo）
     val audioInfo = buildString {
-        if (audioCodec.isNotEmpty()) append("音频: $audioCodec")
+        if (audioCodec.isNotEmpty()) append("音频: $audioCodec | ")
+        if (audioChannels > 0) {
+            val ch = when (audioChannels) {
+                1 -> "单声道"
+                2 -> "立体声"
+                6 -> "5.1声道"
+                8 -> "7.1声道"
+                else -> "${audioChannels}声道"
+            }
+            append("声道: $ch | ")
+        }
+        if (audioSamplerate > 0) {
+            val sr = if (audioSamplerate >= 1000) {
+                "${"%.1f".format(audioSamplerate / 1000.0)}kHz"
+            } else {
+                "${audioSamplerate}Hz"
+            }
+            append("采样率: $sr | ")
+        }
+        if (audioBitrate > 0) append("码率: ${formatBitrate(audioBitrate)}")
     }.trimEnd(' ', '|', ' ')
 
-    if (videoInfo.isEmpty() && audioInfo.isEmpty() && !isHdr) return
+    // 网络徽章（对齐 PC 端 ctrlNetworkInfo）
+    val networkInfo = buildString {
+        if (fileFormat.isNotEmpty()) append("格式: $fileFormat | ")
+        if (protocol.isNotEmpty()) append("协议: $protocol | ")
+        val totalBr = videoBitrate + audioBitrate
+        if (totalBr > 0) {
+            append("码率: ${formatBitrate(totalBr)} | ")
+        } else if (demuxerBitrate > 0) {
+            append("码率: ${formatBitrate(demuxerBitrate)} | ")
+        }
+        if (cacheDuration > 0) append("缓存: ${"%.1f".format(cacheDuration)}s")
+    }.trimEnd(' ', '|', ' ')
 
-    Row(
+    if (videoInfo.isEmpty() && audioInfo.isEmpty() && networkInfo.isEmpty() && !isHdr && bufferingState < 0) return
+
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         if (videoInfo.isNotEmpty()) {
-            Badge(text = videoInfo, color = Color(0xFF4A9EFF))
+            Badge(text = videoInfo, color = Color(0xFFBDBDBD))
         }
         if (isHdr) {
-            Badge(text = if (gamma == "pq") "HDR10" else "HLG", color = Color(0xFFFFA500))
+            Badge(text = if (gamma == "pq") "HDR10" else "HLG", color = Color(0xFFFF9800))
         }
         if (audioInfo.isNotEmpty()) {
-            Badge(text = audioInfo, color = Color(0xFF4CAF50))
+            Badge(text = audioInfo, color = Color(0xFFBDBDBD))
         }
+        if (networkInfo.isNotEmpty()) {
+            Badge(text = networkInfo, color = Color(0xFFBDBDBD))
+        }
+        // 缓冲徽章：仅缓冲中显示（0 < bufState < 100）
+        if (bufferingState in 1..99) {
+            Badge(text = "缓冲 $bufferingState%", color = Color(0xFF4CAF50))
+        }
+    }
+}
+
+/**
+ * 码率格式化（对齐 PC 端 formatBitrate）。
+ * 输入单位：bits/sec
+ */
+private fun formatBitrate(bitrate: Double): String {
+    return if (bitrate >= 1_000_000) {
+        "${"%.1f".format(bitrate / 1_000_000)}Mbps"
+    } else if (bitrate >= 1_000) {
+        "${"%.0f".format(bitrate / 1_000)}Kbps"
+    } else {
+        "${"%.0f".format(bitrate)}bps"
     }
 }
 
@@ -335,13 +431,13 @@ private fun ProgressBar(viewModel: AppViewModel) {
 
         // 进度条
         Slider(
-            value = if (dragging) dragPercent else progressInfo.percent,
+            value = if (dragging) dragPercent else (progressInfo.percent / 100f),
             onValueChange = {
                 dragging = true
                 dragPercent = it
             },
             onValueChangeFinished = {
-                viewModel.seekProgress(dragPercent)
+                viewModel.seekProgress(dragPercent * 100f)
                 dragging = false
             },
             modifier = Modifier.weight(1f),

@@ -21,7 +21,7 @@ import java.util.TimeZone
  * - pltv：catchup_source 或将 /PLTV/ 替换为 /TVOD/ 并追加 ?playseek={start}-{end}
  *
  * 模板变量（与 PC 端 replace_catchup_variables 对齐）：
- * - `${(b)fmt}` / `${(e)fmt}` / `${(start)fmt}` / `${(end)fmt}`：花括号带前缀变量
+ * - `${(b)fmt}` / `${(e)fmt}` / `${(start)fmt}` / `${(end)fmt}`：花括号带括号前缀变量（PC 端主要格式）
  * - `${start}` / `${end}` / `${timestamp}` / `${start_utc}` / `${end_utc}` / `${start_ms}` / `${end_ms}`
  * - `${offset}` / `${duration}` / `${duration_ms}`
  * - `{start}` / `{end}` / `{timestamp}` / `{offset}`：无 $ 简单变量
@@ -182,8 +182,12 @@ object CatchupHelper {
 
         var result = url
 
-        // 1. 花括号带前缀变量：${(b|e|start|end)fmt} 或 ${(b|e|start|end)}
-        val prefixedPattern = Regex("""\$\{(b|e|start|end)(?:\}|([^}]*))\}""")
+        // 1. 花括号带括号前缀变量：${(b)fmt} / ${(e)fmt} / ${(start)fmt} / ${(end)fmt}
+        // 与 PC 端 catchup_controller.replace_braced_vars 的 regex 完全对齐：
+        //   re.finditer(r'\$\{\(' + re.escape(prefix) + r'\)([^}]+)\}', url)
+        // 注意：PC 端只匹配带括号的格式 ${(prefix)fmt}，不匹配不带括号的 ${prefix}。
+        // 不带括号的 ${start}/${end} 等是简单变量，在下面第 2 步处理（返回 unix 时间戳）。
+        val prefixedPattern = Regex("""\$\{\((b|e|start|end)\)([^}]*)\}""")
         result = prefixedPattern.replace(result) { m ->
             val prefix = m.groupValues[1]
             val fmt = m.groupValues[2].ifEmpty { "" }

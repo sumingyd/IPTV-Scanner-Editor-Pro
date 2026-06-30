@@ -2,6 +2,7 @@ package com.iptv.scanner.editor.pro.mpv
 
 import android.util.Log
 import `is`.xyz.mpv.MPVLib
+import com.iptv.scanner.editor.pro.data.UserPrefs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +35,13 @@ class MpvController : MPVLib.EventObserver {
 
     @Volatile
     private var mpvView: MPVView? = null
+
+    /**
+     * 黑屏 fallback 标志：vo=gpu 在部分 GPU（如 Mali-G76）上存在 EGL 兼容性问题导致黑屏。
+     * 检测到黑屏后自动切换到 vo=mediacodec_embed（仅 fallback 一次，避免循环）。
+     */
+    @Volatile
+    private var voFallbackTriggered = false
 
     // -----------------------------------------------------------------
     // StateFlow（Compose 可观察状态）
@@ -103,6 +111,16 @@ class MpvController : MPVLib.EventObserver {
         } catch (e: Throwable) {
             Log.w(TAG, "observeProperty failed: ${e.message}")
         }
+
+        // 播放器设置持久化：如果该设备已确认需要 vo fallback（黑屏检测曾触发过），
+        // 直接设置标志跳过本次黑屏探测。此时 MPVView 已用持久化的 mediacodec_embed 初始化，
+        // 无需再等待 2 秒黑屏。
+        // 用户可通过 resetPlayerSettings() 重置，重新走黑屏检测流程。
+        if (UserPrefs.getInstance().isVoFallbackConfirmed()) {
+            voFallbackTriggered = true
+            Log.i(TAG, "vo fallback already confirmed, skip black screen detection")
+        }
+
         Log.i(TAG, "MpvController attached to MPVView")
     }
 
@@ -120,6 +138,43 @@ class MpvController : MPVLib.EventObserver {
         _duration.value = 0.0
         _paused.value = true
         Log.i(TAG, "MpvController detached")
+    }
+
+    /**
+     * 运行时切换 vo/hwdec（用户在播放器设置面板切换时调用）。
+     *
+     * 注意：vo 是 mpv 初始化参数，运行时切换可能不立即生效。
+     * - setPropertyString("vo", ...) 会让 mpv 重新加载 vo 模块
+     * - 更新 MPVView.voInUse，确保 surface 重建时用新 vo
+     * - 重新加载当前文件触发新 vo 渲染
+     * - 如果切换不生效，用户需重启 APP（MPVView.initialize 用新 vo 创建）
+     *
+     * @param vo "gpu" 或 "mediacodec_embed"
+     * @param hwdec "auto-copy" / "mediacodec" / "no"
+     * @return 当前文件路径（用于 UI 提示），null 表示无文件在播放
+     */
+    fun setVoAndHwdec(vo: String, hwdec: String): String? {
+        postOnUiThread {
+            try {
+                MPVLib.setPropertyString("vo", vo)
+                MPVLib.setPropertyString("hwdec", hwdec)
+                mpvView?.setVoInUse(vo)
+                // 重新加载当前文件以触发新 vo 渲染
+                val path = MPVLib.getPropertyString("path")
+                if (path != null && path.isNotEmpty()) {
+                    MPVLib.command(arrayOf("loadfile", path))
+                    MPVLib.setPropertyBoolean("pause", false)
+                }
+                // 重置 voFallbackTriggered：
+                // - 切换到 gpu：重新启用黑屏检测（用户主动想测试 gpu）
+                // - 切换到 mediacodec_embed：标记已 fallback（不需要再检测）
+                voFallbackTriggered = (vo != "gpu")
+                Log.i(TAG, "setVoAndHwdec: vo=$vo, hwdec=$hwdec, voFallbackTriggered=$voFallbackTriggered")
+            } catch (e: Throwable) {
+                Log.e(TAG, "setVoAndHwdec failed", e)
+            }
+        }
+        return try { MPVLib.getPropertyString("path") } catch (e: Throwable) { null }
     }
 
     // -----------------------------------------------------------------
@@ -467,6 +522,10 @@ class MpvController : MPVLib.EventObserver {
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
                 _fileLoaded.value = true
                 _eofReached.value = false
+                // 黑屏检测：文件加载后 2 秒检查 videoWidth，若为 0 则 fallback 到 mediacodec_embed
+                // 根因：mpv 0.41.0 + Mali-G76 等部分 GPU 存在 EGL 渲染兼容性问题，
+                // vo=gpu 会导致黑屏（有声音无画面）。用 mediacodec_embed 绕过 EGL 直接渲染到 Surface。
+                scheduleBlackScreenCheck()
             }
             MPVLib.MpvEvent.MPV_EVENT_START_FILE -> {
                 _fileLoaded.value = false
@@ -480,6 +539,80 @@ class MpvController : MPVLib.EventObserver {
                 _eofReached.value = true
             }
         }
+    }
+
+    /**
+     * 黑屏检测 Runnable：3 秒后检查 videoWidth 和 estimated-vfps，若渲染没工作则触发 vo fallback。
+     *
+     * 为什么用 estimated-vfps 而非仅 videoWidth？
+     * - vo=gpu 在部分 GPU（如 Mali-G76）存在 EGL 兼容性问题，导致渲染内容不到 Surface（黑屏有声音）
+     * - 此时解码器正常工作，width/height 都有值，但渲染器没实际输出帧
+     * - estimated-vfps（mpv 基于实际渲染帧计算的显示帧率）在渲染没工作时为 0
+     * - 综合 width==0 || estimated-vfps<=0 判断黑屏更可靠
+     */
+    private val blackScreenCheckRunnable = Runnable {
+        if (voFallbackTriggered) return@Runnable
+        if (!_fileLoaded.value) return@Runnable
+
+        // 当前 vo：如果已经是 mediacodec_embed（用户手动切换或持久化的 fallback），不需要 fallback
+        val currentVo = try {
+            MPVLib.getPropertyString("vo") ?: ""
+        } catch (e: Throwable) {
+            Log.w(TAG, "getPropertyString(vo) failed", e)
+            ""
+        }
+        if (currentVo == "mediacodec_embed" || currentVo.isEmpty()) return@Runnable
+
+        // 黑屏判断：综合 videoWidth 和 estimated-vfps
+        // - videoWidth==0：解码器没工作（极端情况）
+        // - estimated-vfps<=0：渲染器没工作（EGL 兼容性问题，如 Mali-G76 vo=gpu 黑屏）
+        //   注意：width 即使黑屏也有值（解码器已解码，只是 EGL 渲染不到 Surface）
+        val videoWidth = _videoWidth.value
+        val estimatedVfps = try {
+            MPVLib.getPropertyString("estimated-vfps")?.toDoubleOrNull() ?: 0.0
+        } catch (e: Throwable) {
+            Log.w(TAG, "getPropertyString(estimated-vfps) failed", e)
+            0.0
+        }
+        Log.d(
+            TAG,
+            "blackScreenCheck: vo=$currentVo, videoWidth=$videoWidth, estimatedVfps=$estimatedVfps"
+        )
+
+        if (videoWidth == 0 || estimatedVfps <= 0.0) {
+            Log.w(
+                TAG,
+                "Black screen detected (videoWidth=$videoWidth, estimatedVfps=$estimatedVfps), fallback to mediacodec_embed"
+            )
+            voFallbackTriggered = true
+            try {
+                MPVLib.setPropertyString("vo", "mediacodec_embed")
+                MPVLib.setPropertyString("hwdec", "mediacodec")
+                // 重新加载当前文件以触发 mediacodec 渲染
+                val path = MPVLib.getPropertyString("path")
+                if (path != null && path.isNotEmpty()) {
+                    MPVLib.command(arrayOf("loadfile", path))
+                    MPVLib.setPropertyBoolean("pause", false)
+                }
+                // 持久化 fallback 结果：下次启动直接用 mediacodec_embed，跳过黑屏探测
+                val userPrefs = UserPrefs.getInstance()
+                userPrefs.setVo("mediacodec_embed")
+                userPrefs.setHwdec("mediacodec")
+                userPrefs.setVoFallbackConfirmed(true)
+                Log.i(TAG, "Switched to vo=mediacodec_embed, hwdec=mediacodec (persisted for next launch)")
+            } catch (e: Throwable) {
+                Log.e(TAG, "Fallback to mediacodec_embed failed", e)
+            }
+        }
+    }
+
+    /**
+     * 安排黑屏检测（在文件加载后 3 秒执行，给 estimated-vfps 足够时间稳定）。
+     */
+    private fun scheduleBlackScreenCheck() {
+        val view = mpvView ?: return
+        view.removeCallbacks(blackScreenCheckRunnable)
+        view.postDelayed(blackScreenCheckRunnable, 3000)
     }
 
     companion object {

@@ -80,8 +80,16 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             onOpenPlaylist = { viewModel.showOsd("打开播放列表", "功能开发中") },
             onOpenUrl = { viewModel.showOsd("打开网络流", "功能开发中") },
             onOpenLocalVideo = { viewModel.showOsd("打开本地视频", "功能开发中") },
-            onSources = { viewModel.showOsd("订阅源管理", "功能开发中") },
-            onEpgSources = { viewModel.showOsd("EPG 订阅源", "功能开发中") },
+            onSources = {
+                viewModel.setSourceTab(AppViewModel.SourceTab.PLAYLIST)
+                viewModel.toggleMenuPanel()
+                viewModel.toggleSourceManager()
+            },
+            onEpgSources = {
+                viewModel.setSourceTab(AppViewModel.SourceTab.EPG)
+                viewModel.toggleMenuPanel()
+                viewModel.toggleSourceManager()
+            },
             onMapping = { viewModel.showOsd("频道映射", "功能开发中") },
             onChannels = {
                 viewModel.toggleMenuPanel()
@@ -100,7 +108,10 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             onNetwork = { viewModel.showOsd("网络增强", "功能开发中") },
             onTools = { viewModel.showOsd("工具", "功能开发中") },
             onView = { viewModel.showOsd("视图", "功能开发中") },
-            onSettings = { viewModel.showOsd("设置", "功能开发中") },
+            onSettings = {
+                viewModel.toggleMenuPanel()
+                viewModel.togglePlayerSettings()
+            },
             onAbout = { viewModel.showOsd("关于", "功能开发中") },
             onToggleFavorite = {
                 viewModel.toggleFavorite()

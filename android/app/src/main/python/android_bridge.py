@@ -235,11 +235,14 @@ def _register_mobile_routes(app, base_dir):
                               headers={'Cache-Control':'no-cache, no-store, must-revalidate',
                                        'Pragma':'no-cache','Expires':'0'})
 
-        app.router.add_get('/admin/', _handle_admin)
-        app.router.add_get('/admin/{path:.*}', _handle_admin)
-        _log(f'admin UI registered from: {admin_dir}')
-    else:
-        _log(f'admin directory not found: {admin_dir}', 'W')
+        # create_app() 内部已调用 _register_admin_routes 注册了 /admin/ 路由
+        # 这里重复注册会抛 ValueError，用 try/except 忽略
+        try:
+            app.router.add_get('/admin/', _handle_admin)
+            app.router.add_get('/admin/{path:.*}', _handle_admin)
+            _log(f'admin UI registered from: {admin_dir}')
+        except ValueError:
+            _log('admin routes already registered by create_app(), skipping')
 
 
 # ===================================================================
@@ -531,6 +534,76 @@ def get_sources_json():
             return _err('no config')
         sources = config.load_playlist_sources() or []
         return _ok(sources)
+    except Exception as e:
+        return _err(str(e))
+
+
+def export_config():
+    """导出所有可备份的配置为 JSON 字符串。
+
+    包含：playlist_sources + epg_sources。
+    用于备份/恢复功能：导出后写入外部存储，卸载重装后可恢复。
+
+    返回 {config: {version, playlist_sources, epg_sources}}
+    """
+    try:
+        ctx = _get_ctx()
+        if ctx is None:
+            return _err('not inited')
+        config = ctx.get_config()
+        if config is None:
+            return _err('no config')
+        playlist_sources = config.load_playlist_sources() or []
+        epg_sources = config.load_epg_sources() or []
+        data = {
+            'version': 1,
+            'playlist_sources': playlist_sources,
+            'epg_sources': epg_sources,
+        }
+        return _ok(data)
+    except Exception as e:
+        return _err(str(e))
+
+
+def import_config(json_data):
+    """从 JSON 恢复配置。
+
+    恢复：playlist_sources + epg_sources，并触发 reload。
+    用于备份/恢复功能：从外部存储读取 JSON 后恢复配置。
+
+    Args:
+        json_data: JSON 字符串或 dict，包含 playlist_sources 和/或 epg_sources
+    """
+    try:
+        ctx = _get_ctx()
+        if ctx is None:
+            return _err('not inited')
+        config = ctx.get_config()
+        if config is None:
+            return _err('no config')
+        data = _json.loads(json_data) if isinstance(json_data, str) else json_data
+
+        # 恢复 playlist_sources
+        if 'playlist_sources' in data and isinstance(data['playlist_sources'], list):
+            config.save_playlist_sources(data['playlist_sources'])
+
+        # 恢复 epg_sources
+        if 'epg_sources' in data and isinstance(data['epg_sources'], list):
+            config.save_epg_sources(data['epg_sources'])
+
+        # 触发 reload 以加载频道和 EPG
+        try:
+            ctx.reload_sources()
+            _log('import_config: reload_sources triggered')
+        except Exception as e:
+            _log(f'import_config: reload_sources failed: {e}', 'W')
+        try:
+            ctx.reload_epg()
+            _log('import_config: reload_epg triggered')
+        except Exception as e:
+            _log(f'import_config: reload_epg failed: {e}', 'W')
+
+        return _ok({'ok': True})
     except Exception as e:
         return _err(str(e))
 
@@ -1013,3 +1086,136 @@ def spike_get_status_json():
 def spike_get_channels_json(limit=10):
     """spike 兼容包装，转调 get_channels_json(1, limit)"""
     return get_channels_json(1, int(limit))
+
+
+# -----------------------------------------------------------------
+# 局域网管理服务器（TV 端遥控器输入不便，手机浏览器扫码管理）
+# -----------------------------------------------------------------
+
+_admin_server_thread = None
+_admin_server_url = ''
+_admin_server_port = 0
+_admin_server_running = False
+_admin_server_error = ''
+_admin_loop = None
+
+
+def start_admin_server(port=8080):
+    """在后台线程启动 HTTP 管理服务器，返回局域网 URL。
+
+    复用 create_app() + _register_mobile_routes()，暴露 /api/ 和 /mobile/ 路由。
+    其他设备通过浏览器访问 http://<设备IP>:<port>/mobile/ 即可管理。
+    """
+    global _admin_server_thread, _admin_server_url, _admin_server_port
+    global _admin_server_running, _admin_loop, _admin_server_error
+
+    if _admin_server_running:
+        return _ok({'url': _admin_server_url, 'port': _admin_server_port, 'already_running': True})
+
+    # 重置错误状态
+    _admin_server_error = ''
+
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        _admin_server_url = f'http://{local_ip}:{port}'
+        _admin_server_port = port
+    except Exception as e:
+        return _err(f'获取局域网 IP 失败: {e}')
+
+    def _run_server():
+        global _admin_server_running, _admin_loop, _admin_server_error
+        try:
+            import asyncio
+            from server.routes import create_app
+            from aiohttp import web
+
+            app = create_app()
+            mobile_dir = _find_mobile_dir()
+            if mobile_dir:
+                _register_mobile_routes(app, mobile_dir)
+                _log(f'Admin server mobile routes from: {mobile_dir}')
+            else:
+                _log('Admin server: mobile dir not found', 'W')
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            _admin_loop = loop
+
+            async def _run():
+                runner = web.AppRunner(app)
+                await runner.setup()
+                site = web.TCPSite(runner, '0.0.0.0', port)
+                await site.start()
+                _admin_server_running = True
+                _log(f'Admin server running at {_admin_server_url}')
+                try:
+                    while True:
+                        await asyncio.sleep(3600)
+                except asyncio.CancelledError:
+                    pass
+                finally:
+                    await runner.cleanup()
+
+            loop.run_until_complete(_run())
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            # 包含 traceback 在错误信息中，方便 Kotlin 端排查（OSD 会显示，logcat 也会捕获）
+            _admin_server_error = f'{e}\n{tb}'
+            _log(f'Admin server failed: {e}\n{tb}', 'E')
+            _admin_server_running = False
+
+    _admin_server_thread = _threading.Thread(target=_run_server, daemon=True)
+    _admin_server_thread.start()
+
+    # 等待服务器启动（最多 15 秒），期间检查错误。
+    # 注意：Chaquopy 首次 import server.routes + create_app() 在 Android 上较慢
+    # （拉起 server.app → config_manager → m3u_parser 等依赖链），5 秒不够，
+    # 延长到 15 秒确保首次启动有充足时间。
+    import time as _time
+    for _ in range(30):
+        if _admin_server_running:
+            break
+        if _admin_server_error:
+            return _err(f'服务器启动失败: {_admin_server_error}')
+        _time.sleep(0.5)
+
+    if _admin_server_running:
+        return _ok({'url': _admin_server_url, 'port': port})
+    elif _admin_server_error:
+        return _err(f'服务器启动失败: {_admin_server_error}')
+    else:
+        # 超时但无错误：server 可能仍在后台继续启动（import 慢），
+        # 不要误导用户说"端口被占用"，提示稍后重试或刷新状态。
+        return _err('服务器启动较慢，可能在后台继续启动中，请稍后重试或刷新状态查看')
+
+
+def stop_admin_server():
+    """停止 HTTP 管理服务器。"""
+    global _admin_server_running, _admin_loop, _admin_server_error
+    if not _admin_server_running:
+        return _ok({'ok': True, 'was_running': False})
+
+    _admin_server_running = False
+    _admin_server_error = ''
+    if _admin_loop:
+        try:
+            _admin_loop.call_soon_threadsafe(_admin_loop.stop)
+        except Exception:
+            pass
+    _log('Admin server stopped')
+    return _ok({'ok': True, 'was_running': True})
+
+
+def get_admin_url():
+    """返回管理服务器 URL 和运行状态。"""
+    return _ok({
+        'url': _admin_server_url,
+        'running': _admin_server_running,
+        'port': _admin_server_port,
+        'error': _admin_server_error,
+    })

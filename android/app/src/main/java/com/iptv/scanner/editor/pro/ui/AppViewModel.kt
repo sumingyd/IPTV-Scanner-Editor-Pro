@@ -1,6 +1,11 @@
 package com.iptv.scanner.editor.pro.ui
 
 import android.app.Application
+import android.content.ContentValues
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -8,8 +13,10 @@ import androidx.lifecycle.viewModelScope
 import com.iptv.scanner.editor.pro.data.IptvChannel
 import com.iptv.scanner.editor.pro.data.IptvEpgList
 import com.iptv.scanner.editor.pro.data.IptvEpgProgram
+import com.iptv.scanner.editor.pro.data.IptvEpgSource
 import com.iptv.scanner.editor.pro.data.IptvGroup
 import com.iptv.scanner.editor.pro.data.IptvRepository
+import com.iptv.scanner.editor.pro.data.IptvSource
 import com.iptv.scanner.editor.pro.data.IptvStatus
 import com.iptv.scanner.editor.pro.data.UserPrefs
 import com.iptv.scanner.editor.pro.mpv.MpvController
@@ -18,8 +25,11 @@ import com.iptv.scanner.editor.pro.player.CatchupProgram
 import com.iptv.scanner.editor.pro.player.PlayMode
 import com.iptv.scanner.editor.pro.player.PlaybackState
 import com.iptv.scanner.editor.pro.player.ProgressHelper
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +39,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * 应用级 ViewModel：管理全局状态（初始化、频道列表、当前播放、catchup/timeshift、面板开关）。
@@ -77,6 +93,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _iptvStatus = MutableStateFlow<IptvStatus?>(null)
     val iptvStatus: StateFlow<IptvStatus?> = _iptvStatus.asStateFlow()
+
+    // 所有属性初始化完成后再启动初始化（Kotlin 按声明顺序初始化，init 块必须在所有 StateFlow 声明之后）
+    init {
+        startInitialization()
+    }
 
     private var statusPollJob: Job? = null
 
@@ -170,12 +191,56 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val controlsVisible: StateFlow<Boolean> = _controlsVisible.asStateFlow()
 
     // -----------------------------------------------------------------
+    // 订阅源管理
+    // -----------------------------------------------------------------
+    private val _sources = MutableStateFlow<List<IptvSource>>(emptyList())
+    val sources: StateFlow<List<IptvSource>> = _sources.asStateFlow()
+
+    private val _sourceLoading = MutableStateFlow(false)
+    val sourceLoading: StateFlow<Boolean> = _sourceLoading.asStateFlow()
+
+    private val _sourceMessage = MutableStateFlow("")
+    val sourceMessage: StateFlow<String> = _sourceMessage.asStateFlow()
+
+    private val _sourceManagerOpen = MutableStateFlow(false)
+    val sourceManagerOpen: StateFlow<Boolean> = _sourceManagerOpen.asStateFlow()
+
+    // EPG 订阅源
+    private val _epgSources = MutableStateFlow<List<IptvEpgSource>>(emptyList())
+    val epgSources: StateFlow<List<IptvEpgSource>> = _epgSources.asStateFlow()
+
+    // 订阅源管理 Tab
+    enum class SourceTab { PLAYLIST, EPG }
+    private val _sourceTab = MutableStateFlow(SourceTab.PLAYLIST)
+    val sourceTab: StateFlow<SourceTab> = _sourceTab.asStateFlow()
+
+    // 播放器设置面板（主菜单 → 设置 → 播放器设置）
+    // 兜底方案：当黑屏检测不可靠时（如 estimated-vfps 仍有值但渲染黑屏），
+    // 用户可手动切换 vo（gpu / mediacodec_embed），立即生效并持久化
+    private val _playerSettingsOpen = MutableStateFlow(false)
+    val playerSettingsOpen: StateFlow<Boolean> = _playerSettingsOpen.asStateFlow()
+
+    // 当前播放器 vo/hwdec（从 UserPrefs 读取，供 UI 显示当前选择）
+    private val _currentVo = MutableStateFlow(userPrefs.getVo())
+    val currentVo: StateFlow<String> = _currentVo.asStateFlow()
+
+    private val _currentHwdec = MutableStateFlow(userPrefs.getHwdec())
+    val currentHwdec: StateFlow<String> = _currentHwdec.asStateFlow()
+
+    // 局域网管理服务器
+    private val _adminServerUrl = MutableStateFlow("")
+    val adminServerUrl: StateFlow<String> = _adminServerUrl.asStateFlow()
+
+    private val _adminServerRunning = MutableStateFlow(false)
+    val adminServerRunning: StateFlow<Boolean> = _adminServerRunning.asStateFlow()
+
+    // -----------------------------------------------------------------
     // 初始化流程
     // -----------------------------------------------------------------
 
     /**
      * 启动初始化流程：initContext → 轮询 getStatus 直到完成或超时 → loadChannels → loadPrefs。
-     * 在 SplashScreen 首次显示时调用。
+     * 在 ViewModel init 块中自动调用，也供 SplashScreen 的重试按钮调用。
      */
     fun startInitialization() {
         if (_initState.value is InitState.Initializing ||
@@ -184,50 +249,65 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
         _initState.value = InitState.Initializing
         viewModelScope.launch {
-            // 1. 初始化 Python + ServerContext 单例
-            val initResult = repository.initContext()
-            if (initResult.isFailure) {
-                val msg = initResult.exceptionOrNull()?.message ?: "初始化失败"
-                Log.e(TAG, "initContext failed: $msg")
-                _initState.value = InitState.Failed(msg)
-                return@launch
-            }
-            Log.i(TAG, "initContext OK, start polling status")
+            try {
+                // 首次启动时给 ART 一点时间完成初始类加载和 JIT 编译，
+                // 避免 Python native 库加载与 JIT 线程冲突导致偶发 SIGSEGV
+                delay(300)
 
-            // 2. 轮询 getStatus（最长 60 秒）
-            val maxWaitMs = 60_000L
-            val intervalMs = 1_000L
-            val startTime = System.currentTimeMillis()
-
-            while (isActive) {
-                val elapsed = System.currentTimeMillis() - startTime
-                if (elapsed > maxWaitMs) {
-                    _initState.value = InitState.Failed("初始化超时（60 秒）")
+                // 1. 初始化 Python + ServerContext 单例（在 IO 线程执行，减少主线程压力）
+                val initResult = withContext(Dispatchers.IO) {
+                    repository.initContext()
+                }
+                if (initResult.isFailure) {
+                    val msg = initResult.exceptionOrNull()?.message ?: "初始化失败"
+                    Log.e(TAG, "initContext failed: $msg")
+                    _initState.value = InitState.Failed(msg)
                     return@launch
                 }
+                Log.i(TAG, "initContext OK, start polling status")
 
-                val statusResult = repository.getStatus()
-                statusResult.fold(
-                    onSuccess = { status ->
-                        _iptvStatus.value = status
-                        Log.d(TAG, "status: inited=${status.inited} loading=${status.sourceLoading} total=${status.channelsTotal}")
+                // 2. 轮询 getStatus（最长 60 秒）
+                val maxWaitMs = 60_000L
+                val intervalMs = 1_000L
+                val startTime = System.currentTimeMillis()
 
-                        // 判断是否完成：
-                        // - inited=true 且 sourceLoading=false → 完成（无论 channels_total 是否为 0）
-                        if (status.inited && !status.sourceLoading) {
-                            _initState.value = InitState.Ready(status)
-                            startBackgroundStatusRefresh()
-                            // 加载频道列表和用户偏好
-                            loadChannels()
-                            loadUserPrefs()
-                            return@launch
-                        }
-                    },
-                    onFailure = { e ->
-                        Log.w(TAG, "getStatus failed (will retry): ${e.message}")
+                while (isActive) {
+                    val elapsed = System.currentTimeMillis() - startTime
+                    if (elapsed > maxWaitMs) {
+                        _initState.value = InitState.Failed("初始化超时（60 秒）")
+                        return@launch
                     }
-                )
-                delay(intervalMs)
+
+                    val statusResult = repository.getStatus()
+                    statusResult.fold(
+                        onSuccess = { status ->
+                            _iptvStatus.value = status
+                            Log.d(TAG, "status: inited=${status.inited} loading=${status.sourceLoading} total=${status.channelsTotal}")
+
+                            // 判断是否完成：
+                            // - inited=true 且 sourceLoading=false → 完成（无论 channels_total 是否为 0）
+                            if (status.inited && !status.sourceLoading) {
+                                _initState.value = InitState.Ready(status)
+                                startBackgroundStatusRefresh()
+                                // 加载频道列表和用户偏好
+                                loadChannels()
+                                loadUserPrefs()
+                                return@launch
+                            }
+                        },
+                        onFailure = { e ->
+                            Log.w(TAG, "getStatus failed (will retry): ${e.message}")
+                        }
+                    )
+                    delay(intervalMs)
+                }
+            } catch (e: CancellationException) {
+                // 协程被取消（如 Activity 销毁），不修改状态
+                throw e
+            } catch (e: Throwable) {
+                // 捕获所有异常（包括 Chaquopy 首次启动时的资源解压错误），避免崩溃
+                Log.e(TAG, "startInitialization crashed", e)
+                _initState.value = InitState.Failed(e.message ?: "未知错误")
             }
         }
     }
@@ -548,6 +628,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * 退出回看/时移，恢复原始频道直播。
      * 与 PC 端 catchup_controller.exit_catchup 对齐。
+     *
+     * 关键：走完整的 playChannel 流程（而非直接 mpv.playFile），确保：
+     * 1. mpv 从错误状态（如 catchup URL 400 错误）中恢复
+     * 2. 重置 catchup/timeshift 状态
+     * 3. EPG 重新预取
      */
     fun exitCatchup() {
         val state = _playbackState.value
@@ -556,17 +641,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
-        val originalCh = state.originalChannel
         // 清除回看状态（退出后是直播，与 PC 端 exit_catchup 一致）
         _playbackState.value = state.clearCatchup(PlayMode.LIVE)
 
-        // 恢复原始频道直播
-        if (originalCh != null && originalCh.url.isNotEmpty()) {
-            mpv.playFile(originalCh.url)
-            showOsd("回看", "已退出")
-        } else if (_currentIdx.value >= 0) {
-            // 兜底：重新播放当前频道
-            playChannel(_currentIdx.value, silent = true)
+        // 恢复原始频道直播：走完整的 playChannel 流程
+        val idx = _currentIdx.value
+        if (idx >= 0) {
+            playChannel(idx, silent = true)
+            showOsd("回看", "已退出，恢复直播")
+        } else {
             showOsd("回看", "已退出")
         }
     }
@@ -621,7 +704,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // 缓冲边界判断
         val mpvTimePos = mpv.timePos.value
         val cacheDuration = mpv.getPropertyDouble("demuxer-cache-duration") ?: 0.0
-        val (targetPos, inBuffer) = ProgressHelper.computeSeekTarget(offsetSec, mpvTimePos, cacheDuration)
+        val cacheTime = mpv.getPropertyDouble("demuxer-cache-time") ?: 0.0
+        val (targetPos, inBuffer) = ProgressHelper.computeSeekTarget(offsetSec, mpvTimePos, cacheDuration, cacheTime)
 
         if (inBuffer && offsetSec <= 2) {
             // 目标在缓冲区内且接近直播：直接 mpv seek，清空 timeshift
@@ -775,15 +859,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // 面板控制
     // -----------------------------------------------------------------
 
-    fun toggleChannelsPanel() { _channelsPanelOpen.value = !_channelsPanelOpen.value }
-    fun toggleEpgPanel() { _epgPanelOpen.value = !_epgPanelOpen.value }
-    fun toggleMenuPanel() { _menuPanelOpen.value = !_menuPanelOpen.value }
+    fun toggleChannelsPanel() {
+        _channelsPanelOpen.value = !_channelsPanelOpen.value
+        // 关闭面板时自动显示控制层（避免面板关闭后控制层不显示）
+        if (!_channelsPanelOpen.value) _controlsVisible.value = true
+    }
+    fun toggleEpgPanel() {
+        _epgPanelOpen.value = !_epgPanelOpen.value
+        if (!_epgPanelOpen.value) _controlsVisible.value = true
+    }
+    fun toggleMenuPanel() {
+        _menuPanelOpen.value = !_menuPanelOpen.value
+        if (!_menuPanelOpen.value) _controlsVisible.value = true
+    }
     fun toggleControls() { _controlsVisible.value = !_controlsVisible.value }
 
     fun closeAllPanels() {
         _channelsPanelOpen.value = false
         _epgPanelOpen.value = false
         _menuPanelOpen.value = false
+        _sourceManagerOpen.value = false
+        _playerSettingsOpen.value = false
+        // 关闭所有面板后自动显示控制层
+        _controlsVisible.value = true
     }
 
     /**
@@ -791,10 +889,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * 与 PC 端 closeFuncPanel 对齐：有关闭任何面板时返回 true，无面板时返回 false。
      */
     fun closeAnyPanel(): Boolean {
-        val hadOpen = _channelsPanelOpen.value || _epgPanelOpen.value || _menuPanelOpen.value
+        val hadOpen = _channelsPanelOpen.value || _epgPanelOpen.value ||
+                _menuPanelOpen.value || _sourceManagerOpen.value ||
+                _playerSettingsOpen.value
         _channelsPanelOpen.value = false
         _epgPanelOpen.value = false
         _menuPanelOpen.value = false
+        _sourceManagerOpen.value = false
+        _playerSettingsOpen.value = false
+        // 关闭面板后自动显示控制层
+        if (hadOpen) _controlsVisible.value = true
         return hadOpen
     }
 
@@ -804,6 +908,420 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun hideControls() { _controlsVisible.value = false }
     fun showControls() { _controlsVisible.value = true }
+
+    // -----------------------------------------------------------------
+    // 订阅源管理（主菜单 → 文件 → 订阅源管理）
+    // -----------------------------------------------------------------
+
+    fun toggleSourceManager() {
+        _sourceManagerOpen.value = !_sourceManagerOpen.value
+        if (_sourceManagerOpen.value) {
+            loadSources()
+            loadEpgSources()
+            refreshAdminServerStatus()
+        } else {
+            // 关闭面板时自动显示控制层
+            _controlsVisible.value = true
+        }
+    }
+
+    fun setSourceTab(tab: SourceTab) { _sourceTab.value = tab }
+
+    // -----------------------------------------------------------------
+    // 播放器设置（vo / hwdec）
+    //
+    // 兜底方案：当黑屏检测不可靠时（如 estimated-vfps 仍有值但渲染黑屏），
+    // 用户可手动切换 vo（gpu / mediacodec_embed），立即生效并持久化。
+    // -----------------------------------------------------------------
+
+    fun togglePlayerSettings() {
+        _playerSettingsOpen.value = !_playerSettingsOpen.value
+        if (!_playerSettingsOpen.value) _controlsVisible.value = true
+    }
+
+    /**
+     * 切换 video output（gpu / mediacodec_embed）。
+     * - 持久化到 UserPrefs（下次启动生效）
+     * - 动态切换 mpv vo（立即生效，重新加载当前文件）
+     * - 更新 voFallbackTriggered 状态
+     */
+    fun setPlayerVo(vo: String) {
+        userPrefs.setVo(vo)
+        _currentVo.value = vo
+        val hwdec = if (vo == "mediacodec_embed") "mediacodec" else userPrefs.getHwdec()
+        if (vo == "mediacodec_embed") {
+            // 切换到 mediacodec_embed 时，hwdec 也应为 mediacodec
+            userPrefs.setHwdec(hwdec)
+            _currentHwdec.value = hwdec
+            // 标记已 fallback（不需要再黑屏检测）
+            userPrefs.setVoFallbackConfirmed(true)
+        } else if (vo == "gpu") {
+            // 切换回 gpu 时，清除 fallback 标记，重新启用黑屏检测
+            userPrefs.setVoFallbackConfirmed(false)
+        }
+        val hasFile = mpv.setVoAndHwdec(vo, hwdec)
+        showOsd(
+            "播放器设置",
+            "vo=$vo" + if (hasFile != null) "，已重新加载" else "（重启后生效）"
+        )
+    }
+
+    /**
+     * 切换 hwdec（auto-copy / mediacodec / no）。
+     * 注意：hwdec 必须与 vo 匹配：
+     * - vo=gpu → hwdec=auto-copy 或 no
+     * - vo=mediacodec_embed → hwdec=mediacodec
+     */
+    fun setPlayerHwdec(hwdec: String) {
+        userPrefs.setHwdec(hwdec)
+        _currentHwdec.value = hwdec
+        mpv.setVoAndHwdec(_currentVo.value, hwdec)
+        showOsd("播放器设置", "hwdec=$hwdec")
+    }
+
+    /**
+     * 重置播放器设置为默认值（vo=gpu, hwdec=auto-copy）。
+     * 用户换设备或想重新探测黑屏时调用。
+     */
+    fun resetPlayerSettings() {
+        userPrefs.resetPlayerSettings()
+        _currentVo.value = userPrefs.getVo()
+        _currentHwdec.value = userPrefs.getHwdec()
+        mpv.setVoAndHwdec(_currentVo.value, _currentHwdec.value)
+        showOsd("播放器设置", "已重置为默认值（重启后生效）")
+    }
+
+    // -----------------------------------------------------------------
+    // 备份与恢复（订阅源 + EPG 源 + 收藏/历史/队列 + 播放器设置）
+    //
+    // 解决卸载重装数据丢失问题：
+    // - 导出：完整配置打包写入 Downloads/IPTV_backup_YYYYMMDD_HHmmss.json
+    // - 导入：从备份文件恢复所有配置，触发 reload 加载频道
+    // -----------------------------------------------------------------
+
+    /** 导出完整配置到下载目录 */
+    fun exportConfig() {
+        viewModelScope.launch {
+            showOsd("备份", "正在导出配置...")
+            val pyConfig = withContext(Dispatchers.IO) { repository.exportConfig() }
+            pyConfig.fold(
+                onSuccess = { pyJson ->
+                    val fullBackup = buildFullBackup(pyJson)
+                    val written = writeBackupToFile(fullBackup)
+                    if (written) {
+                        showOsd("备份", "已导出到下载目录")
+                    } else {
+                        showOsd("备份", "导出失败：无法写入文件")
+                    }
+                },
+                onFailure = { showOsd("备份", "导出失败", it.message ?: "") }
+            )
+        }
+    }
+
+    /** 从指定 URI 恢复配置（由 SAF 文件选择器回调触发） */
+    fun importConfig(uri: Uri) {
+        viewModelScope.launch {
+            showOsd("恢复", "正在导入配置...")
+            val result = withContext(Dispatchers.IO) {
+                val json = readBackupFromFile(uri)
+                    ?: return@withContext Result.failure<Unit>(Exception("读取文件失败"))
+                restoreFullBackup(json)
+            }
+            result.fold(
+                onSuccess = {
+                    showOsd("恢复", "配置已恢复，正在加载频道...")
+                    loadSources()
+                    loadEpgSources()
+                    loadChannels()
+                    loadUserPrefs()
+                },
+                onFailure = { showOsd("恢复", "恢复失败", it.message ?: "") }
+            )
+        }
+    }
+
+    /** 构建完整备份 JSON：Python 配置 + UserPrefs */
+    private fun buildFullBackup(pyConfigJson: String): String {
+        val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+        val pyConfig = JSONObject(pyConfigJson)
+        val backup = JSONObject().apply {
+            put("backup_version", 1)
+            put("backup_time", now)
+            // Python 配置（订阅源 + EPG 源）
+            put("playlist_sources", pyConfig.optJSONArray("playlist_sources") ?: JSONArray())
+            put("epg_sources", pyConfig.optJSONArray("epg_sources") ?: JSONArray())
+            // UserPrefs 配置（收藏/历史/队列）
+            put("favorites", JSONArray(userPrefs.getFavorites().toList()))
+            put("history", JSONArray(userPrefs.getHistory()))
+            put("queue", JSONArray(userPrefs.getQueue()))
+            // 播放器设置
+            put("player_vo", userPrefs.getVo())
+            put("player_hwdec", userPrefs.getHwdec())
+            put("player_vo_fallback", userPrefs.isVoFallbackConfirmed())
+        }
+        return backup.toString(2)
+    }
+
+    /** 恢复完整备份：Python 配置 + UserPrefs */
+    private suspend fun restoreFullBackup(json: String): Result<Unit> {
+        return try {
+            val backup = JSONObject(json)
+            // 构造 Python import_config 需要的 JSON（只含 playlist_sources + epg_sources）
+            val pyConfig = JSONObject().apply {
+                put("playlist_sources", backup.optJSONArray("playlist_sources") ?: JSONArray())
+                put("epg_sources", backup.optJSONArray("epg_sources") ?: JSONArray())
+            }
+            val pyResult = repository.importConfig(pyConfig.toString())
+            if (pyResult.isFailure) return pyResult
+
+            // 恢复 UserPrefs
+            backup.optJSONArray("favorites")?.let { arr ->
+                val set = (0 until arr.length()).mapNotNull { arr.optInt(it, -1).takeIf { i -> i >= 0 } }.toSet()
+                userPrefs.setFavorites(set)
+            }
+            backup.optJSONArray("history")?.let { arr ->
+                val list = (0 until arr.length()).mapNotNull { arr.optInt(it, -1).takeIf { i -> i >= 0 } }
+                userPrefs.setHistory(list)
+            }
+            backup.optJSONArray("queue")?.let { arr ->
+                val list = (0 until arr.length()).mapNotNull { arr.optInt(it, -1).takeIf { i -> i >= 0 } }
+                userPrefs.setQueue(list)
+            }
+            backup.optString("player_vo").takeIf { it.isNotEmpty() }?.let { userPrefs.setVo(it) }
+            backup.optString("player_hwdec").takeIf { it.isNotEmpty() }?.let { userPrefs.setHwdec(it) }
+            if (backup.has("player_vo_fallback")) {
+                userPrefs.setVoFallbackConfirmed(backup.optBoolean("player_vo_fallback"))
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "restoreFullBackup failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /** 写入备份文件到下载目录（Android 10+ 用 MediaStore，旧版本用公共目录） */
+    private fun writeBackupToFile(json: String): Boolean {
+        val now = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val filename = "IPTV_backup_$now.json"
+        return try {
+            val app = getApplication<Application>()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = app.contentResolver
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                }
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return false
+                resolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) } ?: return false
+            } else {
+                @Suppress("DEPRECATION")
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!dir.exists()) dir.mkdirs()
+                File(dir, filename).writeText(json)
+            }
+            Log.i(TAG, "Backup written to Downloads/$filename")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "writeBackupToFile failed", e)
+            false
+        }
+    }
+
+    /** 从指定 URI 读取备份文件 */
+    private fun readBackupFromFile(uri: Uri): String? {
+        return try {
+            val resolver = getApplication<Application>().contentResolver
+            resolver.openInputStream(uri)?.use { it.bufferedReader().readText() }
+        } catch (e: Exception) {
+            Log.e(TAG, "readBackupFromFile failed", e)
+            null
+        }
+    }
+
+    fun loadSources() {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { repository.getSources() }
+            result.onSuccess { _sources.value = it }
+                .onFailure { showOsd("加载订阅源失败", it.message ?: "") }
+        }
+    }
+
+    fun loadEpgSources() {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { repository.getEpgSources() }
+            result.onSuccess { _epgSources.value = it }
+                .onFailure { showOsd("加载 EPG 源失败", it.message ?: "") }
+        }
+    }
+
+    fun addSource(url: String, name: String = "") {
+        if (url.isBlank()) {
+            showOsd("请输入订阅源 URL")
+            return
+        }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { repository.addSource(url, name) }
+            result.onSuccess {
+                showOsd("订阅源已添加", "正在加载频道...")
+                loadSources()
+                // 新添加的订阅源默认 enabled=true，自动触发重载以加载频道列表
+                reloadSources()
+            }.onFailure { showOsd("添加失败", it.message ?: "") }
+        }
+    }
+
+    fun addEpgSource(url: String, name: String = "") {
+        if (url.isBlank()) {
+            showOsd("请输入 EPG 订阅源 URL")
+            return
+        }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { repository.addEpgSource(url, name) }
+            result.onSuccess {
+                showOsd("EPG 源已添加", "正在重载 EPG...")
+                loadEpgSources()
+                // 自动触发 EPG 重载
+                reloadEpgSources()
+            }.onFailure { showOsd("添加失败", it.message ?: "") }
+        }
+    }
+
+    fun deleteSource(idx: Int) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { repository.deleteSource(idx) }
+            result.onSuccess {
+                showOsd("订阅源已删除")
+                loadSources()
+            }.onFailure { showOsd("删除失败", it.message ?: "") }
+        }
+    }
+
+    fun deleteEpgSource(idx: Int) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { repository.deleteEpgSource(idx) }
+            result.onSuccess {
+                showOsd("EPG 源已删除")
+                loadEpgSources()
+            }.onFailure { showOsd("删除失败", it.message ?: "") }
+        }
+    }
+
+    fun toggleSourceEnabled(idx: Int, enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                repository.updateSource(idx, mapOf("enabled" to enabled.toString()))
+            }
+            result.onSuccess { loadSources() }
+                .onFailure { showOsd("更新失败", it.message ?: "") }
+        }
+    }
+
+    fun reloadSources() {
+        viewModelScope.launch {
+            _sourceLoading.value = true
+            showOsd("正在重载订阅源...")
+            val result = withContext(Dispatchers.IO) { repository.reloadSources() }
+            result.onSuccess { started ->
+                if (started) {
+                    showOsd("订阅源重载已启动", "请稍候...")
+                    pollSourceStatus()
+                } else {
+                    _sourceLoading.value = false
+                    showOsd("订阅源重载失败")
+                }
+            }.onFailure {
+                _sourceLoading.value = false
+                showOsd("重载失败", it.message ?: "")
+            }
+        }
+    }
+
+    fun reloadEpgSources() {
+        viewModelScope.launch {
+            showOsd("正在重载 EPG...")
+            val result = withContext(Dispatchers.IO) { repository.reloadEpg() }
+            result.onSuccess { showOsd("EPG 重载已启动") }
+                .onFailure { showOsd("EPG 重载失败", it.message ?: "") }
+        }
+    }
+
+    /** 轮询订阅源加载状态，完成后自动刷新频道列表 */
+    private fun pollSourceStatus() {
+        viewModelScope.launch {
+            val startTime = System.currentTimeMillis()
+            while (isActive) {
+                if (System.currentTimeMillis() - startTime > 60_000L) {
+                    _sourceLoading.value = false
+                    showOsd("订阅源加载超时")
+                    return@launch
+                }
+                val result = withContext(Dispatchers.IO) { repository.getSourceStatus() }
+                result.onSuccess { status ->
+                    _sourceLoading.value = status.loading
+                    _sourceMessage.value = status.message
+                    if (!status.loading) {
+                        showOsd("订阅源加载完成", "频道数: ${status.channelsTotal}")
+                        loadChannels()
+                        return@launch
+                    }
+                }
+                delay(1000L)
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // 局域网管理服务器（TV 端遥控器输入不便，手机浏览器扫码管理）
+    // -----------------------------------------------------------------
+
+    fun toggleAdminServer() {
+        if (_adminServerRunning.value) {
+            stopAdminServer()
+        } else {
+            startAdminServer()
+        }
+    }
+
+    fun startAdminServer() {
+        viewModelScope.launch {
+            showOsd("正在启动局域网管理服务器...")
+            val result = withContext(Dispatchers.IO) { repository.startAdminServer(8080) }
+            result.onSuccess { info ->
+                _adminServerUrl.value = info.url
+                _adminServerRunning.value = true
+                showOsd("局域网管理已启动", info.url)
+            }.onFailure {
+                // 记录完整错误到 logcat 方便排查（Python 端 _admin_server_error 包含 traceback）
+                Log.e("AppViewModel", "Admin server start failed: ${it.message}", it)
+                showOsd("启动失败", it.message ?: "")
+            }
+        }
+    }
+
+    fun stopAdminServer() {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { repository.stopAdminServer() }
+            result.onSuccess {
+                _adminServerRunning.value = false
+                showOsd("局域网管理已停止")
+            }.onFailure {
+                showOsd("停止失败", it.message ?: "")
+            }
+        }
+    }
+
+    fun refreshAdminServerStatus() {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { repository.getAdminUrl() }
+            result.onSuccess { info ->
+                _adminServerUrl.value = info.url
+                _adminServerRunning.value = info.running
+            }
+        }
+    }
 
     // -----------------------------------------------------------------
     // ViewModel 生命周期

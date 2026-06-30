@@ -68,6 +68,22 @@ class MPVView @JvmOverloads constructor(
         MPVLib.setOptionString("hwdec", hwdec)
         MPVLib.setOptionString("keep-open", "yes")
 
+        /* 视频比例保持（关键：解决竖屏下视频被拉伸铺满的问题）：
+         * - keepaspect=yes：视频在 surface 内部保持原始比例（默认值，显式设置确保）
+         * - keepaspect-window=no：不让窗口管理器试图保持视频比例
+         *   原因：Android 上 SurfaceView 的 surface 尺寸由 layout 决定（fillMaxSize=全屏），
+         *   keepaspect-window=yes（默认）会让 mpv 请求保持比例的窗口，与全屏 surface 冲突，
+         *   导致视频被拉伸铺满整个竖屏（1440x2984），破坏 16:9 比例。
+         *   设为 no 后，surface 用全屏尺寸，mpv 在 surface 内部按 keepaspect 计算显示区域，
+         *   视频会居中显示并保持比例（上下黑边）。
+         *   PC 端桌面版 mpv 不需要此设置（窗口管理器正确处理比例）。 */
+        MPVLib.setOptionString("keepaspect", "yes")
+        MPVLib.setOptionString("keepaspect-window", "no")
+
+        /* FBO 格式：部分 GPU（如 Mali-G76）不支持 rgba16f 浮点 FBO，
+         * 导致 vo=gpu 黑屏（有声音无画面）。使用 rgba8 整数格式确保兼容性。 */
+        MPVLib.setOptionString("fbo-format", "rgba8")
+
         /* 性能与音画同步（与 PC 端 _ensure_mpv_initialized 行 339-363 对齐，但 framedrop 调整）：
          * - framedrop=all：解码慢或输出慢时都丢帧
          *   PC 端用 framedrop=vo（只在输出慢时丢帧），但 Android 模拟器/低端设备解码慢，
@@ -159,6 +175,14 @@ class MPVView @JvmOverloads constructor(
 
     private var filePath: String? = null
     private var voInUse: String = DEFAULT_VO
+
+    /**
+     * 更新 voInUse（运行时切换 vo 时调用）。
+     * 下次 surfaceCreated 时会用新 vo 设置 mpv，确保 surface 重建后渲染正确。
+     */
+    fun setVoInUse(vo: String) {
+        voInUse = vo
+    }
 
     /** 提供给外部查询 surface 状态（替代 SurfaceView 的 holder.surface?.isValid） */
     val isSurfaceValid: Boolean

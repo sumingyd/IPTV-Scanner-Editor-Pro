@@ -255,16 +255,23 @@ object ProgressHelper {
     /**
      * 判断目标位置是否在缓冲区内（用于进度条 seek）。
      *
+     * mpv 缓冲相关属性：
+     * - demuxer-cache-duration：未播放的缓冲时长（当前位置到缓冲区末尾）
+     * - demuxer-cache-time：已播放但仍在缓冲区中的最早时间点（绝对 mpv 时间）
+     *
+     * 缓冲区范围：[cacheTime, mpvTimePos + cacheDuration]
+     *
      * @param mpvTimePos mpv 当前位置（秒）
-     * @param cacheDuration mpv 缓冲时长（秒，demuxer-cache-duration）
+     * @param cacheDuration mpv 未来缓冲时长（秒，demuxer-cache-duration）
+     * @param cacheTime mpv 过去缓冲最早时间（秒，demuxer-cache-time），0 表示未知
      * @param targetPos 目标位置（秒，mpv 流位置）
      * @return true 表示在缓冲区内，可直接 mpv seek；false 表示需要重建 URL
      */
-    fun isInBufferRange(mpvTimePos: Double, cacheDuration: Double, targetPos: Double): Boolean {
-        if (cacheDuration < 2.0) return false  // 缓冲不足
-        val bufferEnd = mpvTimePos
-        val bufferStart = (mpvTimePos - cacheDuration).coerceAtLeast(0.0)
-        return targetPos in bufferStart..(bufferEnd + 5.0)
+    fun isInBufferRange(mpvTimePos: Double, cacheDuration: Double, cacheTime: Double, targetPos: Double): Boolean {
+        if (cacheDuration < 2.0) return false  // 未来缓冲不足
+        val bufferEnd = mpvTimePos + cacheDuration + 5.0  // 未来缓冲末尾（+5s 容差）
+        val bufferStart = if (cacheTime > 0) cacheTime else (mpvTimePos - 30.0).coerceAtLeast(0.0)  // 过去缓冲
+        return targetPos in bufferStart..bufferEnd
     }
 
     /**
@@ -273,13 +280,18 @@ object ProgressHelper {
      *
      * @param offsetSec 偏移秒数（now - targetWallclock）
      * @param mpvTimePos mpv 当前位置（秒）
-     * @param cacheDuration mpv 缓冲时长（秒）
+     * @param cacheDuration mpv 未来缓冲时长（秒）
+     * @param cacheTime mpv 过去缓冲最早时间（秒），0 表示未知
      * @return Pair<targetPos, inBuffer>，targetPos 是 mpv 流位置，inBuffer 表示是否在缓冲内
      */
-    fun computeSeekTarget(offsetSec: Long, mpvTimePos: Double, cacheDuration: Double): Pair<Double, Boolean> {
-        val bufferEnd = mpvTimePos
-        val targetPos = (bufferEnd - offsetSec).coerceAtLeast(0.0)
-        val inBuffer = isInBufferRange(mpvTimePos, cacheDuration, targetPos)
+    fun computeSeekTarget(
+        offsetSec: Long,
+        mpvTimePos: Double,
+        cacheDuration: Double,
+        cacheTime: Double = 0.0,
+    ): Pair<Double, Boolean> {
+        val targetPos = (mpvTimePos - offsetSec).coerceAtLeast(0.0)
+        val inBuffer = isInBufferRange(mpvTimePos, cacheDuration, cacheTime, targetPos)
         return targetPos to inBuffer
     }
 

@@ -84,7 +84,8 @@ data class IptvEpgSource(
 data class IptvSourceStatus(
     @SerialName("loading") val loading: Boolean = false,
     @SerialName("message") val message: String = "",
-    @SerialName("channels_total") val channelsTotal: Int = 0,
+    // Python 端 context.get_source_load_status() 返回字段名为 'channels'（不是 channels_total）
+    @SerialName("channels") val channelsTotal: Int = 0,
 )
 
 // -----------------------------------------------------------------
@@ -238,4 +239,16 @@ data class ClearCacheResponse(
 data class M3uTextResponse(
     @SerialName("text") val text: String = "",
     @SerialName("count") val count: Int = 0,
+)
+
+// -----------------------------------------------------------------
+// 局域网管理服务器
+// -----------------------------------------------------------------
+
+@Serializable
+data class AdminServerInfo(
+    @SerialName("url") val url: String = "",
+    @SerialName("port") val port: Int = 0,
+    @SerialName("running") val running: Boolean = false,
+    @SerialName("already_running") val alreadyRunning: Boolean = false,
 )

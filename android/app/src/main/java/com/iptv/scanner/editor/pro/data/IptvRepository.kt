@@ -73,7 +73,8 @@ class IptvRepository private constructor() {
      * 否则返回成功 JSON 字符串（去掉外层包装）。
      *
      * 注意：Python 端 _ok(data) 返回 json.dumps(data)，_err(msg) 返回 json.dumps({"error": msg})。
-     * 所以成功响应的顶层就是 data 本身（可能是 object/array/string/number）。
+     * 所以成功响应的顶层可能是 object / array / string / number。
+     * 只有 object 类型才检查 error 字段；array 等其他类型直接视为成功。
      */
     private suspend fun callPy(funcName: String, vararg args: Any?): Result<String> =
         withContext(Dispatchers.IO) {
@@ -92,9 +93,10 @@ class IptvRepository private constructor() {
             }
             // 检查是否是错误响应
             try {
-                val obj = json.parseToJsonElement(raw).jsonObject
-                if (obj.containsKey("error")) {
-                    val msg = obj["error"]?.jsonPrimitive?.contentOrNull ?: "未知错误"
+                val element = json.parseToJsonElement(raw)
+                // 只有 JsonObject 才检查 error 字段；JsonArray 等直接视为成功
+                if (element is JsonObject && element.containsKey("error")) {
+                    val msg = element["error"]?.jsonPrimitive?.contentOrNull ?: "未知错误"
                     Log.w(TAG, "$funcName returned error: $msg")
                     Result.failure(IptvException(msg))
                 } else {
@@ -223,6 +225,24 @@ class IptvRepository private constructor() {
     suspend fun reloadSources(url: String = ""): Result<Boolean> =
         callPyTyped<StartedResponse>("reload_sources", url).map { it.started }
 
+    // -----------------------------------------------------------------
+    // 备份与恢复
+    // -----------------------------------------------------------------
+
+    /**
+     * 导出所有可备份的配置（订阅源 + EPG 源）为 JSON 字符串。
+     * 用于写入外部存储文件，卸载重装后可恢复。
+     */
+    suspend fun exportConfig(): Result<String> =
+        callPy("export_config")
+
+    /**
+     * 从 JSON 字符串恢复配置（订阅源 + EPG 源），并触发 reload。
+     * 内部会调用 reload_sources / reload_epg 加载频道和 EPG。
+     */
+    suspend fun importConfig(json: String): Result<Unit> =
+        callPyTyped<OkResponse>("import_config", json).map { Unit }
+
     suspend fun getSourceStatus(): Result<IptvSourceStatus> =
         callPyTyped("get_source_status_json")
 
@@ -330,6 +350,22 @@ class IptvRepository private constructor() {
     /** 刷新远程映射缓存（同步阻塞） */
     suspend fun refreshMappings(): Result<Unit> =
         callPyTyped<OkResponse>("refresh_mappings").map { Unit }
+
+    // -----------------------------------------------------------------
+    // 局域网管理服务器（TV 端遥控器输入不便，手机浏览器扫码管理）
+    // -----------------------------------------------------------------
+
+    /** 启动 HTTP 管理服务器，返回局域网 URL */
+    suspend fun startAdminServer(port: Int = 8080): Result<AdminServerInfo> =
+        callPyTyped("start_admin_server", port)
+
+    /** 停止 HTTP 管理服务器 */
+    suspend fun stopAdminServer(): Result<OkResponse> =
+        callPyTyped("stop_admin_server")
+
+    /** 查询管理服务器状态和 URL */
+    suspend fun getAdminUrl(): Result<AdminServerInfo> =
+        callPyTyped("get_admin_url")
 
     // -----------------------------------------------------------------
     // 字幕
