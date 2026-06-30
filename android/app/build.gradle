@@ -2,6 +2,8 @@ plugins {
     id 'com.android.application'
     id 'com.chaquo.python'
     id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'org.jetbrains.kotlin.plugin.serialization'
 }
 
 // 从 local.properties 读取 chaquopy.buildPython（如果存在），用于在 PATH 中找不到 Python 时指定路径
@@ -47,6 +49,7 @@ android {
         ndk {
             // Chaquopy 16.1.0 + Python 3.11 支持所有 4 种 ABI
             // armeabi-v7a 用于老旧电视/盒子设备
+            // 恢复所有 4 种 ABI，支持 32 位/64 位/x86 设备
             abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
         }
     }
@@ -87,6 +90,12 @@ android {
 
     kotlinOptions {
         jvmTarget = '21'
+    }
+
+    /* Compose 构建特性：Kotlin 2.0+ 通过 org.jetbrains.kotlin.plugin.compose 插件
+     * 编译 Compose 代码，不再需要 composeOptions { kotlinCompilerExtensionVersion } */
+    buildFeatures {
+        compose true
     }
 
     sourceSets {
@@ -130,4 +139,23 @@ dependencies {
     implementation 'androidx.webkit:webkit:1.12.1'
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.0.21'
+
+    /* Compose（阶段 0 技术验证起即引入）
+     * - BOM 2024.10.01 与 Kotlin 2.0.21 + Compose Compiler 插件配套
+     * - material3 提供 Material Design 3 组件
+     * - material-icons-extended 提供完整图标集（遥控器 UI 需要的播放/暂停/快进等）
+     * - activity-compose 提供 ComponentActivity.setContent 扩展
+     * - lifecycle-runtime-compose / lifecycle-viewmodel-compose 提供 StateFlow.collectAsStateWithLifecycle */
+    def composeBom = platform('androidx.compose:compose-bom:2024.10.01')
+    implementation composeBom
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.activity:activity-compose:1.9.3'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }

@@ -64,6 +64,7 @@ class StandaloneScanner:
         """开始 URL 范围扫描（PC 端"扫描整理"功能）
 
         解析方括号范围表达式（如 rtp://239.1.1.[1-255]:5002），
+        命名变量同步：[1-255:n] 定义变量 n，{n} 引用（两处 n 同步变化）。
         对每个 URL 做可达性检查（HTTP/HTTPS 用 requests HEAD），
         将有效 URL 添加为频道。rtp/udp/rtsp 等非 HTTP 协议直接添加不验证。
         """

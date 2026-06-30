@@ -874,6 +874,7 @@ async def handle_scan_range(request):
 
     body: {url, timeout?, threads?}
     url 支持 [1-255] / [1,5,10] / [1-10,20-30] 等方括号范围表达式
+    命名变量同步：[1-255:n] 定义变量 n，{n} 引用（两处 n 同步变化）
     """
     ctx = get_context()
     if not ctx:

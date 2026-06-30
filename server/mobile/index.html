@@ -4030,9 +4030,11 @@ registerFunc('scan', { title:'扫描整理' }, body=>{
         支持方括号范围表达式：<br>
         · <code style="color:var(--accent)">rtp://239.1.1.[1-255]:5002</code><br>
         · <code style="color:var(--accent)">http://ip:port/[1,5,10]/index.m3u8</code><br>
-        · <code style="color:var(--accent)">http://192.168.1.[1-10]/tv/[1-20].m3u8</code>
+        · <code style="color:var(--accent)">http://192.168.1.[1-10]/tv/[1-20].m3u8</code><br>
+        · 多处同步变化：用 <code style="color:var(--accent)">[范围:变量名]</code> 定义，<code style="color:var(--accent)">{变量名}</code> 引用<br>
+        ·&nbsp;&nbsp;<code style="color:var(--accent)">http://x.com/1/[1-1000:n]/{n}.m3u8</code>（两处 n 同步）
       </div>
-      <div class="form-row"><input type="text" id="scanUrl" placeholder="rtp://239.1.1.[1-255]:5002"></div>
+      <div class="form-row"><input type="text" id="scanUrl" placeholder="rtp://239.1.1.[1-255]:5002 或 http://x.com/[1-100:n]/{n}.m3u8"></div>
       <div class="form-row" style="display:flex;gap:8px">
         <div style="flex:1"><label style="font-size:10px;color:var(--text-dim)">超时(秒)</label><input type="number" id="scanTimeout" value="10" min="1" max="60" style="width:100%"></div>
         <div style="flex:1"><label style="font-size:10px;color:var(--text-dim)">线程</label><input type="number" id="scanThreads" value="4" min="1" max="64" style="width:100%"></div>
