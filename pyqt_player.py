@@ -746,10 +746,11 @@ class IPTVPlayer(ServerMixin, TrayMixin, UpdateMixin, ThumbnailMixin, FileOpsMix
         self.video_frame.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.video_frame.customContextMenuRequested.connect(self.media_ctrl.show_video_context_menu)
         
-        # 创建默认背景（使用软件图标）
+        # 创建默认背景（空闲态银河壁纸 + 软件图标）
         from utils.general_utils import get_icon_path
+        from ui.wallpaper_widget import WallpaperWidget
         ico_path = get_icon_path()
-        self.video_placeholder = QLabel(self.video_frame)
+        self.video_placeholder = WallpaperWidget(self.video_frame)
         self.video_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
         if os.path.exists(ico_path):
