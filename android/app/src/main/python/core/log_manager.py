@@ -44,7 +44,7 @@ class LogManager(Singleton):
                 maxBytes=self.max_bytes,
                 backupCount=self.backup_count,
                 encoding='utf-8',
-                mode='a'
+                mode='w'
             )
             file_handler.setLevel(self.level)
 
