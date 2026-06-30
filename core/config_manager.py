@@ -23,6 +23,7 @@ class ConfigManager(Singleton):
         else:
             current_dir = os.path.dirname(os.path.abspath(__file__))
             config_dir = os.path.dirname(current_dir)
+        self.config_dir = config_dir
         self.config_file = os.path.join(config_dir, config_file)
         self.config = configparser.ConfigParser(interpolation=None)
         self._lock = threading.RLock()
