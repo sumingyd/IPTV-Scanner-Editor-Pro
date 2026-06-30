@@ -41,6 +41,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,7 +75,13 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
     val sourceMessage by viewModel.sourceMessage.collectAsState()
     val adminUrl by viewModel.adminServerUrl.collectAsState()
     val adminRunning by viewModel.adminServerRunning.collectAsState()
+    val adminCountdown by viewModel.adminCountdown.collectAsState()
     var showQrCode by remember { mutableStateOf(false) }
+
+    // server 启动时自动展开二维码（TV 端遥控器操作繁琐，省去额外点击）
+    LaunchedEffect(adminRunning) {
+        if (adminRunning) showQrCode = true
+    }
 
     Surface(
         color = Color(0xF0121212),
@@ -145,7 +152,8 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                 LanAdminInfoBar(
                     url = adminUrl,
                     showQrCode = showQrCode,
-                    onToggleQr = { showQrCode = it }
+                    onToggleQr = { showQrCode = it },
+                    countdown = adminCountdown
                 )
             } else if (!adminRunning) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -438,13 +446,14 @@ private fun EmptyHint(text: String) {
 }
 
 /**
- * 局域网管理信息栏（含二维码展开）
+ * 局域网管理信息栏（含二维码展开和自动停止倒计时）
  */
 @Composable
 private fun LanAdminInfoBar(
     url: String,
     showQrCode: Boolean,
-    onToggleQr: (Boolean) -> Unit
+    onToggleQr: (Boolean) -> Unit,
+    countdown: Int = 0
 ) {
     Column {
         Surface(
@@ -470,6 +479,17 @@ private fun LanAdminInfoBar(
                         color = Color(0xFFA5D6A7),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+                // 倒计时显示（mm:ss 格式）
+                if (countdown > 0) {
+                    val mm = countdown / 60
+                    val ss = countdown % 60
+                    Text(
+                        text = "%d:%02d".format(mm, ss),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFFFCC80),
+                        modifier = Modifier.padding(end = 4.dp)
                     )
                 }
                 IconButton(onClick = { onToggleQr(!showQrCode) }) {

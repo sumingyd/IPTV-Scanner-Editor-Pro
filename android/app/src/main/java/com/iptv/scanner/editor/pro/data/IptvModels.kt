@@ -251,4 +251,5 @@ data class AdminServerInfo(
     @SerialName("port") val port: Int = 0,
     @SerialName("running") val running: Boolean = false,
     @SerialName("already_running") val alreadyRunning: Boolean = false,
+    @SerialName("error") val error: String = "",
 )

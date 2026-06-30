@@ -234,6 +234,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _adminServerRunning = MutableStateFlow(false)
     val adminServerRunning: StateFlow<Boolean> = _adminServerRunning.asStateFlow()
 
+    /** 自动停止倒计时（秒），0 表示无倒计时。启动后 5 分钟自动停止，避免长时间占用端口和电量 */
+    private val _adminCountdown = MutableStateFlow(0)
+    val adminCountdown: StateFlow<Int> = _adminCountdown.asStateFlow()
+    private var adminCountdownJob: Job? = null
+
     // -----------------------------------------------------------------
     // 初始化流程
     // -----------------------------------------------------------------
@@ -1291,8 +1296,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val result = withContext(Dispatchers.IO) { repository.startAdminServer(8080) }
             result.onSuccess { info ->
                 _adminServerUrl.value = info.url
-                _adminServerRunning.value = true
-                showOsd("局域网管理已启动", info.url)
+                if (info.running) {
+                    // server 已启动（可能是 already_running）
+                    _adminServerRunning.value = true
+                    showOsd("局域网管理已启动", info.url)
+                    startAdminCountdown()
+                } else {
+                    // server 正在后台启动（Chaquopy import 中），启动轮询检测
+                    _adminServerRunning.value = false
+                    showOsd("正在后台启动...", info.url)
+                    pollAdminServerStartup(info.url)
+                }
             }.onFailure {
                 // 记录完整错误到 logcat 方便排查（Python 端 _admin_server_error 包含 traceback）
                 Log.e("AppViewModel", "Admin server start failed: ${it.message}", it)
@@ -1301,7 +1315,64 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * 轮询 admin server 启动状态。
+     * Python 端 start_admin_server 立即返回（避免 callAttr 持有 GIL 阻塞子线程 import），
+     * Kotlin 端每 2 秒调用 getAdminUrl() 检测 running，最多等待 90 秒（首次 Chaquopy import 可能 30+ 秒）。
+     */
+    private fun pollAdminServerStartup(url: String) {
+        viewModelScope.launch {
+            var pollCount = 0
+            val maxPolls = 45  // 90 秒 = 45 * 2 秒
+            while (pollCount < maxPolls && isActive) {
+                delay(2000)
+                pollCount++
+                val result = withContext(Dispatchers.IO) { repository.getAdminUrl() }
+                result.onSuccess { info ->
+                    if (info.running) {
+                        _adminServerUrl.value = info.url
+                        _adminServerRunning.value = true
+                        showOsd("局域网管理已启动", info.url)
+                        startAdminCountdown()
+                        return@launch
+                    }
+                    if (info.error.isNotEmpty()) {
+                        _adminServerRunning.value = false
+                        showOsd("启动失败", info.error)
+                        return@launch
+                    }
+                }.onFailure {
+                    Log.e("AppViewModel", "Admin server poll failed: ${it.message}", it)
+                }
+            }
+            // 超时
+            _adminServerRunning.value = false
+            showOsd("启动较慢，请稍后刷新状态查看")
+        }
+    }
+
+    /**
+     * 启动自动停止倒计时（5 分钟 = 300 秒）。
+     * 避免长时间占用端口和电量；用户可手动停止或重新启动重置倒计时。
+     */
+    private fun startAdminCountdown() {
+        adminCountdownJob?.cancel()
+        _adminCountdown.value = 300
+        adminCountdownJob = viewModelScope.launch {
+            while (_adminCountdown.value > 0 && isActive) {
+                delay(1000)
+                _adminCountdown.value -= 1
+            }
+            if (_adminCountdown.value <= 0 && _adminServerRunning.value) {
+                showOsd("局域网管理已自动停止（超时）")
+                stopAdminServer()
+            }
+        }
+    }
+
     fun stopAdminServer() {
+        adminCountdownJob?.cancel()
+        _adminCountdown.value = 0
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { repository.stopAdminServer() }
             result.onSuccess {

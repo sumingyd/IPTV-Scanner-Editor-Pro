@@ -1098,6 +1098,10 @@ _admin_server_port = 0
 _admin_server_running = False
 _admin_server_error = ''
 _admin_loop = None
+# 保存 _run() 协程的 task 引用，用于优雅取消（task.cancel() 触发 CancelledError，
+# 让 _run() 的 finally 块执行 runner.cleanup() 释放 socket；
+# 而 loop.stop() 会跳过 finally 导致 socket 泄漏 → 下次 bind 失败）
+_admin_server_task = None
 
 
 def start_admin_server(port=8080):
@@ -1107,10 +1111,27 @@ def start_admin_server(port=8080):
     其他设备通过浏览器访问 http://<设备IP>:<port>/mobile/ 即可管理。
     """
     global _admin_server_thread, _admin_server_url, _admin_server_port
-    global _admin_server_running, _admin_loop, _admin_server_error
+    global _admin_server_running, _admin_loop, _admin_server_error, _admin_server_task
 
     if _admin_server_running:
         return _ok({'url': _admin_server_url, 'port': _admin_server_port, 'already_running': True})
+
+    # 如果旧 server 线程还在运行（_admin_server_running=False 但线程活着），
+    # 说明上一次启动的 import 还在进行中（Chaquopy 首次 import 慢）。
+    # 不要停止它，直接返回"正在启动中"，让 Kotlin 端继续轮询。
+    # 这样避免用户重复点击导致重启 import（浪费之前的进度）。
+    if _admin_server_thread is not None and _admin_server_thread.is_alive():
+        _log('Admin server thread still running (importing), returning starting status')
+        return _ok({'url': _admin_server_url, 'port': _admin_server_port, 'running': False})
+
+    # 如果旧线程已结束但有错误（_admin_server_error 非空），需要先清理
+    # （旧线程已死，不需要 cancel/join，直接重置状态）
+    if _admin_server_thread is not None and not _admin_server_thread.is_alive():
+        _log(f'Previous admin server thread ended with error: {_admin_server_error}')
+        _admin_server_running = False
+        _admin_loop = None
+        _admin_server_task = None
+        _admin_server_error = ''
 
     # 重置错误状态
     _admin_server_error = ''
@@ -1127,7 +1148,7 @@ def start_admin_server(port=8080):
         return _err(f'获取局域网 IP 失败: {e}')
 
     def _run_server():
-        global _admin_server_running, _admin_loop, _admin_server_error
+        global _admin_server_running, _admin_loop, _admin_server_error, _admin_server_task
         try:
             import asyncio
             from server.routes import create_app
@@ -1146,21 +1167,52 @@ def start_admin_server(port=8080):
             _admin_loop = loop
 
             async def _run():
+                global _admin_server_running, _admin_server_url, _admin_server_port
                 runner = web.AppRunner(app)
                 await runner.setup()
-                site = web.TCPSite(runner, '0.0.0.0', port)
-                await site.start()
+                # 端口自动选择：从 port 开始尝试，被占用则递增，最多尝试 10 个端口
+                # 不会强行停止占用端口的其他服务，而是自动寻找可用端口
+                actual_port = port
+                site = None
+                for attempt in range(10):
+                    try_port = port + attempt
+                    try:
+                        site = web.TCPSite(runner, '0.0.0.0', try_port)
+                        await site.start()
+                        actual_port = try_port
+                        break
+                    except OSError as e:
+                        if 'address already in use' in str(e).lower():
+                            _log(f'Port {try_port} in use, trying {try_port + 1}...')
+                            continue
+                        raise
+                if site is None:
+                    raise OSError(f'No available port in range {port}-{port + 9}')
+                # 更新实际使用的端口和 URL（端口可能因冲突而递增）
+                if actual_port != _admin_server_port:
+                    _admin_server_port = actual_port
+                    # 从现有 URL 提取 host，重新构造
+                    import re as _re
+                    _admin_server_url = _re.sub(r':\d+$', f':{actual_port}', _admin_server_url)
                 _admin_server_running = True
-                _log(f'Admin server running at {_admin_server_url}')
+                _log(f'Admin server running at {_admin_server_url} (port={actual_port})')
                 try:
                     while True:
                         await asyncio.sleep(3600)
                 except asyncio.CancelledError:
+                    _log('Admin server task cancelled, cleaning up...')
                     pass
                 finally:
+                    # 关键：runner.cleanup() 释放 server socket，避免端口泄漏
                     await runner.cleanup()
+                    _log('Admin server runner.cleanup() done')
+                    _admin_server_running = False
 
-            loop.run_until_complete(_run())
+            # 用 task 模式：保存 task 引用，外部用 task.cancel() 优雅取消
+            # task.cancel() 触发 CancelledError → _run() 的 except 捕获 → finally 执行 runner.cleanup()
+            # （对比：loop.stop() 会让 run_until_complete 抛 RuntimeError，跳过 finally，socket 泄漏）
+            _admin_server_task = loop.create_task(_run())
+            loop.run_until_complete(_admin_server_task)
         except Exception as e:
             import traceback
             tb = traceback.format_exc()
@@ -1168,54 +1220,58 @@ def start_admin_server(port=8080):
             _admin_server_error = f'{e}\n{tb}'
             _log(f'Admin server failed: {e}\n{tb}', 'E')
             _admin_server_running = False
+        finally:
+            _admin_server_task = None
 
     _admin_server_thread = _threading.Thread(target=_run_server, daemon=True)
     _admin_server_thread.start()
 
-    # 等待服务器启动（最多 15 秒），期间检查错误。
-    # 注意：Chaquopy 首次 import server.routes + create_app() 在 Android 上较慢
-    # （拉起 server.app → config_manager → m3u_parser 等依赖链），5 秒不够，
-    # 延长到 15 秒确保首次启动有充足时间。
+    # 立即返回，不等待 server 启动完成。
+    # 原因：Chaquopy 的 callAttr 在 Python 函数执行期间会持有 GIL，
+    # 导致 _run_server 子线程的 import 被阻塞，主线程的等待循环检测不到 _admin_server_running=True。
+    # Kotlin 端通过 get_admin_url() 轮询 running 状态来检测后台启动是否完成。
+    # 短暂等待 1 秒，让 _run_server 线程有机会启动并报告早期错误（如端口被占用）。
     import time as _time
-    for _ in range(30):
-        if _admin_server_running:
-            break
-        if _admin_server_error:
-            return _err(f'服务器启动失败: {_admin_server_error}')
-        _time.sleep(0.5)
-
-    if _admin_server_running:
-        return _ok({'url': _admin_server_url, 'port': port})
-    elif _admin_server_error:
+    _time.sleep(1)
+    if _admin_server_error:
         return _err(f'服务器启动失败: {_admin_server_error}')
-    else:
-        # 超时但无错误：server 可能仍在后台继续启动（import 慢），
-        # 不要误导用户说"端口被占用"，提示稍后重试或刷新状态。
-        return _err('服务器启动较慢，可能在后台继续启动中，请稍后重试或刷新状态查看')
+    # 返回 running=False 表示"正在后台启动中"，Kotlin 端会启动轮询
+    return _ok({'url': _admin_server_url, 'port': _admin_server_port, 'running': _admin_server_running})
 
 
 def stop_admin_server():
     """停止 HTTP 管理服务器。"""
-    global _admin_server_running, _admin_loop, _admin_server_error
-    if not _admin_server_running:
-        return _ok({'ok': True, 'was_running': False})
-
+    global _admin_server_running, _admin_loop, _admin_server_error, _admin_server_thread, _admin_server_task
+    was_running = _admin_server_running
     _admin_server_running = False
     _admin_server_error = ''
-    if _admin_loop:
+    # 用 task.cancel() 代替 loop.stop()：
+    # - loop.stop() 让 run_until_complete 抛 RuntimeError，跳过 _run() 的 finally 块 → runner.cleanup() 不执行 → socket 泄漏
+    # - task.cancel() 触发 CancelledError → _run() 的 except 捕获 → finally 执行 runner.cleanup() → socket 正确释放
+    if _admin_server_task is not None and _admin_loop is not None:
         try:
-            _admin_loop.call_soon_threadsafe(_admin_loop.stop)
+            _admin_loop.call_soon_threadsafe(_admin_server_task.cancel)
         except Exception:
             pass
+    # 等待 server 线程结束，确保 socket 释放（避免下次启动时 address already in use）
+    if _admin_server_thread is not None and _admin_server_thread.is_alive():
+        _admin_server_thread.join(timeout=5)
+    _admin_loop = None
+    _admin_server_task = None
     _log('Admin server stopped')
-    return _ok({'ok': True, 'was_running': True})
+    return _ok({'ok': True, 'was_running': was_running})
 
 
 def get_admin_url():
-    """返回管理服务器 URL 和运行状态。"""
-    return _ok({
+    """返回管理服务器 URL 和运行状态。
+
+    注意：只在有错误时包含 error 字段，避免 Kotlin 端 callPyTyped 误判空字符串为错误。
+    """
+    result = {
         'url': _admin_server_url,
         'running': _admin_server_running,
         'port': _admin_server_port,
-        'error': _admin_server_error,
-    })
+    }
+    if _admin_server_error:
+        result['error'] = _admin_server_error
+    return _ok(result)
