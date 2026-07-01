@@ -17,13 +17,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -49,7 +53,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.data.IptvEpgProgram
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -75,6 +81,8 @@ fun EpgPanel(viewModel: AppViewModel) {
     val currentIdx by viewModel.currentIdx.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
+    // EPG 日期切换（±7 天，0=今天）
+    var epgDateOffset by remember { mutableStateOf(0) }
 
     Surface(
         color = Color(0xF0161616),
@@ -91,6 +99,44 @@ fun EpgPanel(viewModel: AppViewModel) {
                 subtitle = currentChannel?.name ?: "未选择频道",
                 onClose = { viewModel.toggleEpgPanel() }
             )
+
+            // -----------------------------------------------------------------
+            // 日期切换栏（±7 天）
+            // -----------------------------------------------------------------
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { if (epgDateOffset > -7) epgDateOffset-- },
+                    modifier = Modifier.tvFocusBorder()
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        contentDescription = "前一天",
+                        tint = if (epgDateOffset > -7) Color.White else Color(0xFF555555)
+                    )
+                }
+                Text(
+                    text = formatEpgDateLabel(epgDateOffset),
+                    color = if (epgDateOffset == 0) Color(0xFF4A9EFF) else Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                IconButton(
+                    onClick = { if (epgDateOffset < 7) epgDateOffset++ },
+                    modifier = Modifier.tvFocusBorder()
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "后一天",
+                        tint = if (epgDateOffset < 7) Color.White else Color(0xFF555555)
+                    )
+                }
+            }
 
             // -----------------------------------------------------------------
             // 搜索框
@@ -137,23 +183,60 @@ fun EpgPanel(viewModel: AppViewModel) {
                     EmptyState("暂无节目单数据\n请在主菜单 > 文件 > EPG 订阅源 添加")
                 }
                 else -> {
-                    val filtered = if (searchQuery.isEmpty()) epg else {
-                        epg.filter {
-                            it.title.contains(searchQuery, ignoreCase = true) ||
-                                    it.desc.contains(searchQuery, ignoreCase = true)
-                        }
+                    // 按日期过滤节目（±7 天范围）
+                    val cal = Calendar.getInstance().apply {
+                        add(Calendar.DAY_OF_MONTH, epgDateOffset)
+                        set(Calendar.HOUR_OF_DAY, 0)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
                     }
-                    EpgList(
-                        programs = filtered,
-                        searchActive = searchQuery.isNotEmpty(),
-                        onProgramClick = { program ->
-                            handleProgramClick(program, viewModel)
+                    val dayStartMs = cal.timeInMillis
+                    cal.add(Calendar.DAY_OF_MONTH, 1)
+                    val dayEndMs = cal.timeInMillis
+
+                    val dateFiltered = epg.filter { p ->
+                        val startMs = parseTimeToMs(p.start, p.startTs)
+                        val endMs = parseTimeToMs(p.end.ifEmpty { p.stop }, p.stopTs)
+                        startMs > 0 && endMs > startMs && startMs < dayEndMs && endMs > dayStartMs
+                    }
+
+                    if (dateFiltered.isEmpty()) {
+                        EmptyState("该日期无节目数据")
+                    } else {
+                        val filtered = if (searchQuery.isEmpty()) dateFiltered else {
+                            dateFiltered.filter {
+                                it.title.contains(searchQuery, ignoreCase = true) ||
+                                        it.desc.contains(searchQuery, ignoreCase = true)
+                            }
                         }
-                    )
+                        EpgList(
+                            programs = filtered,
+                            searchActive = searchQuery.isNotEmpty(),
+                            hasReminder = { program -> viewModel.isReminderSet(program) },
+                            onProgramClick = { program ->
+                                handleProgramClick(program, viewModel)
+                            }
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+/**
+ * 格式化 EPG 日期标签。
+ * offset=0 → "今天"，offset=-1 → "昨天"，offset=1 → "明天"，其他 → "MM-dd 周X"
+ */
+private fun formatEpgDateLabel(offset: Int): String {
+    if (offset == 0) return "今天"
+    if (offset == -1) return "昨天"
+    if (offset == 1) return "明天"
+    val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, offset) }
+    val dateFmt = SimpleDateFormat("MM-dd", Locale.getDefault())
+    val weekFmt = SimpleDateFormat("E", Locale.CHINESE)
+    return "${dateFmt.format(cal.time)} ${weekFmt.format(cal.time)}"
 }
 
 /**
@@ -163,6 +246,7 @@ fun EpgPanel(viewModel: AppViewModel) {
 private fun EpgList(
     programs: List<IptvEpgProgram>,
     searchActive: Boolean,
+    hasReminder: (IptvEpgProgram) -> Boolean,
     onProgramClick: (IptvEpgProgram) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -209,6 +293,7 @@ private fun EpgList(
                 program = program,
                 isCurrent = isCurrent,
                 isPast = isPast,
+                hasReminder = hasReminder(program),
                 onClick = { onProgramClick(program) }
             )
         }
@@ -223,6 +308,7 @@ private fun EpgItem(
     program: IptvEpgProgram,
     isCurrent: Boolean,
     isPast: Boolean,
+    hasReminder: Boolean,
     onClick: () -> Unit
 ) {
     val bgColor = if (isCurrent) Color(0xFF4A9EFF).copy(alpha = 0.15f) else Color.Transparent
@@ -234,7 +320,8 @@ private fun EpgItem(
             .fillMaxWidth()
             .alpha(itemAlpha)
             .background(bgColor)
-            .clickable(enabled = isPast && !isCurrent, onClick = onClick)
+            .clickable(onClick = onClick)
+            .tvFocusBorder()
             .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)
     ) {
         // 左侧蓝色边框（当前节目）
@@ -249,7 +336,7 @@ private fun EpgItem(
 
         // 节目内容
         Column(modifier = Modifier.weight(1f)) {
-            // 时间行 + LIVE badge
+            // 时间行 + LIVE badge + 提醒铃铛
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -268,6 +355,10 @@ private fun EpgItem(
                 if (isCurrent) {
                     Spacer(modifier = Modifier.width(6.dp))
                     LiveBadge()
+                }
+                if (hasReminder) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    ReminderBadge()
                 }
             }
 
@@ -295,6 +386,27 @@ private fun EpgItem(
                 )
             }
         }
+    }
+}
+
+/**
+ * 提醒徽章（铃铛图标）。
+ */
+@Composable
+private fun ReminderBadge() {
+    Surface(
+        color = Color(0xFFFFC107).copy(alpha = 0.2f),
+        shape = RoundedCornerShape(3.dp),
+        modifier = Modifier.clip(RoundedCornerShape(3.dp))
+    ) {
+        Icon(
+            imageVector = Icons.Default.Notifications,
+            contentDescription = "已设提醒",
+            tint = Color(0xFFFFC107),
+            modifier = Modifier
+                .padding(horizontal = 3.dp, vertical = 1.dp)
+                .size(10.dp)
+        )
     }
 }
 
@@ -355,7 +467,7 @@ private fun EmptyState(text: String) {
 /**
  * 节目点击处理：
  * - past 程序（已结束且非当前）→ startCatchup
- * - current/future 程序 → setReminder
+ * - current/future 程序 → toggleReminder（设置/取消提醒）
  */
 private fun handleProgramClick(program: IptvEpgProgram, viewModel: AppViewModel) {
     val now = System.currentTimeMillis()
@@ -366,15 +478,8 @@ private fun handleProgramClick(program: IptvEpgProgram, viewModel: AppViewModel)
         // 过去节目 → 触发回看
         viewModel.startCatchup(program)
     } else {
-        // 当前/未来节目 → 添加提醒（暂未实现完整 reminder，先显示 OSD）
-        val startMs = parseTimeToMs(program.start, program.startTs)
-        val remainingSec = if (startMs > 0) (startMs - now) / 1000 else 0L
-        val msg = if (remainingSec > 0) {
-            "节目将在 ${remainingSec / 60} 分钟后开始"
-        } else {
-            "正在播放"
-        }
-        viewModel.showOsd("节目提醒", "${program.title} - $msg")
+        // 当前/未来节目 → 切换提醒
+        viewModel.toggleReminder(program, viewModel.currentChannel.value)
     }
 }
 

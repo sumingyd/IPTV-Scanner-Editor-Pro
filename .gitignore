@@ -189,6 +189,7 @@ libs/
 app.log
 iptv_manager.log
 logcat*.txt
+lan_admin_log*.txt
 
 # 截图
 screen.png

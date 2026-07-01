@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.iptv.scanner.editor.pro.data.IptvEpgSource
 import com.iptv.scanner.editor.pro.data.IptvSource
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 
 /**
  * 订阅源管理面板（全屏覆盖）。
@@ -103,7 +104,7 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // 局域网管理按钮
-                    IconButton(onClick = { viewModel.toggleAdminServer() }) {
+                    IconButton(onClick = { viewModel.toggleAdminServer() }, modifier = Modifier.tvFocusBorder()) {
                         Icon(
                             Icons.Default.Wifi,
                             contentDescription = "局域网管理",
@@ -112,7 +113,7 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                     }
                     // 二维码按钮（仅在服务器运行时显示）
                     if (adminRunning) {
-                        IconButton(onClick = { showQrCode = !showQrCode }) {
+                        IconButton(onClick = { showQrCode = !showQrCode }, modifier = Modifier.tvFocusBorder()) {
                             Icon(
                                 Icons.Default.QrCode,
                                 contentDescription = "二维码",
@@ -135,12 +136,12 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                             } else {
                                 viewModel.reloadEpgSources()
                             }
-                        }) {
+                        }, modifier = Modifier.tvFocusBorder()) {
                             Icon(Icons.Default.Refresh, contentDescription = "重载", tint = Color.White)
                         }
                     }
                     // 关闭按钮
-                    IconButton(onClick = { viewModel.toggleSourceManager() }) {
+                    IconButton(onClick = { viewModel.toggleSourceManager() }, modifier = Modifier.tvFocusBorder()) {
                         Icon(Icons.Default.Close, contentDescription = "关闭", tint = Color.White)
                     }
                 }

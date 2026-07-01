@@ -7,6 +7,12 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
+    <!-- TV 端支持声明（required=false 让应用同时可在手机和 TV 上安装）：
+         - leanback: Android TV 特性（D-pad 导航、TV UI 模式）
+         - touchscreen 不强制要求：TV 端无触摸屏，需声明 false 才能在 TV 上安装 -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
     <application
         android:name="com.chaquo.python.android.PyApplication"
         android:allowBackup="true"

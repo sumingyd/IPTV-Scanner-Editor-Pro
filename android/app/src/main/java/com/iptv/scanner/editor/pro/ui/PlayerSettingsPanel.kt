@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.data.UserPrefs
 import com.iptv.scanner.editor.pro.player.PlayerType
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 
 /**
  * 播放器设置面板（全屏覆盖）。
@@ -54,6 +55,7 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
     val playerCapabilities by viewModel.playerCapabilities.collectAsState()
     val currentVo by viewModel.currentVo.collectAsState()
     val currentHwdec by viewModel.currentHwdec.collectAsState()
+    val hdrMode by viewModel.hdrMode.collectAsState()
     val isMpvMode = playerType == PlayerType.MPV
 
     Surface(
@@ -79,11 +81,11 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // 重置按钮
-                    IconButton(onClick = { viewModel.resetPlayerSettings() }) {
+                    IconButton(onClick = { viewModel.resetPlayerSettings() }, modifier = Modifier.tvFocusBorder()) {
                         Icon(Icons.Default.Refresh, contentDescription = "重置", tint = Color.White)
                     }
                     // 关闭按钮
-                    IconButton(onClick = { viewModel.togglePlayerSettings() }) {
+                    IconButton(onClick = { viewModel.togglePlayerSettings() }, modifier = Modifier.tvFocusBorder()) {
                         Icon(Icons.Default.Close, contentDescription = "关闭", tint = Color.White)
                     }
                 }
@@ -238,6 +240,64 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                 }
                 Text(
                     text = hwdecDesc,
+                    color = Color(0xFFB0BEC5),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // -----------------------------------------------------------------
+                // HDR 输出模式（与 PC 端 hdr_output_mode 对齐）
+                // -----------------------------------------------------------------
+                SectionTitle("HDR 输出模式")
+                Spacer(modifier = Modifier.height(4.dp))
+                SectionDesc("HDR 视频的色彩处理方式。仅对 HDR 视频生效，非 HDR 视频不受影响")
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 4 个 HDR 模式 chip（两行布局，避免窄屏溢出）
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = hdrMode == AppViewModel.HdrMode.DISABLE,
+                        onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.DISABLE) },
+                        label = { Text("禁用") }
+                    )
+                    FilterChip(
+                        selected = hdrMode == AppViewModel.HdrMode.AUTO,
+                        onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.AUTO) },
+                        label = { Text("自动") }
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = hdrMode == AppViewModel.HdrMode.TONEMAP,
+                        onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.TONEMAP) },
+                        label = { Text("色调映射") }
+                    )
+                    FilterChip(
+                        selected = hdrMode == AppViewModel.HdrMode.PASSTHROUGH,
+                        onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.PASSTHROUGH) },
+                        label = { Text("直通") }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // 当前 HDR 模式说明
+                val hdrDesc = when (hdrMode) {
+                    AppViewModel.HdrMode.DISABLE -> "禁用 HDR：强制 SDR 输出。" +
+                        "所有视频按 bt.709/bt.1886 渲染，HDR 视频可能高光过曝"
+                    AppViewModel.HdrMode.AUTO -> "自动模式：Android 端固定走色调映射" +
+                        "（系统 HDR 检测复杂，与 PC 端未启用 HDR 一致）"
+                    AppViewModel.HdrMode.TONEMAP -> "HDR→SDR 色调映射：HDR 视频映射到 bt.709/bt.1886。" +
+                        "信任 HDR10+ 动态元数据，自动选择算法（HDR10+→st2094-40, HDR10/HLG→bt.2390）"
+                    AppViewModel.HdrMode.PASSTHROUGH -> "HDR 直通：HDR 视频按 bt.2020/pq 输出。" +
+                        "需要显示器支持 HDR，否则画面可能过暗或色彩异常"
+                }
+                Text(
+                    text = hdrDesc,
                     color = Color(0xFFB0BEC5),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(horizontal = 4.dp)

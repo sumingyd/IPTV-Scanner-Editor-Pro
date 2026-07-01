@@ -203,6 +203,36 @@ class MpvController : MPVLib.EventObserver, Player {
         return try { MPVLib.getPropertyString("path") } catch (e: Throwable) { null }
     }
 
+    /**
+     * 获取视频宽高比（用于 PiP 窗口比例设置，消除黑边）。
+     * @return Rational(w, h) 或 null（无视频信息时）
+     */
+    fun getVideoAspectRatio(): android.util.Rational? {
+        val w = _videoWidth.value
+        val h = _videoHeight.value
+        if (w <= 0 || h <= 0) return null
+        // 约分以避免 Rational 分子分母过大抛 IllegalArgumentException
+        val g = gcd(w, h)
+        return try {
+            android.util.Rational(w / g, h / g)
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
+    /**
+     * 获取 MPVView 在屏幕上的可见矩形（用于 PiP 进入动画的 sourceBoundsHint）。
+     * @return Rect 或 null（无 view 时）
+     */
+    fun getVideoBoundsOnScreen(): android.graphics.Rect? {
+        val view = mpvView ?: return null
+        val rect = android.graphics.Rect()
+        val visible = view.getGlobalVisibleRect(rect)
+        return if (visible) rect else null
+    }
+
+    private fun gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
+
     // -----------------------------------------------------------------
     // 基础播放控制
     // -----------------------------------------------------------------
@@ -398,7 +428,45 @@ class MpvController : MPVLib.EventObserver, Player {
         postOnUiThread {
             MPVLib.command(arrayOf("vf", "remove", "@iptv_flip"))
             MPVLib.command(arrayOf("vf", "remove", "@iptv_crop"))
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_360"))
         }
+    }
+
+    // -----------------------------------------------------------------
+    // 3D 立体模式与 360° 视角（与 PC 端 set_video_stereo_mode / set_360_view 对齐）
+    // -----------------------------------------------------------------
+
+    /**
+     * 设置 3D 立体模式。
+     * mode: "mono" / "sbs" / "sbs2" / "ab" / "ab2"
+     * 直接设置 mpv 的 video-stereo-mode 属性（运行时可改）。
+     */
+    override fun setVideoStereoMode(mode: String): Boolean {
+        postOnUiThread { MPVLib.setPropertyString("video-stereo-mode", mode) }
+        return true
+    }
+
+    override fun getVideoStereoMode(): String? {
+        return MPVLib.getPropertyString("video-stereo-mode")
+    }
+
+    /**
+     * 设置 360° 视角（panorama 滤镜）。
+     * 先 remove 旧 @iptv_360，再 add 新的。
+     * 注意：panorama 滤镜需 ffmpeg 编译时启用，部分设备可能不可用。
+     * hwdec 必须为 auto-copy（默认）才能用 vf 滤镜。
+     */
+    override fun set360View(yaw: Double, pitch: Double, roll: Double, projection: String): Boolean {
+        postOnUiThread {
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_360"))
+            val expr = "lavfi=[panorama=e=$projection:yaw=$yaw:pitch=$pitch:roll=$roll]"
+            MPVLib.command(arrayOf("vf", "add", "@iptv_360:$expr"))
+        }
+        return true
+    }
+
+    override fun clear360Filter() {
+        postOnUiThread { MPVLib.command(arrayOf("vf", "remove", "@iptv_360")) }
     }
 
     // -----------------------------------------------------------------
@@ -431,6 +499,15 @@ class MpvController : MPVLib.EventObserver, Player {
 
     override fun resetAudioEq(): Boolean {
         postOnUiThread { MPVLib.command(arrayOf("af", "remove", "@iptv_eq")) }
+        return true
+    }
+
+    /**
+     * 设置音频音调（变调不变速）。与 PC 端 set_audio_pitch 一致。
+     * pitch: 0.0~2.0，1.0=正常。实际设置 mpv 的 audio-pitch-correction 属性。
+     */
+    override fun setAudioPitch(pitch: Double): Boolean {
+        postOnUiThread { MPVLib.setPropertyDouble("audio-pitch-correction", pitch.coerceIn(0.0, 2.0)) }
         return true
     }
 

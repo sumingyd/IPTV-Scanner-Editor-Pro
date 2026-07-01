@@ -7,7 +7,7 @@
 
 一款功能全面的 IPTV 频道扫描、验证、播放和管理工具，跨平台支持 Windows / macOS / Linux 桌面端与 Android 移动端。集成 MPV 播放引擎与 FFprobe 流探测，支持 EPG 电子节目单、频道台标自动匹配、HDR 显示、在线字幕下载、音频可视化、断点续播、片段导出等高级功能，多主题界面、中英双语，从扫描到观看一站式完成。
 
-> **当前版本**：v48.0.0.0（构建日期 2026-06-29）
+> **当前版本**：v48.0.23.0（构建日期 2026-07-02）
 
 ## 📸 程序截图
 
@@ -36,7 +36,7 @@
 | 界面 | 21种主题组合、中英双语、三栏布局、悬浮面板、系统托盘、文件关联、拖放打开、丰富快捷键 |
 | 订阅 | 多源管理、独立缓存、智能更新(增量)、编辑功能、缓存回退、过期策略 |
 | Web 服务器 | 内置 aiohttp 服务器、频道列表和播放接口 |
-| Android 端 | Java+Kotlin+Python 三层混合架构、MPV Native 渲染、WebView 触屏 UI、PWA、遥控器适配、画中画、与 PC 端共用业务后端 |
+| Android 端 | Kotlin Compose 原生 UI、MPV Native 渲染、Chaquopy Python 后端、TV/手机双模式、遥控器适配、画中画（PiP 增强）、HDR 模式切换、3D/360°视频、随机播放、书签管理、EPG 时间轴/日期切换、全局搜索、流质量检测、字幕样式、连拍截图、LAN 管理后台 |
 
 ## ✨ 核心功能
 
@@ -236,39 +236,53 @@
 - **本地服务**：内置 aiohttp 轻量级 Web 服务器，提供频道列表、播放接口、EPG、扫描、订阅等完整 RESTful API
 - **远程控制**：通过浏览器访问频道列表和控制播放
 - **流代理**：`/stream/{id}` 路由提供频道流代理，支持直连播放
+- **管理后台**：`/admin/` 提供 7 个 Tab 的完整 Web 管理界面（PC/Linux/macOS/Android 通用）
+  - 订阅源管理、EPG 源管理、频道管理（列表/搜索/分页/分组筛选/CRUD/导入 M3U）
+  - URL 范围扫描（实时状态轮询/结果列表）、频道映射管理（添加/删除/刷新远程）
+  - 节目单 EPG 浏览（频道列表+节目详情，当前节目高亮）、缓存管理（清空缩略图/截图/字幕/全部）
 - **PWA 支持**：移动端 UI 支持 PWA 安装，Service Worker 采用 network-first 缓存策略
 
 ### 📱 Android 移动端
-Android 端采用 **Java + Kotlin + Python 三层混合架构**，与 PC 端共用同一套 Python 业务后端，通过 WebView 加载触屏 UI。
+Android 端采用 **Kotlin Compose + Chaquopy Python 两层架构**，与 PC 端共用同一套 Python 业务后端，UI 全部用 Jetpack Compose 原生构建（已替换早期的 WebView 方案）。
 
 #### 架构
 | 层 | 技术 | 职责 |
 |---|---|---|
-| 底层渲染 | Kotlin（MPVView.kt + MPVLib.kt） | SurfaceView + JNI 调用 libmpv.so 渲染视频 |
-| 中层 UI | HTML/JS/CSS（server/mobile/） | WebView 透明叠加，加载 aiohttp 服务的移动端单页应用 |
-| 业务层 | Python（Chaquopy 3.14） | aiohttp 服务器（127.0.0.1:8080），复用 PC 端 core/services 模块 |
+| UI + 渲染层 | Kotlin（Jetpack Compose + MPVView.kt） | Compose 声明式 UI、SurfaceView + JNI 调用 libmpv.so 渲染视频、TV/手机双模式适配 |
+| 业务层 | Python（Chaquopy 3.11） | 复用 PC 端 core/services 模块处理订阅/扫描/EPG/映射；按需启动 LAN admin 服务器 |
 
 #### 核心功能
-- **视频播放**：MPV Native 渲染，支持播放/暂停/停止、音量、倍速、画面比例、音轨/字幕切换、截图、HDR 徽章、hwdec 切换
+- **视频播放**：MPV Native 渲染，支持播放/暂停/停止、音量、倍速、画面比例、音轨/字幕切换、hwdec 切换
+- **HDR 模式切换**：禁用/自动/色调映射/直通 4 种模式，文件加载时自动检测 HDR（gamma=pq/hlg 或 sig-peak>1.0）并应用，与 PC 端 `_apply_tonemap_config`/`_apply_passthrough_config` 对齐
+- **3D / 360° 视频**：5 种 3D 立体模式（mono/sbs/sbs2/ab/ab2）+ 360° 视角控制（panorama 滤镜，flat/equirect/cubemap 投影 + yaw/pitch/roll）
 - **控制面板**：3 行布局对齐 PC 端——媒体信息徽章、节目信息行、控制行（上一/下一频道、播放/暂停/停止、进度条、音量、倍速、画面比例、音轨、字幕）
 - **频道列表**：5 个 Tab（订阅 / 本地 / 收藏 / 历史 / 队列），搜索框、分组筛选
-- **EPG 节目单**：节目列表、当前节目 LIVE 徽章 + 自动居中、过去节目点击触发回看、当前/未来节目设置提醒
+- **EPG 节目单**：节目列表、当前节目 LIVE 徽章 + 自动居中、过去节目点击触发回看、当前/未来节目设置提醒、**±7 天日期切换**
+- **EPG 时间线视图**：多频道时间线对照（与 PC 端对齐）
 - **时移 / 回看**：对齐 PC 端逻辑，进度条点击触发时移，EPG 过去节目点击触发 catchup
+- **全局搜索**：跨频道名称/URL/分组/EPG 节目标题统一搜索
+- **流质量检测**：实时探测视频分辨率/编解码/码率/帧率
+- **书签管理**：频道书签的添加/列表/跳转/删除
+- **字幕**：轨切换/显示/延迟/缩放/位置、**字幕样式高级**（颜色/字体/边框/阴影/加粗/斜体 + 4 种快速预设）、在线字幕搜索下载
+- **音频**：音轨切换/延迟/10 段 EQ 预设、**音频音调**（audio-pitch-correction，0.5~2.0，变调不变速）
+- **截图**：单张/连拍（间隔+总数可调，进度条显示）、含字幕/含 OSD 模式
+- **播放设置**：循环模式（单曲/列表/强制）、**随机播放 shuffle**（应用层随机选索引，避免短期重复，支持上一频道回退）、A-B 循环、逐帧、速度、章节
+- **视频设置**：图像调整（亮度/对比度/饱和度/色调/Gamma）、旋转、翻转、3D/360
 - **频道扫描**：独立 `StandaloneScanner`（requests + threading），支持 IP 范围扫描
-- **订阅管理**：多源管理、独立缓存、状态显示（优先 `/api/sources/status` 的 channels 字段）
-- **字幕下载**：在线字幕搜索与下载
-- **画中画**：`onUserLeaveHint()` 自动进入 PiP，`onPictureInPictureModeChanged()` 通知 JS
+- **订阅管理**：多源管理、独立缓存、状态显示（优先 `/api/sources/status` 的 channels 字段）、添加订阅源自动触发加载
+- **LAN 管理后台**：启动局域网 admin 服务器，二维码扫码访问（自动展开），5 分钟自动停止 + 倒计时，端口冲突自动递增
+- **画中画（PiP 增强）**：`onUserLeaveHint()` 自动进入 PiP，按视频实际宽高比设置窗口（消除黑边）、sourceRectHint 动画过渡、Android 12+ setAutoEnterEnabled + setSeamlessResizeEnabled、进入 PiP 自动关闭面板隐藏控制层
 - **全屏切换**：沉浸式全屏
-- **遥控器适配**：DPAD 方向键（频道切换/快退快进）、确认键（播放暂停）、菜单键（主菜单）、返回键（关闭面板/退出）、数字键（频道输入）、音量键
-- **本地文件打开**：`<input type="file">` 支持打开本地播放列表和视频
-- **PWA**：manifest.json + Service Worker（network-first 策略，避免缓存陈旧 HTML）
+- **遥控器适配（TV 端）**：DPAD 方向键（面板开启时由 Compose 焦点系统导航，面板关闭时上下切换频道、左右切换面板）、CENTER/ENTER（播放暂停）、菜单键（主菜单）、返回键（关闭面板/退出）、SPACE/M（播放暂停）、音量键、tvFocusBorder 焦点高亮
+- **本地文件打开**：SAF（Storage Access Framework）支持打开本地播放列表和视频
+- **多播放器内核**：MPV（默认）/ ExoPlayer / VLC / IJK（可切换）
 
 #### 构建要求
 - Android Studio + Gradle 8.7.0
 - compileSdk 35 / minSdk 28 / targetSdk 35
-- Chaquopy 17.0.0（Python 3.14）
+- Chaquopy（Python 3.11）
 - Kotlin 2.0.21 / JVM 21
-- ABI：arm64-v8a、x86_64
+- ABI：arm64-v8a、armeabi-v7a、x86_64、x86（4 种通用架构）
 - 依赖原生库：libmpv.so、libplayer.so、FFmpeg 系列（libavcodec/libavformat/libavfilter/libavutil/libswscale/libswresample）
 
 #### 构建与安装
@@ -279,7 +293,7 @@ adb uninstall com.iptv.scanner.editor.pro
 adb install -g app/build/outputs/apk/debug/app-debug.apk
 ```
 
-> **MPV 原生库来源**：仓库 `android/` 目录下附带的 `mpv-arm64.apk` 和 `mpv-x86_64.apk` 用于提取 libmpv.so 等原生库到 `app/src/main/jniLibs/`。
+> **MPV 原生库来源**：仓库 `android/` 目录下附带的 `mpv-arm64.apk`、`mpv-x86_64.apk`、`mpv-arm.apk`、`mpv-x86.apk` 用于提取 libmpv.so 等原生库到 `app/src/main/jniLibs/`（对应 4 种 ABI）。
 
 ## 🚀 快速开始
 
@@ -301,7 +315,7 @@ python pyqt_player.py
 
 ### 系统要求
 - **操作系统**：Windows 10/11, macOS 10.15+, Linux (x86_64 / ARM64), Android 9.0+ (API 28)
-- **Python**：3.8+（PC 端）/ Python 3.14（Android 端，由 Chaquopy 内嵌）
+- **Python**：3.8+（PC 端）/ Python 3.11（Android 端，由 Chaquopy 内嵌）
 - **内存**：2GB RAM 以上
 - **网络**：需要网络连接用于频道扫描、EPG 下载和流媒体播放
 
@@ -320,10 +334,10 @@ python pyqt_player.py
 - 打包为 `.app` bundle，可直接分发
 
 ### Android 支持
-- Android 端代码位于 `android/` 目录，采用 Java + Kotlin + Python 三层混合架构
+- Android 端代码位于 `android/` 目录，采用 Kotlin Compose + Python 两层架构
 - 需 Android Studio + Gradle 8.7.0 构建，详见上文「Android 移动端」章节
-- 内嵌 Python 3.14（Chaquopy），与 PC 端共用业务后端代码
-- 支持 arm64-v8a 和 x86_64 两种 ABI
+- 内嵌 Python 3.11（Chaquopy），与 PC 端共用业务后端代码
+- 支持 arm64-v8a、armeabi-v7a、x86_64、x86 四种 ABI（覆盖 32/64 位 ARM 与 x86）
 - 详见 `android/app/build.gradle` 构建配置
 
 ## 📖 使用指南
@@ -560,20 +574,46 @@ IPTV-Scanner-Editor-Pro/
     ├── app/                    # 主应用模块
     │   ├── src/main/
     │   │   ├── java/com/iptv/scanner/editor/pro/
-    │   │   │   ├── MainActivity.java  # 唯一 Activity（入口，三层架构编排）
-    │   │   │   └── mpv/               # mpv 渲染层（Kotlin）
-    │   │   │       ├── MPVView.kt     # SurfaceView + mpv 渲染
-    │   │   │       └── MpvJsBridge.kt # JS↔Native mpv 桥接
-    │   │   ├── python/                # 内嵌 Python 后端（Chaquopy 3.14）
+    │   │   │   ├── MainActivityCompose.kt  # 唯一 Activity（入口，Compose 宿主 + PiP + 遥控器）
+    │   │   │   ├── data/                   # 数据层（Kotlin）
+    │   │   │   │   ├── IptvModels.kt       # 数据模型（频道/EPG/书签/提醒/AdminServerInfo 等）
+    │   │   │   │   ├── IptvRepository.kt   # 数据仓库（调用 Python bridge）
+    │   │   │   │   └── UserPrefs.kt        # SharedPreferences 持久化
+    │   │   │   ├── mpv/                    # MPV 渲染层（Kotlin）
+    │   │   │   │   ├── MPVView.kt          # SurfaceView + mpv 渲染
+    │   │   │   │   └── MpvController.kt    # Compose 友好的 mpv 控制器（StateFlow + 命令）
+    │   │   │   ├── player/                 # 多播放器内核抽象（Player 接口 + 各实现）
+    │   │   │   │   ├── Player.kt           # 统一播放器接口
+    │   │   │   │   ├── ExoPlayerController.kt / VlcController.kt / IjkController.kt
+    │   │   │   │   ├── CatchupHelper.kt    # 回看/时移辅助
+    │   │   │   │   └── ProgressHelper.kt   # 进度条逻辑（对齐 PC 端）
+    │   │   │   └── ui/                     # Compose UI 层
+    │   │   │       ├── AppViewModel.kt     # 核心 ViewModel（所有功能入口）
+    │   │   │       ├── MainPlayerScreen.kt # 主播放界面
+    │   │   │       ├── ControlPanel.kt     # 3 行控制面板
+    │   │   │       ├── ChannelsPanel.kt    # 频道列表（5 Tab）
+    │   │   │       ├── EpgPanel.kt         # EPG 节目单（±7 天日期切换）
+    │   │   │       ├── EpgTimelinePanel.kt # EPG 时间线视图
+    │   │   │       ├── SearchPanel.kt      # 全局搜索
+    │   │   │       ├── StreamQualityPanel.kt # 流质量检测
+    │   │   │       ├── SourceManagerPanel.kt # 订阅源管理 + LAN 管理入口
+    │   │   │       ├── MainMenuPanel.kt    # 主菜单
+    │   │   │       ├── PlayerSettingsPanel.kt # 播放器设置（VO/HWDEC/HDR）
+    │   │   │       ├── MorePanels.kt       # 视频/音频/字幕/播放/截图/关于面板集合
+    │   │   │       ├── QrCodeUtil.kt       # 二维码生成
+    │   │   │       └── theme/              # 主题 + TV 焦点高亮
+    │   │   ├── python/                # 内嵌 Python 后端（Chaquopy 3.11）
     │   │   │   ├── android_bridge.py  # Python 服务启动入口
     │   │   │   ├── core/              # 核心模块（复用 PC 端）
     │   │   │   ├── services/          # 业务服务（复用 PC 端）
-    │   │   │   └── server/            # aiohttp 服务器 + mobile/ UI
-    │   │   ├── jniLibs/               # 原生库（arm64-v8a / x86_64）
+    │   │   │   └── server/            # aiohttp 服务器 + admin/ + mobile/
+    │   │   ├── jniLibs/               # 原生库（arm64-v8a / armeabi-v7a / x86_64 / x86）
     │   │   └── AndroidManifest.xml
     │   └── build.gradle               # 应用级构建脚本
     ├── mpv-arm64.apk                  # 预打包 mpv 库 APK（arm64）
+    ├── mpv-arm.apk                    # 预打包 mpv 库 APK（armeabi-v7a）
     ├── mpv-x86_64.apk                 # 预打包 mpv 库 APK（x86_64）
+    ├── mpv-x86.apk                    # 预打包 mpv 库 APK（x86）
     └── gradlew / gradlew.bat          # Gradle 包装器
 ```
 
@@ -582,7 +622,7 @@ IPTV-Scanner-Editor-Pro/
 | 组件 | 技术 |
 |---|---|
 | GUI 框架（PC） | PySide6 |
-| 移动端框架（Android） | Java Activity + Kotlin + WebView + Chaquopy Python |
+| 移动端框架（Android） | Kotlin Jetpack Compose + Chaquopy Python（MPV Native 渲染） |
 | 播放引擎 | libmpv (MPV) |
 | 流探测 | FFprobe (FFmpeg) |
 | 片段导出 / GIF | FFmpeg + Pillow |

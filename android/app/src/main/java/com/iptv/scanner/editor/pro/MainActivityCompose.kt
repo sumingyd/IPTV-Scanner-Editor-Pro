@@ -155,6 +155,20 @@ class MainActivityCompose : ComponentActivity() {
         }
 
         // TV 模式 DPAD 处理
+        // 面板打开时，方向键和确认键交给 Compose 焦点系统在面板内导航，
+        // 不再全局拦截为切频道/切面板（与 PC 端 mobile/index.html 面板内键盘导航一致）。
+        // 字母键（SPACE/M）和音量键仍由这里处理播放控制。
+        val isDpadNavigation = keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+                keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+                keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+                keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
+                keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                keyCode == KeyEvent.KEYCODE_ENTER
+        if (viewModel.anyPanelOpen && isDpadNavigation) {
+            // 交给 Compose 焦点系统处理（在面板内导航/确认）
+            return super.onKeyDown(keyCode, event)
+        }
+
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_UP -> {
                 viewModel.prevChannel()
@@ -199,7 +213,11 @@ class MainActivityCompose : ComponentActivity() {
 
     /**
      * 用户按 HOME 键离开应用时自动进入 PiP（如果正在播放且支持 PiP）。
-     * 与旧 MainActivity.java 行为一致。
+     *
+     * PiP 增强（与 Android 最佳实践对齐）：
+     * - setAspectRatio：按视频实际宽高比设置 PiP 窗口，消除黑边
+     * - setSourceBoundsHint：从视频区域平滑动画过渡到 PiP 窗口
+     * - Android 12+：setAutoEnterEnabled + setSeamlessResizeEnabled
      */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
@@ -210,12 +228,43 @@ class MainActivityCompose : ComponentActivity() {
             && mpv.fileLoaded.value && !mpv.paused.value
         ) {
             try {
-                val params = PictureInPictureParams.Builder().build()
-                enterPictureInPictureMode(params)
+                val builder = PictureInPictureParams.Builder()
+                // 1. 设置视频宽高比（消除 PiP 窗口黑边）
+                mpv.getVideoAspectRatio()?.let { ratio ->
+                    builder.setAspectRatio(ratio)
+                    Log.i(TAG, "PiP aspect ratio: $ratio")
+                }
+                // 2. 设置源矩形（动画从视频区域平滑过渡到 PiP 窗口）
+                mpv.getVideoBoundsOnScreen()?.let { rect ->
+                    builder.setSourceRectHint(rect)
+                    Log.i(TAG, "PiP source bounds: $rect")
+                }
+                // 3. Android 12+：自动进入 PiP + 无缝调整大小
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    builder.setAutoEnterEnabled(true)
+                    builder.setSeamlessResizeEnabled(true)
+                }
+                enterPictureInPictureMode(builder.build())
                 Log.i(TAG, "Auto-entered PiP on user leave")
             } catch (e: Exception) {
                 Log.w(TAG, "Auto PiP failed: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * PiP 模式变化回调：进入 PiP 时关闭所有面板并隐藏控制层（小窗口只显示视频），
+     * 退出 PiP 时恢复控制层显示。
+     */
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode)
+        if (isInPictureInPictureMode) {
+            viewModel.closeAllPanels()
+            viewModel.hideControls()
+            Log.i(TAG, "Entered PiP: panels closed, controls hidden")
+        } else {
+            viewModel.showControls()
+            Log.i(TAG, "Exited PiP: controls shown")
         }
     }
 

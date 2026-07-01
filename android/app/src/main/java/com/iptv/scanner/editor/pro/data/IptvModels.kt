@@ -144,6 +144,71 @@ data class ScanResult(
 )
 
 // -----------------------------------------------------------------
+// 节目提醒（与 PC 端 services/epg_reminder_service.py 对齐）
+// -----------------------------------------------------------------
+
+@Serializable
+data class ReminderItem(
+    /** 唯一 ID：channelIdx_programTitle_startTs，用于去重和删除 */
+    @SerialName("id") val id: String = "",
+    /** 频道在 channels 列表中的下标（切台用） */
+    @SerialName("channel_idx") val channelIdx: Int = -1,
+    @SerialName("channel_name") val channelName: String = "",
+    @SerialName("tvg_id") val tvgId: String = "",
+    @SerialName("program_title") val programTitle: String = "",
+    /** 节目开始时间戳（毫秒） */
+    @SerialName("start_ts") val startTs: Long = 0,
+    /** 节目结束时间戳（毫秒） */
+    @SerialName("stop_ts") val stopTs: Long = 0,
+    /** 提醒创建时间戳（毫秒） */
+    @SerialName("created_at") val createdAt: Long = 0,
+)
+
+// -----------------------------------------------------------------
+// 续播位置（与 PC 端 controllers/resume_playback_controller.py 对齐）
+//
+// 以 URL 为唯一 key（PC 端用 url 作 dict key，Web 端用 uuid 但同时存 url）。
+// Android 端采用 url 作 id 简化去重逻辑。
+// -----------------------------------------------------------------
+
+@Serializable
+data class ResumeItem(
+    /** 唯一 ID：使用 url（同一 URL 重复播放只保留最新位置） */
+    @SerialName("id") val id: String = "",
+    @SerialName("url") val url: String = "",
+    /** 显示名：本地视频取文件名，频道取频道名 */
+    @SerialName("name") val name: String = "",
+    /** 频道下标（-1 表示本地视频，不在频道列表中） */
+    @SerialName("channel_idx") val channelIdx: Int = -1,
+    /** 播放位置（秒） */
+    @SerialName("position") val position: Long = 0,
+    /** 总时长（秒），直播流为 0 或不保存 */
+    @SerialName("duration") val duration: Long = 0,
+    /** 更新时间戳（毫秒） */
+    @SerialName("updated_at") val updatedAt: Long = 0,
+)
+
+// -----------------------------------------------------------------
+// 书签（与 PC 端 controllers/bookmark_controller.py 对齐）
+//
+// 以 URL 为分组 key（与 PC 端 bookmarks.json 结构一致）。
+// 同 URL 同位置（0.5s 容差）的书签会被覆盖。
+// -----------------------------------------------------------------
+
+@Serializable
+data class BookmarkItem(
+    /** 唯一 ID：url_position（用于 Compose LazyColumn key） */
+    @SerialName("id") val id: String = "",
+    @SerialName("url") val url: String = "",
+    /** 书签名（用户输入或自动生成） */
+    @SerialName("name") val name: String = "",
+    /** 书签位置（秒） */
+    @SerialName("position") val position: Long = 0,
+    /** 创建时间戳（毫秒） */
+    @SerialName("created_at") val createdAt: Long = 0,
+)
+
+// -----------------------------------------------------------------
 // 频道映射
 // -----------------------------------------------------------------
 

@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.Equalizer
@@ -28,7 +29,6 @@ import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Public
@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 
 /**
  * 主菜单面板：与 PC 端 mobile/index.html 主菜单（panelMenu）对齐。
@@ -283,19 +284,19 @@ private fun buildMenuSections(
     val playbackSection = MenuSection(
         title = "播放",
         entries = listOf(
-            MenuEntry(Icons.Default.ListAlt, "频道", "订阅 / 本地 / 收藏 / 历史 / 队列", onChannels, highlight = true),
-            MenuEntry(Icons.Default.CalendarMonth, "节目单 EPG", "当前频道节目与提醒", onEpg, highlight = true),
-            MenuEntry(Icons.Default.ClosedCaption, "字幕", "轨 / 样式 / 延迟 / 位置 / 加载", onSubtitle),
-            MenuEntry(Icons.Default.VideoSettings, "视频", "图像调整 / 旋转 / 比例 / 3D 360 / HDR", onVideo),
-            MenuEntry(Icons.Default.Equalizer, "音频", "轨 / 延迟 / 设备 / 声道 / 音调 / EQ", onAudio),
-            MenuEntry(Icons.Default.PlayCircle, "播放", "队列 / 循环 / AB / 续播 / 书签 / 章节逐帧", onPlayback),
-            MenuEntry(Icons.Default.ScreenshotMonitor, "截图", "单张 / 连拍 / 缩略图", onScreenshot),
-            MenuEntry(Icons.Default.GraphicEq, "A/V 同步监控", "实时波形 / 音视频差值", onAvsync),
+            MenuEntry(Icons.AutoMirrored.Filled.ListAlt, "频道", "订阅 / 本地 / 收藏 / 历史 / 队列", onChannels, highlight = true),
+            MenuEntry(Icons.Default.CalendarMonth, "节目单 EPG", "当前频道节目 / 日期切换 / 提醒", onEpg, highlight = true),
+            MenuEntry(Icons.Default.ClosedCaption, "字幕", "轨 / 显示 / 延迟 / 缩放 / 位置 / 样式 / 加载", onSubtitle),
+            MenuEntry(Icons.Default.VideoSettings, "视频", "图像调整 / 旋转 / 翻转 / 3D 360", onVideo),
+            MenuEntry(Icons.Default.Equalizer, "音频", "音轨 / 延迟 / EQ / 音调", onAudio),
+            MenuEntry(Icons.Default.PlayCircle, "播放", "速度 / 循环 / 随机 / AB / 逐帧 / 章节", onPlayback),
+            MenuEntry(Icons.Default.ScreenshotMonitor, "截图", "单张 / 连拍 / 含字幕 / 含 OSD", onScreenshot),
+            MenuEntry(Icons.Default.GraphicEq, "A/V 同步监控", "实时数值 / 波形 / 延迟调整", onAvsync),
             MenuEntry(Icons.Default.Public, "网络增强", "Referer / Proxy / Headers", onNetwork),
-            MenuEntry(Icons.Default.Tune, "工具", "搜索 / EPG时间线 / 提醒 / 映射 / 扫描 / 流质量", onTools),
-            MenuEntry(Icons.Default.ViewInAr, "视图", "全屏 / 比例 / OSD", onView),
-            MenuEntry(Icons.Default.Settings, "设置", "硬件解码 / 缓存 / 网络 / 关于", onSettings),
-            MenuEntry(Icons.Default.Info, "关于", "版本信息 / 检查更新", onAbout),
+            MenuEntry(Icons.Default.Tune, "工具", "搜索 / EPG时间线 / 提醒 / 续播 / 书签 / 映射 / 扫描 / 流质量", onTools),
+            MenuEntry(Icons.Default.ViewInAr, "视图", "视频比例 / OSD", onView),
+            MenuEntry(Icons.Default.Settings, "设置", "播放器内核 / VO / HWDEC / HDR", onSettings),
+            MenuEntry(Icons.Default.Info, "关于", "版本信息 / 功能特性", onAbout),
             MenuEntry(
                 Icons.Default.Favorite,
                 if (isFavorite) "取消收藏" else "收藏",
@@ -339,6 +340,7 @@ private fun MenuEntryItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
+            .tvFocusBorder()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

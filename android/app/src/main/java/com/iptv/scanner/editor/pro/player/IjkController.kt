@@ -389,13 +389,19 @@ class IjkController(private val context: Context) : Player {
 
     override fun detach() {
         stopPolling()
+        // 先解绑 View 和 Holder，避免 surfaceDestroyed 回调调用已释放的 ijkPlayer
+        videoView = null
+        currentHolder = null
         try {
             ijkPlayer?.release()
         } catch (e: Exception) {
             Log.w(TAG, "detach release failed: ${e.message}")
         }
-        videoView = null
-        currentHolder = null
+        // 置 null，避免后续 attachSurface 调用已释放的 native 实例导致闪退。
+        // 场景：switchPlayer 中 detach() 先于 key(playerType) 触发的 View 销毁执行，
+        // 旧 IjkVideoView 销毁时 surfaceDestroyed → attachSurface(null) → ijkPlayer?.setDisplay(null)
+        // 若 ijkPlayer 仍指向已 release 的实例，native 调用会闪退。
+        ijkPlayer = null
         currentUrl = ""
         // 重置状态（避免 Compose 用旧值）
         _fileLoaded.value = false

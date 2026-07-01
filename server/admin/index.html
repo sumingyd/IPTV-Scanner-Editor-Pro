@@ -337,6 +337,160 @@ body {
   .list-item { padding: 16px 20px; }
   .list-item .name { font-size: 17px; }
 }
+
+/* === 新增功能样式 === */
+/* 下拉框深色适配 */
+select.form-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239e9e9e'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  padding-right: 40px;
+  cursor: pointer;
+}
+select.form-input option { background: var(--card); color: var(--text); }
+
+/* 状态徽章 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge.valid { background: rgba(76,175,80,0.15); color: var(--success); }
+.badge.invalid { background: rgba(244,67,54,0.15); color: var(--danger); }
+.badge.neutral { background: rgba(158,158,158,0.15); color: var(--text-dim); }
+
+/* 分页控件 */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+.pager .pager-info { min-width: 120px; text-align: center; }
+.pager .btn[disabled] { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+/* 频道列表项 */
+.ch-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+  margin-bottom: 8px;
+}
+.ch-item:hover { background: rgba(255,255,255,0.06); }
+.ch-item .ch-info { flex: 1; min-width: 0; }
+.ch-item .ch-name {
+  font-size: 15px; font-weight: 500; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ch-item .ch-meta {
+  font-size: 12px; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-top: 2px;
+}
+.ch-item .ch-group {
+  font-size: 12px; color: var(--text-dim); margin-top: 2px;
+}
+.ch-item .ch-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.ch-item .ch-badge { flex-shrink: 0; }
+
+/* 扫描状态统计 */
+.scan-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+.scan-stat {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+}
+.scan-stat .num { font-size: 24px; font-weight: 700; color: #fff; }
+.scan-stat .lbl { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+/* 映射箭头 */
+.map-arrow { color: var(--accent); font-weight: 700; margin: 0 6px; }
+
+/* EPG 左右分栏 */
+.epg-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 16px;
+}
+.epg-channels, .epg-programmes {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.epg-channel-item {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  transition: background 0.2s;
+}
+.epg-channel-item:hover { background: rgba(255,255,255,0.06); }
+.epg-channel-item.active { background: var(--accent); color: #fff; }
+.epg-channel-item .count { font-size: 12px; opacity: 0.8; flex-shrink: 0; }
+.epg-channel-item .cname {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.epg-programme {
+  padding: 12px 14px;
+  border-left: 3px solid var(--border);
+  margin-bottom: 8px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.epg-programme.now { border-left-color: var(--success); background: rgba(76,175,80,0.08); }
+.epg-programme .time { font-size: 12px; color: var(--text-dim); font-family: monospace; }
+.epg-programme .ptitle { font-size: 15px; font-weight: 500; color: #fff; margin: 4px 0; }
+.epg-programme .desc { font-size: 13px; color: var(--text-dim); }
+
+/* 文本域 */
+textarea.form-input {
+  font-family: monospace;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+/* 编辑模态框加宽 */
+#editOverlay .modal { max-width: 560px; }
+
+/* 移动端适配 */
+@media (max-width: 640px) {
+  .epg-layout { grid-template-columns: 1fr; }
+  .ch-item { flex-wrap: wrap; }
+  .ch-item .ch-actions { width: 100%; justify-content: flex-end; padding-top: 8px; border-top: 1px solid var(--border); }
+  .ch-item .ch-badge { order: -1; }
+}
 </style>
 </head>
 <body>
@@ -347,6 +501,10 @@ body {
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('sources')">订阅源</button>
     <button class="nav-tab" onclick="switchTab('epg')">EPG 源</button>
+    <button class="nav-tab" onclick="switchTab('channels')">频道管理</button>
+    <button class="nav-tab" onclick="switchTab('scan')">扫描</button>
+    <button class="nav-tab" onclick="switchTab('mappings')">频道映射</button>
+    <button class="nav-tab" onclick="switchTab('epg-data')">节目单</button>
     <button class="nav-tab" onclick="switchTab('status')">服务器状态</button>
   </div>
   <div class="nav-status">
@@ -431,6 +589,172 @@ body {
     </div>
   </div>
 
+  <!-- 频道管理面板 -->
+  <div class="panel" id="panel-channels">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">频道管理</div>
+          <div class="card-subtitle">管理所有已加载的频道</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="showImportM3U()">导入 M3U</button>
+          <button class="btn btn-primary btn-sm" onclick="showAddChannel()">添加频道</button>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:16px">
+        <div class="form-group" style="flex:2">
+          <label class="form-label">搜索</label>
+          <input class="form-input" id="channelSearch" placeholder="频道名称..." onkeydown="if(event.key==='Enter')loadChannels(1)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">分组</label>
+          <select class="form-input" id="channelGroup" onchange="loadChannels(1)"><option value="">全部分组</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">有效状态</label>
+          <select class="form-input" id="channelValid" onchange="loadChannels(1)">
+            <option value="">全部</option>
+            <option value="true">有效</option>
+            <option value="false">无效</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex-shrink:0">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary" onclick="loadChannels(1)">搜索</button>
+        </div>
+      </div>
+      <div id="channelList"><div class="empty-state"><div class="loading"></div></div></div>
+      <div id="channelPager"></div>
+    </div>
+  </div>
+
+  <!-- 扫描面板 -->
+  <div class="panel" id="panel-scan">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">范围扫描</div>
+          <div class="card-subtitle">扫描 IP 范围内的 IPTV 流</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:3">
+          <label class="form-label">URL 或范围（支持 [1-255] 表达式）</label>
+          <input class="form-input" id="scanUrl" placeholder="http://192.168.1.[1-255]:8080/playlist.m3u">
+        </div>
+        <div class="form-group">
+          <label class="form-label">超时(秒)</label>
+          <input class="form-input" id="scanTimeout" type="number" value="10" min="1" max="60">
+        </div>
+        <div class="form-group">
+          <label class="form-label">线程</label>
+          <input class="form-input" id="scanThreads" type="number" value="4" min="1" max="32">
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="scanStartBtn" onclick="startScan()">开始扫描</button>
+        <button class="btn btn-danger" id="scanStopBtn" onclick="stopScan()" style="display:none">停止扫描</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">扫描状态</div>
+          <div class="card-subtitle" id="scanStateText">空闲</div>
+        </div>
+      </div>
+      <div id="scanStats"><div class="empty-state"><div class="text">尚未开始扫描</div></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">扫描结果</div>
+          <div class="card-subtitle">发现的频道列表</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadScanResults()">刷新结果</button>
+      </div>
+      <div id="scanResults"><div class="empty-state"><div class="icon">🔍</div><div class="text">暂无结果</div></div></div>
+    </div>
+  </div>
+
+  <!-- 频道映射面板 -->
+  <div class="panel" id="panel-mappings">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">频道映射</div>
+          <div class="card-subtitle" id="mappingRemote">将原始频道名映射到标准名称</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="refreshMappings()">刷新远程映射</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">原始名称</label>
+          <input class="form-input" id="mapRaw" placeholder="CCTV-1 综合">
+        </div>
+        <div class="form-group">
+          <label class="form-label">标准名称</label>
+          <input class="form-input" id="mapStandard" placeholder="CCTV1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Logo URL（可选）</label>
+          <input class="form-input" id="mapLogo" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">分组（可选）</label>
+          <input class="form-input" id="mapGroup" placeholder="央视">
+        </div>
+        <div class="form-group" style="flex-shrink:0">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary" onclick="addMapping()">添加</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">映射列表</div>
+          <div class="card-subtitle">已配置的频道映射</div>
+        </div>
+      </div>
+      <div id="mappingList"><div class="empty-state"><div class="loading"></div></div></div>
+    </div>
+  </div>
+
+  <!-- 节目单 EPG 面板 -->
+  <div class="panel" id="panel-epg-data">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">节目单 EPG</div>
+          <div class="card-subtitle">查看电子节目指南数据</div>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:16px">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">搜索频道</label>
+          <input class="form-input" id="epgSearch" placeholder="频道名称或 ID..." onkeydown="if(event.key==='Enter')searchEpg()">
+        </div>
+        <div class="form-group" style="flex-shrink:0">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary" onclick="searchEpg()">搜索</button>
+        </div>
+      </div>
+      <div class="epg-layout">
+        <div class="epg-channels">
+          <div id="epgChannelList"><div class="empty-state"><div class="icon">📅</div><div class="text">请搜索频道</div></div></div>
+        </div>
+        <div class="epg-programmes">
+          <div id="epgProgrammeList"><div class="empty-state"><div class="icon">📺</div><div class="text">选择左侧频道查看节目</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 状态面板 -->
   <div class="panel" id="panel-status">
     <div class="card">
@@ -442,6 +766,21 @@ body {
       </div>
       <div id="statusContent">
         <div class="empty-state"><div class="loading"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">缓存管理</div>
+          <div class="card-subtitle">清理服务器端缓存数据</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px">
+        <button class="btn btn-outline" onclick="clearCache('thumbnails')">清空缩略图</button>
+        <button class="btn btn-outline" onclick="clearCache('screenshots')">清空截图</button>
+        <button class="btn btn-outline" onclick="clearCache('subtitles')">清空字幕</button>
+        <button class="btn btn-danger" onclick="clearCache('all')">清空全部</button>
       </div>
     </div>
   </div>
@@ -459,6 +798,18 @@ body {
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeConfirm()">取消</button>
       <button class="btn btn-danger" id="confirmBtn" onclick="confirmAction()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用编辑模态框 -->
+<div class="modal-overlay" id="editOverlay">
+  <div class="modal">
+    <div class="modal-title" id="editTitle">编辑</div>
+    <div class="modal-body" id="editBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeEditModal()">取消</button>
+      <button class="btn btn-primary" id="editOkBtn" onclick="editModalOk()">保存</button>
     </div>
   </div>
 </div>
@@ -503,6 +854,8 @@ function switchTab(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   document.querySelector('.nav-tab[onclick*="' + name + '"]').classList.add('active');
+  // 扫描轮询控制：进入 scan 启动，离开停止
+  handleScanPolling(name);
 }
 
 // ====== HTTP 请求 ======
@@ -776,6 +1129,495 @@ function escHtml(s) {
   return d.innerHTML;
 }
 
+// ====== PUT 请求 ======
+async function apiPut(path, data) {
+  try {
+    const r = await fetch(API + path, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(10000)
+    });
+    return await r.json();
+  } catch (e) {
+    console.error('PUT', path, e);
+    return null;
+  }
+}
+
+// ====== 通用编辑模态框 ======
+let _editOkCb = null;
+function showModal(title, bodyHtml, onOk, okText) {
+  document.getElementById('editTitle').textContent = title;
+  document.getElementById('editBody').innerHTML = bodyHtml;
+  document.getElementById('editOkBtn').textContent = okText || '保存';
+  document.getElementById('editOverlay').classList.add('show');
+  _editOkCb = onOk;
+}
+function closeEditModal() {
+  document.getElementById('editOverlay').classList.remove('show');
+  _editOkCb = null;
+}
+async function editModalOk() {
+  if (_editOkCb) {
+    const result = await _editOkCb();
+    // 回调返回 false 表示验证失败或出错，不关闭模态框
+    if (result === false) return;
+  }
+  closeEditModal();
+}
+
+// ====== 频道管理 ======
+let channelPage = 1;
+const channelPageSize = 100;
+
+async function loadChannels(page) {
+  if (page) channelPage = page;
+  const search = document.getElementById('channelSearch').value.trim();
+  const group = document.getElementById('channelGroup').value;
+  const valid = document.getElementById('channelValid').value;
+  const params = new URLSearchParams();
+  params.set('page', channelPage);
+  params.set('size', channelPageSize);
+  if (search) params.set('search', search);
+  if (group) params.set('group', group);
+  if (valid) params.set('valid', valid);
+  const el = document.getElementById('channelList');
+  el.innerHTML = '<div class="empty-state"><div class="loading"></div></div>';
+  document.getElementById('channelPager').innerHTML = '';
+  const d = await apiGet('/api/channels?' + params.toString());
+  if (!d || !d.success) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载失败</div></div>';
+    return;
+  }
+  // 填充分组下拉（保留当前选择）
+  const groupSel = document.getElementById('channelGroup');
+  const currentGroup = groupSel.value;
+  const groups = d.groups || [];
+  groupSel.innerHTML = '<option value="">全部分组</option>' + groups.map(g => '<option value="' + escHtml(g) + '">' + escHtml(g) + '</option>').join('');
+  groupSel.value = currentGroup;
+
+  const channels = d.channels || [];
+  const total = d.total || 0;
+  const totalPages = Math.max(1, Math.ceil(total / channelPageSize));
+
+  if (!channels.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📺</div><div class="text">暂无频道</div></div>';
+    return;
+  }
+
+  el.innerHTML = channels.map(ch => {
+    const id = ch._index !== undefined ? ch._index : ch.id;
+    const name = ch.name || '未命名';
+    const url = ch.url || '';
+    const grp = ch.group || '';
+    const v = ch.valid;
+    const badge = v === true ? '<span class="badge valid">✓ 有效</span>' :
+                  v === false ? '<span class="badge invalid">✗ 无效</span>' :
+                  '<span class="badge neutral">未知</span>';
+    return '<div class="ch-item">' +
+      '<div class="ch-info">' +
+      '<div class="ch-name">' + escHtml(name) + '</div>' +
+      '<div class="ch-meta">' + escHtml(url) + '</div>' +
+      (grp ? '<div class="ch-group">分组: ' + escHtml(grp) + '</div>' : '') +
+      '</div>' +
+      '<div class="ch-badge">' + badge + '</div>' +
+      '<div class="ch-actions">' +
+      '<button class="btn btn-outline btn-sm" onclick="showEditChannel(' + id + ')">编辑</button>' +
+      '<button class="btn btn-danger btn-sm" onclick="deleteChannel(' + id + ')">删除</button>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+
+  // 分页控件
+  const pager = document.getElementById('channelPager');
+  pager.innerHTML = '<div class="pager">' +
+    '<button class="btn btn-outline btn-sm"' + (channelPage <= 1 ? ' disabled' : '') + ' onclick="loadChannels(' + (channelPage - 1) + ')">上一页</button>' +
+    '<span class="pager-info">第 ' + channelPage + ' / ' + totalPages + ' 页（共 ' + total + ' 条）</span>' +
+    '<button class="btn btn-outline btn-sm"' + (channelPage >= totalPages ? ' disabled' : '') + ' onclick="loadChannels(' + (channelPage + 1) + ')">下一页</button>' +
+    '</div>';
+}
+
+function showAddChannel() {
+  const body = '<div class="form-group">' +
+    '<label class="form-label">频道名称</label>' +
+    '<input class="form-input" id="addChName" placeholder="CCTV-1">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label class="form-label">频道 URL</label>' +
+    '<input class="form-input" id="addChUrl" placeholder="http://...">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label class="form-label">分组（可选）</label>' +
+    '<input class="form-input" id="addChGroup" placeholder="央视">' +
+    '</div>';
+  showModal('添加频道', body, async () => {
+    const name = document.getElementById('addChName').value.trim();
+    const url = document.getElementById('addChUrl').value.trim();
+    const group = document.getElementById('addChGroup').value.trim();
+    if (!url) { showToast('请输入频道 URL', 'error'); return false; }
+    const body = { url };
+    if (name) body.name = name;
+    if (group) body.group = group;
+    const d = await apiPost('/api/channels', body);
+    if (d && d.success) {
+      showToast('频道已添加', 'success');
+      await loadChannels();
+    } else {
+      showToast((d && d.error) || '添加失败', 'error');
+      return false;
+    }
+  }, '添加');
+}
+
+async function showEditChannel(id) {
+  const d = await apiGet('/api/channels/' + id);
+  if (!d || !d.success) {
+    showToast((d && d.error) || '获取频道详情失败', 'error');
+    return;
+  }
+  const ch = d.channel || {};
+  const body = '<div class="form-group">' +
+    '<label class="form-label">频道名称</label>' +
+    '<input class="form-input" id="editChName" value="' + escHtml(ch.name || '') + '">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label class="form-label">频道 URL</label>' +
+    '<input class="form-input" id="editChUrl" value="' + escHtml(ch.url || '') + '">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label class="form-label">分组</label>' +
+    '<input class="form-input" id="editChGroup" value="' + escHtml(ch.group || '') + '">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label class="form-label">Logo URL</label>' +
+    '<input class="form-input" id="editChLogo" value="' + escHtml(ch.logo || '') + '">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label class="form-label">TVG-ID</label>' +
+    '<input class="form-input" id="editChTvg" value="' + escHtml(ch.tvg_id || '') + '">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label class="form-label">有效状态</label>' +
+    '<select class="form-input" id="editChValid">' +
+    '<option value="true"' + (ch.valid === true ? ' selected' : '') + '>有效</option>' +
+    '<option value="false"' + (ch.valid === false ? ' selected' : '') + '>无效</option>' +
+    '</select>' +
+    '</div>';
+  showModal('编辑频道', body, async () => {
+    const data = {
+      name: document.getElementById('editChName').value.trim(),
+      url: document.getElementById('editChUrl').value.trim(),
+      group: document.getElementById('editChGroup').value.trim(),
+      logo: document.getElementById('editChLogo').value.trim(),
+      tvg_id: document.getElementById('editChTvg').value.trim(),
+      valid: document.getElementById('editChValid').value === 'true'
+    };
+    if (!data.url) { showToast('请输入频道 URL', 'error'); return false; }
+    const r = await apiPut('/api/channels/' + id, data);
+    if (r && r.success) {
+      showToast('频道已更新', 'success');
+      await loadChannels();
+    } else {
+      showToast((r && r.error) || '更新失败', 'error');
+      return false;
+    }
+  }, '保存');
+}
+
+function deleteChannel(id) {
+  showConfirm('删除频道', '确定要删除此频道吗？该操作不可恢复。', async () => {
+    const d = await apiDelete('/api/channels/' + id);
+    if (d && d.success) {
+      showToast('频道已删除', 'success');
+      await loadChannels();
+    } else {
+      showToast((d && d.error) || '删除失败', 'error');
+    }
+  });
+}
+
+function showImportM3U() {
+  const body = '<div class="form-group">' +
+    '<label class="form-label">名称（可选）</label>' +
+    '<input class="form-input" id="importName" placeholder="导入的频道集合名称">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label class="form-label">M3U 内容</label>' +
+    '<textarea class="form-input" id="importContent" rows="10" placeholder="#EXTM3U&#10;#EXTINF:-1,...&#10;http://..."></textarea>' +
+    '</div>';
+  showModal('导入 M3U', body, async () => {
+    const content = document.getElementById('importContent').value;
+    const name = document.getElementById('importName').value.trim();
+    if (!content.trim()) { showToast('请粘贴 M3U 内容', 'error'); return false; }
+    const payload = { content };
+    if (name) payload.name = name;
+    const d = await apiPost('/api/channels/import', payload);
+    if (d && d.success) {
+      showToast('已导入 ' + (d.imported || 0) + ' 个频道', 'success');
+      await loadChannels();
+    } else {
+      showToast((d && d.error) || '导入失败', 'error');
+      return false;
+    }
+  }, '导入');
+}
+
+// ====== 扫描 ======
+let scanPollTimer = null;
+
+async function startScan() {
+  const url = document.getElementById('scanUrl').value.trim();
+  if (!url) { showToast('请输入扫描 URL', 'error'); return; }
+  const timeout = parseInt(document.getElementById('scanTimeout').value) || 10;
+  const threads = parseInt(document.getElementById('scanThreads').value) || 4;
+  const payload = { url, timeout, threads };
+  const d = await apiPost('/api/scan/range', payload);
+  if (d && d.success) {
+    showToast(d.message || '扫描已开始', 'success');
+    startScanPolling();
+    await loadScanStatus();
+  } else {
+    showToast((d && d.error) || '启动扫描失败', 'error');
+  }
+}
+
+async function stopScan() {
+  const d = await apiPost('/api/scan/stop', {});
+  if (d && d.success) {
+    showToast(d.message || '扫描已停止', 'success');
+  } else {
+    showToast((d && d.error) || '停止失败', 'error');
+  }
+  await loadScanStatus();
+}
+
+async function loadScanStatus() {
+  const d = await apiGet('/api/scan/status');
+  const stateText = document.getElementById('scanStateText');
+  const statsEl = document.getElementById('scanStats');
+  if (!d || !d.success) {
+    stateText.textContent = '无法获取状态';
+    return;
+  }
+  const scanning = !!d.scanning;
+  stateText.textContent = scanning ? ('扫描中... ' + (d.message || '')) : (d.message || '已停止');
+  document.getElementById('scanStartBtn').style.display = scanning ? 'none' : '';
+  document.getElementById('scanStopBtn').style.display = scanning ? '' : 'none';
+
+  const stats = d.stats || {};
+  const total = d.total !== undefined ? d.total : (stats.total || 0);
+  const valid = d.valid !== undefined ? d.valid : (stats.valid || 0);
+  const invalid = d.invalid !== undefined ? d.invalid : (stats.invalid || 0);
+  const scanned = d.scanned !== undefined ? d.scanned : (stats.scanned || 0);
+
+  statsEl.innerHTML = '<div class="scan-stat-grid">' +
+    '<div class="scan-stat"><div class="num">' + total + '</div><div class="lbl">总数</div></div>' +
+    '<div class="scan-stat"><div class="num">' + scanned + '</div><div class="lbl">已扫描</div></div>' +
+    '<div class="scan-stat"><div class="num" style="color:var(--success)">' + valid + '</div><div class="lbl">有效</div></div>' +
+    '<div class="scan-stat"><div class="num" style="color:var(--danger)">' + invalid + '</div><div class="lbl">无效</div></div>' +
+    '</div>';
+
+  if (scanning) {
+    startScanPolling();
+  } else {
+    stopScanPolling();
+    loadScanResults();
+  }
+}
+
+async function loadScanResults() {
+  const d = await apiGet('/api/scan/results');
+  const el = document.getElementById('scanResults');
+  if (!d || !d.success) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载结果失败</div></div>';
+    return;
+  }
+  const results = d.results || [];
+  if (!results.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><div class="text">暂无结果</div></div>';
+    return;
+  }
+  el.innerHTML = results.map(r => {
+    const name = r.name || r.url || '未知';
+    const url = r.url || '';
+    const v = r.valid;
+    const badge = v ? '<span class="badge valid">✓</span>' : '<span class="badge invalid">✗</span>';
+    return '<div class="ch-item">' +
+      '<div class="ch-info"><div class="ch-name">' + escHtml(name) + '</div><div class="ch-meta">' + escHtml(url) + '</div></div>' +
+      '<div class="ch-badge">' + badge + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function startScanPolling() {
+  if (scanPollTimer) return;
+  scanPollTimer = setInterval(loadScanStatus, 2000);
+}
+function stopScanPolling() {
+  if (scanPollTimer) { clearInterval(scanPollTimer); scanPollTimer = null; }
+}
+
+// 进入/离开扫描 Tab 时控制轮询
+function handleScanPolling(tabName) {
+  if (tabName === 'scan') {
+    loadScanStatus();
+  } else {
+    stopScanPolling();
+  }
+}
+
+// ====== 频道映射 ======
+async function loadMappings() {
+  const d = await apiGet('/api/mappings');
+  const el = document.getElementById('mappingList');
+  if (!d || !d.success) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载失败</div></div>';
+    return;
+  }
+  if (d.remote_url) {
+    document.getElementById('mappingRemote').textContent = '远程映射源: ' + d.remote_url;
+  }
+  const entries = d.entries || [];
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">🔗</div><div class="text">暂无映射</div></div>';
+    return;
+  }
+  el.innerHTML = '<div class="list">' + entries.map(m => {
+    const raw = m.raw_name || '';
+    const std = m.standard_name || '';
+    const logo = m.logo_url || '';
+    const group = m.group_name || '';
+    const id = encodeURIComponent(std || raw);
+    const metaParts = [];
+    if (logo) metaParts.push('Logo: ' + escHtml(logo));
+    if (group) metaParts.push('分组: ' + escHtml(group));
+    return '<div class="list-item">' +
+      '<div class="info">' +
+      '<div class="name">' + escHtml(raw) + ' <span class="map-arrow">→</span> ' + escHtml(std) + '</div>' +
+      (metaParts.length ? '<div class="meta">' + metaParts.join(' · ') + '</div>' : '') +
+      '</div>' +
+      '<div class="actions"><button class="btn btn-danger btn-sm" onclick="deleteMapping(\'' + id + '\')">删除</button></div>' +
+      '</div>';
+  }).join('') + '</div>';
+}
+
+async function addMapping() {
+  const raw_name = document.getElementById('mapRaw').value.trim();
+  const standard_name = document.getElementById('mapStandard').value.trim();
+  const logo_url = document.getElementById('mapLogo').value.trim();
+  const group_name = document.getElementById('mapGroup').value.trim();
+  if (!raw_name || !standard_name) { showToast('请输入原始名称和标准名称', 'error'); return; }
+  const body = { raw_name, standard_name };
+  if (logo_url) body.logo_url = logo_url;
+  if (group_name) body.group_name = group_name;
+  const d = await apiPost('/api/mappings', body);
+  if (d && d.success) {
+    showToast(d.message || '映射已添加', 'success');
+    document.getElementById('mapRaw').value = '';
+    document.getElementById('mapStandard').value = '';
+    document.getElementById('mapLogo').value = '';
+    document.getElementById('mapGroup').value = '';
+    await loadMappings();
+  } else {
+    showToast((d && d.error) || '添加失败', 'error');
+  }
+}
+
+function deleteMapping(id) {
+  showConfirm('删除映射', '确定要删除此映射吗？', async () => {
+    const d = await apiDelete('/api/mappings/' + id);
+    if (d && d.success) {
+      showToast(d.message || '映射已删除', 'success');
+      await loadMappings();
+    } else {
+      showToast((d && d.error) || '删除失败', 'error');
+    }
+  });
+}
+
+async function refreshMappings() {
+  showToast('正在刷新远程映射...');
+  const d = await apiPost('/api/mappings/refresh', {});
+  if (d && d.success) {
+    showToast(d.message || '远程映射已刷新', 'success');
+    await loadMappings();
+  } else {
+    showToast((d && d.error) || '刷新失败', 'error');
+  }
+}
+
+// ====== 节目单 EPG ======
+async function searchEpg() {
+  const search = document.getElementById('epgSearch').value.trim();
+  const params = search ? ('?search=' + encodeURIComponent(search)) : '';
+  const d = await apiGet('/api/epg' + params);
+  const el = document.getElementById('epgChannelList');
+  document.getElementById('epgProgrammeList').innerHTML = '<div class="empty-state"><div class="icon">📺</div><div class="text">选择左侧频道查看节目</div></div>';
+  if (!d || !d.success) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载失败</div></div>';
+    return;
+  }
+  const channels = d.channels || [];
+  if (!channels.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📅</div><div class="text">未找到频道</div></div>';
+    return;
+  }
+  el.innerHTML = channels.map((ch, i) => {
+    const idEnc = encodeURIComponent(ch.id);
+    return '<div class="epg-channel-item" onclick="selectEpgChannel(\'' + idEnc + '\', this)">' +
+      '<span class="cname">' + escHtml(ch.name || ch.id) + '</span>' +
+      '<span class="count">' + (ch.programmes || 0) + ' 节目</span>' +
+      '</div>';
+  }).join('');
+}
+
+async function selectEpgChannel(idEnc, itemEl) {
+  document.querySelectorAll('.epg-channel-item').forEach(e => e.classList.remove('active'));
+  if (itemEl) itemEl.classList.add('active');
+  const decodedId = decodeURIComponent(idEnc);
+  const d = await apiGet('/api/epg?id=' + encodeURIComponent(decodedId));
+  const el = document.getElementById('epgProgrammeList');
+  if (!d || !d.success) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载节目失败</div></div>';
+    return;
+  }
+  const programmes = d.programmes || [];
+  if (!programmes.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📺</div><div class="text">该频道暂无节目</div></div>';
+    return;
+  }
+  const now = Date.now() / 1000;
+  el.innerHTML = programmes.map(p => {
+    const startTs = p.start_ts;
+    const stopTs = p.stop_ts;
+    const isNow = startTs && stopTs && now >= startTs && now <= stopTs;
+    const startStr = p.start || (startTs ? new Date(startTs * 1000).toLocaleString() : '');
+    const stopStr = p.stop || (stopTs ? new Date(stopTs * 1000).toLocaleTimeString() : '');
+    const title = p.title || '未知节目';
+    const desc = p.desc || '';
+    return '<div class="epg-programme' + (isNow ? ' now' : '') + '">' +
+      '<div class="time">' + escHtml(startStr) + ' - ' + escHtml(stopStr) + (isNow ? ' · 正在播放' : '') + '</div>' +
+      '<div class="ptitle">' + escHtml(title) + '</div>' +
+      (desc ? '<div class="desc">' + escHtml(desc) + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+// ====== 缓存管理 ======
+function clearCache(type) {
+  const names = { thumbnails: '缩略图', screenshots: '截图', subtitles: '字幕', all: '全部缓存' };
+  showConfirm('清空缓存', '确定要清空' + (names[type] || '缓存') + '吗？', async () => {
+    const d = await apiPost('/api/cache/clear', { type });
+    if (d && d.success) {
+      const cleared = d.cleared || [];
+      showToast('已清空: ' + (cleared.length ? cleared.join(', ') : '无'), 'success');
+    } else {
+      showToast((d && d.error) || '清空失败', 'error');
+    }
+  });
+}
+
 // ====== 键盘/遥控器导航 ======
 document.addEventListener('keydown', function(e) {
   // 方向键在输入框中不处理
@@ -809,6 +1651,9 @@ async function init() {
   await loadSources();
   await loadEpgSources();
   await loadStatus();
+  // 加载新增功能数据
+  loadChannels(1);
+  loadMappings();
   // 每 30 秒刷新状态
   setInterval(updateStatus, 30000);
   // 每 60 秒刷新列表

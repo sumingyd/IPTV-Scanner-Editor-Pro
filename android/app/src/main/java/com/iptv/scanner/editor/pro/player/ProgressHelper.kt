@@ -70,7 +70,14 @@ object ProgressHelper {
         mpvTimePos: Double,
         mpvDuration: Double,
     ): ProgressInfo {
-        if (channel == null) return EMPTY
+        // 无频道（本地视频/网络流直接播放）：走 VOD 分支
+        // 场景：playLocalVideo/playUrl 设置 currentIdx=-1，currentChannel 为 null
+        if (channel == null) {
+            if (mpvDuration > 0 && mpvDuration < 86400) {
+                return computeVodProgress(mpvTimePos, mpvDuration)
+            }
+            return EMPTY
+        }
 
         val nowMs = System.currentTimeMillis()
 

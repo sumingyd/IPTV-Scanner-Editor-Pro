@@ -261,6 +261,24 @@ interface Player {
     /** 清除所有视频滤镜 */
     fun clearAllVideoFilters() {}
 
+    /** 设置 3D 立体模式（mono/sbs/sbs2/ab/ab2），与 PC 端 set_video_stereo_mode 对齐 */
+    fun setVideoStereoMode(mode: String): Boolean = false
+
+    /** 获取当前 3D 立体模式，与 PC 端 get_video_stereo_mode 对齐 */
+    fun getVideoStereoMode(): String? = null
+
+    /**
+     * 设置 360° 视角（panorama 滤镜），与 PC 端 set_360_view 对齐。
+     * @param yaw 偏航（-180~180）
+     * @param pitch 俯仰（-90~90）
+     * @param roll 滚转（-180~180）
+     * @param projection 投影方式（flat/equirect/cubemap）
+     */
+    fun set360View(yaw: Double, pitch: Double, roll: Double, projection: String): Boolean = false
+
+    /** 清除 360° 滤镜，与 PC 端 clear_360_filter 对齐 */
+    fun clear360Filter() {}
+
     // -----------------------------------------------------------------
     // 音频调整（高级功能，默认不支持）
     // -----------------------------------------------------------------
@@ -276,6 +294,9 @@ interface Player {
 
     /** 重置均衡器 */
     fun resetAudioEq(): Boolean = false
+
+    /** 设置音频音调（0.0~2.0，1.0=正常，变调不变速），与 PC 端 set_audio_pitch 对齐 */
+    fun setAudioPitch(pitch: Double): Boolean = false
 
     // -----------------------------------------------------------------
     // 截图（高级功能，默认不支持）

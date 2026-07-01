@@ -23,14 +23,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -41,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.iptv.scanner.editor.pro.data.ReminderItem
 import com.iptv.scanner.editor.pro.data.UserPrefs
 import com.iptv.scanner.editor.pro.mpv.MPVView
 import com.iptv.scanner.editor.pro.player.ExoPlayerView
@@ -77,6 +83,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val videoSettingsOpen by viewModel.videoSettingsOpen.collectAsState()
     val audioSettingsOpen by viewModel.audioSettingsOpen.collectAsState()
     val subtitleSettingsOpen by viewModel.subtitleSettingsOpen.collectAsState()
+    val subtitleSearchOpen by viewModel.subtitleSearchOpen.collectAsState()
     val playbackPanelOpen by viewModel.playbackPanelOpen.collectAsState()
     val screenshotPanelOpen by viewModel.screenshotPanelOpen.collectAsState()
     val viewSettingsOpen by viewModel.viewSettingsOpen.collectAsState()
@@ -85,6 +92,14 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val avSyncPanelOpen by viewModel.avSyncPanelOpen.collectAsState()
     val networkPanelOpen by viewModel.networkPanelOpen.collectAsState()
     val toolsPanelOpen by viewModel.toolsPanelOpen.collectAsState()
+    val scanPanelOpen by viewModel.scanPanelOpen.collectAsState()
+    val reminderPanelOpen by viewModel.reminderPanelOpen.collectAsState()
+    val resumePanelOpen by viewModel.resumePanelOpen.collectAsState()
+    val bookmarkPanelOpen by viewModel.bookmarkPanelOpen.collectAsState()
+    val epgTimelineOpen by viewModel.epgTimelineOpen.collectAsState()
+    val searchPanelOpen by viewModel.searchPanelOpen.collectAsState()
+    val streamQualityPanelOpen by viewModel.streamQualityPanelOpen.collectAsState()
+    val triggeredReminder by viewModel.triggeredReminder.collectAsState()
     val osd by viewModel.osd.collectAsState()
 
     // 多播放器支持：根据 playerType 创建对应 View
@@ -93,6 +108,20 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val paused by player.paused.collectAsState()
     val videoWidth by player.videoWidth.collectAsState()
     val videoHeight by player.videoHeight.collectAsState()
+    val fileLoaded by player.fileLoaded.collectAsState()
+
+    // 文件加载完成时触发续播位置恢复（与 PC 端 _on_file_loaded 对齐）
+    // 同时应用 HDR 配置（与 PC 端 _apply_hdr_on_file_loaded 对齐）
+    LaunchedEffect(fileLoaded) {
+        if (fileLoaded) {
+            val url = viewModel.getCurrentPlaybackUrl()
+            if (url.isNotEmpty()) {
+                viewModel.onFileLoadedForResume(url)
+            }
+            // 应用 HDR 配置（检测视频是否 HDR 并按当前模式应用）
+            viewModel.applyHdrOnFileLoaded()
+        }
+    }
 
     // 视频宽高比：用于 SurfaceView 比例保持（解决竖屏下视频被拉长铺满的问题）。
     // 根因：vo=mediacodec_embed 直接用 MediaCodec 渲染到 Surface buffer，不经过 GPU 渲染管线，
@@ -112,9 +141,11 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     // 注意：openUrlDialogOpen 不计入，因为 AlertDialog 有独立 scrim，不需要隐藏控制层
     val anyPanelOpen = channelsPanelOpen || epgPanelOpen || menuPanelOpen ||
             sourceManagerOpen || playerSettingsOpen ||
-            videoSettingsOpen || audioSettingsOpen || subtitleSettingsOpen ||
+            videoSettingsOpen || audioSettingsOpen || subtitleSettingsOpen || subtitleSearchOpen ||
             playbackPanelOpen || screenshotPanelOpen || viewSettingsOpen || aboutPanelOpen ||
-            mappingPanelOpen || avSyncPanelOpen || networkPanelOpen || toolsPanelOpen
+            mappingPanelOpen || avSyncPanelOpen || networkPanelOpen || toolsPanelOpen || scanPanelOpen ||
+            reminderPanelOpen || resumePanelOpen || bookmarkPanelOpen ||
+            epgTimelineOpen || searchPanelOpen
     // 控制层是否应该显示
     val showControls = controlsVisible && !anyPanelOpen
 
@@ -320,6 +351,9 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         if (subtitleSettingsOpen) {
             SubtitleSettingsPanel(viewModel = viewModel)
         }
+        if (subtitleSearchOpen) {
+            SubtitleSearchPanel(viewModel = viewModel)
+        }
 
         // 播放设置（全屏覆盖，主菜单 → 播放 → 播放）
         if (playbackPanelOpen) {
@@ -359,6 +393,50 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         // 工具（全屏覆盖，主菜单 → 播放 → 工具）
         if (toolsPanelOpen) {
             ToolsPanel(viewModel = viewModel)
+        }
+
+        // URL 范围扫描（全屏覆盖，工具 → 扫描整理）
+        if (scanPanelOpen) {
+            ScanPanel(viewModel = viewModel)
+        }
+
+        // 节目提醒管理（全屏覆盖，工具 → 提醒管理）
+        if (reminderPanelOpen) {
+            ReminderPanel(viewModel = viewModel)
+        }
+
+        // 续播位置管理（全屏覆盖，工具 → 续播位置）
+        if (resumePanelOpen) {
+            ResumePanel(viewModel = viewModel)
+        }
+
+        // 书签管理（全屏覆盖，工具 → 书签）
+        if (bookmarkPanelOpen) {
+            BookmarkPanel(viewModel = viewModel)
+        }
+
+        // EPG 时间线视图（全屏覆盖，工具 → EPG 时间线）
+        if (epgTimelineOpen) {
+            EpgTimelinePanel(viewModel = viewModel)
+        }
+
+        // 全局搜索（全屏覆盖，工具 → 搜索）
+        if (searchPanelOpen) {
+            SearchPanel(viewModel = viewModel)
+        }
+
+        // 流质量检测（全屏覆盖，工具 → 流质量检测）
+        if (streamQualityPanelOpen) {
+            StreamQualityPanel(viewModel = viewModel)
+        }
+
+        // 提醒触发弹窗（节目即将开始时弹出，全屏遮罩）
+        if (triggeredReminder != null) {
+            ReminderPopup(
+                reminder = triggeredReminder!!,
+                onAccept = { viewModel.acceptTriggeredReminder() },
+                onDismiss = { viewModel.dismissTriggeredReminder() }
+            )
         }
 
         // 打开网络流 URL 对话框（AlertDialog，独立 window，自身控制可见性）
@@ -506,6 +584,126 @@ private fun OsdView(
                     color = Color(0xFF888888),
                     fontSize = 11.sp
                 )
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------
+// 提醒触发弹窗（节目即将开始时弹出）
+// 与 PC 端 ui/dialogs/reminder_popup.py 对齐
+// -----------------------------------------------------------------
+
+/**
+ * 提醒弹窗：节目即将开始时弹出，提供"切换频道"和"稍后"两个选项。
+ *
+ * - 全屏半透明遮罩
+ * - 中央卡片显示节目信息
+ * - "切换频道"：切到目标频道并关闭弹窗
+ * - "稍后"：仅关闭弹窗
+ */
+@Composable
+private fun ReminderPopup(
+    reminder: ReminderItem,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xAA000000))
+            .clickable(enabled = false) {},  // 阻断背景点击
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = Color(0xFF1F1F1F),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(0.85f)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 顶部图标
+                Icon(
+                    Icons.Default.Notifications,
+                    contentDescription = null,
+                    tint = Color(0xFFFFC107),
+                    modifier = Modifier
+                        .width(48.dp)
+                        .height(48.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 标题
+                Text(
+                    text = "节目即将开始",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 节目信息卡片
+                Surface(
+                    color = Color(0xFF2A2A2A),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = reminder.programTitle.ifBlank { "（未命名节目）" },
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 2
+                        )
+                        if (reminder.channelName.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "频道: ${reminder.channelName}",
+                                color = Color(0xFFAAAAAA),
+                                fontSize = 12.sp
+                            )
+                        }
+                        if (reminder.startTs > 0) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val timeStr = java.text.SimpleDateFormat(
+                                "MM-dd HH:mm",
+                                java.util.Locale.getDefault()
+                            ).format(java.util.Date(reminder.startTs))
+                            Text(
+                                text = "开始: $timeStr",
+                                color = Color(0xFFAAAAAA),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // 按钮行
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("稍后", color = Color(0xFFCCCCCC))
+                    }
+                    Button(
+                        onClick = onAccept,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4A9EFF)
+                        ),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("切换频道", color = Color.White)
+                    }
+                }
             }
         }
     }

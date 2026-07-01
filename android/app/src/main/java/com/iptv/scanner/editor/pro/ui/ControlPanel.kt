@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.player.PlayMode
 import com.iptv.scanner.editor.pro.player.ProgressHelper
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import kotlinx.coroutines.delay
 
 /**
@@ -483,11 +484,11 @@ private fun ControlButtonsRow(
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         // 左侧：频道切换 + 播放控制
-        IconButton(onClick = onPrev, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onPrev, modifier = Modifier.size(36.dp).tvFocusBorder()) {
             Icon(Icons.Default.SkipPrevious, contentDescription = "上一频道", tint = Color.White)
         }
 
-        IconButton(onClick = onPlayPause, modifier = Modifier.size(40.dp)) {
+        IconButton(onClick = onPlayPause, modifier = Modifier.size(40.dp).tvFocusBorder()) {
             Icon(
                 imageVector = if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
                 contentDescription = if (paused) "播放" else "暂停",
@@ -496,18 +497,18 @@ private fun ControlButtonsRow(
             )
         }
 
-        IconButton(onClick = onStop, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onStop, modifier = Modifier.size(36.dp).tvFocusBorder()) {
             Icon(Icons.Default.Stop, contentDescription = "停止", tint = Color.White)
         }
 
-        IconButton(onClick = onNext, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onNext, modifier = Modifier.size(36.dp).tvFocusBorder()) {
             Icon(Icons.Default.SkipNext, contentDescription = "下一频道", tint = Color.White)
         }
 
         Spacer(modifier = Modifier.width(8.dp))
 
         // 中间：静音 + 音量滑块
-        IconButton(onClick = onMute, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onMute, modifier = Modifier.size(36.dp).tvFocusBorder()) {
             Icon(
                 imageVector = if (muted || volume == 0) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                 contentDescription = "静音",
@@ -540,7 +541,7 @@ private fun ControlButtonsRow(
 
         // 右侧：退出回看按钮（catchup/timeshift 模式时显示）
         if (showExitCatchup) {
-            IconButton(onClick = onExitCatchup, modifier = Modifier.size(36.dp)) {
+            IconButton(onClick = onExitCatchup, modifier = Modifier.size(36.dp).tvFocusBorder()) {
                 Box(
                     modifier = Modifier
                         .size(28.dp)

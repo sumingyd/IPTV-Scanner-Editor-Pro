@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.data.IptvChannel
 import com.iptv.scanner.editor.pro.ui.AppViewModel.ChannelTab
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 
 /**
  * 频道列表面板：5 个 tab + 搜索 + 分组过滤 + LazyColumn。
@@ -331,6 +332,7 @@ private fun ChannelListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
+            .tvFocusBorder()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
