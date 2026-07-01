@@ -1801,7 +1801,12 @@ class MpvPlayerController(QObject):
             return
         try:
             import hashlib
-            cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
+            # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR
+            _android_data = os.environ.get('IPTV_DATA_DIR', '')
+            if _android_data:
+                cache_dir = os.path.join(_android_data, 'IPTV_Scanner_Editor_Pro', 'cache', 'thumbnails')
+            else:
+                cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
             os.makedirs(cache_dir, exist_ok=True)
             url_hash = hashlib.md5(self.current_url.encode('utf-8')).hexdigest()
             filepath = os.path.join(cache_dir, f"{url_hash}.png")
@@ -1837,7 +1842,12 @@ class MpvPlayerController(QObject):
         if not url:
             return None
         import hashlib
-        cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
+        # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR
+        _android_data = os.environ.get('IPTV_DATA_DIR', '')
+        if _android_data:
+            cache_dir = os.path.join(_android_data, 'IPTV_Scanner_Editor_Pro', 'cache', 'thumbnails')
+        else:
+            cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
         filepath = os.path.join(cache_dir, f"{hashlib.md5(url.encode('utf-8')).hexdigest()}.png")
         if os.path.exists(filepath):
             return filepath

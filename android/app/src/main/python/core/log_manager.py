@@ -20,6 +20,11 @@ class LogManager(Singleton):
         self._initialized = True
 
     def _get_log_path(self, log_file: str) -> str:
+        # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR
+        android_data = os.environ.get('IPTV_DATA_DIR', '')
+        if android_data:
+            log_dir = os.path.join(android_data, 'IPTV_Scanner_Editor_Pro')
+            return os.path.join(log_dir, log_file)
         if getattr(sys, 'frozen', False):
             log_dir = os.path.dirname(sys.executable)
         else:

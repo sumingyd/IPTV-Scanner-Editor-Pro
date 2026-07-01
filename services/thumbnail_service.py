@@ -20,7 +20,12 @@ from services.mpv_common import (
     _is_mpv_available,
 )
 
-CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
+# Android Chaquopy 环境：优先使用 IPTV_DATA_DIR 下的 cache 目录
+_android_data = os.environ.get('IPTV_DATA_DIR', '')
+if _android_data:
+    CACHE_DIR = os.path.join(_android_data, 'IPTV_Scanner_Editor_Pro', 'cache', 'thumbnails')
+else:
+    CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
 
 
 def _url_to_thumb_path(url: str) -> str:

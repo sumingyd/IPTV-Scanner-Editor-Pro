@@ -7,7 +7,7 @@
 
 一款功能全面的 IPTV 频道扫描、验证、播放和管理工具，跨平台支持 Windows / macOS / Linux 桌面端与 Android 移动端。集成 MPV 播放引擎与 FFprobe 流探测，支持 EPG 电子节目单、频道台标自动匹配、HDR 显示、在线字幕下载、音频可视化、断点续播、片段导出等高级功能，多主题界面、中英双语，从扫描到观看一站式完成。
 
-> **当前版本**：v48.0.23.0（构建日期 2026-07-02）
+> **当前版本**：v48.0.29.0（构建日期 2026-07-02）
 
 ## 📸 程序截图
 
@@ -36,7 +36,7 @@
 | 界面 | 21种主题组合、中英双语、三栏布局、悬浮面板、系统托盘、文件关联、拖放打开、丰富快捷键 |
 | 订阅 | 多源管理、独立缓存、智能更新(增量)、编辑功能、缓存回退、过期策略 |
 | Web 服务器 | 内置 aiohttp 服务器、频道列表和播放接口 |
-| Android 端 | Kotlin Compose 原生 UI、MPV Native 渲染、Chaquopy Python 后端、TV/手机双模式、遥控器适配、画中画（PiP 增强）、HDR 模式切换、3D/360°视频、随机播放、书签管理、EPG 时间轴/日期切换、全局搜索、流质量检测、字幕样式、连拍截图、LAN 管理后台 |
+| Android 端 | Kotlin Compose 原生 UI、MPV Native 渲染、Chaquopy Python 后端、TV/手机双模式、遥控器适配（焦点高亮+台标显示+自动隐藏）、画中画（PiP 增强）、HDR 模式切换（设备能力检测+target-colorspace-hint）、3D/360°视频、随机播放、书签管理、EPG 时间轴/日期切换、全局搜索、流质量检测、字幕样式、连拍截图、LAN 管理后台（虚拟遥控器+自动关闭开关）、多内核软硬解切换、数据持久化（覆盖安装不丢失） |
 
 ## ✨ 核心功能
 
@@ -58,12 +58,12 @@
 - **OSD 信息遮罩**：Tab 键切换显示详细媒体参数（分辨率、编码、帧率、硬解、HDR、像素格式、色彩参数、码率等），支持永久显示
 - **窗口置顶**：标题栏置顶按钮，一键将窗口设为最顶层
 - **硬件解码**：支持 D3D11VA / NVDEC / VAAPI 等硬件加速解码，提供 HW Copy-back（auto-copy，默认，保证 vf 滤镜可用）/ HW Native（auto，最快但滤镜受限）/ Software（no）三种模式
-- **HDR 显示**：支持 HDR10 / HDR10+ / HLG / DV 内容，OSD 中显示 HDR 标识，提供 5 种输出模式
+- **HDR 显示**：支持 HDR10 / HDR10+ / HLG / Dolby Vision 内容，OSD 中显示 HDR 标识，提供 5 种输出模式
   - `disable`：关闭 HDR 处理
-  - `tonemap`：HDR→SDR 色调映射（`tone-mapping=auto` 自动选择算法：HDR10+→st2094-40，HDR10/HLG→bt.2390；`hdr-compute-peak=no` 信任动态元数据，避免画面偏暗）
-  - `passthrough`：HDR PQ 直通（`target-prim=bt.2020`、`target-trc=pq`，需 HDR 屏幕）
+  - `tonemap`：HDR→SDR 色调映射（`tone-mapping=auto` 自动选择算法：HDR10+→st2094-40，HDR10/HLG→bt.2390；`hdr-compute-peak=no` 信任动态元数据，避免画面偏暗；保留 `target-prim=bt.2020` 广色域 + `target-trc=bt.1886` SDR 伽马）
+  - `passthrough`：HDR 直通（清空 target-prim/target-trc 让 mpv 直通视频原生色彩空间，启用 `target-colorspace-hint=yes` 让 Android 系统自动切换 HDR 显示模式，需 HDR 屏幕）
   - `scrgb`：scRGB 模式（auto 模式下系统 HDR 开启时走此分支）
-  - `auto`：根据系统 HDR 状态自动选择 passthrough / scrgb
+  - `auto`：根据系统 HDR 状态自动选择 passthrough / scrgb（Android 端通过 `Display.getHdrCapabilities()` 检测设备 HDR 能力）
 - **视频图像调整**：亮度、对比度、饱和度、色调、Gamma、锐度滑块实时调整，支持切换文件时自动重置
 - **视频旋转翻转**：支持 0/90/180/270 度旋转，水平/垂直/双向镜像翻转（使用 `@iptv_flip` 命名 lavfi 滤镜，需 copy-back 硬解）
 - **自动裁剪黑边**：基于帧分析自动检测并裁剪视频黑边（PIL 灰度 + numpy 边缘分析，`@iptv_autocrop` 命名滤镜），可一键移除
@@ -236,10 +236,11 @@
 - **本地服务**：内置 aiohttp 轻量级 Web 服务器，提供频道列表、播放接口、EPG、扫描、订阅等完整 RESTful API
 - **远程控制**：通过浏览器访问频道列表和控制播放
 - **流代理**：`/stream/{id}` 路由提供频道流代理，支持直连播放
-- **管理后台**：`/admin/` 提供 7 个 Tab 的完整 Web 管理界面（PC/Linux/macOS/Android 通用）
+- **管理后台**：`/admin/` 提供 8 个 Tab 的完整 Web 管理界面（PC/Linux/macOS/Android 通用）
   - 订阅源管理、EPG 源管理、频道管理（列表/搜索/分页/分组筛选/CRUD/导入 M3U）
   - URL 范围扫描（实时状态轮询/结果列表）、频道映射管理（添加/删除/刷新远程）
   - 节目单 EPG 浏览（频道列表+节目详情，当前节目高亮）、缓存管理（清空缩略图/截图/字幕/全部）
+  - **虚拟遥控器**：通过浏览器远程控制 TV 端（方向键/确定/频道切换/播放控制/音量/菜单/返回/OSD），100ms 轮询命令队列
 - **PWA 支持**：移动端 UI 支持 PWA 安装，Service Worker 采用 network-first 缓存策略
 
 ### 📱 Android 移动端
@@ -253,7 +254,10 @@ Android 端采用 **Kotlin Compose + Chaquopy Python 两层架构**，与 PC 端
 
 #### 核心功能
 - **视频播放**：MPV Native 渲染，支持播放/暂停/停止、音量、倍速、画面比例、音轨/字幕切换、hwdec 切换
-- **HDR 模式切换**：禁用/自动/色调映射/直通 4 种模式，文件加载时自动检测 HDR（gamma=pq/hlg 或 sig-peak>1.0）并应用，与 PC 端 `_apply_tonemap_config`/`_apply_passthrough_config` 对齐
+- **HDR 模式切换**：禁用/自动/色调映射/直通 4 种模式，文件加载时自动检测 HDR（gamma=pq/hlg 或 sig-peak>1.0）并应用
+  - `PASSTHROUGH`：清空 target-prim/target-trc + 启用 `target-colorspace-hint=yes`，让 Android 系统自动切换 HDR 显示模式
+  - `TONEMAP`：保留 `target-prim=bt.2020` 广色域 + `target-trc=bt.1886` SDR 伽马，`tone-mapping=auto`（HDR10+→st2094-40，HDR10/HLG→bt.2390）
+  - `AUTO`：通过 `Display.getHdrCapabilities()` 检测设备 HDR 能力，支持则走直通，否则走色调映射
 - **3D / 360° 视频**：5 种 3D 立体模式（mono/sbs/sbs2/ab/ab2）+ 360° 视角控制（panorama 滤镜，flat/equirect/cubemap 投影 + yaw/pitch/roll）
 - **控制面板**：3 行布局对齐 PC 端——媒体信息徽章、节目信息行、控制行（上一/下一频道、播放/暂停/停止、进度条、音量、倍速、画面比例、音轨、字幕）
 - **频道列表**：5 个 Tab（订阅 / 本地 / 收藏 / 历史 / 队列），搜索框、分组筛选
@@ -270,12 +274,21 @@ Android 端采用 **Kotlin Compose + Chaquopy Python 两层架构**，与 PC 端
 - **视频设置**：图像调整（亮度/对比度/饱和度/色调/Gamma）、旋转、翻转、3D/360
 - **频道扫描**：独立 `StandaloneScanner`（requests + threading），支持 IP 范围扫描
 - **订阅管理**：多源管理、独立缓存、状态显示（优先 `/api/sources/status` 的 channels 字段）、添加订阅源自动触发加载
-- **LAN 管理后台**：启动局域网 admin 服务器，二维码扫码访问（自动展开），5 分钟自动停止 + 倒计时，端口冲突自动递增
+- **LAN 管理后台**：启动局域网 admin 服务器，二维码扫码访问（自动展开），5 分钟自动停止 + 倒计时（可关闭自动停止），端口冲突自动递增，虚拟遥控器命令轮询
 - **画中画（PiP 增强）**：`onUserLeaveHint()` 自动进入 PiP，按视频实际宽高比设置窗口（消除黑边）、sourceRectHint 动画过渡、Android 12+ setAutoEnterEnabled + setSeamlessResizeEnabled、进入 PiP 自动关闭面板隐藏控制层
 - **全屏切换**：沉浸式全屏
-- **遥控器适配（TV 端）**：DPAD 方向键（面板开启时由 Compose 焦点系统导航，面板关闭时上下切换频道、左右切换面板）、CENTER/ENTER（播放暂停）、菜单键（主菜单）、返回键（关闭面板/退出）、SPACE/M（播放暂停）、音量键、tvFocusBorder 焦点高亮
+- **遥控器适配（TV 端）**：DPAD 方向键（面板开启时由 Compose 焦点系统导航，面板关闭时上下切换频道、左右切换面板）、CENTER/ENTER（播放暂停）、菜单键（主菜单）、返回键（关闭面板/退出）、SPACE/M（播放暂停）、音量键
+  - **tvFocusBorder 焦点高亮**：4dp 金色边框 + 半透明白色背景，焦点切换清晰可见
+  - **频道台标显示**：频道列表使用 Coil AsyncImage 加载显示每个频道的台标（logo）
+  - **默认焦点当前频道**：打开播放列表时自动滚动到当前播放频道位置
+  - **控制面板自动隐藏**：4 秒无操作后自动隐藏控制面板，切换频道时自动显示
+  - **EPG 跟随焦点**：频道列表中切换焦点时，EPG 节目单跟随显示焦点频道的节目信息
 - **本地文件打开**：SAF（Storage Access Framework）支持打开本地播放列表和视频
-- **多播放器内核**：MPV（默认）/ ExoPlayer / VLC / IJK（可切换）
+- **多播放器内核**：MPV（默认）/ ExoPlayer / VLC / IJK（可切换），每个内核均支持**硬件解码/软件解码运行时切换**
+  - MPV：通过 `hwdec` 属性切换（auto-copy 硬解 / no 软解）
+  - VLC：通过 `media.setHWDecoderEnabled` + 重新播放切换
+  - IJK：通过 `mediacodec` option（1 硬解 / 0 软解）+ 重新播放切换
+  - ExoPlayer：通过重建 ExoPlayer + `DefaultRenderersFactory.setExtensionRendererMode` 切换（软解需 FFmpeg 扩展，未安装时自动回退硬解）
 
 #### 构建要求
 - Android Studio + Gradle 8.7.0
@@ -289,11 +302,20 @@ Android 端采用 **Kotlin Compose + Chaquopy Python 两层架构**，与 PC 端
 ```bash
 cd android
 ./gradlew.bat assembleDebug          # 构建 Debug APK
-adb uninstall com.iptv.scanner.editor.pro
 adb install -g app/build/outputs/apk/debug/app-debug.apk
 ```
 
-> **MPV 原生库来源**：仓库 `android/` 目录下附带的 `mpv-arm64.apk`、`mpv-x86_64.apk`、`mpv-arm.apk`、`mpv-x86.apk` 用于提取 libmpv.so 等原生库到 `app/src/main/jniLibs/`（对应 4 种 ABI）。
+> **MPV 原生库来源**：仓库 `android/` 目录下附带的 `mpv-arm64.apk`、`mpv-x86_64.apk` 用于提取 libmpv.so 等原生库到 `app/src/main/jniLibs/`（仅覆盖 arm64-v8a 和 x86_64 两种 ABI；armeabi-v7a 和 x86 设备无 libmpv.so，MPV 内核不可用，可切换至 ExoPlayer / VLC / IJK 内核）。
+
+> **各 ABI 播放器可用性**：
+> - **arm64-v8a**（推荐）：MPV / ExoPlayer / VLC / IJK 全部可用
+> - **x86_64**：MPV / ExoPlayer / VLC 可用（IJK 无 x86_64 native 库）
+> - **armeabi-v7a**：ExoPlayer / VLC / IJK 可用（MPV 无 armeabi-v7a 库）
+> - **x86**（主要为模拟器）：ExoPlayer / VLC 可用（MPV / IJK 均无 x86 库，IJK 加载失败时自动降级提示）
+
+> **PC 端 Python 模块打包**：Chaquopy 构建时会将项目根目录的 `core/`、`services/`、`server/` 等 Python 包打包进 APK（通过 `extractPackages "server"` 指令解压 server 包，其余以 .zip 形式加载）。`android/app/src/main/python/android_bridge.py` 是 Android 端唯一的 Python 入口文件，运行时通过 `import server` / `import core` 等动态导入 PC 端模块。
+
+> **数据持久化**：覆盖安装 APK 后，订阅源、EPG 源、设置等数据自动保留。数据存储在 `/data/data/com.iptv.scanner.editor.pro/files/IPTV_Scanner_Editor_Pro/` 目录下的 `config.ini` 中，与 Chaquopy 资产解压目录隔离，不受 APK 版本更新影响。
 
 ## 🚀 快速开始
 
@@ -409,7 +431,7 @@ python pyqt_player.py
 
 ```
 IPTV-Scanner-Editor-Pro/
-├── pyqt_player.py              # 主窗口 & 播放器核心（980行，15个Mixin + QMainWindow）
+├── pyqt_player.py              # 主窗口 & 播放器核心（954行，15个Mixin + QMainWindow）
 ├── build.py                    # PyInstaller 打包脚本
 ├── requirements.txt            # Python 依赖
 ├── mixins/                     # Mixin 模块（从 IPTVPlayer 拆分的职责）
@@ -544,7 +566,8 @@ IPTV-Scanner-Editor-Pro/
 │   ├── quality_bar.py         # 质量评分条组件
 │   ├── styles.py              # 21 套主题样式定义
 │   ├── theme_manager.py       # 主题管理器
-│   └── virtual_channel_list.py # 虚拟频道列表组件
+│   ├── virtual_channel_list.py # 虚拟频道列表组件
+│   └── wallpaper_widget.py    # 壁纸背景组件（视频区域背景）
 ├── utils/                      # 工具模块
 │   ├── config_notifier.py     # 配置变更通知器
 │   ├── error_handler.py       # 错误处理器
@@ -583,8 +606,14 @@ IPTV-Scanner-Editor-Pro/
     │   │   │   │   ├── MPVView.kt          # SurfaceView + mpv 渲染
     │   │   │   │   └── MpvController.kt    # Compose 友好的 mpv 控制器（StateFlow + 命令）
     │   │   │   ├── player/                 # 多播放器内核抽象（Player 接口 + 各实现）
-    │   │   │   │   ├── Player.kt           # 统一播放器接口
-    │   │   │   │   ├── ExoPlayerController.kt / VlcController.kt / IjkController.kt
+    │   │   │   │   ├── Player.kt           # 统一播放器接口（含软硬解切换接口）
+    │   │   │   │   ├── ExoPlayerController.kt # ExoPlayer 控制器（软硬解切换+重建实例）
+    │   │   │   │   ├── ExoPlayerView.kt    # ExoPlayer 视图（AndroidView + PlayerView）
+    │   │   │   │   ├── VlcController.kt    # VLC 控制器（软硬解切换+重新播放）
+    │   │   │   │   ├── VlcVideoView.kt     # VLC 视图
+    │   │   │   │   ├── IjkController.kt    # IJK 控制器（mediacodec 软硬解切换）
+    │   │   │   │   ├── IjkVideoView.kt     # IJK 视图
+    │   │   │   │   ├── PlaybackState.kt    # 播放状态枚举
     │   │   │   │   ├── CatchupHelper.kt    # 回看/时移辅助
     │   │   │   │   └── ProgressHelper.kt   # 进度条逻辑（对齐 PC 端）
     │   │   │   └── ui/                     # Compose UI 层
@@ -596,24 +625,22 @@ IPTV-Scanner-Editor-Pro/
     │   │   │       ├── EpgTimelinePanel.kt # EPG 时间线视图
     │   │   │       ├── SearchPanel.kt      # 全局搜索
     │   │   │       ├── StreamQualityPanel.kt # 流质量检测
-    │   │   │       ├── SourceManagerPanel.kt # 订阅源管理 + LAN 管理入口
+    │   │   │       ├── SourceManagerPanel.kt # 订阅源管理 + LAN 管理（自动关闭开关）
     │   │   │       ├── MainMenuPanel.kt    # 主菜单
-    │   │   │       ├── PlayerSettingsPanel.kt # 播放器设置（VO/HWDEC/HDR）
+    │   │   │       ├── PlayerSettingsPanel.kt # 播放器设置（内核切换/VO/HWDEC/HDR/软硬解切换）
     │   │   │       ├── MorePanels.kt       # 视频/音频/字幕/播放/截图/关于面板集合
     │   │   │       ├── QrCodeUtil.kt       # 二维码生成
-    │   │   │       └── theme/              # 主题 + TV 焦点高亮
+    │   │   │       ├── SplashScreen.kt    # 启动画面（ViewModel 初始化）
+    │   │   │       ├── UiMode.kt          # UI 模式枚举（TV/手机）
+    │   │   │       ├── TvUnifiedPanel.kt  # TV 端统一面板（频道列表+EPG+台标+焦点跟踪）
+    │   │   │       └── theme/              # 主题 + TvFocus（4dp 金色焦点边框）
     │   │   ├── python/                # 内嵌 Python 后端（Chaquopy 3.11）
-    │   │   │   ├── android_bridge.py  # Python 服务启动入口
-    │   │   │   ├── core/              # 核心模块（复用 PC 端）
-    │   │   │   ├── services/          # 业务服务（复用 PC 端）
-    │   │   │   └── server/            # aiohttp 服务器 + admin/ + mobile/
-    │   │   ├── jniLibs/               # 原生库（arm64-v8a / armeabi-v7a / x86_64 / x86）
+    │   │   │   └── android_bridge.py  # Python 服务启动入口（IPTV_DATA_DIR 设置 + 虚拟遥控器命令队列；运行时 import server/core/services 动态加载 PC 端模块）
+    │   │   ├── jniLibs/               # 原生库（arm64-v8a / armeabi-v7a / x86_64 / x86，构建时从 mpv-*.apk 提取）
     │   │   └── AndroidManifest.xml
     │   └── build.gradle               # 应用级构建脚本
-    ├── mpv-arm64.apk                  # 预打包 mpv 库 APK（arm64）
-    ├── mpv-arm.apk                    # 预打包 mpv 库 APK（armeabi-v7a）
-    ├── mpv-x86_64.apk                 # 预打包 mpv 库 APK（x86_64）
-    ├── mpv-x86.apk                    # 预打包 mpv 库 APK（x86）
+    ├── mpv-arm64.apk                  # 预打包 mpv 库 APK（arm64-v8a，提取 libmpv.so）
+    ├── mpv-x86_64.apk                 # 预打包 mpv 库 APK（x86_64，提取 libmpv.so）
     └── gradlew / gradlew.bat          # Gradle 包装器
 ```
 

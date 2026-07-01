@@ -13,16 +13,29 @@ def _log(msg, level='I'):
 
 
 def _setup_android_paths():
+    """设置 Android 数据目录路径（IPTV_DATA_DIR 环境变量）。
+
+    关键：必须使用 jnius 的 autoclass 访问 Chaquopy 的 Java API，
+    而非 importlib.import_module('chaquopy.python')（该 Python 模块在
+    Chaquopy 运行时不存在，会抛 ModuleNotFoundError）。
+
+    如果 IPTV_DATA_DIR 未正确设置，ConfigManager 会走 fallback 路径，
+    将 config.ini 写到 Chaquopy AssetFinder 解压目录（路径含基于 APK
+    内容的 hash），覆盖安装新版本后该目录被废弃，导致订阅源/EPG源/设置丢失。
+    """
     if not getattr(sys, 'platform', '') == 'android':
         return
     try:
-        Python = importlib.import_module('chaquopy.python').Python
+        from jnius import autoclass
+        Python = autoclass('com.chaquo.python.Python')
         app = Python.getPlatform().getApplication()
         files_dir = app.getFilesDir().getAbsolutePath()
-        os.environ.setdefault('IPTV_DATA_DIR', files_dir)
-        sys.path.insert(0, files_dir)
+        os.environ['IPTV_DATA_DIR'] = files_dir
+        if files_dir not in sys.path:
+            sys.path.insert(0, files_dir)
+        _log(f'_setup_android_paths: IPTV_DATA_DIR={files_dir}')
     except Exception as e:
-        _log(f'_setup_android_paths failed: {e}', 'W')
+        _log(f'_setup_android_paths failed: {e}', 'E')
 
 
 def _setup_android_logging():
@@ -290,6 +303,15 @@ def init_context():
             _setup_android_paths()
             _setup_android_logging()
             _log('init_context: paths and logging setup done')
+
+            # 切换工作目录到 config_dir（与 start_server() 保持一致）
+            # 确保相对路径文件（如 cache/epg_cache.json）写入正确位置
+            data_dir = os.environ.get('IPTV_DATA_DIR', '')
+            if data_dir:
+                config_dir = os.path.join(data_dir, 'IPTV_Scanner_Editor_Pro')
+                os.makedirs(config_dir, exist_ok=True)
+                os.chdir(config_dir)
+                _log(f'init_context: chdir to {config_dir}')
 
             from server.context import ServerContext
             ServerContext.get_instance(main_window=None)

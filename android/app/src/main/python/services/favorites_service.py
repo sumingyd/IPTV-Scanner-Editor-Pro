@@ -22,6 +22,10 @@ class FavoritesService:
 
     def _get_data_dir(self):
         import sys
+        # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR
+        android_data = os.environ.get('IPTV_DATA_DIR', '')
+        if android_data:
+            return os.path.join(android_data, 'IPTV_Scanner_Editor_Pro')
         if getattr(sys, 'frozen', False):
             return os.path.dirname(sys.executable)
         current_dir = os.path.dirname(os.path.abspath(__file__))

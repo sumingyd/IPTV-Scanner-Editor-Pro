@@ -1142,7 +1142,12 @@ def _get_player():
 
 def _get_cache_dir(sub: str) -> str:
     """获取缓存子目录绝对路径，不存在则创建"""
-    base = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', sub)
+    # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR
+    android_data = os.environ.get('IPTV_DATA_DIR', '')
+    if android_data:
+        base = os.path.join(android_data, 'IPTV_Scanner_Editor_Pro', 'cache', sub)
+    else:
+        base = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', sub)
     os.makedirs(base, exist_ok=True)
     return base
 
@@ -1338,6 +1343,10 @@ async def handle_cache_clear(request):
         return _json_error(f'无效的缓存类型: {cache_type}')
     try:
         cache_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache')
+        # Android Chaquopy 环境：使用 IPTV_DATA_DIR 下的 cache 目录
+        android_data = os.environ.get('IPTV_DATA_DIR', '')
+        if android_data:
+            cache_root = os.path.join(android_data, 'IPTV_Scanner_Editor_Pro', 'cache')
         targets = [cache_type] if cache_type != 'all' else ['thumbnails', 'screenshots', 'subtitles']
         cleared = []
         for sub in targets:

@@ -13,15 +13,20 @@ from core.config_manager import ConfigManager
 
 
 def get_app_data_dir() -> str:
-    """获取应用数据目录（兼容PyInstaller打包和开发环境）
-    
+    """获取应用数据目录（兼容 Android Chaquopy / PyInstaller / 开发环境）
+
     Returns:
         str: 应用数据目录的绝对路径
-        
+
     Note:
-        - 打包后: exe文件所在目录
+        - Android (Chaquopy): IPTV_DATA_DIR 环境变量指向的目录
+        - PyInstaller 打包后: exe文件所在目录
         - 开发环境: 项目根目录
     """
+    # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR
+    android_data = os.environ.get('IPTV_DATA_DIR', '')
+    if android_data:
+        return android_data
     if getattr(sys, 'frozen', False):
         # PyInstaller 打包后的情况
         return os.path.dirname(sys.executable)
