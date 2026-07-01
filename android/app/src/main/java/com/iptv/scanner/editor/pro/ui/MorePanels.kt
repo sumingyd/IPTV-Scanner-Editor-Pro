@@ -209,7 +209,7 @@ private fun LabeledSlider(
                     modifier = Modifier.width(60.dp),
                     fontWeight = FontWeight.Medium
                 )
-                TextButton(onClick = onReset, modifier = Modifier.padding(start = 0.dp)) {
+                TextButton(onClick = onReset, modifier = Modifier.padding(start = 0.dp).tvFocusBorder()) {
                     Text("重置", fontSize = 12.sp, color = Color(0xFF888888))
                 }
             }
@@ -218,7 +218,7 @@ private fun LabeledSlider(
             value = value,
             onValueChange = onValueChange,
             valueRange = range,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().tvFocusBorder(),
             colors = SliderDefaults.colors(
                 thumbColor = Color(0xFF4A9EFF),
                 activeTrackColor = Color(0xFF4A9EFF),
@@ -260,13 +260,19 @@ fun OpenUrlDialog(viewModel: AppViewModel) {
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                viewModel.playUrl(url.trim())
-                url = ""
-            }) { Text("播放") }
+            TextButton(
+                onClick = {
+                    viewModel.playUrl(url.trim())
+                    url = ""
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("播放") }
         },
         dismissButton = {
-            TextButton(onClick = { viewModel.toggleOpenUrlDialog() }) { Text("取消") }
+            TextButton(
+                onClick = { viewModel.toggleOpenUrlDialog() },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("取消") }
         }
     )
 }
@@ -310,16 +316,19 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
         subtitle = "图像调整 / 旋转 / 翻转 / 3D 360",
         onClose = { viewModel.toggleVideoSettings() },
         actions = {
-            TextButton(onClick = {
-                // 一键重置所有图像参数 + 3D/360
-                brightness = 0; contrast = 0; saturation = 0; hue = 0; gamma = 0
-                rotate = 0; flipMode = "none"
-                stereoMode = "mono"; yaw = 0.0; pitch = 0.0; roll = 0.0
-                mpv.setBrightness(0); mpv.setContrast(0); mpv.setSaturation(0)
-                mpv.setHue(0); mpv.setGamma(0); mpv.setVideoRotate(0); mpv.setVideoFlip("")
-                mpv.setVideoStereoMode("mono"); mpv.clear360Filter()
-                viewModel.showOsd("视频设置", "已重置")
-            }) { Text("全部重置", color = Color(0xFF888888), fontSize = 12.sp) }
+            TextButton(
+                onClick = {
+                    // 一键重置所有图像参数 + 3D/360
+                    brightness = 0; contrast = 0; saturation = 0; hue = 0; gamma = 0
+                    rotate = 0; flipMode = "none"
+                    stereoMode = "mono"; yaw = 0.0; pitch = 0.0; roll = 0.0
+                    mpv.setBrightness(0); mpv.setContrast(0); mpv.setSaturation(0)
+                    mpv.setHue(0); mpv.setGamma(0); mpv.setVideoRotate(0); mpv.setVideoFlip("")
+                    mpv.setVideoStereoMode("mono"); mpv.clear360Filter()
+                    viewModel.showOsd("视频设置", "已重置")
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("全部重置", color = Color(0xFF888888), fontSize = 12.sp) }
         }
     ) {
         if (!fileLoaded) {
@@ -364,7 +373,8 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = rotate == deg,
                     onClick = { rotate = deg; mpv.setVideoRotate(deg) },
-                    label = { Text("${deg}°") }
+                    label = { Text("${deg}°") },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -375,7 +385,8 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = flipMode == mode,
                     onClick = { flipMode = mode; mpv.setVideoFlip(mode) },
-                    label = { Text(label) }
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -393,7 +404,8 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = stereoMode == mode,
                     onClick = { stereoMode = mode; mpv.setVideoStereoMode(mode) },
-                    label = { Text(label) }
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -412,7 +424,8 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = projection == p,
                     onClick = { projection = p },
-                    label = { Text(label) }
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -528,12 +541,15 @@ fun AudioSettingsPanel(viewModel: AppViewModel) {
         subtitle = "音轨 / 延迟 / EQ / 音调",
         onClose = { viewModel.toggleAudioSettings() },
         actions = {
-            TextButton(onClick = {
-                audioDelay = 0.0; mpv.setAudioDelay(0.0)
-                eqPreset = "normal"; mpv.resetAudioEq()
-                audioPitch = 1.0; mpv.setAudioPitch(1.0)
-                viewModel.showOsd("音频设置", "已重置")
-            }) { Text("重置", color = Color(0xFF888888), fontSize = 12.sp) }
+            TextButton(
+                onClick = {
+                    audioDelay = 0.0; mpv.setAudioDelay(0.0)
+                    eqPreset = "normal"; mpv.resetAudioEq()
+                    audioPitch = 1.0; mpv.setAudioPitch(1.0)
+                    viewModel.showOsd("音频设置", "已重置")
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("重置", color = Color(0xFF888888), fontSize = 12.sp) }
         }
     ) {
         if (!fileLoaded) {
@@ -549,7 +565,8 @@ fun AudioSettingsPanel(viewModel: AppViewModel) {
                     FilterChip(
                         selected = currentAid == id,
                         onClick = { currentAid = id; mpv.setAudioTrack(id) },
-                        label = { Text(title, maxLines = 1) }
+                        label = { Text(title, maxLines = 1) },
+                        modifier = Modifier.tvFocusBorder()
                     )
                 }
             }
@@ -576,7 +593,8 @@ fun AudioSettingsPanel(viewModel: AppViewModel) {
                         mpv.setAudioEq(eqPresets[key] ?: emptyList())
                         viewModel.showOsd("EQ", label)
                     },
-                    label = { Text(label) }
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -664,20 +682,23 @@ fun SubtitleSettingsPanel(viewModel: AppViewModel) {
             }, modifier = Modifier.tvFocusBorder()) {
                 Icon(Icons.Default.Subtitles, contentDescription = "加载字幕", tint = Color.White)
             }
-            TextButton(onClick = {
-                subDelay = 0.0; mpv.setSubDelay(0.0)
-                subScale = 1.0; mpv.setSubScale(1.0)
-                subPos = 0; mpv.setSubPos(0)
-                // 重置字幕样式为默认值
-                subFontSize = 55; mpv.setPropertyString("sub-font-size", "55")
-                subColor = "#FFFFFFFF"; mpv.setPropertyString("sub-color", "#FFFFFFFF")
-                subBorderColor = "#FF000000"; mpv.setPropertyString("sub-border-color", "#FF000000")
-                subBorderSize = 2.5; mpv.setPropertyString("sub-border-size", "2.5")
-                subShadowOffset = 0.0; mpv.setPropertyString("sub-shadow-offset", "0")
-                subBold = true; mpv.setPropertyString("sub-bold", "1")
-                subItalic = false; mpv.setPropertyString("sub-italic", "0")
-                viewModel.showOsd("字幕设置", "已重置")
-            }) { Text("重置", color = Color(0xFF888888), fontSize = 12.sp) }
+            TextButton(
+                onClick = {
+                    subDelay = 0.0; mpv.setSubDelay(0.0)
+                    subScale = 1.0; mpv.setSubScale(1.0)
+                    subPos = 0; mpv.setSubPos(0)
+                    // 重置字幕样式为默认值
+                    subFontSize = 55; mpv.setPropertyString("sub-font-size", "55")
+                    subColor = "#FFFFFFFF"; mpv.setPropertyString("sub-color", "#FFFFFFFF")
+                    subBorderColor = "#FF000000"; mpv.setPropertyString("sub-border-color", "#FF000000")
+                    subBorderSize = 2.5; mpv.setPropertyString("sub-border-size", "2.5")
+                    subShadowOffset = 0.0; mpv.setPropertyString("sub-shadow-offset", "0")
+                    subBold = true; mpv.setPropertyString("sub-bold", "1")
+                    subItalic = false; mpv.setPropertyString("sub-italic", "0")
+                    viewModel.showOsd("字幕设置", "已重置")
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("重置", color = Color(0xFF888888), fontSize = 12.sp) }
         }
     ) {
         if (!fileLoaded) {
@@ -694,7 +715,8 @@ fun SubtitleSettingsPanel(viewModel: AppViewModel) {
             Text("显示字幕", color = Color.White, fontSize = 14.sp)
             Switch(
                 checked = subVisible,
-                onCheckedChange = { subVisible = it; mpv.setSubVisibility(it) }
+                onCheckedChange = { subVisible = it; mpv.setSubVisibility(it) },
+                modifier = Modifier.tvFocusBorder()
             )
         }
 
@@ -707,7 +729,8 @@ fun SubtitleSettingsPanel(viewModel: AppViewModel) {
                     FilterChip(
                         selected = currentSid == id,
                         onClick = { currentSid = id; mpv.setSubTrack(id) },
-                        label = { Text(title, maxLines = 1) }
+                        label = { Text(title, maxLines = 1) },
+                        modifier = Modifier.tvFocusBorder()
                     )
                 }
             }
@@ -894,7 +917,8 @@ fun SubtitleSettingsPanel(viewModel: AppViewModel) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Switch(
                     checked = subBold,
-                    onCheckedChange = { subBold = it; mpv.setPropertyString("sub-bold", if (it) "1" else "0") }
+                    onCheckedChange = { subBold = it; mpv.setPropertyString("sub-bold", if (it) "1" else "0") },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -902,7 +926,8 @@ fun SubtitleSettingsPanel(viewModel: AppViewModel) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Switch(
                     checked = subItalic,
-                    onCheckedChange = { subItalic = it; mpv.setPropertyString("sub-italic", if (it) "1" else "0") }
+                    onCheckedChange = { subItalic = it; mpv.setPropertyString("sub-italic", if (it) "1" else "0") },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -943,14 +968,17 @@ fun PlaybackPanel(viewModel: AppViewModel) {
         subtitle = "循环 / 随机 / AB / 逐帧 / 速度",
         onClose = { viewModel.togglePlaybackPanel() },
         actions = {
-            TextButton(onClick = {
-                loopFile = "no"; loopPlaylist = "no"
-                abLoopA = null; abLoopB = null
-                mpv.setLoopFile("no"); mpv.setLoopPlaylist("no"); mpv.clearAbLoop()
-                mpv.setSpeed(1.0)
-                if (shuffleMode) viewModel.toggleShuffleMode()
-                viewModel.showOsd("播放设置", "已重置")
-            }) { Text("重置", color = Color(0xFF888888), fontSize = 12.sp) }
+            TextButton(
+                onClick = {
+                    loopFile = "no"; loopPlaylist = "no"
+                    abLoopA = null; abLoopB = null
+                    mpv.setLoopFile("no"); mpv.setLoopPlaylist("no"); mpv.clearAbLoop()
+                    mpv.setSpeed(1.0)
+                    if (shuffleMode) viewModel.toggleShuffleMode()
+                    viewModel.showOsd("播放设置", "已重置")
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("重置", color = Color(0xFF888888), fontSize = 12.sp) }
         }
     ) {
         if (!fileLoaded) {
@@ -973,7 +1001,8 @@ fun PlaybackPanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = loopFile == mode,
                     onClick = { loopFile = mode; mpv.setLoopFile(mode) },
-                    label = { Text(label) }
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -983,7 +1012,8 @@ fun PlaybackPanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = loopPlaylist == mode,
                     onClick = { loopPlaylist = mode; mpv.setLoopPlaylist(mode) },
-                    label = { Text(label) }
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -1009,21 +1039,30 @@ fun PlaybackPanel(viewModel: AppViewModel) {
         SectionLabel("A/B 循环")
         DescText("设置 A 点和 B 点后，在该区间内循环播放")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = {
-                abLoopA = mpv.timePos.value
-                mpv.setAbLoopA()
-                viewModel.showOsd("AB 循环", "A 点: ${"%.1f".format(abLoopA)}s")
-            }) { Text("设置 A 点") }
-            OutlinedButton(onClick = {
-                abLoopB = mpv.timePos.value
-                mpv.setAbLoopB()
-                viewModel.showOsd("AB 循环", "B 点: ${"%.1f".format(abLoopB)}s")
-            }) { Text("设置 B 点") }
-            OutlinedButton(onClick = {
-                abLoopA = null; abLoopB = null
-                mpv.clearAbLoop()
-                viewModel.showOsd("AB 循环", "已清除")
-            }) { Text("清除") }
+            OutlinedButton(
+                onClick = {
+                    abLoopA = mpv.timePos.value
+                    mpv.setAbLoopA()
+                    viewModel.showOsd("AB 循环", "A 点: ${"%.1f".format(abLoopA)}s")
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("设置 A 点") }
+            OutlinedButton(
+                onClick = {
+                    abLoopB = mpv.timePos.value
+                    mpv.setAbLoopB()
+                    viewModel.showOsd("AB 循环", "B 点: ${"%.1f".format(abLoopB)}s")
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("设置 B 点") }
+            OutlinedButton(
+                onClick = {
+                    abLoopA = null; abLoopB = null
+                    mpv.clearAbLoop()
+                    viewModel.showOsd("AB 循环", "已清除")
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("清除") }
         }
         if (abLoopA != null || abLoopB != null) {
             Text(
@@ -1037,8 +1076,14 @@ fun PlaybackPanel(viewModel: AppViewModel) {
 
         SectionLabel("逐帧")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { mpv.frameBackStep() }) { Text("◀ 上一帧") }
-            OutlinedButton(onClick = { mpv.frameStep() }) { Text("下一帧 ▶") }
+            OutlinedButton(
+                onClick = { mpv.frameBackStep() },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("◀ 上一帧") }
+            OutlinedButton(
+                onClick = { mpv.frameStep() },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("下一帧 ▶") }
         }
 
         // 章节（如果有）
@@ -1051,8 +1096,14 @@ fun PlaybackPanel(viewModel: AppViewModel) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { mpv.chapterPrev() }) { Text("◀ 上一章") }
-                OutlinedButton(onClick = { mpv.chapterNext() }) { Text("下一章 ▶") }
+                OutlinedButton(
+                    onClick = { mpv.chapterPrev() },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("◀ 上一章") }
+                OutlinedButton(
+                    onClick = { mpv.chapterNext() },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("下一章 ▶") }
             }
         }
 
@@ -1103,7 +1154,8 @@ fun ScreenshotPanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = mode == m,
                     onClick = { mode = m },
-                    label = { Text(label) }
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -1249,20 +1301,27 @@ fun ViewSettingsPanel(viewModel: AppViewModel) {
                         }
                         viewModel.showOsd("视频比例", label)
                     },
-                    label = { Text(label) }
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
 
         SectionLabel("OSD")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { mpv.showOsd("播放时间: ${"%.0f".format(mpv.timePos.value)}秒", 2000) }) {
+            OutlinedButton(
+                onClick = { mpv.showOsd("播放时间: ${"%.0f".format(mpv.timePos.value)}秒", 2000) },
+                modifier = Modifier.tvFocusBorder()
+            ) {
                 Text("显示时间")
             }
-            OutlinedButton(onClick = {
-                val filename = mpv.getPropertyString("filename") ?: mpv.getPropertyString("media-title") ?: ""
-                mpv.showOsd(filename, 3000)
-            }) { Text("显示文件名") }
+            OutlinedButton(
+                onClick = {
+                    val filename = mpv.getPropertyString("filename") ?: mpv.getPropertyString("media-title") ?: ""
+                    mpv.showOsd(filename, 3000)
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("显示文件名") }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -1364,11 +1423,18 @@ fun MappingPanel(viewModel: AppViewModel) {
         subtitle = "远程映射 + 用户映射管理",
         onClose = { viewModel.toggleMappingPanel() },
         actions = {
-            OutlinedButton(onClick = { viewModel.refreshMappings() }, enabled = !mappingLoading) {
+            OutlinedButton(
+                onClick = { viewModel.refreshMappings() },
+                enabled = !mappingLoading,
+                modifier = Modifier.tvFocusBorder()
+            ) {
                 Text("刷新远程", color = Color.White, fontSize = 12.sp)
             }
             Spacer(modifier = Modifier.width(8.dp))
-            OutlinedButton(onClick = { showAddDialog = true }) {
+            OutlinedButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier.tvFocusBorder()
+            ) {
                 Text("添加", color = Color.White, fontSize = 12.sp)
             }
         }
@@ -1514,11 +1580,15 @@ private fun AddMappingDialog(
         confirmButton = {
             TextButton(
                 onClick = { onAdd(rawName, standardName, logoUrl, groupName) },
-                enabled = rawName.isNotBlank() && standardName.isNotBlank()
+                enabled = rawName.isNotBlank() && standardName.isNotBlank(),
+                modifier = Modifier.tvFocusBorder()
             ) { Text("添加") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("取消") }
         }
     )
 }
@@ -1598,13 +1668,13 @@ fun AvSyncPanel(viewModel: AppViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(onClick = { viewModel.adjustAudioDelay(-0.1) }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = { viewModel.adjustAudioDelay(-0.1) }, modifier = Modifier.weight(1f).tvFocusBorder()) {
                     Text("-0.1s", color = Color.White)
                 }
-                OutlinedButton(onClick = { viewModel.adjustAudioDelay(0.1) }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = { viewModel.adjustAudioDelay(0.1) }, modifier = Modifier.weight(1f).tvFocusBorder()) {
                     Text("+0.1s", color = Color.White)
                 }
-                OutlinedButton(onClick = { viewModel.resetAudioDelay() }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = { viewModel.resetAudioDelay() }, modifier = Modifier.weight(1f).tvFocusBorder()) {
                     Text("重置", color = Color.White)
                 }
             }
@@ -1621,7 +1691,11 @@ fun AvSyncPanel(viewModel: AppViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("启用自动同步", color = Color.White, fontSize = 13.sp)
-            Switch(checked = subSyncEnabled, onCheckedChange = { viewModel.toggleSubSync() })
+            Switch(
+                checked = subSyncEnabled,
+                onCheckedChange = { viewModel.toggleSubSync() },
+                modifier = Modifier.tvFocusBorder()
+            )
         }
     }
 }
@@ -1745,17 +1819,17 @@ fun NetworkPanel(viewModel: AppViewModel) {
                     referer = ""; proxy = ""; headers = ""
                     viewModel.clearNetworkSettings()
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).tvFocusBorder()
             ) { Text("清除", color = Color.White) }
 
             OutlinedButton(
                 onClick = { viewModel.applyNetworkSettings(referer, proxy, headers) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).tvFocusBorder()
             ) { Text("应用", color = Color.White) }
 
             OutlinedButton(
                 onClick = { viewModel.saveNetworkSettings(referer, proxy, headers) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).tvFocusBorder()
             ) { Text("保存", color = Color(0xFF4A9EFF)) }
         }
 
@@ -1888,7 +1962,10 @@ fun SubtitleSearchPanel(viewModel: AppViewModel) {
             placeholder = { Text("输入片名或关键词...", color = Color(0xFF888888), fontSize = 13.sp) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
-                    IconButton(onClick = { query = "" }) {
+                    IconButton(
+                        onClick = { query = "" },
+                        modifier = Modifier.tvFocusBorder()
+                    ) {
                         Icon(Icons.Default.Close, contentDescription = "清空", tint = Color(0xFF888888))
                     }
                 }
@@ -1915,7 +1992,8 @@ fun SubtitleSearchPanel(viewModel: AppViewModel) {
                     colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Color(0xFF4A9EFF),
                         selectedLabelColor = Color.White
-                    )
+                    ),
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
         }
@@ -2141,7 +2219,7 @@ fun ScanPanel(viewModel: AppViewModel) {
                     onValueChange = { timeout = it.toInt().coerceIn(3, 30) },
                     valueRange = 3f..30f,
                     enabled = !running,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().tvFocusBorder(),
                     colors = SliderDefaults.colors(
                         thumbColor = Color(0xFF4A9EFF),
                         activeTrackColor = Color(0xFF4A9EFF),
@@ -2156,7 +2234,7 @@ fun ScanPanel(viewModel: AppViewModel) {
                     onValueChange = { threads = it.toInt().coerceIn(1, 16) },
                     valueRange = 1f..16f,
                     enabled = !running,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().tvFocusBorder(),
                     colors = SliderDefaults.colors(
                         thumbColor = Color(0xFF4A9EFF),
                         activeTrackColor = Color(0xFF4A9EFF),
@@ -2724,7 +2802,8 @@ fun BookmarkPanel(viewModel: AppViewModel) {
                 colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                     selectedContainerColor = Color(0xFF4A9EFF).copy(alpha = 0.2f),
                     selectedLabelColor = Color(0xFF4A9EFF)
-                )
+                ),
+                modifier = Modifier.tvFocusBorder()
             )
             FilterChip(
                 selected = !showCurrent,
@@ -2733,7 +2812,8 @@ fun BookmarkPanel(viewModel: AppViewModel) {
                 colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                     selectedContainerColor = Color(0xFF4A9EFF).copy(alpha = 0.2f),
                     selectedLabelColor = Color(0xFF4A9EFF)
-                )
+                ),
+                modifier = Modifier.tvFocusBorder()
             )
         }
 

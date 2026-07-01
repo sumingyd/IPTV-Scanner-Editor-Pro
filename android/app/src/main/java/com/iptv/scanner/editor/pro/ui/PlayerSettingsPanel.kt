@@ -107,12 +107,14 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = playerType == PlayerType.MPV,
                     onClick = { viewModel.switchPlayer(PlayerType.MPV) },
-                    label = { Text("MPV") }
+                    label = { Text("MPV") },
+                    modifier = Modifier.tvFocusBorder()
                 )
                 FilterChip(
                     selected = playerType == PlayerType.EXO,
                     onClick = { viewModel.switchPlayer(PlayerType.EXO) },
-                    label = { Text("ExoPlayer") }
+                    label = { Text("ExoPlayer") },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
@@ -120,12 +122,14 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = playerType == PlayerType.VLC,
                     onClick = { viewModel.switchPlayer(PlayerType.VLC) },
-                    label = { Text("VLC") }
+                    label = { Text("VLC") },
+                    modifier = Modifier.tvFocusBorder()
                 )
                 FilterChip(
                     selected = playerType == PlayerType.IJK,
                     onClick = { viewModel.switchPlayer(PlayerType.IJK) },
-                    label = { Text("IJKPlayer") }
+                    label = { Text("IJKPlayer") },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
 
@@ -164,12 +168,14 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                     FilterChip(
                         selected = currentVo == "gpu",
                         onClick = { viewModel.setPlayerVo("gpu") },
-                        label = { Text("GPU（EGL 渲染）") }
+                        label = { Text("GPU（EGL 渲染）") },
+                        modifier = Modifier.tvFocusBorder()
                     )
                     FilterChip(
                         selected = currentVo == "mediacodec_embed",
                         onClick = { viewModel.setPlayerVo("mediacodec_embed") },
-                        label = { Text("MediaCodec") }
+                        label = { Text("MediaCodec") },
+                        modifier = Modifier.tvFocusBorder()
                     )
                 }
 
@@ -208,12 +214,14 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                             FilterChip(
                                 selected = currentHwdec == "auto-copy",
                                 onClick = { viewModel.setPlayerHwdec("auto-copy") },
-                                label = { Text("auto-copy（推荐）") }
+                                label = { Text("auto-copy（推荐）") },
+                                modifier = Modifier.tvFocusBorder()
                             )
                             FilterChip(
                                 selected = currentHwdec == "no",
                                 onClick = { viewModel.setPlayerHwdec("no") },
-                                label = { Text("no（软解）") }
+                                label = { Text("no（软解）") },
+                                modifier = Modifier.tvFocusBorder()
                             )
                         }
                         "mediacodec_embed" -> {
@@ -221,7 +229,8 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                             FilterChip(
                                 selected = currentHwdec == "mediacodec",
                                 onClick = { viewModel.setPlayerHwdec("mediacodec") },
-                                label = { Text("mediacodec（固定）") }
+                                label = { Text("mediacodec（固定）") },
+                                modifier = Modifier.tvFocusBorder()
                             )
                         }
                     }
@@ -261,12 +270,14 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                     FilterChip(
                         selected = hdrMode == AppViewModel.HdrMode.DISABLE,
                         onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.DISABLE) },
-                        label = { Text("禁用") }
+                        label = { Text("禁用") },
+                        modifier = Modifier.tvFocusBorder()
                     )
                     FilterChip(
                         selected = hdrMode == AppViewModel.HdrMode.AUTO,
                         onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.AUTO) },
-                        label = { Text("自动") }
+                        label = { Text("自动") },
+                        modifier = Modifier.tvFocusBorder()
                     )
                 }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -274,12 +285,14 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                     FilterChip(
                         selected = hdrMode == AppViewModel.HdrMode.TONEMAP,
                         onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.TONEMAP) },
-                        label = { Text("色调映射") }
+                        label = { Text("色调映射") },
+                        modifier = Modifier.tvFocusBorder()
                     )
                     FilterChip(
                         selected = hdrMode == AppViewModel.HdrMode.PASSTHROUGH,
                         onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.PASSTHROUGH) },
-                        label = { Text("直通") }
+                        label = { Text("直通") },
+                        modifier = Modifier.tvFocusBorder()
                     )
                 }
 

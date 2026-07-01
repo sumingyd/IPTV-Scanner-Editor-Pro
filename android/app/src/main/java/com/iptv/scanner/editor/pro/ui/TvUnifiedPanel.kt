@@ -38,7 +38,6 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.ScreenshotMonitor
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material.icons.filled.Tune
@@ -100,7 +99,6 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     val currentChannel by viewModel.currentChannel.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
     val channels by viewModel.channels.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val isFavorite = currentIdx >= 0 && favorites.contains(currentIdx)
 
@@ -168,8 +166,6 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     channels = channels,
                     currentIdx = currentIdx,
                     favorites = favorites,
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = { viewModel.setSearchQuery(it) },
                     onChannelClick = { idx -> viewModel.playChannel(idx) },
                     modifier = Modifier.width(360.dp).focusRequester(column2Focus)
                 )
@@ -339,21 +335,11 @@ private fun ChannelsColumn(
     channels: List<IptvChannel>,
     currentIdx: Int,
     favorites: Set<Int>,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
     onChannelClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val filteredChannels = remember(searchQuery, channels) {
-        val query = searchQuery.lowercase()
-        if (query.isEmpty()) {
-            channels.mapIndexed { idx, c -> c to idx }
-        } else {
-            channels.mapIndexed { idx, c -> c to idx }
-                .filter { (c, _) ->
-                    c.name.lowercase().contains(query) || c.group.lowercase().contains(query)
-                }
-        }
+    val filteredChannels = remember(channels) {
+        channels.mapIndexed { idx, c -> c to idx }
     }
 
     Surface(
@@ -368,19 +354,6 @@ private fun ChannelsColumn(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-            )
-
-            // 搜索框
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = { Text("搜索频道...", color = Color(0xFF888888), fontSize = 13.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF888888)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                shape = RoundedCornerShape(8.dp),
-                singleLine = true
             )
 
             Divider(color = Color(0xFF2A2A2A))

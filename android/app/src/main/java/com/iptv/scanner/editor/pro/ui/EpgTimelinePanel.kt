@@ -176,17 +176,20 @@ fun EpgTimelinePanel(viewModel: AppViewModel) {
                 FilterChip(
                     selected = range == AppViewModel.EpgTimelineRange.ALL,
                     onClick = { viewModel.setEpgTimelineRange(AppViewModel.EpgTimelineRange.ALL) },
-                    label = { Text("全部频道", fontSize = 11.sp) }
+                    label = { Text("全部频道", fontSize = 11.sp) },
+                    modifier = Modifier.tvFocusBorder()
                 )
                 FilterChip(
                     selected = range == AppViewModel.EpgTimelineRange.FAVORITES,
                     onClick = { viewModel.setEpgTimelineRange(AppViewModel.EpgTimelineRange.FAVORITES) },
-                    label = { Text("仅收藏", fontSize = 11.sp) }
+                    label = { Text("仅收藏", fontSize = 11.sp) },
+                    modifier = Modifier.tvFocusBorder()
                 )
                 FilterChip(
                     selected = range == AppViewModel.EpgTimelineRange.CURRENT_GROUP,
                     onClick = { viewModel.setEpgTimelineRange(AppViewModel.EpgTimelineRange.CURRENT_GROUP) },
-                    label = { Text("当前分组", fontSize = 11.sp) }
+                    label = { Text("当前分组", fontSize = 11.sp) },
+                    modifier = Modifier.tvFocusBorder()
                 )
             }
 

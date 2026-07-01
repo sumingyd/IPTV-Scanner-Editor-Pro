@@ -373,7 +373,8 @@ private fun SourceItem(
             // 启用开关
             Switch(
                 checked = source.enabled,
-                onCheckedChange = onToggle
+                onCheckedChange = onToggle,
+                modifier = Modifier.tvFocusBorder()
             )
             Spacer(modifier = Modifier.width(8.dp))
             // 删除按钮
@@ -426,7 +427,7 @@ private fun EpgSourceItem(
                     )
                 }
             }
-            IconButton(onClick = onDelete) {
+            IconButton(onClick = onDelete, modifier = Modifier.tvFocusBorder()) {
                 Icon(Icons.Default.Delete, contentDescription = "删除", tint = Color(0xFFE57373))
             }
         }
@@ -599,7 +600,7 @@ private fun BackupRestoreBar(viewModel: AppViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = { viewModel.exportConfig() },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).tvFocusBorder()
                 ) {
                     Icon(Icons.Default.Save, contentDescription = null, tint = Color(0xFF4A9EFF))
                     Spacer(modifier = Modifier.width(4.dp))
@@ -607,7 +608,7 @@ private fun BackupRestoreBar(viewModel: AppViewModel) {
                 }
                 OutlinedButton(
                     onClick = { pickFileLauncher.launch(arrayOf("application/json")) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).tvFocusBorder()
                 ) {
                     Icon(
                         Icons.Default.SettingsBackupRestore,

@@ -141,17 +141,20 @@ fun SearchPanel(viewModel: AppViewModel) {
                     FilterChip(
                         selected = scope == AppViewModel.SearchScope.ALL,
                         onClick = { viewModel.setSearchScope(AppViewModel.SearchScope.ALL) },
-                        label = { Text("全部", fontSize = 11.sp) }
+                        label = { Text("全部", fontSize = 11.sp) },
+                        modifier = Modifier.tvFocusBorder()
                     )
                     FilterChip(
                         selected = scope == AppViewModel.SearchScope.CHANNELS,
                         onClick = { viewModel.setSearchScope(AppViewModel.SearchScope.CHANNELS) },
-                        label = { Text("频道", fontSize = 11.sp) }
+                        label = { Text("频道", fontSize = 11.sp) },
+                        modifier = Modifier.tvFocusBorder()
                     )
                     FilterChip(
                         selected = scope == AppViewModel.SearchScope.PROGRAMS,
                         onClick = { viewModel.setSearchScope(AppViewModel.SearchScope.PROGRAMS) },
-                        label = { Text("节目", fontSize = 11.sp) }
+                        label = { Text("节目", fontSize = 11.sp) },
+                        modifier = Modifier.tvFocusBorder()
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
