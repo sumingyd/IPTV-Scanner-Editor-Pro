@@ -145,6 +145,7 @@ fun ControlPanel(viewModel: AppViewModel) {
                 paused = paused,
                 muted = muted,
                 volume = volume,
+                isTV = viewModel.uiMode.value.isTV,
                 showExitCatchup = showExitCatchup,
                 playbackMode = playbackState.mode,
                 onPlayPause = { mpv.togglePause() },
@@ -464,6 +465,7 @@ private fun ControlButtonsRow(
     paused: Boolean,
     muted: Boolean,
     volume: Int,
+    isTV: Boolean,
     showExitCatchup: Boolean,
     playbackMode: PlayMode,
     onPlayPause: () -> Unit,
@@ -503,37 +505,42 @@ private fun ControlButtonsRow(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // 中间：静音 + 音量滑块
-        IconButton(onClick = onMute, modifier = Modifier.size(36.dp).tvFocusBorder()) {
-            Icon(
-                imageVector = if (muted || volume == 0) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                contentDescription = "静音",
-                tint = if (muted) Color(0xFFFFA500) else Color.White
+        // 中间：静音 + 音量滑块（TV 模式下隐藏，由遥控器音量键控制）
+        if (!isTV) {
+            IconButton(onClick = onMute, modifier = Modifier.size(36.dp).tvFocusBorder()) {
+                Icon(
+                    imageVector = if (muted || volume == 0) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                    contentDescription = "静音",
+                    tint = if (muted) Color(0xFFFFA500) else Color.White
+                )
+            }
+
+            Slider(
+                value = volume.toFloat(),
+                onValueChange = onVolumeChange,
+                valueRange = 0f..130f,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(24.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color(0xFF4A9EFF),
+                    activeTrackColor = Color(0xFF4A9EFF),
+                    inactiveTrackColor = Color(0xFF444444)
+                )
             )
+
+            Text(
+                text = volume.toString(),
+                color = Color(0xFFCCCCCC),
+                fontSize = 11.sp,
+                modifier = Modifier.width(28.dp)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+        } else {
+            // TV 模式下用 Spacer 占据中间空间
+            Spacer(modifier = Modifier.weight(1f))
         }
-
-        Slider(
-            value = volume.toFloat(),
-            onValueChange = onVolumeChange,
-            valueRange = 0f..130f,
-            modifier = Modifier
-                .weight(1f)
-                .height(24.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = Color(0xFF4A9EFF),
-                activeTrackColor = Color(0xFF4A9EFF),
-                inactiveTrackColor = Color(0xFF444444)
-            )
-        )
-
-        Text(
-            text = volume.toString(),
-            color = Color(0xFFCCCCCC),
-            fontSize = 11.sp,
-            modifier = Modifier.width(28.dp)
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
 
         // 右侧：退出回看按钮（catchup/timeshift 模式时显示）
         if (showExitCatchup) {

@@ -173,6 +173,7 @@ def create_app() -> web.Application:
     app.router.add_get('/api/epg/sources', handle_epg_sources_list)
     app.router.add_post('/api/epg/sources', handle_epg_sources_add)
     app.router.add_delete('/api/epg/sources/{id}', handle_epg_sources_delete)
+    app.router.add_post('/api/epg/reload', handle_epg_reload)
     app.router.add_post('/api/scan/start', handle_scan_start)
     app.router.add_post('/api/scan/stop', handle_scan_stop)
     app.router.add_get('/api/scan/status', handle_scan_status)
@@ -473,7 +474,14 @@ async def handle_m3u(request):
 async def handle_channels_list(request):
     all_channels = _get_all_channels()
     if not all_channels:
-        return _json_error('暂无频道数据', 503)
+        # 返回空列表而非 503，让前端正常显示"暂无频道"
+        return _json_success(
+            channels=[],
+            total=0,
+            page=1,
+            page_size=min(500, max(1, int(request.rel_url.query.get('size', '100')))),
+            groups=[]
+        )
     valid_only = request.rel_url.query.get('valid', '').strip()
     group = request.rel_url.query.get('group', '').strip()
     search = request.rel_url.query.get('search', '').strip().lower()
@@ -618,6 +626,12 @@ async def handle_sources_add(request):
         sources = []
     sources.append({'url': url, 'name': name or url, 'enabled': True, 'last_update': None})
     config.save_playlist_sources(sources)
+    # 添加订阅源后自动触发重载（与 EPG 源行为一致），
+    # 确保 Android APP 端打开面板时能看到新加载的频道。
+    # standalone 模式下 ctx.reload_sources('') 会加载所有已配置源。
+    ctx = get_context()
+    if ctx and ctx.is_standalone():
+        ctx.reload_sources('')  # url 为空 → 加载所有源
     return _json_success()
 
 
@@ -701,6 +715,18 @@ async def handle_epg_sources_delete(request):
     sources.pop(idx)
     config.save_epg_sources(sources)
     return _json_success()
+
+
+async def handle_epg_reload(request):
+    """重新加载 EPG 数据（独立于添加 EPG 源）"""
+    ctx = get_context()
+    if not ctx:
+        return _json_error('上下文未初始化', 503)
+    if not hasattr(ctx, 'reload_epg'):
+        return _json_error('当前环境不支持 EPG 重载', 503)
+    if ctx.reload_epg():
+        return _json_success(message='EPG 重新加载已开始')
+    return _json_error('EPG 重新加载失败（可能未配置 EPG 源或非独立模式）', 503)
 
 
 async def handle_sources_reload(request):

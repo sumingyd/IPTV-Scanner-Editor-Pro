@@ -78,6 +78,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val channelsPanelOpen by viewModel.channelsPanelOpen.collectAsState()
     val epgPanelOpen by viewModel.epgPanelOpen.collectAsState()
     val menuPanelOpen by viewModel.menuPanelOpen.collectAsState()
+    val tvUnifiedPanelOpen by viewModel.tvUnifiedPanelOpen.collectAsState()
     val sourceManagerOpen by viewModel.sourceManagerOpen.collectAsState()
     val playerSettingsOpen by viewModel.playerSettingsOpen.collectAsState()
     val videoSettingsOpen by viewModel.videoSettingsOpen.collectAsState()
@@ -140,6 +141,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     // 是否有任何面板打开（控制层在面板打开时自动隐藏）
     // 注意：openUrlDialogOpen 不计入，因为 AlertDialog 有独立 scrim，不需要隐藏控制层
     val anyPanelOpen = channelsPanelOpen || epgPanelOpen || menuPanelOpen ||
+            tvUnifiedPanelOpen ||
             sourceManagerOpen || playerSettingsOpen ||
             videoSettingsOpen || audioSettingsOpen || subtitleSettingsOpen || subtitleSearchOpen ||
             playbackPanelOpen || screenshotPanelOpen || viewSettingsOpen || aboutPanelOpen ||
@@ -274,6 +276,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
                         channelName = currentChannel?.name ?: "未选择频道",
                         mode = if (uiMode.isTV) "TV" else "PHONE",
                         paused = paused,
+                        isTV = uiMode.isTV,
                         onChannelsClick = { viewModel.showChannelsPanel() },
                         onEpgClick = { viewModel.showEpgPanel() },
                         onMenuClick = { viewModel.showMenuPanel() }
@@ -322,9 +325,14 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             }
         }
 
-        // 主菜单（全屏覆盖）
-        if (menuPanelOpen) {
+        // 主菜单（全屏覆盖）— 仅 PHONE 模式使用
+        if (menuPanelOpen && !uiMode.isTV) {
             MainMenuPanel(viewModel = viewModel)
+        }
+
+        // TV 端统一面板（三列：模式切换 + 频道列表/主菜单 + EPG 节目单）
+        if (tvUnifiedPanelOpen) {
+            TvUnifiedPanel(viewModel = viewModel)
         }
 
         // 订阅源管理（全屏覆盖）
@@ -471,6 +479,7 @@ private fun TopBar(
     channelName: String,
     mode: String,
     paused: Boolean,
+    isTV: Boolean,
     onChannelsClick: () -> Unit,
     onEpgClick: () -> Unit,
     onMenuClick: () -> Unit
@@ -508,36 +517,38 @@ private fun TopBar(
                 }
             }
 
-            // 右侧：面板入口按钮
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onChannelsClick) {
-                    Icon(
-                        Icons.Default.VideoLibrary,
-                        contentDescription = "频道列表",
-                        tint = Color.White
-                    )
+            // 右侧：面板入口按钮（TV 模式下隐藏，由 MENU 键和方向键替代）
+            if (!isTV) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onChannelsClick) {
+                        Icon(
+                            Icons.Default.VideoLibrary,
+                            contentDescription = "频道列表",
+                            tint = Color.White
+                        )
+                    }
+                    IconButton(onClick = onEpgClick) {
+                        Icon(
+                            Icons.Default.CalendarMonth,
+                            contentDescription = "EPG 节目单",
+                            tint = Color.White
+                        )
+                    }
+                    IconButton(onClick = onMenuClick) {
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = "主菜单",
+                            tint = Color.White
+                        )
+                    }
                 }
-                IconButton(onClick = onEpgClick) {
-                    Icon(
-                        Icons.Default.CalendarMonth,
-                        contentDescription = "EPG 节目单",
-                        tint = Color.White
-                    )
-                }
-                IconButton(onClick = onMenuClick) {
-                    Icon(
-                        Icons.Default.Menu,
-                        contentDescription = "主菜单",
-                        tint = Color.White
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = mode,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF888888)
-                )
             }
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = mode,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF888888)
+            )
         }
     }
 }

@@ -60,10 +60,15 @@ import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 /**
  * 主菜单面板：与 PC 端 mobile/index.html 主菜单（panelMenu）对齐。
  *
- * 2 个分组：
+ * 3 个分组：
+ * - 快捷（2 项）：频道列表 / 节目单 EPG（TV 端遥控器最常用入口，置顶方便快速访问）
  * - 文件（6 项）：打开播放列表 / 打开网络流 / 打开本地视频 / 订阅源管理 / EPG 订阅源 / 频道映射
- * - 播放（15 项）：频道 / 节目单 EPG / 字幕 / 视频 / 音频 / 播放 / 截图 / A/V 同步 / 网络增强 /
+ * - 播放（13 项）：字幕 / 视频 / 音频 / 播放 / 截图 / A/V 同步 / 网络增强 /
  *   工具 / 视图 / 设置 / 关于 / 收藏 / 退出
+ *
+ * TV 端遥控器便捷访问：
+ * - 直播模式（无面板）：DPAD_LEFT/RIGHT 直接切换 EPG/频道面板
+ * - 任何模式：MENU 键打开主菜单，第一项就是"频道列表"，第二项是"节目单 EPG"
  *
  * 当前阶段只实现入口结构和已实现功能（频道列表 / EPG / 收藏 / 退出），
  * 其余入口点击时显示 OSD 提示"功能开发中"，后续逐步补齐子面板。
@@ -269,6 +274,14 @@ private fun buildMenuSections(
     hasCurrentChannel: Boolean,
     isFavorite: Boolean
 ): List<MenuSection> {
+    val quickSection = MenuSection(
+        title = "快捷",
+        entries = listOf(
+            MenuEntry(Icons.AutoMirrored.Filled.ListAlt, "频道列表", "订阅 / 本地 / 收藏 / 历史 / 队列", onChannels, highlight = true),
+            MenuEntry(Icons.Default.CalendarMonth, "节目单 EPG", "当前频道节目 / 日期切换 / 提醒", onEpg, highlight = true)
+        )
+    )
+
     val fileSection = MenuSection(
         title = "文件",
         entries = listOf(
@@ -284,8 +297,6 @@ private fun buildMenuSections(
     val playbackSection = MenuSection(
         title = "播放",
         entries = listOf(
-            MenuEntry(Icons.AutoMirrored.Filled.ListAlt, "频道", "订阅 / 本地 / 收藏 / 历史 / 队列", onChannels, highlight = true),
-            MenuEntry(Icons.Default.CalendarMonth, "节目单 EPG", "当前频道节目 / 日期切换 / 提醒", onEpg, highlight = true),
             MenuEntry(Icons.Default.ClosedCaption, "字幕", "轨 / 显示 / 延迟 / 缩放 / 位置 / 样式 / 加载", onSubtitle),
             MenuEntry(Icons.Default.VideoSettings, "视频", "图像调整 / 旋转 / 翻转 / 3D 360", onVideo),
             MenuEntry(Icons.Default.Equalizer, "音频", "音轨 / 延迟 / EQ / 音调", onAudio),
@@ -308,7 +319,7 @@ private fun buildMenuSections(
         )
     )
 
-    return listOf(fileSection, playbackSection)
+    return listOf(quickSection, fileSection, playbackSection)
 }
 
 // -----------------------------------------------------------------

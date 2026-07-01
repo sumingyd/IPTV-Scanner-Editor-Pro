@@ -137,21 +137,26 @@ class MainActivityCompose : ComponentActivity() {
             return super.onKeyDown(keyCode, event)
         }
 
-        // MENU 键：先关闭当前面板再开菜单（与 PC 端 openMainMenu 对齐）
+        // MENU 键：TV 模式打开统一面板，PHONE 模式打开主菜单
         if (keyCode == KeyEvent.KEYCODE_MENU) {
+            val isTv = viewModel.uiMode.value == UiMode.TV
             when {
-                viewModel.menuPanelOpen.value -> {
-                    // 菜单已打开，关闭菜单
+                // 统一面板已打开（TV）→ 关闭
+                isTv && viewModel.tvUnifiedPanelOpen.value -> {
+                    viewModel.toggleTvUnifiedPanel()
+                }
+                // 主菜单已打开（PHONE）→ 关闭
+                !isTv && viewModel.menuPanelOpen.value -> {
                     viewModel.closeAllPanels()
                 }
                 viewModel.anyPanelOpen -> {
-                    // 其他面板打开，先关闭再开菜单
+                    // 其他面板打开，先关闭再开对应面板
                     viewModel.closeAllPanels()
-                    viewModel.toggleMenuPanel()
+                    if (isTv) viewModel.toggleTvUnifiedPanel() else viewModel.toggleMenuPanel()
                 }
                 else -> {
-                    // 无面板，打开菜单
-                    viewModel.toggleMenuPanel()
+                    // 无面板，打开对应面板
+                    if (isTv) viewModel.toggleTvUnifiedPanel() else viewModel.toggleMenuPanel()
                 }
             }
             return true
@@ -253,22 +258,24 @@ class MainActivityCompose : ComponentActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                // 回看/时移/本地视频：seek -10 秒；直播：切换 EPG 面板（左侧）
+                // 回看/时移/本地视频：seek -10 秒；直播：打开统一面板
                 val mode = viewModel.playbackState.value.mode
                 if (mode.isCatchupOrTimeshift || viewModel.currentChannel.value == null) {
                     viewModel.mpv.seekRelative(-10.0)
                 } else {
-                    viewModel.toggleEpgPanel()
+                    // 直播模式：打开统一面板（三列布局含频道列表+EPG）
+                    viewModel.toggleTvUnifiedPanel()
                 }
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                // 回看/时移/本地视频：seek +10 秒；直播：切换频道列表面板（右侧）
+                // 回看/时移/本地视频：seek +10 秒；直播：打开统一面板
                 val mode = viewModel.playbackState.value.mode
                 if (mode.isCatchupOrTimeshift || viewModel.currentChannel.value == null) {
                     viewModel.mpv.seekRelative(10.0)
                 } else {
-                    viewModel.toggleChannelsPanel()
+                    // 直播模式：打开统一面板（三列布局含频道列表+EPG）
+                    viewModel.toggleTvUnifiedPanel()
                 }
                 return true
             }

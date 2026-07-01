@@ -640,8 +640,16 @@ textarea.form-input {
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:3">
-          <label class="form-label">URL 或范围（支持 [1-255] 表达式）</label>
+          <label class="form-label">URL 或范围表达式</label>
           <input class="form-input" id="scanUrl" placeholder="http://192.168.1.[1-255]:8080/playlist.m3u">
+          <div style="margin-top:6px;font-size:12px;color:var(--text-dim);line-height:1.6">
+            支持方括号范围表达式：<br>
+            • <code>[1-255]</code> 数字范围（如 192.168.1.<b>[1-255]</b>）<br>
+            • <code>[1,5,10]</code> 列表枚举<br>
+            • <code>[1-10,20-30]</code> 范围与列表混合<br>
+            • <code>[1-255:n]</code> 命名变量 n，可用 <code>{n}</code> 在 URL 其他位置引用并同步变化<br>
+            • 多个独立表达式按笛卡尔积展开
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">超时(秒)</label>
@@ -978,11 +986,30 @@ function deleteSource(idx) {
 async function reloadSources() {
   showToast('正在重新加载订阅源...');
   const d = await apiPost('/api/sources/reload');
-  if (d && d.success) {
-    showToast('订阅源重新加载完成', 'success');
-  } else {
+  if (!d || !d.success) {
     showToast((d && d.error) || '重新加载失败', 'error');
+    return;
   }
+  // 轮询加载状态，完成后刷新源列表和频道列表
+  showToast('订阅源加载已开始，等待完成...', 'info');
+  const startTime = Date.now();
+  const poll = async () => {
+    if (Date.now() - startTime > 120000) {
+      showToast('订阅源加载超时', 'error');
+      await loadSources();
+      return;
+    }
+    const s = await apiGet('/api/sources/status');
+    if (!s || !s.success || !s.loading) {
+      showToast('订阅源加载完成' + (s && s.channels ? '（' + s.channels + ' 个频道）' : ''), 'success');
+      await loadSources();   // 刷新源列表（last_update）
+      loadChannels(1);       // 刷新频道列表
+      return;
+    }
+    showToast('加载中... ' + (s.message || ''), 'info');
+    setTimeout(poll, 1500);
+  };
+  setTimeout(poll, 1000);
 }
 
 // ====== EPG 源管理 ======
@@ -1048,11 +1075,14 @@ function deleteEpgSource(idx) {
 
 async function reloadEpg() {
   showToast('正在重新加载 EPG 数据...');
-  // 触发 EPG 重新加载（通过添加一个空操作来触发）
-  const d = await apiPost('/api/epg/sources', { url: '', name: '' });
-  // 实际上 EPG 重新加载是在添加 EPG 源时触发的
-  // 这里我们直接调用 reload 端点（如果有的话）
-  showToast('EPG 重新加载请求已发送', 'success');
+  const d = await apiPost('/api/epg/reload');
+  if (d && d.success) {
+    showToast('EPG 重新加载已开始', 'success');
+    // 延迟刷新 EPG 源列表（last_update）
+    setTimeout(() => loadEpgSources(), 3000);
+  } else {
+    showToast((d && d.error) || 'EPG 重新加载失败', 'error');
+  }
 }
 
 // ====== 状态面板 ======

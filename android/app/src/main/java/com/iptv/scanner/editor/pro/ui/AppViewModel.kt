@@ -293,6 +293,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _menuPanelOpen = MutableStateFlow(false)
     val menuPanelOpen: StateFlow<Boolean> = _menuPanelOpen.asStateFlow()
 
+    /** TV 端统一面板（三列：模式切换 + 频道列表/主菜单 + EPG 节目单） */
+    private val _tvUnifiedPanelOpen = MutableStateFlow(false)
+    val tvUnifiedPanelOpen: StateFlow<Boolean> = _tvUnifiedPanelOpen.asStateFlow()
+
     private val _controlsVisible = MutableStateFlow(true)
     val controlsVisible: StateFlow<Boolean> = _controlsVisible.asStateFlow()
 
@@ -1348,12 +1352,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _menuPanelOpen.value = !_menuPanelOpen.value
         if (!_menuPanelOpen.value) _controlsVisible.value = true
     }
+    /** TV 端统一面板切换（打开时关闭其他面板，关闭时恢复控制层） */
+    fun toggleTvUnifiedPanel() {
+        _tvUnifiedPanelOpen.value = !_tvUnifiedPanelOpen.value
+        if (_tvUnifiedPanelOpen.value) {
+            // 打开统一面板时关闭其他面板
+            _channelsPanelOpen.value = false
+            _epgPanelOpen.value = false
+            _menuPanelOpen.value = false
+        } else {
+            _controlsVisible.value = true
+        }
+    }
     fun toggleControls() { _controlsVisible.value = !_controlsVisible.value }
 
     fun closeAllPanels() {
         _channelsPanelOpen.value = false
         _epgPanelOpen.value = false
         _menuPanelOpen.value = false
+        _tvUnifiedPanelOpen.value = false
         _sourceManagerOpen.value = false
         _playerSettingsOpen.value = false
         _videoSettingsOpen.value = false
@@ -1390,7 +1407,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     val anyPanelOpen: Boolean
         get() = _channelsPanelOpen.value || _epgPanelOpen.value ||
-                _menuPanelOpen.value || _sourceManagerOpen.value ||
+                _menuPanelOpen.value || _tvUnifiedPanelOpen.value ||
+                _sourceManagerOpen.value ||
                 _playerSettingsOpen.value ||
                 _videoSettingsOpen.value || _audioSettingsOpen.value ||
                 _subtitleSettingsOpen.value || _subtitleSearchOpen.value || _playbackPanelOpen.value ||
