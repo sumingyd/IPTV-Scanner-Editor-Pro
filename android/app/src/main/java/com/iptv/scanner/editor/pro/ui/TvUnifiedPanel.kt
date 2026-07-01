@@ -671,17 +671,21 @@ private fun EpgColumn(
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
-    val now = System.currentTimeMillis()
+    val now = remember { System.currentTimeMillis() }
 
-    // 自动滚动到当前节目（居中显示）
-    LaunchedEffect(epg, channel) {
+    // 自动滚动到当前直播节目（居中显示）
+    LaunchedEffect(epg) {
         if (epg.isNotEmpty()) {
+            val currentNow = System.currentTimeMillis()
             val currentProgIdx = epg.indexOfFirst { p ->
-                p.startTs * 1000L <= now && now <= p.stopTs * 1000L
+                p.startTs * 1000L <= currentNow && currentNow <= p.stopTs * 1000L
             }
             val targetIdx = if (currentProgIdx >= 0) currentProgIdx else 0
             if (targetIdx < epg.size) {
-                // 精确居中：根据视口高度和列表项高度计算偏移
+                // 第一阶段：先跳到目标项（无动画），强制列表布局更新
+                listState.scrollToItem(targetIdx)
+                // 第二阶段：等待布局完成后获取准确的视口和列表项尺寸
+                kotlinx.coroutines.delay(50)
                 val layoutInfo = listState.layoutInfo
                 val viewportHeight = layoutInfo.viewportSize.height
                 val itemHeight = layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 64
