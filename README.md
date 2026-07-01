@@ -36,7 +36,7 @@
 | 界面 | 21种主题组合、中英双语、三栏布局、悬浮面板、系统托盘、文件关联、拖放打开、丰富快捷键 |
 | 订阅 | 多源管理、独立缓存、智能更新(增量)、编辑功能、缓存回退、过期策略 |
 | Web 服务器 | 内置 aiohttp 服务器、频道列表和播放接口 |
-| Android 端 | Kotlin Compose 原生 UI、MPV Native 渲染、Chaquopy Python 后端、TV/手机双模式、遥控器适配（焦点高亮+台标显示+自动隐藏）、画中画（PiP 增强）、HDR 模式切换（设备能力检测+target-colorspace-hint）、3D/360°视频、随机播放、书签管理、EPG 时间轴/日期切换、全局搜索、流质量检测、字幕样式、连拍截图、LAN 管理后台（虚拟遥控器+自动关闭开关）、多内核软硬解切换、数据持久化（覆盖安装不丢失） |
+| Android 端 | Kotlin Compose 原生 UI、MPV Native 渲染、Chaquopy Python 后端、TV/手机双模式、遥控器适配（焦点高亮+台标显示+自动隐藏）、画中画（PiP 增强）、HDR 模式切换（设备能力检测+target-colorspace-hint）、3D/360°视频、随机播放、书签管理、EPG 时间轴/日期切换、全局搜索、流质量检测、字幕样式、连拍截图、LAN 管理后台（虚拟遥控器+自动关闭开关）、多内核软硬解切换、数据持久化（覆盖安装不丢失）、版本检查更新（GitHub API + 自动提示新版本） |
 
 ## ✨ 核心功能
 
@@ -289,6 +289,11 @@ Android 端采用 **Kotlin Compose + Chaquopy Python 两层架构**，与 PC 端
   - VLC：通过 `media.setHWDecoderEnabled` + 重新播放切换
   - IJK：通过 `mediacodec` option（1 硬解 / 0 软解）+ 重新播放切换
   - ExoPlayer：通过重建 ExoPlayer + `DefaultRenderersFactory.setExtensionRendererMode` 切换（软解需 FFmpeg 扩展，未安装时自动回退硬解）
+- **版本检查更新**：与 PC 端 `UpdateController` 对齐，通过 GitHub API 检查最新 release
+  - 启动后自动延迟检查（初始化完成 5 秒后，避免影响启动性能）
+  - 发现新版本时自动弹出对话框 + OSD 提示，提供「前往下载」按钮跳转浏览器
+  - 「关于」面板提供手动「检查更新」按钮，显示检查状态（检查中/最新/发现新版本/失败）
+  - 版本号从 `PackageManager` 动态读取（与 `build.gradle` versionName 一致）
 
 #### 构建要求
 - Android Studio + Gradle 8.7.0

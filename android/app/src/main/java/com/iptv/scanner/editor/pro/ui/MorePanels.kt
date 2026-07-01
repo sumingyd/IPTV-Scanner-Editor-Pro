@@ -1333,10 +1333,13 @@ fun ViewSettingsPanel(viewModel: AppViewModel) {
 // -----------------------------------------------------------------
 
 /**
- * 关于面板：版本信息 + 功能说明。
+ * 关于面板：版本信息 + 检查更新 + 功能说明。
  */
 @Composable
 fun AboutPanel(viewModel: AppViewModel) {
+    val currentVersion = remember { viewModel.getCurrentVersion() }
+    val updateState by viewModel.updateState.collectAsState()
+
     PanelScaffold(
         title = "关于",
         subtitle = "IPTV Scanner Editor Pro",
@@ -1350,11 +1353,55 @@ fun AboutPanel(viewModel: AppViewModel) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 InfoRow("应用名称", "IPTV Scanner Editor Pro")
-                InfoRow("版本", "48.0.8.0")
-                InfoRow("构建日期", "2026-07-01")
+                InfoRow("版本", currentVersion)
                 InfoRow("播放引擎", "mpv (libmpv)")
                 InfoRow("UI 框架", "Jetpack Compose")
                 InfoRow("Python 引擎", "Chaquopy")
+            }
+        }
+
+        SectionLabel("版本检查")
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = { viewModel.checkForUpdates(auto = false) },
+                enabled = updateState !is AppViewModel.UpdateState.Checking,
+                modifier = Modifier.tvFocusBorder()
+            ) {
+                if (updateState is AppViewModel.UpdateState.Checking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("检查中...")
+                } else {
+                    Text("检查更新")
+                }
+            }
+            when (updateState) {
+                is AppViewModel.UpdateState.Checking -> {}
+                is AppViewModel.UpdateState.UpToDate -> {
+                    Text("当前已是最新版本", color = Color(0xFF4CAF50), fontSize = 13.sp)
+                }
+                is AppViewModel.UpdateState.UpdateAvailable -> {
+                    val info = updateState as AppViewModel.UpdateState.UpdateAvailable
+                    Text(
+                        "发现新版本 v${info.latestVersion}（当前 v$currentVersion）",
+                        color = Color(0xFFFF9800),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                is AppViewModel.UpdateState.Error -> {
+                    val err = updateState as AppViewModel.UpdateState.Error
+                    Text("检查失败: ${err.message}", color = Color(0xFFEF5350), fontSize = 13.sp)
+                }
+                else -> {}
             }
         }
 
@@ -1395,6 +1442,70 @@ private fun InfoRow(label: String, value: String) {
         Text(text = label, color = Color(0xFF888888), fontSize = 13.sp)
         Text(text = value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
+}
+
+/**
+ * 更新提示对话框：发现新版本时弹出，引导用户前往下载。
+ * 与 PC 端 UpdateController 的更新提示对齐。
+ */
+@Composable
+fun UpdateDialog(viewModel: AppViewModel) {
+    val open by viewModel.updateDialogOpen.collectAsState()
+    if (!open) return
+
+    val updateState by viewModel.updateState.collectAsState()
+    val currentVersion = remember { viewModel.getCurrentVersion() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val info = updateState as? AppViewModel.UpdateState.UpdateAvailable
+    if (info == null) {
+        viewModel.dismissUpdateDialog()
+        return
+    }
+
+    AlertDialog(
+        onDismissRequest = { viewModel.dismissUpdateDialog() },
+        title = { Text("发现新版本", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    "新版本 v${info.latestVersion} 已发布",
+                    color = Color(0xFFFF9800),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "当前版本：v$currentVersion",
+                    color = Color(0xFF888888),
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "点击「前往下载」打开浏览器，从 GitHub Release 页面下载最新版 APK。",
+                    color = Color(0xFFCCCCCC),
+                    fontSize = 13.sp
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                    viewModel.dismissUpdateDialog()
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("前往下载") }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { viewModel.dismissUpdateDialog() },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("稍后提醒") }
+        }
+    )
 }
 
 // =================================================================

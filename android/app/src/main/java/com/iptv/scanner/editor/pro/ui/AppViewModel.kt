@@ -405,6 +405,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _aboutPanelOpen = MutableStateFlow(false)
     val aboutPanelOpen: StateFlow<Boolean> = _aboutPanelOpen.asStateFlow()
 
+    // -----------------------------------------------------------------
+    // 版本检查（与 PC 端 UpdateController 对齐）
+    // -----------------------------------------------------------------
+    /** 版本检查状态 */
+    sealed class UpdateState {
+        object Idle : UpdateState()
+        object Checking : UpdateState()
+        data class UpdateAvailable(val latestVersion: String, val downloadUrl: String, val releaseUrl: String) : UpdateState()
+        object UpToDate : UpdateState()
+        data class Error(val message: String) : UpdateState()
+    }
+
+    private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
+    val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
+
+    /** 更新提示对话框是否显示 */
+    private val _updateDialogOpen = MutableStateFlow(false)
+    val updateDialogOpen: StateFlow<Boolean> = _updateDialogOpen.asStateFlow()
+
     /** 打开网络流 URL 输入对话框 */
     private val _openUrlDialogOpen = MutableStateFlow(false)
     val openUrlDialogOpen: StateFlow<Boolean> = _openUrlDialogOpen.asStateFlow()
@@ -706,6 +725,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                 // 加载频道列表和用户偏好
                                 loadChannels()
                                 loadUserPrefs()
+                                // 初始化完成后延迟 5 秒自动检查更新（避免影响启动性能）
+                                viewModelScope.launch {
+                                    delay(5000)
+                                    checkForUpdates(auto = true)
+                                }
                                 return@launch
                             }
                         },
@@ -1450,6 +1474,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _screenshotPanelOpen.value = false
         _viewSettingsOpen.value = false
         _aboutPanelOpen.value = false
+        _updateDialogOpen.value = false
         _openUrlDialogOpen.value = false
         _mappingPanelOpen.value = false
         _avSyncPanelOpen.value = false
@@ -1482,7 +1507,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _videoSettingsOpen.value || _audioSettingsOpen.value ||
                 _subtitleSettingsOpen.value || _subtitleSearchOpen.value || _playbackPanelOpen.value ||
                 _screenshotPanelOpen.value || _viewSettingsOpen.value ||
-                _aboutPanelOpen.value || _openUrlDialogOpen.value ||
+                _aboutPanelOpen.value || _updateDialogOpen.value || _openUrlDialogOpen.value ||
                 _mappingPanelOpen.value || _avSyncPanelOpen.value ||
                 _networkPanelOpen.value || _toolsPanelOpen.value || _scanPanelOpen.value ||
                 _reminderPanelOpen.value || _resumePanelOpen.value || _bookmarkPanelOpen.value ||
@@ -1617,6 +1642,133 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleAboutPanel() {
         _aboutPanelOpen.value = !_aboutPanelOpen.value
         if (!_aboutPanelOpen.value) showControlsAutoHide()
+    }
+
+    // -----------------------------------------------------------------
+    // 版本检查（与 PC 端 UpdateController 对齐）
+    // -----------------------------------------------------------------
+
+    /** 获取当前应用版本号（从 PackageManager 读取，与 build.gradle versionName 一致） */
+    fun getCurrentVersion(): String {
+        return try {
+            val app = getApplication<Application>()
+            val packageInfo = app.packageManager.getPackageInfo(app.packageName, 0)
+            packageInfo.versionName ?: "0.0.0.0"
+        } catch (e: Exception) {
+            Log.e(TAG, "getCurrentVersion failed", e)
+            "0.0.0.0"
+        }
+    }
+
+    /**
+     * 检查更新（调用 GitHub API 获取最新 release）。
+     * @param auto true=启动时自动检查（仅发现新版本时弹窗）；false=用户手动触发（无论结果都显示）
+     */
+    fun checkForUpdates(auto: Boolean = false) {
+        if (_updateState.value is UpdateState.Checking) return
+        _updateState.value = UpdateState.Checking
+        viewModelScope.launch {
+            try {
+                val currentVersion = getCurrentVersion()
+                val (latestVersion, downloadUrl, releaseUrl) = withContext(Dispatchers.IO) {
+                    fetchLatestRelease()
+                }
+                if (latestVersion.isNullOrEmpty()) {
+                    if (!auto) {
+                        _updateState.value = UpdateState.Error("获取版本信息失败")
+                    } else {
+                        _updateState.value = UpdateState.Idle
+                    }
+                } else if (latestVersion != null && isNewerVersion(currentVersion, latestVersion)) {
+                    _updateState.value = UpdateState.UpdateAvailable(
+                        latestVersion,
+                        downloadUrl ?: "",
+                        releaseUrl ?: ""
+                    )
+                    _updateDialogOpen.value = true
+                    showOsd("发现新版本", "v$latestVersion（当前 v$currentVersion）")
+                } else {
+                    if (!auto) {
+                        _updateState.value = UpdateState.UpToDate
+                    } else {
+                        _updateState.value = UpdateState.Idle
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "checkForUpdates failed", e)
+                if (!auto) {
+                    _updateState.value = UpdateState.Error(e.message ?: "检查更新失败")
+                } else {
+                    _updateState.value = UpdateState.Idle
+                }
+            }
+        }
+    }
+
+    /** 关闭更新提示对话框 */
+    fun dismissUpdateDialog() {
+        _updateDialogOpen.value = false
+    }
+
+    /**
+     * 调用 GitHub API 获取最新 release 信息。
+     * 返回 (最新版本号, Android APK 下载链接, Release 页面链接)。
+     */
+    private fun fetchLatestRelease(): Triple<String?, String?, String?> {
+        val conn = java.net.URL(GITHUB_LATEST_API).openConnection() as java.net.HttpURLConnection
+        try {
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("User-Agent", "IPTV-Scanner-Editor-Pro")
+            conn.setRequestProperty("Accept", "application/vnd.github+json")
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            if (conn.responseCode == 200) {
+                val json = conn.inputStream.bufferedReader().use { it.readText() }
+                val release = JSONObject(json)
+                val tagName = release.optString("tag_name", "").removePrefix("v")
+                val releaseUrl = release.optString("html_url", "")
+                // 查找 Android APK 下载链接（命名规则：IPTV Scanner Editor Pro-Android.apk）
+                val assets = release.optJSONArray("assets")
+                var downloadUrl = releaseUrl
+                if (assets != null) {
+                    for (i in 0 until assets.length()) {
+                        val asset = assets.optJSONObject(i) ?: continue
+                        val name = asset.optString("name", "")
+                        if (name.contains("Android", ignoreCase = true) && name.endsWith(".apk")) {
+                            downloadUrl = asset.optString("browser_download_url", releaseUrl)
+                            break
+                        }
+                    }
+                }
+                Log.i(TAG, "Latest release: $tagName, downloadUrl=$downloadUrl")
+                return Triple(tagName, downloadUrl, releaseUrl)
+            } else if (conn.responseCode == 403) {
+                Log.w(TAG, "GitHub API rate limited")
+                return Triple(null, null, null)
+            }
+        } finally {
+            conn.disconnect()
+        }
+        return Triple(null, null, null)
+    }
+
+    /** 比较版本号（与 PC 端 _is_newer_version 对齐），判断 latest 是否比 current 新 */
+    private fun isNewerVersion(current: String, latest: String): Boolean {
+        return try {
+            val currentParts = current.split(".").map { it.toInt() }
+            val latestParts = latest.split(".").map { it.toInt() }
+            val maxLen = maxOf(currentParts.size, latestParts.size)
+            val c = currentParts + List(maxLen - currentParts.size) { 0 }
+            val l = latestParts + List(maxLen - latestParts.size) { 0 }
+            for (i in 0 until maxLen) {
+                if (l[i] > c[i]) return true
+                if (l[i] < c[i]) return false
+            }
+            false
+        } catch (e: Exception) {
+            Log.w(TAG, "Version comparison failed: current=$current latest=$latest")
+            false
+        }
     }
     fun toggleOpenUrlDialog() {
         _openUrlDialogOpen.value = !_openUrlDialogOpen.value
@@ -3824,6 +3976,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val TAG = "AppViewModel"
+        private const val GITHUB_LATEST_API = "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest"
 
         fun factory(app: Application): ViewModelProvider.AndroidViewModelFactory =
             object : ViewModelProvider.AndroidViewModelFactory(app) {}

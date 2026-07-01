@@ -347,7 +347,7 @@ jobs:
         id: apk
         working-directory: android
         run: |
-          APK=$(find app/build/outputs/apk/release -name "IPTV-Scanner-Editor-Pro-v*.apk" -type f | head -1)
+          APK=$(find app/build/outputs/apk/release -name "IPTV Scanner Editor Pro-Android.apk" -type f | head -1)
           if [ -z "$APK" ]; then
             echo "Expected APK was not found"
             exit 1

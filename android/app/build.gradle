@@ -74,12 +74,11 @@ android {
         }
     }
 
-    /* 自定义 APK 输出文件名：IPTV-Scanner-Editor-Pro-v{versionName}.apk
-     * 与 PC 端 core/version.py 的版本号保持一致 */
+    /* 自定义 APK 输出文件名：IPTV Scanner Editor Pro-Android.apk
+     * 与其他平台（Windows/macOS/Linux）命名规则一致，不含版本号 */
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            def version = variant.versionName
-            outputFileName = "IPTV-Scanner-Editor-Pro-v${version}.apk"
+            outputFileName = "IPTV Scanner Editor Pro-Android.apk"
         }
     }
 

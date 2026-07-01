@@ -457,6 +457,9 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         // 打开网络流 URL 对话框（AlertDialog，独立 window，自身控制可见性）
         OpenUrlDialog(viewModel = viewModel)
 
+        // 新版本更新提示对话框（发现新版本时自动弹出，也可从"关于"面板手动触发）
+        UpdateDialog(viewModel = viewModel)
+
         // -----------------------------------------------------------------
         // 5. OSD 浮层（顶部居中，最顶层）
         // -----------------------------------------------------------------
