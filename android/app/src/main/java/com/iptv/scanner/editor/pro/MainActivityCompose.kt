@@ -40,11 +40,20 @@ import kotlinx.coroutines.launch
  *
  * TV 模式 DPAD 按键处理（onKeyDown）：
  * - DPAD_UP/DOWN → 上一/下一频道
- * - DPAD_LEFT → 切换 EPG 面板（左侧抽屉）
- * - DPAD_RIGHT → 切换频道列表面板（右侧抽屉）
+ * - DPAD_LEFT/RIGHT → 直播模式：切换面板（左=EPG，右=频道列表）
+ *                     回看/时移/本地视频：seek ±10 秒
  * - DPAD_CENTER/ENTER → 播放/暂停 或 确认
- * - MENU（KEYCODE_MENU=82）→ 切换主菜单
- * - BACK → 关闭面板 / 退出
+ * - MENU（KEYCODE_MENU=82）→ 关闭当前面板再开主菜单
+ * - BACK → 关闭面板 → 退出回看/时移 → 退出
+ * - STOP → 退出回看/时移（恢复直播）或停止播放
+ *
+ * 媒体键处理（TV 和 PHONE 模式通用，不受面板状态影响）：
+ * - MEDIA_PLAY/PAUSE/PLAY_PAUSE → 播放控制
+ * - MEDIA_NEXT/PREVIOUS → 切换频道
+ * - MEDIA_STOP → 停止播放
+ * - MEDIA_STEP_FORWARD/FAST_FORWARD → 快进 30 秒
+ * - MEDIA_STEP_BACKWARD/REWIND → 快退 30 秒
+ * - VOLUME_MUTE → 静音切换
  */
 class MainActivityCompose : ComponentActivity() {
 
@@ -114,19 +123,84 @@ class MainActivityCompose : ComponentActivity() {
             return super.onKeyDown(keyCode, event)
         }
 
-        // BACK 键：先关闭面板，再交给系统
+        // BACK 键：先关闭面板 → 再退出回看/时移 → 最后交给系统
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (viewModel.closeAnyPanel()) {
+                return true
+            }
+            // 在回看/时移模式下，BACK 退出回看/时移，恢复直播
+            if (viewModel.playbackState.value.mode.isCatchupOrTimeshift) {
+                viewModel.exitCatchup()
                 return true
             }
             // 无面板打开时，交给系统处理（不退出应用，让用户确认）
             return super.onKeyDown(keyCode, event)
         }
 
-        // MENU 键：切换主菜单
+        // MENU 键：先关闭当前面板再开菜单（与 PC 端 openMainMenu 对齐）
         if (keyCode == KeyEvent.KEYCODE_MENU) {
-            viewModel.toggleMenuPanel()
+            when {
+                viewModel.menuPanelOpen.value -> {
+                    // 菜单已打开，关闭菜单
+                    viewModel.closeAllPanels()
+                }
+                viewModel.anyPanelOpen -> {
+                    // 其他面板打开，先关闭再开菜单
+                    viewModel.closeAllPanels()
+                    viewModel.toggleMenuPanel()
+                }
+                else -> {
+                    // 无面板，打开菜单
+                    viewModel.toggleMenuPanel()
+                }
+            }
             return true
+        }
+
+        // 媒体键处理（TV 和 PHONE 模式都工作，不受面板状态影响）
+        // 与 PC 端 mobile/index.html onRemoteKey 对齐
+        when (keyCode) {
+            KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                viewModel.mpv.setPause(false)
+                return true
+            }
+            KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                viewModel.mpv.setPause(true)
+                return true
+            }
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                viewModel.mpv.togglePause()
+                return true
+            }
+            KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                viewModel.nextChannel()
+                return true
+            }
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                viewModel.prevChannel()
+                return true
+            }
+            KeyEvent.KEYCODE_MEDIA_STOP -> {
+                // 回看/时移模式下退出回看恢复直播，其他模式停止播放
+                if (viewModel.playbackState.value.mode.isCatchupOrTimeshift) {
+                    viewModel.exitCatchup()
+                } else {
+                    viewModel.stopPlay()
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_MEDIA_STEP_FORWARD, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                viewModel.mpv.seekRelative(30.0)
+                return true
+            }
+            KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD, KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                viewModel.mpv.seekRelative(-30.0)
+                return true
+            }
+            KeyEvent.KEYCODE_VOLUME_MUTE -> {
+                viewModel.mpv.toggleMute()
+                return true
+            }
         }
 
         // 仅在 TV 模式下处理 DPAD 方向键
@@ -179,11 +253,23 @@ class MainActivityCompose : ComponentActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                viewModel.toggleEpgPanel()
+                // 回看/时移/本地视频：seek -10 秒；直播：切换 EPG 面板（左侧）
+                val mode = viewModel.playbackState.value.mode
+                if (mode.isCatchupOrTimeshift || viewModel.currentChannel.value == null) {
+                    viewModel.mpv.seekRelative(-10.0)
+                } else {
+                    viewModel.toggleEpgPanel()
+                }
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                viewModel.toggleChannelsPanel()
+                // 回看/时移/本地视频：seek +10 秒；直播：切换频道列表面板（右侧）
+                val mode = viewModel.playbackState.value.mode
+                if (mode.isCatchupOrTimeshift || viewModel.currentChannel.value == null) {
+                    viewModel.mpv.seekRelative(10.0)
+                } else {
+                    viewModel.toggleChannelsPanel()
+                }
                 return true
             }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {

@@ -148,7 +148,7 @@ fun EpgPanel(viewModel: AppViewModel) {
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF888888)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
+                        IconButton(onClick = { searchQuery = "" }, modifier = Modifier.tvFocusBorder()) {
                             Icon(Icons.Default.Close, contentDescription = "清空", tint = Color(0xFF888888))
                         }
                     }

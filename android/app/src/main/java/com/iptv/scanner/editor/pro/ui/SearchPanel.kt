@@ -117,7 +117,7 @@ fun SearchPanel(viewModel: AppViewModel) {
                 },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
-                        IconButton(onClick = { query = "" }) {
+                        IconButton(onClick = { query = "" }, modifier = Modifier.tvFocusBorder()) {
                             Icon(Icons.Default.Close, contentDescription = "清空", tint = Color(0xFF888888))
                         }
                     }

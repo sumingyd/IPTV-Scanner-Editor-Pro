@@ -319,7 +319,8 @@ private fun AddSourceRow(placeholder: String, onAdd: (url: String, name: String)
                     url = ""
                     name = ""
                 }
-            }
+            },
+            modifier = Modifier.tvFocusBorder()
         ) {
             Icon(Icons.Default.Add, contentDescription = "添加", tint = Color(0xFF4A9EFF))
         }
@@ -376,7 +377,7 @@ private fun SourceItem(
             )
             Spacer(modifier = Modifier.width(8.dp))
             // 删除按钮
-            IconButton(onClick = onDelete) {
+            IconButton(onClick = onDelete, modifier = Modifier.tvFocusBorder()) {
                 Icon(Icons.Default.Delete, contentDescription = "删除", tint = Color(0xFFE57373))
             }
         }
@@ -493,7 +494,7 @@ private fun LanAdminInfoBar(
                         modifier = Modifier.padding(end = 4.dp)
                     )
                 }
-                IconButton(onClick = { onToggleQr(!showQrCode) }) {
+                IconButton(onClick = { onToggleQr(!showQrCode) }, modifier = Modifier.tvFocusBorder()) {
                     Icon(
                         Icons.Default.QrCode,
                         contentDescription = "二维码",

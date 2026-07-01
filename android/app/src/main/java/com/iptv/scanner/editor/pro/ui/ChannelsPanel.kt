@@ -59,7 +59,7 @@ import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
  * - 点击列表项 → playChannel(idx)
  *
  * PHONE 模式：右侧抽屉（60% 宽，最大 380dp）
- * TV 模式：全屏覆盖（DPAD 焦点导航，阶段 9 实现）
+ * TV 模式：右侧抽屉（360dp 宽，DPAD 焦点导航）
  */
 @Composable
 fun ChannelsPanel(viewModel: AppViewModel) {
@@ -107,7 +107,7 @@ fun ChannelsPanel(viewModel: AppViewModel) {
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF888888)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                        IconButton(onClick = { viewModel.setSearchQuery("") }, modifier = Modifier.tvFocusBorder()) {
                             Icon(Icons.Default.Close, contentDescription = "清空", tint = Color(0xFF888888))
                         }
                     }
@@ -216,7 +216,7 @@ fun PanelHeader(
                     )
                 }
             }
-            IconButton(onClick = onClose) {
+            IconButton(onClick = onClose, modifier = Modifier.tvFocusBorder()) {
                 Icon(Icons.Default.Close, contentDescription = "关闭", tint = Color.White)
             }
         }

@@ -377,17 +377,13 @@ private fun ProgramInfoRow(
         }
 
         // 状态徽章
-        StatusBadge(
-            playbackState = playbackState,
-            duration = videoWidth.toDouble() // 占位，实际用 duration
-        )
+        StatusBadge(playbackState = playbackState)
     }
 }
 
 @Composable
 private fun StatusBadge(
-    playbackState: com.iptv.scanner.editor.pro.player.PlaybackState,
-    duration: Double
+    playbackState: com.iptv.scanner.editor.pro.player.PlaybackState
 ) {
     val text = when {
         playbackState.mode == PlayMode.IDLE -> "已停止"
