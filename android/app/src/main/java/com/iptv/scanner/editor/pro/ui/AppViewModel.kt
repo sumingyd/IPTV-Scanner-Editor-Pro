@@ -52,6 +52,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -288,6 +290,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _osd = MutableStateFlow<OsdInfo?>(null)
     val osd: StateFlow<OsdInfo?> = _osd.asStateFlow()
 
+    /** OSD 持久模式（菜单触发时启用，不自动隐藏，再次选中 OSD 时关闭） */
+    private val _osdPinned = MutableStateFlow(false)
+    val osdPinned: StateFlow<Boolean> = _osdPinned.asStateFlow()
+
     private var osdHideJob: Job? = null
 
     // -----------------------------------------------------------------
@@ -367,6 +373,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 虚拟遥控器命令轮询协程 */
     private var remotePollJob: Job? = null
+    private var playerStatusJob: Job? = null
 
     // -----------------------------------------------------------------
     // 更多功能面板（主菜单 → 播放 → 视频/音频/字幕/播放/截图/视图/关于）
@@ -423,6 +430,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 更新提示对话框是否显示 */
     private val _updateDialogOpen = MutableStateFlow(false)
     val updateDialogOpen: StateFlow<Boolean> = _updateDialogOpen.asStateFlow()
+
+    /** 退出确认对话框是否显示（BACK 键退出时提示：立即退出 / 进入 PiP） */
+    private val _exitConfirmOpen = MutableStateFlow(false)
+    val exitConfirmOpen: StateFlow<Boolean> = _exitConfirmOpen.asStateFlow()
 
     /** 打开网络流 URL 输入对话框 */
     private val _openUrlDialogOpen = MutableStateFlow(false)
@@ -1162,6 +1173,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // 恢复原始频道直播：走完整的 playChannel 流程
         val idx = _currentIdx.value
         if (idx >= 0) {
+            // 先停止 mpv 当前播放（回看 URL 可能已出错/EOF，不 stop 直接 loadfile 可能无法恢复）
+            // 与项目约束一致："切换频道前必须先停止 mpv，否则资源泄漏/黑屏"
+            mpv.stop()
             playChannel(idx, silent = true)
             showOsd("回看", "已退出，恢复直播")
         } else {
@@ -1344,13 +1358,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** 显示当前频道的 OSD 信息（用于 TV 统一面板 OSD 按钮） */
+    /**
+     * 显示当前频道的 OSD 信息（用于 TV 统一面板 OSD 按钮）。
+     * 持久模式切换：如果 OSD 已开启（pinned），则关闭；否则开启持久模式（不自动隐藏）。
+     */
     fun showCurrentOsd() {
+        // 如果 OSD 已开启且为持久模式，则关闭
+        if (_osdPinned.value) {
+            hideOsd()
+            return
+        }
         val channel = currentChannel.value
         if (channel != null) {
             val prog = getCurrentProgram()
             val subtitle = if (prog != null && prog.title.isNotEmpty()) prog.title else channel.group
-            showOsd(channel.name, subtitle)
+            // 菜单触发的 OSD 设为持久模式（不自动隐藏，直至再次选中 OSD 关闭）
+            _osdPinned.value = true
+            _osd.value = OsdInfo(channel.name, subtitle)
+            osdHideJob?.cancel()
         }
     }
 
@@ -1410,19 +1435,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // OSD
     // -----------------------------------------------------------------
 
-    /** 显示 OSD（3 秒后自动隐藏） */
+    /** 显示 OSD（5 秒后自动隐藏，持久模式下不自动隐藏） */
     fun showOsd(title: String, subtitle: String = "", extra: String = "") {
         _osd.value = OsdInfo(title, subtitle, extra)
+        // 普通触发的 OSD 清除持久模式
+        _osdPinned.value = false
         osdHideJob?.cancel()
         osdHideJob = viewModelScope.launch {
-            delay(3_000L)
+            delay(5_000L)
             _osd.value = null
         }
     }
 
-    /** 隐藏 OSD */
+    /** 隐藏 OSD（同时清除持久模式） */
     fun hideOsd() {
         osdHideJob?.cancel()
+        _osdPinned.value = false
         _osd.value = null
     }
 
@@ -1475,6 +1503,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _viewSettingsOpen.value = false
         _aboutPanelOpen.value = false
         _updateDialogOpen.value = false
+        _exitConfirmOpen.value = false
         _openUrlDialogOpen.value = false
         _mappingPanelOpen.value = false
         _avSyncPanelOpen.value = false
@@ -1507,7 +1536,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _videoSettingsOpen.value || _audioSettingsOpen.value ||
                 _subtitleSettingsOpen.value || _subtitleSearchOpen.value || _playbackPanelOpen.value ||
                 _screenshotPanelOpen.value || _viewSettingsOpen.value ||
-                _aboutPanelOpen.value || _updateDialogOpen.value || _openUrlDialogOpen.value ||
+                _aboutPanelOpen.value || _updateDialogOpen.value || _exitConfirmOpen.value || _openUrlDialogOpen.value ||
                 _mappingPanelOpen.value || _avSyncPanelOpen.value ||
                 _networkPanelOpen.value || _toolsPanelOpen.value || _scanPanelOpen.value ||
                 _reminderPanelOpen.value || _resumePanelOpen.value || _bookmarkPanelOpen.value ||
@@ -1679,7 +1708,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     } else {
                         _updateState.value = UpdateState.Idle
                     }
-                } else if (latestVersion != null && isNewerVersion(currentVersion, latestVersion)) {
+                } else if (isNewerVersion(currentVersion, latestVersion)) {
                     _updateState.value = UpdateState.UpdateAvailable(
                         latestVersion,
                         downloadUrl ?: "",
@@ -1708,6 +1737,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 关闭更新提示对话框 */
     fun dismissUpdateDialog() {
         _updateDialogOpen.value = false
+    }
+
+    /** 显示退出确认对话框 */
+    fun showExitConfirm() {
+        _exitConfirmOpen.value = true
+    }
+
+    /** 关闭退出确认对话框 */
+    fun dismissExitConfirm() {
+        _exitConfirmOpen.value = false
     }
 
     /**
@@ -3601,12 +3640,71 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 delay(100)
             }
         }
+        // 同时启动播放状态上报（供 admin 遥控器页面显示）
+        startPlayerStatusReport()
     }
 
     /** 停止虚拟遥控器命令轮询 */
     private fun stopRemoteCommandPolling() {
         remotePollJob?.cancel()
         remotePollJob = null
+        stopPlayerStatusReport()
+    }
+
+    /**
+     * 定期上报播放状态到 admin 服务器（每 2 秒），供遥控器页面显示。
+     */
+    private fun startPlayerStatusReport() {
+        playerStatusJob?.cancel()
+        playerStatusJob = viewModelScope.launch {
+            while (isActive) {
+                try {
+                    reportPlayerStatus()
+                } catch (e: Exception) {
+                    // 上报失败不中断
+                }
+                delay(2000)
+            }
+        }
+    }
+
+    private fun stopPlayerStatusReport() {
+        playerStatusJob?.cancel()
+        playerStatusJob = null
+    }
+
+    /** 收集当前播放状态并上报到 Python 端 */
+    private suspend fun reportPlayerStatus() {
+        val channel = currentChannel.value
+        val state = _playbackState.value
+        val prog = getCurrentProgram()
+        val mediaInfo = mpv.getMediaInfo()
+        // HDR 信息：检查 video-params/signature（pq=HDR10/HLG，hlg=HLG）
+        val hdrSig = mpv.getPropertyString("video-params/signature") ?: ""
+        val hdrInfo = when {
+            hdrSig.contains("pq", ignoreCase = true) -> "HDR10"
+            hdrSig.contains("hlg", ignoreCase = true) -> "HLG"
+            else -> ""
+        }
+        val statusJson = buildJsonObject {
+            put("channel_name", JsonPrimitive(channel?.name ?: ""))
+            put("channel_group", JsonPrimitive(channel?.group ?: ""))
+            put("is_playing", JsonPrimitive(mpv.fileLoaded.value && !mpv.paused.value))
+            put("is_paused", JsonPrimitive(mpv.paused.value))
+            put("player_type", JsonPrimitive(_playerType.value.name))
+            put("hardware_decode", JsonPrimitive(_hardwareDecode.value))
+            put("play_mode", JsonPrimitive(state.mode.name.lowercase()))
+            put("volume", JsonPrimitive(mpv.volume.value))
+            put("muted", JsonPrimitive(mpv.muted.value))
+            put("current_program", JsonPrimitive(prog?.title ?: ""))
+            put("video_res", JsonPrimitive(mediaInfo["videoRes"] ?: ""))
+            put("video_codec", JsonPrimitive(mediaInfo["videoCodec"] ?: ""))
+            put("audio_codec", JsonPrimitive(mediaInfo["audioCodec"] ?: ""))
+            put("fps", JsonPrimitive(mediaInfo["fps"] ?: ""))
+            put("bitrate", JsonPrimitive(mediaInfo["bitrate"] ?: ""))
+            put("hdr", JsonPrimitive(hdrInfo))
+        }
+        withContext(Dispatchers.IO) { repository.setPlayerStatus(statusJson.toString()) }
     }
 
     /**

@@ -371,6 +371,11 @@ class IptvRepository private constructor() {
     suspend fun pollRemoteCommand(): Result<RemoteCommandResponse> =
         callPyTyped("poll_remote_command")
 
+    /** 上报当前播放状态到 admin 服务器（供遥控器页面显示） */
+    suspend fun setPlayerStatus(statusJson: String): Result<Unit> {
+        return callPy("set_player_status", statusJson).map { }
+    }
+
     // -----------------------------------------------------------------
     // 字幕
     // -----------------------------------------------------------------

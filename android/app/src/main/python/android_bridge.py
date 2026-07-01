@@ -1197,6 +1197,13 @@ def start_admin_server(port=8080):
             app.router.add_post('/api/remote/{cmd}', _handle_remote)
             _log('Admin server remote control routes registered')
 
+            # 注册播放状态查询路由（供 admin 遥控器页面轮询显示当前播放信息）
+            async def _handle_player_status(request):
+                return web.json_response({'success': True, 'status': get_player_status()})
+
+            app.router.add_get('/api/player/status', _handle_player_status)
+            _log('Admin server player status route registered')
+
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             _admin_loop = loop
@@ -1336,6 +1343,27 @@ def get_admin_url():
 import queue as _queue
 _remote_command_queue = _queue.Queue()
 
+# 播放状态存储（由 Kotlin 端定期更新，供 admin 遥控器页面查询）
+_player_status = {
+    'channel_name': '',
+    'channel_group': '',
+    'is_playing': False,
+    'is_paused': False,
+    'player_type': 'MPV',
+    'hardware_decode': True,
+    'play_mode': 'live',
+    'volume': 100,
+    'muted': False,
+    'current_program': '',
+    'width': 0,
+    'height': 0,
+    'video_codec': '',
+    'audio_codec': '',
+    'fps': 0.0,
+    'bitrate': 0,
+    'hdr': '',
+}
+
 
 def push_remote_command(cmd):
     """将遥控命令放入队列（供 HTTP 路由调用）"""
@@ -1353,3 +1381,19 @@ def poll_remote_command():
         return _ok({'cmd': cmd})
     except _queue.Empty:
         return _ok({'cmd': None})
+
+
+def set_player_status(json_str):
+    """更新播放状态（供 Kotlin 端定期调用，参数为 JSON 字符串）"""
+    try:
+        import json as _json
+        status_dict = _json.loads(json_str) if isinstance(json_str, str) else json_str
+        _player_status.update(status_dict)
+        return _ok()
+    except Exception as e:
+        return _err(f'set_player_status failed: {e}')
+
+
+def get_player_status():
+    """获取当前播放状态（供 HTTP 路由调用）"""
+    return _player_status.copy()

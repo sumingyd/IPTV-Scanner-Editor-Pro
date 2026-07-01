@@ -580,6 +580,68 @@ textarea.form-input {
 }
 .remote-status.ok { color: #4ade80; }
 .remote-status.err { color: #f87171; }
+
+/* 遥控器播放状态信息 */
+.remote-player-status {
+  background: var(--bg-secondary, #1e1e1e);
+  border-radius: 10px;
+  padding: 14px;
+  border: 1px solid var(--border, #333);
+}
+.rp-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.rp-channel {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rp-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: #444;
+  color: #ccc;
+  white-space: nowrap;
+}
+.rp-badge.playing { background: #16a34a; color: #fff; }
+.rp-badge.paused { background: #ca8a04; color: #fff; }
+.rp-badge.stopped { background: #555; color: #999; }
+.rp-badge.hdr { background: #7c3aed; color: #fff; margin-left: 4px; }
+.rp-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.rp-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+}
+.rp-label {
+  font-size: 10px;
+  color: var(--text-secondary, #888);
+  text-transform: uppercase;
+}
+.rp-value {
+  font-size: 13px;
+  color: var(--text-primary, #ddd);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>
 </head>
 <body>
@@ -844,7 +906,7 @@ textarea.form-input {
       </div>
       <div class="epg-layout">
         <div class="epg-channels">
-          <div id="epgChannelList"><div class="empty-state"><div class="icon">📅</div><div class="text">请搜索频道</div></div></div>
+          <div id="epgChannelList"><div class="empty-state"><div class="icon">📅</div><div class="text">加载中...</div></div></div>
         </div>
         <div class="epg-programmes">
           <div id="epgProgrammeList"><div class="empty-state"><div class="icon">📺</div><div class="text">选择左侧频道查看节目</div></div></div>
@@ -988,6 +1050,28 @@ textarea.form-input {
           </div>
         </div>
 
+        <!-- 当前播放状态信息 -->
+        <div class="remote-section">
+          <div class="remote-section-title">当前播放状态</div>
+          <div id="remotePlayerStatus" class="remote-player-status">
+            <div class="rp-status-row">
+              <span class="rp-channel" id="rpChannel">--</span>
+              <span class="rp-badge" id="rpPlayBadge">未播放</span>
+            </div>
+            <div class="rp-info-grid">
+              <div class="rp-info-item"><span class="rp-label">节目</span><span class="rp-value" id="rpProgram">--</span></div>
+              <div class="rp-info-item"><span class="rp-label">内核</span><span class="rp-value" id="rpPlayer">--</span></div>
+              <div class="rp-info-item"><span class="rp-label">解码</span><span class="rp-value" id="rpDecode">--</span></div>
+              <div class="rp-info-item"><span class="rp-label">模式</span><span class="rp-value" id="rpMode">--</span></div>
+              <div class="rp-info-item"><span class="rp-label">分辨率</span><span class="rp-value" id="rpRes">--</span></div>
+              <div class="rp-info-item"><span class="rp-label">编码</span><span class="rp-value" id="rpCodec">--</span></div>
+              <div class="rp-info-item"><span class="rp-label">帧率</span><span class="rp-value" id="rpFps">--</span></div>
+              <div class="rp-info-item"><span class="rp-label">HDR</span><span class="rp-value" id="rpHdr">--</span></div>
+              <div class="rp-info-item"><span class="rp-label">音量</span><span class="rp-value" id="rpVol">--</span></div>
+            </div>
+          </div>
+        </div>
+
         <!-- 状态提示 -->
         <div class="remote-status" id="remoteStatus">就绪：点击按钮即可控制 TV 端</div>
       </div>
@@ -1065,6 +1149,10 @@ function switchTab(name) {
   document.querySelector('.nav-tab[onclick*="' + name + '"]').classList.add('active');
   // 扫描轮询控制：进入 scan 启动，离开停止
   handleScanPolling(name);
+  // 遥控器播放状态轮询：进入 remote 启动，离开停止
+  handlePlayerStatusPolling(name);
+  // 节目单自动加载：进入 epg-data 自动加载频道列表
+  handleEpgAutoLoad(name);
 }
 
 // ====== HTTP 请求 ======
@@ -1734,6 +1822,99 @@ function handleScanPolling(tabName) {
     loadScanStatus();
   } else {
     stopScanPolling();
+  }
+}
+
+// ====== 遥控器播放状态轮询 ======
+let playerStatusPollTimer = null;
+let _playerStatusUnavailable = false;  // 标记后端是否支持该接口（PC 端可能不支持）
+
+function startPlayerStatusPolling() {
+  if (playerStatusPollTimer) return;
+  _playerStatusUnavailable = false;
+  refreshPlayerStatus();   // 立即拉取一次
+  playerStatusPollTimer = setInterval(refreshPlayerStatus, 2000);
+}
+
+function stopPlayerStatusPolling() {
+  if (playerStatusPollTimer) { clearInterval(playerStatusPollTimer); playerStatusPollTimer = null; }
+}
+
+function handlePlayerStatusPolling(tabName) {
+  if (tabName === 'remote') {
+    startPlayerStatusPolling();
+  } else {
+    stopPlayerStatusPolling();
+  }
+}
+
+async function refreshPlayerStatus() {
+  if (_playerStatusUnavailable) return;  // 后端不支持，跳过
+  const d = await apiGet('/api/player/status');
+  if (!d) {
+    // 请求失败：可能是后端不支持（404/500），标记并停止轮询
+    _playerStatusUnavailable = true;
+    stopPlayerStatusPolling();
+    return;
+  }
+  if (!d.success) {
+    _playerStatusUnavailable = true;
+    stopPlayerStatusPolling();
+    return;
+  }
+  const s = d.status || {};
+  // 频道名 + 播放状态徽章
+  const chName = s.channel_name || s.channel || '--';
+  document.getElementById('rpChannel').textContent = chName;
+  const badge = document.getElementById('rpPlayBadge');
+  const isPlaying = !!s.is_playing;
+  const isPaused = !!s.is_paused;
+  let badgeText, badgeClass;
+  if (isPlaying) { badgeText = '播放中'; badgeClass = 'rp-badge playing'; }
+  else if (isPaused) { badgeText = '已暂停'; badgeClass = 'rp-badge paused'; }
+  else { badgeText = '未播放'; badgeClass = 'rp-badge stopped'; }
+  // HDR 徽章（追加在播放状态后面）
+  const hdr = s.hdr || '';
+  if (hdr) badgeText += ' · ' + hdr;
+  badge.textContent = badgeText;
+  badge.className = badgeClass;
+
+  // 信息网格
+  document.getElementById('rpProgram').textContent = s.current_program || '--';
+  document.getElementById('rpPlayer').textContent = _formatPlayerType(s.player_type);
+  document.getElementById('rpDecode').textContent = s.hardware_decode ? '硬解' : '软解';
+  document.getElementById('rpMode').textContent = _formatPlayMode(s.play_mode);
+  document.getElementById('rpRes').textContent = s.video_res || '--';
+  document.getElementById('rpCodec').textContent = s.video_codec || '--';
+  document.getElementById('rpFps').textContent = s.fps || '--';
+  document.getElementById('rpHdr').textContent = hdr || '--';
+  const vol = (s.volume != null) ? (s.muted ? '静音 ' + s.volume : s.volume) : '--';
+  document.getElementById('rpVol').textContent = vol;
+}
+
+function _formatPlayerType(t) {
+  if (!t) return '--';
+  const map = { MPV: 'MPV', SYSTEM: '系统', EXOPLAYER: 'ExoPlayer', ANDROID: 'Android' };
+  return map[String(t).toUpperCase()] || t;
+}
+
+function _formatPlayMode(m) {
+  if (!m) return '--';
+  const map = {
+    live: '直播', timeshift: '时移', catchup: '回看',
+    vod: '点播', local: '本地文件', stream: '串流'
+  };
+  return map[String(m).toLowerCase()] || m;
+}
+
+// ====== 节目单 EPG 自动加载 ======
+let _epgAutoLoaded = false;  // 仅在首次切换时自动加载，避免重复请求
+function handleEpgAutoLoad(tabName) {
+  if (tabName === 'epg-data') {
+    if (_epgAutoLoaded) return;
+    _epgAutoLoaded = true;
+    // 自动加载频道列表（不传搜索词）
+    searchEpg();
   }
 }
 

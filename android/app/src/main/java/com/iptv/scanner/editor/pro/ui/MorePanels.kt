@@ -2,6 +2,8 @@ package com.iptv.scanner.editor.pro.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.util.Log
 import com.iptv.scanner.editor.pro.data.BookmarkItem
 import com.iptv.scanner.editor.pro.data.ReminderItem
 import com.iptv.scanner.editor.pro.data.ResumeItem
@@ -1504,6 +1506,73 @@ fun UpdateDialog(viewModel: AppViewModel) {
                 onClick = { viewModel.dismissUpdateDialog() },
                 modifier = Modifier.tvFocusBorder()
             ) { Text("稍后提醒") }
+        }
+    )
+}
+
+/**
+ * 退出确认对话框：按 BACK 键退出时提示选择退出方式。
+ * - 进入画中画：继续在小窗口中观看
+ * - 立即退出：直接退出应用
+ * - 取消：继续使用
+ */
+@Composable
+fun ExitConfirmDialog(viewModel: AppViewModel) {
+    val open by viewModel.exitConfirmOpen.collectAsState()
+    if (!open) return
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val activity = context as? android.app.Activity
+
+    AlertDialog(
+        onDismissRequest = { viewModel.dismissExitConfirm() },
+        title = { Text("退出应用", fontWeight = FontWeight.Bold) },
+        text = {
+            Text(
+                "您正在退出应用，请选择退出方式：",
+                color = Color(0xFFCCCCCC),
+                fontSize = 14.sp
+            )
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 进入 PiP
+                if (activity != null &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                    activity.packageManager.hasSystemFeature("android.software.picture_in_picture")
+                ) {
+                    TextButton(
+                        onClick = {
+                            viewModel.dismissExitConfirm()
+                            try {
+                                val builder = android.app.PictureInPictureParams.Builder()
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                    builder.setAutoEnterEnabled(true)
+                                    builder.setSeamlessResizeEnabled(true)
+                                }
+                                activity.enterPictureInPictureMode(builder.build())
+                            } catch (e: Exception) {
+                                Log.e("ExitConfirmDialog", "PiP failed", e)
+                            }
+                        },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("画中画") }
+                }
+                // 立即退出
+                TextButton(
+                    onClick = {
+                        viewModel.dismissExitConfirm()
+                        activity?.finishAffinity()
+                    },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("立即退出", color = Color(0xFFEF5350)) }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { viewModel.dismissExitConfirm() },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("取消") }
         }
     )
 }

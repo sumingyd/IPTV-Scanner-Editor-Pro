@@ -123,7 +123,7 @@ class MainActivityCompose : ComponentActivity() {
             return super.onKeyDown(keyCode, event)
         }
 
-        // BACK 键：先关闭面板 → 再退出回看/时移 → 最后交给系统
+        // BACK 键：先关闭面板 → 再退出回看/时移 → 最后显示退出确认对话框
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (viewModel.closeAnyPanel()) {
                 return true
@@ -133,8 +133,9 @@ class MainActivityCompose : ComponentActivity() {
                 viewModel.exitCatchup()
                 return true
             }
-            // 无面板打开时，交给系统处理（不退出应用，让用户确认）
-            return super.onKeyDown(keyCode, event)
+            // 无面板打开时，显示退出确认对话框（立即退出 / 进入 PiP）
+            viewModel.showExitConfirm()
+            return true
         }
 
         // MENU 键：TV 模式打开统一面板，PHONE 模式打开主菜单

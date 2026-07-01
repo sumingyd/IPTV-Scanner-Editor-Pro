@@ -460,6 +460,9 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         // 新版本更新提示对话框（发现新版本时自动弹出，也可从"关于"面板手动触发）
         UpdateDialog(viewModel = viewModel)
 
+        // 退出确认对话框（BACK 键退出时提示：立即退出 / 进入 PiP）
+        ExitConfirmDialog(viewModel = viewModel)
+
         // -----------------------------------------------------------------
         // 5. OSD 浮层（顶部居中，最顶层）
         // -----------------------------------------------------------------

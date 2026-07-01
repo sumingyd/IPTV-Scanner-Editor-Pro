@@ -376,9 +376,13 @@ private fun ChannelsColumn(
             // 在 filteredChannels 中找到 currentIdx 对应的位置
             val pos = filteredChannels.indexOfFirst { (_, idx) -> idx == currentIdx }
             if (pos >= 0) {
-                // 居中显示当前频道（向上偏移几行让当前频道不在最顶部）
-                val targetScroll = (pos - 3).coerceAtLeast(0)
-                listState.scrollToItem(targetScroll)
+                // 精确居中：根据视口高度和列表项高度计算偏移
+                val layoutInfo = listState.layoutInfo
+                val viewportHeight = layoutInfo.viewportSize.height
+                val itemHeight = layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 56
+                val visibleCount = if (itemHeight > 0) viewportHeight / itemHeight else 7
+                val centeredPos = (pos - visibleCount / 2).coerceAtLeast(0)
+                listState.scrollToItem(centeredPos)
             }
         }
     }
@@ -669,7 +673,7 @@ private fun EpgColumn(
     val listState = rememberLazyListState()
     val now = System.currentTimeMillis()
 
-    // 自动滚动到当前节目
+    // 自动滚动到当前节目（居中显示）
     LaunchedEffect(epg, channel) {
         if (epg.isNotEmpty()) {
             val currentProgIdx = epg.indexOfFirst { p ->
@@ -677,7 +681,13 @@ private fun EpgColumn(
             }
             val targetIdx = if (currentProgIdx >= 0) currentProgIdx else 0
             if (targetIdx < epg.size) {
-                listState.animateScrollToItem(targetIdx)
+                // 精确居中：根据视口高度和列表项高度计算偏移
+                val layoutInfo = listState.layoutInfo
+                val viewportHeight = layoutInfo.viewportSize.height
+                val itemHeight = layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 64
+                val visibleCount = if (itemHeight > 0) viewportHeight / itemHeight else 5
+                val centeredIdx = (targetIdx - visibleCount / 2).coerceAtLeast(0)
+                listState.animateScrollToItem(centeredIdx)
             }
         }
     }
@@ -760,38 +770,57 @@ private fun EpgColumn(
 
                     Divider(color = Color(0xFF2A2A2A))
 
-                    // 下半部分：选中节目的描述（占 40%）
+                    // 下半部分：节目描述（优先显示用户选中节目，无选中时自动显示当前播出节目）
                     Box(
                         modifier = Modifier.weight(0.4f).fillMaxWidth().padding(12.dp)
                     ) {
-                        val prog = selectedProgram
-                        if (prog != null) {
+                        // 优先使用用户选中的节目，否则自动查找当前正在播出的节目
+                        val now = System.currentTimeMillis()
+                        val currentProg = selectedProgram ?: epg.find { p ->
+                            p.startTs * 1000L <= now && now <= p.stopTs * 1000L
+                        }
+                        if (currentProg != null) {
+                            val isAuto = selectedProgram == null
                             Column {
-                                Text(
-                                    text = prog.title,
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = currentProg.title,
+                                        color = Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (isAuto) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "LIVE",
+                                            color = Color(0xFFFF5252),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "${formatTime(prog.start)} - ${formatTime(prog.stop)}",
+                                    text = "${formatTime(currentProg.start)} - ${formatTime(currentProg.stop)}",
                                     color = Color(0xFF4A9EFF),
                                     fontSize = 12.sp
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = prog.desc.ifEmpty { "暂无节目描述" },
+                                    text = currentProg.desc.ifEmpty { "暂无节目描述" },
                                     color = Color(0xFFCCCCCC),
                                     fontSize = 12.sp,
-                                    lineHeight = 18.sp
+                                    lineHeight = 18.sp,
+                                    maxLines = 4,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         } else {
                             Text(
-                                text = "选择节目查看详情\n（按确认键可回看或设置提醒）",
+                                text = "暂无节目信息",
                                 color = Color(0xFF666666),
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp
