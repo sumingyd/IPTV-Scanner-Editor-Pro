@@ -369,20 +369,27 @@ private fun ChannelsColumn(
 
     // 滚动状态：用于面板打开时自动滚动到当前频道
     val listState = rememberLazyListState()
+    // 当前频道项的焦点请求器（面板打开时将 DPAD 焦点移到当前播放频道）
+    val currentChannelFocus = remember { FocusRequester() }
 
-    // 面板打开时自动滚动到当前频道（居中显示）
+    // 面板打开时自动滚动到当前频道（居中显示）并将焦点移到当前频道
     LaunchedEffect(currentIdx, filteredChannels) {
         if (filteredChannels.isNotEmpty() && currentIdx >= 0) {
-            // 在 filteredChannels 中找到 currentIdx 对应的位置
             val pos = filteredChannels.indexOfFirst { (_, idx) -> idx == currentIdx }
             if (pos >= 0) {
-                // 精确居中：根据视口高度和列表项高度计算偏移
+                // 第一阶段：先跳到目标位置（无动画），强制列表布局更新
+                listState.scrollToItem(pos)
+                kotlinx.coroutines.delay(50)
+                // 第二阶段：根据视口高度和列表项高度计算居中偏移
                 val layoutInfo = listState.layoutInfo
                 val viewportHeight = layoutInfo.viewportSize.height
                 val itemHeight = layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 56
                 val visibleCount = if (itemHeight > 0) viewportHeight / itemHeight else 7
                 val centeredPos = (pos - visibleCount / 2).coerceAtLeast(0)
                 listState.scrollToItem(centeredPos)
+                // 第三阶段：将焦点移到当前频道项
+                kotlinx.coroutines.delay(30)
+                kotlin.runCatching { currentChannelFocus.requestFocus() }
             }
         }
     }
@@ -431,6 +438,7 @@ private fun ChannelsColumn(
                             channel = channel,
                             isPlaying = idx == currentIdx,
                             isFavorite = favorites.contains(idx),
+                            focusRequester = if (idx == currentIdx) currentChannelFocus else null,
                             onClick = { onChannelClick(idx) },
                             onFocusChange = { isFocused ->
                                 if (isFocused) onFocusedChannelChange(idx)
@@ -449,11 +457,13 @@ private fun TvChannelItem(
     isPlaying: Boolean,
     isFavorite: Boolean,
     onClick: () -> Unit,
-    onFocusChange: (Boolean) -> Unit = {}
+    onFocusChange: (Boolean) -> Unit = {},
+    focusRequester: FocusRequester? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged { onFocusChange(it.isFocused) }
             .clickable { onClick() }
             .tvFocusBorder()
