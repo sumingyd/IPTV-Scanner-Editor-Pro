@@ -12,6 +12,7 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,10 +42,27 @@ import kotlin.math.roundToInt
  *
  * 所有 ExoPlayer 调用必须在主线程执行（ExoPlayer 线程安全要求）。
  */
-class ExoPlayerController(context: Context) : Player {
+class ExoPlayerController(private val context: Context) : Player {
 
-    /** 被 UI 层（ExoPlayerView）访问以绑定 Surface */
-    val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
+    /**
+     * 被 UI 层（ExoPlayerView）访问以绑定 Surface。
+     *
+     * 为 var 的原因：[setHardwareDecode] 需要重建 ExoPlayer 实例
+     * （切换 RenderersFactory 的 extensionRendererMode）。
+     * 重建后 ExoPlayerView 通过 getter 自动访问新实例，
+     * 但需在 [rebindSurface] 中手动重新绑定 SurfaceHolder。
+     */
+    @Volatile
+    private var _exoPlayer: ExoPlayer = createExoPlayer(context, hardwareDecode = true)
+    val exoPlayer: ExoPlayer get() = _exoPlayer
+
+    /** 绑定的 ExoPlayerView（用于重建 ExoPlayer 后重新绑定 Surface） */
+    @Volatile
+    private var exoPlayerView: ExoPlayerView? = null
+
+    /** 当前是否使用硬件解码（true=MediaCodec 硬解，false=优先软解扩展） */
+    @Volatile
+    private var hardwareDecode: Boolean = true
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -113,7 +131,8 @@ class ExoPlayerController(context: Context) : Player {
         supportsSpeedControl = true,
         supportsTrackList = true,
         supportsAddSubtitleFile = false,
-        supportsChapters = true
+        supportsChapters = true,
+        supportsHardwareDecodeSwitch = true
     )
 
     override val playerType: PlayerType = PlayerType.EXO
@@ -224,6 +243,7 @@ class ExoPlayerController(context: Context) : Player {
     // -----------------------------------------------------------------
     override fun attachView(view: Any) {
         if (view is ExoPlayerView) {
+            exoPlayerView = view
             view.attachController(this)
         } else {
             Log.w(TAG, "attachView: unexpected view type ${view?.javaClass?.name}")
@@ -234,6 +254,7 @@ class ExoPlayerController(context: Context) : Player {
         mainHandler.removeCallbacks(progressRunnable)
         exoPlayer.removeListener(listener)
         exoPlayer.release()
+        exoPlayerView = null
         // 重置状态（避免 Compose 用旧值）
         _fileLoaded.value = false
         _eofReached.value = false
@@ -433,6 +454,71 @@ class ExoPlayerController(context: Context) : Player {
     }
 
     // -----------------------------------------------------------------
+    // 硬件解码切换
+    // -----------------------------------------------------------------
+
+    /**
+     * 切换硬件/软件解码。
+     *
+     * ExoPlayer 通过 [DefaultRenderersFactory.setExtensionRendererMode] 控制：
+     * - 硬解：[DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF]（仅 MediaCodec）
+     * - 软解：[DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER]（优先 FFmpeg 扩展）
+     *
+     * 切换需重建 ExoPlayer 实例（RenderersFactory 在构造时固定）。
+     * 重建后自动恢复播放 URL 和进度，并重新绑定 Surface。
+     *
+     * 注意：软解模式需要 FFmpeg 扩展依赖，未安装时自动回退到 MediaCodec 硬解。
+     */
+    override fun setHardwareDecode(enabled: Boolean): Boolean {
+        if (hardwareDecode == enabled) return true
+        Log.i(TAG, "setHardwareDecode: enabled=$enabled, rebuilding ExoPlayer")
+
+        // 保存当前播放状态
+        val savedUrl = currentUrl
+        val savedPos = _timePos.value
+        val savedVolume = _volume.value
+        val savedMuted = _muted.value
+        val savedSpeed = _speed.value
+
+        mainHandler.post {
+            try {
+                // 释放旧实例
+                exoPlayer.clearVideoSurface()
+                exoPlayer.removeListener(listener)
+                exoPlayer.release()
+
+                // 创建新实例
+                hardwareDecode = enabled
+                _exoPlayer = createExoPlayer(context, enabled)
+                exoPlayer.addListener(listener)
+                exoPlayer.volume = if (savedMuted) 0f else savedVolume / 130f
+                if (savedSpeed != 1.0) {
+                    exoPlayer.playbackParameters = PlaybackParameters(savedSpeed.toFloat())
+                }
+
+                // 重新绑定 Surface（ExoPlayerView 通过 getter 自动访问新实例）
+                exoPlayerView?.let { view ->
+                    if (view.holder != null) {
+                        exoPlayer.setVideoSurfaceHolder(view.holder)
+                    }
+                }
+
+                // 恢复播放
+                if (savedUrl != null && savedUrl.isNotEmpty()) {
+                    restorePlaybackState(savedUrl, savedPos)
+                }
+
+                Log.i(TAG, "ExoPlayer rebuilt: hardwareDecode=$enabled")
+            } catch (e: Throwable) {
+                Log.e(TAG, "setHardwareDecode rebuild failed", e)
+            }
+        }
+        return true
+    }
+
+    override fun isHardwareDecodeEnabled(): Boolean = hardwareDecode
+
+    // -----------------------------------------------------------------
     // 播放状态保存/恢复（用于切换播放器时保持连续性）
     // -----------------------------------------------------------------
     override fun savePlaybackState(): Pair<String, Double>? {
@@ -503,5 +589,21 @@ class ExoPlayerController(context: Context) : Player {
 
         /** 位置轮询间隔（毫秒） */
         private const val PROGRESS_INTERVAL_MS = 500L
+
+        /**
+         * 创建 ExoPlayer 实例。
+         *
+         * @param context Android Context
+         * @param hardwareDecode true=仅 MediaCodec 硬解，false=优先 FFmpeg 软解扩展
+         */
+        private fun createExoPlayer(context: Context, hardwareDecode: Boolean): ExoPlayer {
+            val renderersFactory = DefaultRenderersFactory(context).apply {
+                setExtensionRendererMode(
+                    if (hardwareDecode) DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
+                    else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                )
+            }
+            return ExoPlayer.Builder(context, renderersFactory).build()
+        }
     }
 }

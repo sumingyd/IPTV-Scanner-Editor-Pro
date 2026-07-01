@@ -1164,6 +1164,17 @@ def start_admin_server(port=8080):
             else:
                 _log('Admin server: mobile dir not found', 'W')
 
+            # 注册虚拟遥控器路由
+            async def _handle_remote(request):
+                cmd = request.match_info.get('cmd', '')
+                if not cmd:
+                    return web.json_response({'success': False, 'error': 'missing cmd'})
+                push_remote_command(cmd)
+                return web.json_response({'success': True, 'cmd': cmd})
+
+            app.router.add_post('/api/remote/{cmd}', _handle_remote)
+            _log('Admin server remote control routes registered')
+
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             _admin_loop = loop
@@ -1284,3 +1295,39 @@ def get_admin_url():
     if _admin_server_error:
         result['error'] = _admin_server_error
     return _ok(result)
+
+
+# -------------------------------------------------------------------
+# 虚拟遥控器：从 admin 页面发送遥控命令到 Android 端
+#
+# 机制：
+# 1. admin 页面发送 HTTP POST /api/remote/{cmd}
+# 2. Python 端将命令放入 _remote_command_queue
+# 3. Kotlin 端每 100ms 轮询 poll_remote_command()，获取命令后执行
+#
+# 支持的命令：
+# up/down/left/right/ok/back/menu/play/pause/play_pause/stop
+# mute/vol_up/vol_down/seek_forward/seek_backward/osd
+# prev_channel/next_channel
+# -------------------------------------------------------------------
+
+import queue as _queue
+_remote_command_queue = _queue.Queue()
+
+
+def push_remote_command(cmd):
+    """将遥控命令放入队列（供 HTTP 路由调用）"""
+    try:
+        _remote_command_queue.put_nowait(cmd)
+        return _ok({'cmd': cmd})
+    except Exception as e:
+        return _err(f'push command failed: {e}')
+
+
+def poll_remote_command():
+    """轮询遥控命令（供 Kotlin 端调用）。返回命令字符串或 None。"""
+    try:
+        cmd = _remote_command_queue.get_nowait()
+        return _ok({'cmd': cmd})
+    except _queue.Empty:
+        return _ok({'cmd': None})

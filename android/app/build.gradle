@@ -167,6 +167,12 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3'
     implementation 'com.google.zxing:core:3.5.3'
 
+    /* Coil (Compose 图片加载库) - 用于频道台标显示
+     * - 轻量级，Compose 原生
+     * - 自动处理内存/磁盘缓存
+     * - 用于 TvChannelItem 的频道 logo 加载 */
+    implementation 'io.coil-kt:coil-compose:2.7.0'
+
     /* ExoPlayer (androidx.media3) - Google 官方播放器
      * - media3-exoplayer: 核心播放引擎
      * - media3-ui: PlayerView（Compose AndroidView 包裹用）

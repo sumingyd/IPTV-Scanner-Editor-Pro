@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SettingsBackupRestore
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -156,6 +157,8 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                     onToggleQr = { showQrCode = it },
                     countdown = adminCountdown
                 )
+                // 自动关闭开关
+                AdminAutoStopToggle(viewModel = viewModel)
             } else if (!adminRunning) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
@@ -183,6 +186,8 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                         }
                     }
                 }
+                // 自动关闭开关（启动前也可设置）
+                AdminAutoStopToggle(viewModel = viewModel)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -444,6 +449,43 @@ private fun EmptyHint(text: String) {
             text = text,
             style = MaterialTheme.typography.bodyMedium,
             color = Color(0xFF888888)
+        )
+    }
+}
+
+/**
+ * 局域网管理自动关闭开关
+ * 开启后 5 分钟自动停止服务器，关闭后持续运行直到手动停止
+ */
+@Composable
+private fun AdminAutoStopToggle(viewModel: AppViewModel) {
+    var autoStop by remember { mutableStateOf(viewModel.getAdminAutoStop()) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Timer,
+            contentDescription = null,
+            tint = Color(0xFFAAAAAA),
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "5 分钟自动关闭",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color(0xFFCCCCCC),
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = autoStop,
+            onCheckedChange = {
+                autoStop = it
+                viewModel.setAdminAutoStop(it)
+            },
+            modifier = Modifier.tvFocusBorder()
         )
     }
 }

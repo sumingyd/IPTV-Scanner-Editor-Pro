@@ -75,6 +75,10 @@ class IjkController(private val context: Context) : Player {
     @Volatile
     private var currentUrl: String = ""
 
+    /** 当前是否使用硬件解码（运行时可切换，影响 mediacodec option） */
+    @Volatile
+    private var hardwareDecode = true
+
     /** 挂起的 seek 位置（restorePlaybackState 设置，onPrepared 后执行） */
     @Volatile
     private var pendingSeek: Double? = null
@@ -194,7 +198,8 @@ class IjkController(private val context: Context) : Player {
     override val capabilities: PlayerCapabilities = PlayerCapabilities(
         supportsSpeedControl = true,
         supportsTrackList = false,
-        supportsAddSubtitleFile = false
+        supportsAddSubtitleFile = false,
+        supportsHardwareDecodeSwitch = true
     )
 
     override val playerType: PlayerType = PlayerType.IJK
@@ -250,8 +255,11 @@ class IjkController(private val context: Context) : Player {
     private fun applyDefaultOptions(p: IjkMediaPlayer?) {
         if (p == null) return
         // OPT_CATEGORY_PLAYER：硬件解码 + RTSP over TCP
-        p.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 1L)
-        p.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", 1L)
+        // mediacodec：1=硬解，0=软解（根据 hardwareDecode 状态切换）
+        p.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", if (hardwareDecode) 1L else 0L)
+        if (hardwareDecode) {
+            p.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", 1L)
+        }
         p.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "rtsp-tcp", 1L)
         // OPT_CATEGORY_FORMAT：缓冲与封包
         p.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "buffer_size", 1521024L)
@@ -713,6 +721,34 @@ class IjkController(private val context: Context) : Player {
             emptyMap()
         }
     }
+
+    // -----------------------------------------------------------------
+    // 硬件解码切换
+    // -----------------------------------------------------------------
+
+    /**
+     * 切换硬件/软件解码。
+     *
+     * IJK 通过 `mediacodec` option 控制（1=硬解，0=软解），
+     * 该 option 在每次 playFile 的 reset 后应用，所以切换后需重新播放当前 URL。
+     */
+    override fun setHardwareDecode(enabled: Boolean): Boolean {
+        if (hardwareDecode == enabled) return true
+        hardwareDecode = enabled
+        Log.i(TAG, "setHardwareDecode: enabled=$enabled")
+        if (!nativeAvailable) return false
+        // 重新播放当前 URL 以应用新 mediacodec option
+        if (currentUrl.isNotEmpty() && _fileLoaded.value) {
+            val pos = _timePos.value
+            playFile(currentUrl)
+            if (pos > 0) {
+                pendingSeek = pos
+            }
+        }
+        return true
+    }
+
+    override fun isHardwareDecodeEnabled(): Boolean = hardwareDecode
 
     // -----------------------------------------------------------------
     // 播放状态保存/恢复（用于切换播放器时保持连续性）

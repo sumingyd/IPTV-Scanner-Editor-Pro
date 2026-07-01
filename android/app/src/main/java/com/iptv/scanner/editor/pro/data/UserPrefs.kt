@@ -196,6 +196,20 @@ class UserPrefs private constructor() {
     }
 
     // -----------------------------------------------------------------
+    // 局域网管理设置
+    //
+    // 自动关闭开关：开启后 5 分钟自动停止服务器（默认开启）
+    // 关闭后服务器持续运行，直到手动停止
+    // -----------------------------------------------------------------
+
+    /** 获取局域网管理是否自动关闭（5 分钟超时），默认 true */
+    fun getAdminAutoStop(): Boolean = prefs.getBoolean(KEY_ADMIN_AUTO_STOP, DEFAULT_ADMIN_AUTO_STOP)
+
+    fun setAdminAutoStop(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ADMIN_AUTO_STOP, enabled).apply()
+    }
+
+    // -----------------------------------------------------------------
     // 网络增强设置（HTTP Referer / Proxy / Headers）
     //
     // 持久化用户配置的 HTTP 网络参数，用于绕过防盗链 / 代理 / 自定义头。
@@ -543,6 +557,10 @@ class UserPrefs private constructor() {
         private const val KEY_PLAYER_TYPE = "player_type"
         private const val KEY_HDR_MODE = "hdr_output_mode"
         private const val DEFAULT_HDR_MODE = "disable"
+
+        // 局域网管理设置 key
+        private const val KEY_ADMIN_AUTO_STOP = "admin_auto_stop"
+        private const val DEFAULT_ADMIN_AUTO_STOP = true
 
         // 网络增强设置 key
         private const val KEY_HTTP_REFERER = "http_referer"

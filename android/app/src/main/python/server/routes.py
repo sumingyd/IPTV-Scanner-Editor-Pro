@@ -472,45 +472,51 @@ async def handle_m3u(request):
 
 
 async def handle_channels_list(request):
-    all_channels = _get_all_channels()
-    if not all_channels:
-        # 返回空列表而非 503，让前端正常显示"暂无频道"
+    try:
+        ctx = get_context()
+        # 直接读取已加载的 channels，不触发 reload_if_needed（避免同步加载导致请求超时）
+        all_channels = ctx._channels if ctx else []
+        if not all_channels:
+            # 返回空列表而非 503，让前端正常显示"暂无频道"
+            return _json_success(
+                channels=[],
+                total=0,
+                page=1,
+                page_size=min(500, max(1, int(request.rel_url.query.get('size', '100')))),
+                groups=[]
+            )
+        valid_only = request.rel_url.query.get('valid', '').strip()
+        group = request.rel_url.query.get('group', '').strip()
+        search = request.rel_url.query.get('search', '').strip().lower()
+        page = max(1, int(request.rel_url.query.get('page', '1')))
+        page_size = min(500, max(1, int(request.rel_url.query.get('size', '100'))))
+        channels = []
+        for i, ch in enumerate(all_channels):
+            if valid_only == '1' and ch.get('valid') is not True:
+                continue
+            if valid_only == '0' and ch.get('valid') is False:
+                continue
+            if group and ch.get('group', '') != group:
+                continue
+            if search and search not in ch.get('name', '').lower() and search not in ch.get('group', '').lower():
+                continue
+            channels.append({**ch, '_index': i})
+        total_filtered = len(channels)
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_items = channels[start:end]
+        # 分组按 M3U 文件中的首次出现顺序（保持原序，去重），与 PC 端 _update_groups_for 逻辑一致
+        groups = list(dict.fromkeys(ch.get('group', '') for ch in all_channels if ch.get('group')))
         return _json_success(
-            channels=[],
-            total=0,
-            page=1,
-            page_size=min(500, max(1, int(request.rel_url.query.get('size', '100')))),
-            groups=[]
+            channels=page_items,
+            total=total_filtered,
+            page=page,
+            page_size=page_size,
+            groups=groups
         )
-    valid_only = request.rel_url.query.get('valid', '').strip()
-    group = request.rel_url.query.get('group', '').strip()
-    search = request.rel_url.query.get('search', '').strip().lower()
-    page = max(1, int(request.rel_url.query.get('page', '1')))
-    page_size = min(500, max(1, int(request.rel_url.query.get('size', '100'))))
-    channels = []
-    for i, ch in enumerate(all_channels):
-        if valid_only == '1' and ch.get('valid') is not True:
-            continue
-        if valid_only == '0' and ch.get('valid') is False:
-            continue
-        if group and ch.get('group', '') != group:
-            continue
-        if search and search not in ch.get('name', '').lower() and search not in ch.get('group', '').lower():
-            continue
-        channels.append({**ch, '_index': i})
-    total_filtered = len(channels)
-    start = (page - 1) * page_size
-    end = start + page_size
-    page_items = channels[start:end]
-    # 分组按 M3U 文件中的首次出现顺序（保持原序，去重），与 PC 端 _update_groups_for 逻辑一致
-    groups = list(dict.fromkeys(ch.get('group', '') for ch in all_channels if ch.get('group')))
-    return _json_success(
-        channels=page_items,
-        total=total_filtered,
-        page=page,
-        page_size=page_size,
-        groups=groups
-    )
+    except Exception as e:
+        logger.error(f"频道列表加载异常: {e}", exc_info=True)
+        return _json_error(f'加载失败: {e}', 500)
 
 
 async def handle_channel_get(request):

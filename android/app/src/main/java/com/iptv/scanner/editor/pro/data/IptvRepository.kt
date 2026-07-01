@@ -367,6 +367,10 @@ class IptvRepository private constructor() {
     suspend fun getAdminUrl(): Result<AdminServerInfo> =
         callPyTyped("get_admin_url")
 
+    /** 轮询虚拟遥控器命令（从 admin 页面发送的遥控指令） */
+    suspend fun pollRemoteCommand(): Result<RemoteCommandResponse> =
+        callPyTyped("poll_remote_command")
+
     // -----------------------------------------------------------------
     // 字幕
     // -----------------------------------------------------------------

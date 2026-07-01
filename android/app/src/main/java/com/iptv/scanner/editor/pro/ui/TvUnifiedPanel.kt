@@ -367,6 +367,22 @@ private fun ChannelsColumn(
         channels.mapIndexed { idx, c -> c to idx }
     }
 
+    // 滚动状态：用于面板打开时自动滚动到当前频道
+    val listState = rememberLazyListState()
+
+    // 面板打开时自动滚动到当前频道（居中显示）
+    LaunchedEffect(currentIdx, filteredChannels) {
+        if (filteredChannels.isNotEmpty() && currentIdx >= 0) {
+            // 在 filteredChannels 中找到 currentIdx 对应的位置
+            val pos = filteredChannels.indexOfFirst { (_, idx) -> idx == currentIdx }
+            if (pos >= 0) {
+                // 居中显示当前频道（向上偏移几行让当前频道不在最顶部）
+                val targetScroll = (pos - 3).coerceAtLeast(0)
+                listState.scrollToItem(targetScroll)
+            }
+        }
+    }
+
     Surface(
         color = Color(0xF0161616),
         modifier = modifier.fillMaxHeight()
@@ -399,6 +415,7 @@ private fun ChannelsColumn(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)
                 ) {
@@ -439,13 +456,24 @@ private fun TvChannelItem(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 圆点
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(if (isPlaying) Color(0xFF4A9EFF) else Color(0xFF444444))
-        )
+        // 频道台标（logo）：有 logo 显示图片，无 logo 显示圆点
+        if (channel.logo.isNotEmpty()) {
+            coil.compose.AsyncImage(
+                model = channel.logo,
+                contentDescription = channel.name,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(if (isPlaying) Color(0xFF4A9EFF) else Color(0xFF444444))
+            )
+        }
         Spacer(modifier = Modifier.width(10.dp))
         // 频道名 + 分组
         Column(modifier = Modifier.weight(1f)) {

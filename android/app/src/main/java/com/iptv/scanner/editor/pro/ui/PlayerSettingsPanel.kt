@@ -56,6 +56,7 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
     val currentVo by viewModel.currentVo.collectAsState()
     val currentHwdec by viewModel.currentHwdec.collectAsState()
     val hdrMode by viewModel.hdrMode.collectAsState()
+    val hardwareDecode by viewModel.hardwareDecode.collectAsState()
     val isMpvMode = playerType == PlayerType.MPV
 
     Surface(
@@ -148,10 +149,67 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
             PlayerCapabilityBadges(playerCapabilities)
 
             // -----------------------------------------------------------------
-            // 2 & 3. VO / HWDEC 设置（仅 MPV 模式下显示）
+            // 2. 解码模式选择（非 MPV 内核：ExoPlayer/VLC/IJK）
             // -----------------------------------------------------------------
-            // 原因：vo/hwdec 是 mpv 专属概念，其他播放器（Exo/VLC/IJK）内部自行管理
-            // 渲染后端和硬件解码，无需用户干预
+            // MPV 内核有更详细的 vo/hwdec 切换（下方），其他内核用统一的硬解/软解开关
+            if (!isMpvMode && playerCapabilities.supportsHardwareDecodeSwitch) {
+                Spacer(modifier = Modifier.height(20.dp))
+
+                SectionTitle("解码模式")
+                Spacer(modifier = Modifier.height(4.dp))
+                SectionDesc("切换硬件解码（MediaCodec）与软件解码。软解兼容性好但耗电")
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val isHardDecode = hardwareDecode
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = isHardDecode,
+                        onClick = { viewModel.setHardwareDecode(true) },
+                        label = { Text("硬件解码") },
+                        modifier = Modifier.tvFocusBorder()
+                    )
+                    FilterChip(
+                        selected = !isHardDecode,
+                        onClick = { viewModel.setHardwareDecode(false) },
+                        label = { Text("软件解码") },
+                        modifier = Modifier.tvFocusBorder()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // 解码模式说明
+                val decodeDesc = when (playerType) {
+                    PlayerType.EXO -> if (isHardDecode) {
+                        "MediaCodec 硬件解码（默认）。软解需 FFmpeg 扩展，未安装时自动回退硬解"
+                    } else {
+                        "优先软件解码（FFmpeg 扩展）。未安装扩展时自动回退到 MediaCodec 硬解"
+                    }
+                    PlayerType.VLC -> if (isHardDecode) {
+                        "MediaCodec NDK 硬件解码（默认）。兼容性好，性能佳"
+                    } else {
+                        "软件解码。兼容性最好但耗电，适合硬解不兼容的流"
+                    }
+                    PlayerType.IJK -> if (isHardDecode) {
+                        "MediaCodec 硬件解码（默认）。基于 FFmpeg + MediaCodec"
+                    } else {
+                        "纯 FFmpeg 软件解码。兼容性最好但 CPU 占用高"
+                    }
+                    else -> ""
+                }
+                Text(
+                    text = decodeDesc,
+                    color = Color(0xFFB0BEC5),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+
+            // -----------------------------------------------------------------
+            // 3. VO / HWDEC 设置（仅 MPV 模式下显示）
+            // -----------------------------------------------------------------
+            // 原因：vo/hwdec 是 mpv 专属概念，其他播放器（Exo/VLC/IJK）用上方的解码模式开关
             if (isMpvMode) {
                 Spacer(modifier = Modifier.height(20.dp))
 

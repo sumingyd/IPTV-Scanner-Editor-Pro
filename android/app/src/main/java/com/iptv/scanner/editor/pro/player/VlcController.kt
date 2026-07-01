@@ -139,7 +139,8 @@ class VlcController(context: Context) : Player, MediaPlayer.EventListener {
         supportsSubDelay = true,
         supportsAudioDelay = false,
         supportsSubScale = false,
-        supportsSubPos = false
+        supportsSubPos = false,
+        supportsHardwareDecodeSwitch = true
     )
 
     override val playerType: PlayerType = PlayerType.VLC
@@ -168,6 +169,10 @@ class VlcController(context: Context) : Player, MediaPlayer.EventListener {
 
     /** 已加载的外挂字幕路径列表（playFile 时作为 :sub-file 选项添加） */
     private val subtitlePaths = mutableListOf<String>()
+
+    /** 当前是否使用硬件解码（运行时可切换，影响 media.setHWDecoderEnabled） */
+    @Volatile
+    private var hardwareDecode = true
 
     /** 主线程 Handler（用于位置轮询） */
     private val handler = Handler(Looper.getMainLooper())
@@ -261,8 +266,8 @@ class VlcController(context: Context) : Player, MediaPlayer.EventListener {
                 Uri.parse(url)
             }
             val media = Media(libVLC, uri)
-            // 启用硬件解码（与 LibVLC 的 --codec=mediacodec_ndk 一致）
-            media.setHWDecoderEnabled(true, false)
+            // 启用/禁用硬件解码（与 LibVLC 的 --codec=mediacodec_ndk 一致，软解时禁用）
+            media.setHWDecoderEnabled(hardwareDecode, false)
             media.addOption(":fullscreen")
 
             // 添加已注册的外挂字幕文件
@@ -609,6 +614,38 @@ class VlcController(context: Context) : Player, MediaPlayer.EventListener {
         }
         return info
     }
+
+    // -----------------------------------------------------------------
+    // 硬件解码切换
+    // -----------------------------------------------------------------
+
+    /**
+     * 切换硬件/软件解码。
+     *
+     * VLC 通过 [Media.setHWDecoderEnabled] 控制，是 Media 级别选项，
+     * 切换后需重新播放当前 URL 才能生效。
+     *
+     * 注意：LibVLC 全局选项 `--codec=mediacodec_ndk` 仍在，但
+     * `setHWDecoderEnabled(false)` 会覆盖该 Media 的硬解设置。
+     */
+    override fun setHardwareDecode(enabled: Boolean): Boolean {
+        if (hardwareDecode == enabled) return true
+        hardwareDecode = enabled
+        Log.i(TAG, "setHardwareDecode: enabled=$enabled")
+        // 重新播放当前 URL 以应用新设置
+        val url = currentUrl
+        if (url != null && url.isNotEmpty()) {
+            val pos = _timePos.value
+            playFile(url)
+            // 恢复播放进度（异步，等 Playing 事件后 seek）
+            if (pos > 0) {
+                pendingSeek = pos
+            }
+        }
+        return true
+    }
+
+    override fun isHardwareDecodeEnabled(): Boolean = hardwareDecode
 
     // -----------------------------------------------------------------
     // 播放状态保存/恢复

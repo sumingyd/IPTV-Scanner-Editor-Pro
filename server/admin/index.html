@@ -491,6 +491,95 @@ textarea.form-input {
   .ch-item .ch-actions { width: 100%; justify-content: flex-end; padding-top: 8px; border-top: 1px solid var(--border); }
   .ch-item .ch-badge { order: -1; }
 }
+
+/* ====== 虚拟遥控器 ====== */
+.remote-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 0 4px;
+}
+.remote-section {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.remote-section-title {
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.remote-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.remote-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+.remote-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border: 1px solid var(--border, #333);
+  border-radius: 12px;
+  background: var(--bg-secondary, #2a2a2a);
+  color: var(--text, #eee);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.08s, border-color 0.15s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.remote-btn:hover {
+  background: var(--bg-hover, #3a3a3a);
+  border-color: var(--accent, #4a9eff);
+}
+.remote-btn:active {
+  transform: scale(0.94);
+  background: var(--accent, #4a9eff);
+  color: #fff;
+}
+.remote-btn-wide {
+  flex: 1;
+  flex-direction: row;
+  max-width: 180px;
+}
+.remote-dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 72px);
+  grid-template-rows: repeat(3, 72px);
+  gap: 8px;
+}
+.remote-dpad-up    { grid-column: 2; grid-row: 1; }
+.remote-dpad-left  { grid-column: 1; grid-row: 2; }
+.remote-dpad-ok    { grid-column: 2; grid-row: 2; border-radius: 50%; background: var(--accent, #4a9eff); color: #fff; border-color: var(--accent, #4a9eff); }
+.remote-dpad-ok:hover { background: #6ab4ff; border-color: #6ab4ff; }
+.remote-dpad-right { grid-column: 3; grid-row: 2; }
+.remote-dpad-down  { grid-column: 2; grid-row: 3; }
+.remote-status {
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--bg-secondary, #2a2a2a);
+  min-height: 24px;
+  transition: color 0.2s;
+}
+.remote-status.ok { color: #4ade80; }
+.remote-status.err { color: #f87171; }
 </style>
 </head>
 <body>
@@ -505,6 +594,7 @@ textarea.form-input {
     <button class="nav-tab" onclick="switchTab('scan')">扫描</button>
     <button class="nav-tab" onclick="switchTab('mappings')">频道映射</button>
     <button class="nav-tab" onclick="switchTab('epg-data')">节目单</button>
+    <button class="nav-tab" onclick="switchTab('remote')">遥控器</button>
     <button class="nav-tab" onclick="switchTab('status')">服务器状态</button>
   </div>
   <div class="nav-status">
@@ -793,6 +883,117 @@ textarea.form-input {
     </div>
   </div>
 
+  <!-- 虚拟遥控器面板 -->
+  <div class="panel" id="panel-remote">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">虚拟遥控器</div>
+          <div class="card-subtitle">通过浏览器远程控制 TV 端播放（需保持局域网管理运行）</div>
+        </div>
+      </div>
+      <div class="remote-wrap">
+        <!-- 方向键区 -->
+        <div class="remote-section">
+          <div class="remote-section-title">方向 / 确定</div>
+          <div class="remote-dpad">
+            <button class="remote-btn remote-dpad-up" onclick="sendRemote('up')" title="上一个频道 / 上">
+              <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 5l7 7H5l7-7z" fill="currentColor"/></svg>
+            </button>
+            <button class="remote-btn remote-dpad-left" onclick="sendRemote('left')" title="左 / 退回10秒">
+              <svg viewBox="0 0 24 24" width="28" height="28"><path d="M5 12l7-7v14l-7-7z" fill="currentColor"/></svg>
+            </button>
+            <button class="remote-btn remote-dpad-ok" onclick="sendRemote('ok')" title="显示/隐藏控制层 或 暂停">
+              <span style="font-size:14px;font-weight:600">OK</span>
+            </button>
+            <button class="remote-btn remote-dpad-right" onclick="sendRemote('right')" title="右 / 快进10秒">
+              <svg viewBox="0 0 24 24" width="28" height="28"><path d="M19 12l-7 7V5l7 7z" fill="currentColor"/></svg>
+            </button>
+            <button class="remote-btn remote-dpad-down" onclick="sendRemote('down')" title="下一个频道 / 下">
+              <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 19l-7-7h14l-7 7z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 频道切换 -->
+        <div class="remote-section">
+          <div class="remote-section-title">频道</div>
+          <div class="remote-row">
+            <button class="remote-btn remote-btn-wide" onclick="sendRemote('prev_channel')" title="上一个频道">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" fill="currentColor"/></svg>
+              <span>上一频道</span>
+            </button>
+            <button class="remote-btn remote-btn-wide" onclick="sendRemote('next_channel')" title="下一个频道">
+              <span>下一频道</span>
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 播放控制 -->
+        <div class="remote-section">
+          <div class="remote-section-title">播放</div>
+          <div class="remote-grid">
+            <button class="remote-btn" onclick="sendRemote('play_pause')" title="播放 / 暂停">
+              <svg viewBox="0 0 24 24" width="24" height="24"><path d="M8 5v14l11-7z" fill="currentColor"/><path d="M14 5h2v14h-2z" fill="currentColor" opacity="0.5"/></svg>
+            </button>
+            <button class="remote-btn" onclick="sendRemote('stop')" title="停止播放">
+              <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" fill="currentColor"/></svg>
+            </button>
+            <button class="remote-btn" onclick="sendRemote('seek_backward')" title="后退 30 秒">
+              <svg viewBox="0 0 24 24" width="24" height="24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z" fill="currentColor"/></svg>
+              <span style="font-size:11px">-30s</span>
+            </button>
+            <button class="remote-btn" onclick="sendRemote('seek_forward')" title="前进 30 秒">
+              <span style="font-size:11px">+30s</span>
+              <svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 18l8.5-6L4 6v12zm9.5-12v12l8.5-6-8.5-6z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 音量控制 -->
+        <div class="remote-section">
+          <div class="remote-section-title">音量</div>
+          <div class="remote-grid">
+            <button class="remote-btn" onclick="sendRemote('vol_up')" title="音量 +">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05A4.5 4.5 0 0016.5 12z" fill="currentColor"/></svg>
+              <span style="font-size:12px">+</span>
+            </button>
+            <button class="remote-btn" onclick="sendRemote('vol_down')" title="音量 -">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/></svg>
+              <span style="font-size:12px">-</span>
+            </button>
+            <button class="remote-btn" onclick="sendRemote('mute')" title="静音">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 9v6h4l5 5V4L7 9H3zm13.59 3l2.7-2.71-1.41-1.41L15.18 10.6 12.47 7.9 11.06 9.3l2.71 2.71-2.71 2.71 1.41 1.41 2.71-2.71 2.7 2.71 1.41-1.41z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 功能键 -->
+        <div class="remote-section">
+          <div class="remote-section-title">功能</div>
+          <div class="remote-grid">
+            <button class="remote-btn" onclick="sendRemote('menu')" title="打开/关闭菜单面板">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/></svg>
+              <span style="font-size:11px">菜单</span>
+            </button>
+            <button class="remote-btn" onclick="sendRemote('back')" title="返回 / 退出回看">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="currentColor"/></svg>
+              <span style="font-size:11px">返回</span>
+            </button>
+            <button class="remote-btn" onclick="sendRemote('osd')" title="显示 OSD 信息">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z" fill="currentColor"/></svg>
+              <span style="font-size:11px">OSD</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 状态提示 -->
+        <div class="remote-status" id="remoteStatus">就绪：点击按钮即可控制 TV 端</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Toast -->
@@ -890,6 +1091,41 @@ async function apiPost(path, data) {
     console.error('POST', path, e);
     return null;
   }
+}
+
+// ====== 虚拟遥控器 ======
+// 命令节流：相同命令在 200ms 内只发送一次（防止快速点击重复触发）
+let _lastRemoteCmd = { cmd: '', ts: 0 };
+async function sendRemote(cmd) {
+  const now = Date.now();
+  if (_lastRemoteCmd.cmd === cmd && now - _lastRemoteCmd.ts < 200) return;
+  _lastRemoteCmd = { cmd, ts: now };
+  const statusEl = document.getElementById('remoteStatus');
+  if (statusEl) {
+    statusEl.textContent = '发送中：' + cmd;
+    statusEl.className = 'remote-status';
+  }
+  const d = await apiPost('/api/remote/' + encodeURIComponent(cmd), {});
+  if (d && d.success) {
+    if (statusEl) {
+      statusEl.textContent = '已发送：' + cmd;
+      statusEl.className = 'remote-status ok';
+    }
+  } else {
+    if (statusEl) {
+      const err = (d && d.error) ? d.error : '发送失败';
+      statusEl.textContent = '错误：' + err;
+      statusEl.className = 'remote-status err';
+    }
+  }
+  // 2 秒后恢复就绪状态
+  clearTimeout(window._remoteStatusTimer);
+  window._remoteStatusTimer = setTimeout(() => {
+    if (statusEl) {
+      statusEl.textContent = '就绪：点击按钮即可控制 TV 端';
+      statusEl.className = 'remote-status';
+    }
+  }, 2000);
 }
 
 async function apiDelete(path) {
@@ -1216,8 +1452,12 @@ async function loadChannels(page) {
   el.innerHTML = '<div class="empty-state"><div class="loading"></div></div>';
   document.getElementById('channelPager').innerHTML = '';
   const d = await apiGet('/api/channels?' + params.toString());
-  if (!d || !d.success) {
-    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载失败</div></div>';
+  if (!d) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载失败：网络错误或超时</div></div>';
+    return;
+  }
+  if (!d.success) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="text">加载失败：' + escHtml(d.error || '未知错误') + '</div></div>';
     return;
   }
   // 填充分组下拉（保留当前选择）

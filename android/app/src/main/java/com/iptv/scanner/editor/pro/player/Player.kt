@@ -45,7 +45,9 @@ data class PlayerCapabilities(
     val supportsOsd: Boolean = false,
     val supportsAddSubtitleFile: Boolean = false,
     val supportsSpeedControl: Boolean = true,
-    val supportsTrackList: Boolean = false
+    val supportsTrackList: Boolean = false,
+    /** 是否支持运行时切换硬件解码/软件解码 */
+    val supportsHardwareDecodeSwitch: Boolean = false
 ) {
     /** 是否支持任何画面调整（亮度/对比度/饱和度/色调/Gamma） */
     val supportsVideoEq: Boolean
@@ -392,6 +394,28 @@ interface Player {
      * UI 层的 MediaBadgesRow 通过 key 读取，缺失的 key 显示 N/A。
      */
     fun getMediaInfo(): Map<String, String?> = emptyMap()
+
+    // -----------------------------------------------------------------
+    // 硬件解码切换（通用）
+    // -----------------------------------------------------------------
+
+    /**
+     * 切换硬件/软件解码。
+     * - MPV：通过 hwdec 属性切换（auto-copy/no）
+     * - VLC：通过 media.setHWDecoderEnabled + 重新播放
+     * - IJK：通过 mediacodec option + 重新播放
+     * - ExoPlayer：通过重建 ExoPlayer + RenderersFactory 切换
+     *
+     * @param enabled true=硬件解码，false=软件解码
+     * @return 是否切换成功（部分播放器可能需要重建实例，失败时返回 false）
+     */
+    fun setHardwareDecode(enabled: Boolean): Boolean = false
+
+    /**
+     * 查询当前是否使用硬件解码。
+     * 默认返回 true（大多数播放器默认硬解）。
+     */
+    fun isHardwareDecodeEnabled(): Boolean = true
 
     // -----------------------------------------------------------------
     // 播放状态保存/恢复（用于切换播放器时保持连续性）

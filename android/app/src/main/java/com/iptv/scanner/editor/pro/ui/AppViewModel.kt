@@ -146,6 +146,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _player.value = newPlayer
         _playerType.value = newType
         userPrefs.setPlayerType(newType.name)
+        // 同步硬件解码状态（新播放器的默认值）
+        _hardwareDecode.value = newPlayer.isHardwareDecodeEnabled()
         // 5. 保存待恢复状态，等 View 重建后 attachView 完成再恢复
         pendingRestoreState = savedState
         showOsd("播放器", "已切换到 ${newType.displayName}，重新加载中...")
@@ -347,6 +349,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _currentHwdec = MutableStateFlow(userPrefs.getHwdec())
     val currentHwdec: StateFlow<String> = _currentHwdec.asStateFlow()
 
+    /** 当前是否使用硬件解码（所有播放器内核通用，UI 通过 collectAsState 自动响应） */
+    private val _hardwareDecode = MutableStateFlow(userPrefs.getHwdec() != "no")
+    val hardwareDecode: StateFlow<Boolean> = _hardwareDecode.asStateFlow()
+
     // 局域网管理服务器
     private val _adminServerUrl = MutableStateFlow("")
     val adminServerUrl: StateFlow<String> = _adminServerUrl.asStateFlow()
@@ -358,6 +364,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _adminCountdown = MutableStateFlow(0)
     val adminCountdown: StateFlow<Int> = _adminCountdown.asStateFlow()
     private var adminCountdownJob: Job? = null
+
+    /** 虚拟遥控器命令轮询协程 */
+    private var remotePollJob: Job? = null
 
     // -----------------------------------------------------------------
     // 更多功能面板（主菜单 → 播放 → 视频/音频/字幕/播放/截图/视图/关于）
@@ -2471,10 +2480,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // -----------------------------------------------------------------
     // HDR 模式切换（与 PC 端 _apply_hdr_on_file_loaded / _set_hdr_mode 对齐）
     //
-    // Android 端简化为 4 种模式：DISABLE / AUTO / TONEMAP / PASSTHROUGH
+    // Android 端 4 种模式：DISABLE / AUTO / TONEMAP / PASSTHROUGH
     // - 不改变 vo（保持用户持久化选择），只在文件加载时应用 HDR 配置
-    // - 不支持 d3d11-output-csp（D3D11 专属）和 target-colorspace-hint（vo 不支持）
-    // - AUTO 模式：Android 端检测系统 HDR 较复杂，固定走 tonemap（与 PC 端 fallback 一致）
+    // - PASSTHROUGH 使用 target-colorspace-hint 让 Android 系统自动切换 HDR 显示模式
+    // - AUTO 模式：检测设备 HDR 能力，支持则直通，不支持则色调映射
+    // - 支持 HDR10/HDR10+/HLG/WCG（bt.2020 色域）/杜比视界（8.1 版本兼容）
     // -----------------------------------------------------------------
 
     /**
@@ -2491,9 +2501,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         val modeName = when (mode) {
             HdrMode.DISABLE -> "禁用 HDR（强制 SDR）"
-            HdrMode.AUTO -> "自动（系统未启用 HDR → tonemap）"
+            HdrMode.AUTO -> "自动（按设备能力选择直通或色调映射）"
             HdrMode.TONEMAP -> "HDR→SDR 色调映射"
-            HdrMode.PASSTHROUGH -> "HDR 直通（PQ 输出）"
+            HdrMode.PASSTHROUGH -> "HDR 直通（系统自动切换 HDR 显示）"
         }
         showOsd("HDR 模式：$modeName")
         Log.i(TAG, "HDR 模式切换：$mode")
@@ -2507,9 +2517,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * 1. disable → 重置为 SDR 默认值（target-prim=bt.709, target-trc=bt.1886）
      * 2. 非 disable 时检测视频是否 HDR（gamma 含 pq/hlg 或 sig-peak > 100）
      *    - 非 HDR 视频 → 重置 SDR 默认值
-     *    - HDR 视频 + tonemap → 色调映射到 SDR
-     *    - HDR 视频 + passthrough → PQ 直通
-     *    - HDR 视频 + auto → Android 端固定 tonemap（系统 HDR 检测复杂）
+     *    - HDR 视频 + tonemap → 色调映射到 SDR（保留 bt.2020 广色域）
+     *    - HDR 视频 + passthrough → 直通（清空 target 参数 + target-colorspace-hint）
+     *    - HDR 视频 + auto → 检测设备 HDR 能力，支持则直通，不支持则色调映射
      */
     fun applyHdrOnFileLoaded() {
         val mode = _hdrMode.value
@@ -2540,13 +2550,48 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
 
             when (mode) {
-                HdrMode.TONEMAP, HdrMode.AUTO -> applyTonemapConfig(mpv)
+                HdrMode.TONEMAP -> applyTonemapConfig(mpv)
                 HdrMode.PASSTHROUGH -> applyPassthroughConfig(mpv)
+                HdrMode.AUTO -> {
+                    // AUTO 模式：检测设备 HDR 能力
+                    if (isDeviceHdrSupported()) {
+                        applyPassthroughConfig(mpv)
+                        Log.i(TAG, "HDR 配置：AUTO → 设备支持 HDR，使用直通")
+                    } else {
+                        applyTonemapConfig(mpv)
+                        Log.i(TAG, "HDR 配置：AUTO → 设备不支持 HDR，使用色调映射")
+                    }
+                }
                 else -> resetHdrParams(mpv)
             }
             Log.i(TAG, "HDR 配置：mode=$mode 应用完成")
         } catch (e: Exception) {
             Log.e(TAG, "应用 HDR 设置失败", e)
+        }
+    }
+
+    /**
+     * 检测设备是否支持 HDR 显示。
+     * 通过 Display.getHdrCapabilities() 检测（Android 7.0+）。
+     */
+    private fun isDeviceHdrSupported(): Boolean {
+        return try {
+            val display = (getApplication() as android.app.Application)
+                .getSystemService(android.content.Context.WINDOW_SERVICE)
+                .let { it as? android.view.WindowManager }
+                ?.defaultDisplay
+            if (display == null) return false
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                val caps = display.hdrCapabilities
+                val types = caps?.supportedHdrTypes ?: IntArray(0)
+                // HDR_TYPE_DOLBY_VISION=1, HDR_TYPE_HDR10=2, HDR_TYPE_HLG=3, HDR_TYPE_HDR10_PLUS=4
+                types.isNotEmpty()
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "HDR 能力检测失败: ${e.message}")
+            false
         }
     }
 
@@ -2562,12 +2607,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         mpv.setPropertyString("hdr10-opt", "no")
         mpv.setPropertyString("target-prim", "bt.709")
         mpv.setPropertyString("target-trc", "bt.1886")
+        mpv.setPropertyString("target-colorspace-hint", "no")
+        mpv.setPropertyString("gamut-mapping-mode", "auto")
     }
 
     /**
      * HDR→SDR 色调映射配置（与 PC 端 _apply_tonemap_config 对齐）。
-     * 关键：hdr-compute-peak=no 信任 HDR10+ 动态元数据，不自行计算峰值。
-     * tone-mapping=auto 让 mpv 自动选择算法（HDR10+→st2094-40, HDR10/HLG→bt.2390）。
+     * 关键改进：
+     * - target-prim=bt.2020 保留广色域（WCG），在支持广色域的设备上显示更丰富色彩
+     * - target-trc=bt.1886 SDR 伽马，确保 SDR 显示正确
+     * - tone-mapping=auto 让 mpv 自动选择算法（HDR10+→st2094-40, HDR10/HLG→bt.2390）
+     * - hdr-compute-peak=no 信任 HDR10+ 动态元数据，不自行计算峰值
+     * - gamut-mapping-mode=perceptual 感知映射，减少色域裁剪损失
      */
     private fun applyTonemapConfig(mpv: Player) {
         mpv.setPropertyString("tone-mapping", "auto")
@@ -2575,20 +2626,37 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         mpv.setPropertyString("tone-mapping-desat", "0.5")
         mpv.setPropertyString("hdr-compute-peak", "no")
         mpv.setPropertyString("hdr10-opt", "yes")
-        mpv.setPropertyString("target-prim", "bt.709")
+        mpv.setPropertyString("target-prim", "bt.2020")
         mpv.setPropertyString("target-trc", "bt.1886")
+        mpv.setPropertyString("target-colorspace-hint", "no")
+        mpv.setPropertyString("gamut-mapping-mode", "perceptual")
     }
 
     /**
      * HDR 直通配置（与 PC 端 _apply_passthrough_config 对齐）。
-     * 显式指定 HDR 目标色域和传递特性（PQ OETF 依赖明确 target-trc 才能正确转换）。
+     * 关键改进：
+     * - 清空 target-prim/target-trc，让 mpv 直通视频原生色彩空间（不转换）
+     * - 启用 target-colorspace-hint=yes，让 Android 系统自动切换 HDR 显示模式
+     * - tone-mapping=clip 避免不必要的色调映射
+     * - hdr10-opt=yes 保留 HDR10+ 动态元数据
+     *
+     * 注意：之前设置 target-trc=pq 会导致 mpv 把输出强制转换为 PQ EOTF，
+     * 但 Android SurfaceView 默认使用 sRGB 显示，PQ 输出会导致颜色错误（过暗/过亮）。
+     * 正确做法是清空 target 参数，让系统根据 target-colorspace-hint 自动切换。
      */
     private fun applyPassthroughConfig(mpv: Player) {
         mpv.setPropertyString("tone-mapping", "clip")
+        mpv.setPropertyString("tone-mapping-mode", "")
+        mpv.setPropertyString("tone-mapping-desat", "0")
         mpv.setPropertyString("hdr-compute-peak", "no")
         mpv.setPropertyString("hdr10-opt", "yes")
-        mpv.setPropertyString("target-prim", "bt.2020")
-        mpv.setPropertyString("target-trc", "pq")
+        // 清空 target 参数，让 mpv 直通视频原生色彩空间（PQ/HLG 不转换）
+        mpv.setPropertyString("target-prim", "")
+        mpv.setPropertyString("target-trc", "")
+        // 关键：启用 target-colorspace-hint 让 Android 系统自动切换 HDR 显示模式
+        // mpv 会通过 SurfaceView 传递 HDR 元数据给系统，系统自动切换到 HDR 显示
+        mpv.setPropertyString("target-colorspace-hint", "yes")
+        mpv.setPropertyString("gamut-mapping-mode", "clip")
     }
 
     // -----------------------------------------------------------------
@@ -2892,6 +2960,46 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _currentHwdec.value = hwdec
         (_player.value as? MpvController)?.setVoAndHwdec(_currentVo.value, hwdec)
         showOsd("播放器设置", "hwdec=$hwdec")
+    }
+
+    /**
+     * 切换硬件/软件解码（通用方法，适用于所有播放器内核）。
+     *
+     * - MPV：通过 hwdec 属性切换（auto-copy/no），同时更新 _currentHwdec 状态
+     * - VLC：通过 media.setHWDecoderEnabled + 重新播放
+     * - IJK：通过 mediacodec option + 重新播放
+     * - ExoPlayer：通过重建 ExoPlayer + RenderersFactory 切换
+     *
+     * @param enabled true=硬件解码，false=软件解码
+     */
+    fun setHardwareDecode(enabled: Boolean) {
+        val player = _player.value ?: return
+        val success = try {
+            player.setHardwareDecode(enabled)
+        } catch (e: Exception) {
+            Log.e(TAG, "setHardwareDecode failed", e)
+            false
+        }
+        if (success) {
+            // MPV 模式下同步更新 _currentHwdec 状态（UI 显示用）
+            if (player is MpvController) {
+                val newHwdec = if (enabled) {
+                    if (_currentVo.value == "mediacodec_embed") "mediacodec" else "auto-copy"
+                } else "no"
+                userPrefs.setHwdec(newHwdec)
+                _currentHwdec.value = newHwdec
+            }
+            // 更新通用硬件解码状态（UI 自动响应）
+            _hardwareDecode.value = enabled
+            showOsd("播放器设置", if (enabled) "硬件解码" else "软件解码")
+        } else {
+            showOsd("播放器设置", "切换失败（当前 vo 不支持软解）")
+        }
+    }
+
+    /** 查询当前播放器是否使用硬件解码 */
+    fun isHardwareDecodeEnabled(): Boolean {
+        return _player.value?.isHardwareDecodeEnabled() ?: true
     }
 
     /**
@@ -3275,8 +3383,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * 启动自动停止倒计时（5 分钟 = 300 秒）。
      * 避免长时间占用端口和电量；用户可手动停止或重新启动重置倒计时。
+     * 若用户在设置中关闭了自动关闭，则不启动倒计时。
+     * 无论是否自动关闭，都启动虚拟遥控器命令轮询。
      */
     private fun startAdminCountdown() {
+        // 启动虚拟遥控器命令轮询（无论是否自动关闭）
+        startRemoteCommandPolling()
+        // 检查用户是否启用了自动关闭
+        if (!userPrefs.getAdminAutoStop()) {
+            _adminCountdown.value = 0  // 0 表示不自动关闭
+            return
+        }
         adminCountdownJob?.cancel()
         _adminCountdown.value = 300
         adminCountdownJob = viewModelScope.launch {
@@ -3291,9 +3408,118 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** 设置局域网管理是否自动关闭 */
+    fun setAdminAutoStop(enabled: Boolean) {
+        userPrefs.setAdminAutoStop(enabled)
+        if (enabled) {
+            // 开启自动关闭：如果服务器正在运行，启动倒计时
+            if (_adminServerRunning.value && _adminCountdown.value == 0) {
+                startAdminCountdown()
+            }
+        } else {
+            // 关闭自动关闭：取消倒计时
+            adminCountdownJob?.cancel()
+            _adminCountdown.value = 0
+            if (_adminServerRunning.value) {
+                showOsd("局域网管理", "已关闭自动停止")
+            }
+        }
+    }
+
+    /** 获取局域网管理是否自动关闭 */
+    fun getAdminAutoStop(): Boolean = userPrefs.getAdminAutoStop()
+
+    /**
+     * 启动虚拟遥控器命令轮询。
+     * 每 100ms 轮询 Python 端的命令队列，有命令时执行对应操作。
+     * 在 admin 服务器启动后调用，停止时取消轮询。
+     */
+    private fun startRemoteCommandPolling() {
+        remotePollJob?.cancel()
+        remotePollJob = viewModelScope.launch {
+            while (isActive) {
+                try {
+                    val result = withContext(Dispatchers.IO) { repository.pollRemoteCommand() }
+                    result.onSuccess { resp ->
+                        resp.cmd?.let { handleRemoteCommand(it) }
+                    }
+                } catch (e: Exception) {
+                    // 轮询失败不中断，继续下一轮
+                }
+                delay(100)
+            }
+        }
+    }
+
+    /** 停止虚拟遥控器命令轮询 */
+    private fun stopRemoteCommandPolling() {
+        remotePollJob?.cancel()
+        remotePollJob = null
+    }
+
+    /**
+     * 处理虚拟遥控器命令。
+     * 与 MainActivityCompose.onKeyDown 的 DPAD 按键处理逻辑对齐。
+     */
+    private fun handleRemoteCommand(cmd: String) {
+        when (cmd) {
+            "up" -> prevChannel()
+            "down" -> nextChannel()
+            "left" -> {
+                val mode = playbackState.value.mode
+                if (mode.isCatchupOrTimeshift || currentChannel.value == null) {
+                    mpv.seekRelative(-10.0)
+                } else {
+                    toggleTvUnifiedPanel()
+                }
+            }
+            "right" -> {
+                val mode = playbackState.value.mode
+                if (mode.isCatchupOrTimeshift || currentChannel.value == null) {
+                    mpv.seekRelative(10.0)
+                } else {
+                    toggleTvUnifiedPanel()
+                }
+            }
+            "ok" -> {
+                if (!controlsVisible.value) {
+                    showControlsAutoHide()
+                } else {
+                    mpv.togglePause()
+                }
+            }
+            "back" -> {
+                if (closeAnyPanel()) return
+                if (playbackState.value.mode.isCatchupOrTimeshift) {
+                    exitCatchup()
+                }
+            }
+            "menu" -> {
+                if (uiMode.value.isTV) toggleTvUnifiedPanel() else toggleMenuPanel()
+            }
+            "play" -> mpv.setPause(false)
+            "pause" -> mpv.setPause(true)
+            "play_pause" -> mpv.togglePause()
+            "stop" -> {
+                if (playbackState.value.mode.isCatchupOrTimeshift) exitCatchup() else stopPlay()
+            }
+            "mute" -> mpv.toggleMute()
+            "vol_up" -> mpv.adjustVolume(5)
+            "vol_down" -> mpv.adjustVolume(-5)
+            "seek_forward" -> mpv.seekRelative(30.0)
+            "seek_backward" -> mpv.seekRelative(-30.0)
+            "osd" -> showCurrentOsd()
+            "prev_channel" -> prevChannel()
+            "next_channel" -> nextChannel()
+            else -> Log.w(TAG, "未知遥控命令: $cmd")
+        }
+    }
+
     fun stopAdminServer() {
         adminCountdownJob?.cancel()
         _adminCountdown.value = 0
+        // 停止虚拟遥控器命令轮询
+        stopRemoteCommandPolling()
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { repository.stopAdminServer() }
             result.onSuccess {

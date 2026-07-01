@@ -318,3 +318,9 @@ data class AdminServerInfo(
     @SerialName("already_running") val alreadyRunning: Boolean = false,
     @SerialName("error") val error: String = "",
 )
+
+/** 虚拟遥控器命令轮询响应 */
+@Serializable
+data class RemoteCommandResponse(
+    @SerialName("cmd") val cmd: String? = null,
+)
