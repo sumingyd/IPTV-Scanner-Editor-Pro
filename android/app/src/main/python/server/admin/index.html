@@ -1262,17 +1262,30 @@ async function loadSources() {
     const url = s.url || '';
     const lastUpdate = s.last_update ? new Date(s.last_update).toLocaleString() : '从未更新';
     const enabled = s.enabled !== false;
+    const toggleText = enabled ? '禁用' : '启用';
+    const toggleClass = enabled ? 'btn-outline btn-sm' : 'btn-primary btn-sm';
     return '<div class="list-item">' +
       '<div class="info">' +
-      '<div class="name">' + escHtml(name) + '</div>' +
+      '<div class="name">' + escHtml(name) + ' ' + (enabled ? '<span class="badge valid">启用</span>' : '<span class="badge invalid">禁用</span>') + '</div>' +
       '<div class="url">' + escHtml(url) + '</div>' +
-      '<div class="meta">最后更新: ' + lastUpdate + ' · ' + (enabled ? '已启用' : '已禁用') + '</div>' +
+      '<div class="meta">最后更新: ' + lastUpdate + '</div>' +
       '</div>' +
       '<div class="actions">' +
+      '<button class="btn ' + toggleClass + '" onclick="toggleSource(' + i + ', ' + !enabled + ')">' + toggleText + '</button>' +
       '<button class="btn btn-outline btn-sm" onclick="deleteSource(' + i + ')">删除</button>' +
       '</div>' +
       '</div>';
   }).join('') + '</div>';
+}
+
+async function toggleSource(idx, enabled) {
+  const d = await apiPut('/api/sources/' + idx, { enabled: enabled });
+  if (d && d.success) {
+    showToast(enabled ? '已启用' : '已禁用', 'success');
+    await loadSources();
+  } else {
+    showToast((d && d.error) || '操作失败', 'error');
+  }
 }
 
 async function addSource() {

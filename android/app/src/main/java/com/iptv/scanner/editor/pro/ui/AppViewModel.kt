@@ -30,6 +30,8 @@ import com.iptv.scanner.editor.pro.mpv.MpvController
 import com.iptv.scanner.editor.pro.player.CatchupHelper
 import com.iptv.scanner.editor.pro.player.CatchupProgram
 import com.iptv.scanner.editor.pro.player.ExoPlayerController
+import com.iptv.scanner.editor.pro.player.FccHelper
+import com.iptv.scanner.editor.pro.player.FccService
 import com.iptv.scanner.editor.pro.player.IjkController
 import com.iptv.scanner.editor.pro.player.PlayMode
 import com.iptv.scanner.editor.pro.player.PlaybackState
@@ -85,6 +87,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repository = IptvRepository.getInstance()
     private val userPrefs = UserPrefs.getInstance().also { it.init(app) }
+    private val fccService = FccService()
 
     // -----------------------------------------------------------------
     // 多播放器架构：MPV / ExoPlayer / VLC / IJK 可切换
@@ -917,8 +920,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // 刷新当前 URL 的书签列表
         refreshCurrentBookmarks()
 
-        // 播放
-        mpv.playFile(channel.url)
+        // 切台前先停止当前播放，让 mpv 释放 hwdec 解码器资源。
+        // keep-open=yes 下不 stop 会导致旧解码器不释放，新文件 hwdec 初始化失败（黑屏）。
+        // 与 PC 端 mpv_player_service.py play() 对齐。
+        if (mpv.fileLoaded.value) {
+            mpv.stop()
+        }
+
+        // FCC 快速换台：向 FCC 代理发送 leave/join 通知（组播场景加速切台）。
+        // 与 PC 端 PlaybackController.play_channel() → fcc.on_channel_change() 对齐。
+        fccService.onChannelChange(channel.url)
+
+        // 播放（去除 URL 中的 ?fcc= 参数，mpv 不理解该查询参数）
+        val playUrl = FccHelper.extractOriginalUrl(channel.url)
+        mpv.playFile(playUrl)
 
         // 显示 OSD
         if (!silent) {
@@ -1020,6 +1035,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 停止播放 */
     fun stopPlay() {
         Log.i(TAG, "stopPlay")
+        fccService.onStop()
         mpv.stop()
         _playbackState.value = PlaybackState(mode = PlayMode.IDLE)
         _currentIdx.value = -1
@@ -2170,6 +2186,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Log.i(TAG, "resume: skip flag consumed for $url")
             return
         }
+        // 仅本地文件恢复续播位置（直播/网络流不恢复，避免 seek 到错误位置）
+        if (!ProgressHelper.isLocalFile(url)) return
         val resume = userPrefs.getResume(url) ?: return
         if (resume.position < 5) return
         if (resume.duration > 0 && resume.position + 3 >= resume.duration) return
@@ -2206,14 +2224,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * 自动保存当前播放位置。
-     * - 直播流（duration=0 或 >86400）不保存
+     * - 仅本地视频/音频文件保存时间戳（与 PC 端 _is_network_url 判断对齐）
+     * - 直播流（网络协议）不保存，避免 HLS 滑动窗口 duration 被误判为 VOD
      * - 未在播放（url 为空）不保存
      */
     private fun autoSaveResume() {
         if (currentPlaybackUrl.isEmpty()) return
+        // 仅本地文件保存续播位置（直播/网络流不保存）
+        if (!ProgressHelper.isLocalFile(currentPlaybackUrl)) return
         val pos = mpv.timePos.value
         val dur = mpv.duration.value
-        // 直播流不保存（与 Web 端 dur>86400 判断对齐）
         if (dur <= 0 || dur > 86400) return
         if (pos < 1) return
 

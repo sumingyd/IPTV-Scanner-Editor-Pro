@@ -482,6 +482,9 @@ class ServerContext:
                         continue
                     content = load_m3u_from_url_data(resp.content)
                     channels, _ = parse_m3u_content(content)
+                    # 更新该源的 last_update 时间戳（无论是否解析到频道，HTTP 拉取已成功）
+                    from datetime import datetime
+                    config.update_playlist_source_last_update(idx, datetime.now().isoformat())
                     if channels:
                         all_channels.extend(channels)
                     else:

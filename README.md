@@ -237,10 +237,10 @@
 - **远程控制**：通过浏览器访问频道列表和控制播放
 - **流代理**：`/stream/{id}` 路由提供频道流代理，支持直连播放
 - **管理后台**：`/admin/` 提供 8 个 Tab 的完整 Web 管理界面（PC/Linux/macOS/Android 通用）
-  - 订阅源管理、EPG 源管理、频道管理（列表/搜索/分页/分组筛选/CRUD/导入 M3U）
+  - 订阅源管理（启用/禁用切换、最后更新时间）、EPG 源管理、频道管理（列表/搜索/分页/分组筛选/CRUD/导入 M3U）
   - URL 范围扫描（实时状态轮询/结果列表）、频道映射管理（添加/删除/刷新远程）
-  - 节目单 EPG 浏览（频道列表+节目详情，当前节目高亮）、缓存管理（清空缩略图/截图/字幕/全部）
-  - **虚拟遥控器**：通过浏览器远程控制 TV 端（方向键/确定/频道切换/播放控制/音量/菜单/返回/OSD），100ms 轮询命令队列
+  - 节目单 EPG 浏览（自动加载频道列表+节目详情，当前节目高亮）、缓存管理（清空缩略图/截图/字幕/全部）
+  - **虚拟遥控器**：通过浏览器远程控制 TV 端（方向键/确定/频道切换/播放控制/音量/菜单/返回/OSD），100ms 轮询命令队列，2s 轮询显示当前播放状态（频道名/播放状态/内核/硬解软解/分辨率/编码/帧率/HDR/音量）
 - **PWA 支持**：移动端 UI 支持 PWA 安装，Service Worker 采用 network-first 缓存策略
 
 ### 📱 Android 移动端
@@ -253,7 +253,7 @@ Android 端采用 **Kotlin Compose + Chaquopy Python 两层架构**，与 PC 端
 | 业务层 | Python（Chaquopy 3.11） | 复用 PC 端 core/services 模块处理订阅/扫描/EPG/映射；按需启动 LAN admin 服务器 |
 
 #### 核心功能
-- **视频播放**：MPV Native 渲染，支持播放/暂停/停止、音量、倍速、画面比例、音轨/字幕切换、hwdec 切换
+- **视频播放**：MPV Native 渲染，支持播放/暂停/停止、音量、倍速、画面比例、音轨/字幕切换、hwdec 切换、**FCC 快速换台**（组播场景自动向 FCC 代理发送 LEAVE/JOIN 通知）
 - **HDR 模式切换**：禁用/自动/色调映射/直通 4 种模式，文件加载时自动检测 HDR（gamma=pq/hlg 或 sig-peak>1.0）并应用
   - `PASSTHROUGH`：清空 target-prim/target-trc + 启用 `target-colorspace-hint=yes`，让 Android 系统自动切换 HDR 显示模式
   - `TONEMAP`：保留 `target-prim=bt.2020` 广色域 + `target-trc=bt.1886` SDR 伽马，`tone-mapping=auto`（HDR10+→st2094-40，HDR10/HLG→bt.2390）
@@ -273,7 +273,7 @@ Android 端采用 **Kotlin Compose + Chaquopy Python 两层架构**，与 PC 端
 - **播放设置**：循环模式（单曲/列表/强制）、**随机播放 shuffle**（应用层随机选索引，避免短期重复，支持上一频道回退）、A-B 循环、逐帧、速度、章节
 - **视频设置**：图像调整（亮度/对比度/饱和度/色调/Gamma）、旋转、翻转、3D/360
 - **频道扫描**：独立 `StandaloneScanner`（requests + threading），支持 IP 范围扫描
-- **订阅管理**：多源管理、独立缓存、状态显示（优先 `/api/sources/status` 的 channels 字段）、添加订阅源自动触发加载
+- **订阅管理**：多源管理、独立缓存、启用/禁用切换、状态显示（优先 `/api/sources/status` 的 channels 字段）、添加订阅源自动触发加载
 - **LAN 管理后台**：启动局域网 admin 服务器，二维码扫码访问（自动展开），5 分钟自动停止 + 倒计时（可关闭自动停止），端口冲突自动递增，虚拟遥控器命令轮询
 - **画中画（PiP 增强）**：`onUserLeaveHint()` 自动进入 PiP，按视频实际宽高比设置窗口（消除黑边）、sourceRectHint 动画过渡、Android 12+ setAutoEnterEnabled + setSeamlessResizeEnabled、进入 PiP 自动关闭面板隐藏控制层
 - **全屏切换**：沉浸式全屏

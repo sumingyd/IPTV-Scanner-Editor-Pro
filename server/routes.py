@@ -167,6 +167,7 @@ def create_app() -> web.Application:
     app.router.add_post('/api/channels/import', handle_channels_import)
     app.router.add_get('/api/sources', handle_sources_list)
     app.router.add_post('/api/sources', handle_sources_add)
+    app.router.add_put('/api/sources/{id}', handle_sources_update)
     app.router.add_delete('/api/sources/{id}', handle_sources_delete)
     app.router.add_post('/api/sources/reload', handle_sources_reload)
     app.router.add_get('/api/sources/status', handle_sources_status)
@@ -638,6 +639,32 @@ async def handle_sources_add(request):
     ctx = get_context()
     if ctx and ctx.is_standalone():
         ctx.reload_sources('')  # url 为空 → 加载所有源
+    return _json_success()
+
+
+async def handle_sources_update(request):
+    """更新订阅源字段（如 enabled / name / url）。
+    支持多选启用/禁用：每个源可独立切换 enabled 状态。
+    """
+    config = get_config()
+    if not config:
+        return _json_error('配置未初始化', 503)
+    try:
+        idx = int(request.match_info['id'])
+    except ValueError:
+        return _json_error('无效的源ID')
+    data = await request.json()
+    try:
+        sources = config.load_playlist_sources()
+    except Exception:
+        sources = []
+    if not (0 <= idx < len(sources)):
+        return _json_error('源不存在', 404)
+    # 仅允许更新白名单字段，避免注入意外字段
+    for key in ('enabled', 'name', 'url'):
+        if key in data:
+            sources[idx][key] = data[key]
+    config.save_playlist_sources(sources)
     return _json_success()
 
 
