@@ -40,8 +40,8 @@ import kotlinx.coroutines.launch
  *
  * TV 模式 DPAD 按键处理（onKeyDown）：
  * - DPAD_UP/DOWN → 上一/下一频道
- * - DPAD_LEFT → 切换频道列表面板
- * - DPAD_RIGHT → 切换 EPG 面板
+ * - DPAD_LEFT → 切换 EPG 面板（左侧抽屉）
+ * - DPAD_RIGHT → 切换频道列表面板（右侧抽屉）
  * - DPAD_CENTER/ENTER → 播放/暂停 或 确认
  * - MENU（KEYCODE_MENU=82）→ 切换主菜单
  * - BACK → 关闭面板 / 退出
@@ -179,11 +179,11 @@ class MainActivityCompose : ComponentActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                viewModel.toggleChannelsPanel()
+                viewModel.toggleEpgPanel()
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                viewModel.toggleEpgPanel()
+                viewModel.toggleChannelsPanel()
                 return true
             }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {

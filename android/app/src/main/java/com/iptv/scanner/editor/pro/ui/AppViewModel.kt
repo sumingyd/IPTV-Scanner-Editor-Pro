@@ -2733,6 +2733,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (_sourceManagerOpen.value) {
             loadSources()
             loadEpgSources()
+            // 刷新频道列表：用户可能通过局域网管理页面在电脑端添加了订阅源，
+            // 服务器端已自动加载频道，这里同步到 Android 端
+            loadChannels()
             refreshAdminServerStatus()
         } else {
             // 关闭面板时自动显示控制层

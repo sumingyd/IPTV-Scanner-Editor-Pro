@@ -1151,7 +1151,9 @@ def start_admin_server(port=8080):
         global _admin_server_running, _admin_loop, _admin_server_error, _admin_server_task
         try:
             import asyncio
+            import time
             from server.routes import create_app
+            from server.app import get_server
             from aiohttp import web
 
             app = create_app()
@@ -1195,6 +1197,10 @@ def start_admin_server(port=8080):
                     import re as _re
                     _admin_server_url = _re.sub(r':\d+$', f':{actual_port}', _admin_server_url)
                 _admin_server_running = True
+                # 同步标记 IPTVServer 为运行中，使 /api/status 返回 running（管理页面状态显示正确）
+                svr = get_server()
+                svr._running = True
+                svr._start_time = time.time()
                 _log(f'Admin server running at {_admin_server_url} (port={actual_port})')
                 try:
                     while True:
@@ -1207,6 +1213,9 @@ def start_admin_server(port=8080):
                     await runner.cleanup()
                     _log('Admin server runner.cleanup() done')
                     _admin_server_running = False
+                    # 同步标记 IPTVServer 为已停止
+                    svr = get_server()
+                    svr._running = False
 
             # 用 task 模式：保存 task 引用，外部用 task.cancel() 优雅取消
             # task.cancel() 触发 CancelledError → _run() 的 except 捕获 → finally 执行 runner.cleanup()

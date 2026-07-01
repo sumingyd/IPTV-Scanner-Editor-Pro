@@ -475,7 +475,7 @@ private fun LanAdminInfoBar(
                         color = Color.White
                     )
                     Text(
-                        text = "$url/mobile/",
+                        text = "$url/",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFA5D6A7),
                         maxLines = 1,
@@ -521,7 +521,7 @@ private fun LanAdminInfoBar(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     // 生成二维码
-                    val qrBitmap = remember(url) { QrCodeUtil.generate("$url/mobile/", 512) }
+                    val qrBitmap = remember(url) { QrCodeUtil.generate("$url/", 512) }
                     if (qrBitmap != null) {
                         Image(
                             bitmap = qrBitmap.asImageBitmap(),
