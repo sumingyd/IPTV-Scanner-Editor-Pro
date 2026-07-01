@@ -1,0 +1,107 @@
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 每周日 00:00 UTC 定期扫描
+    - cron: '0 0 * * 0'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # -----------------------------------------------------------------
+  # Python 分析（PC 端业务逻辑，autobuild 模式）
+  # -----------------------------------------------------------------
+  analyze-python:
+    name: Analyze Python
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          build-mode: autobuild
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:python"
+
+  # -----------------------------------------------------------------
+  # Java/Kotlin 分析（Android 端，manual 构建模式）
+  #
+  # 为什么用 manual 而不是 autobuild：
+  #   项目根目录没有 Gradle 构建脚本（Gradle 在 android/ 子目录），
+  #   CodeQL autobuild 找不到构建配置，回退到 none 模式导致无法分析。
+  #   manual 模式下我们手动运行 Gradle 编译，CodeQL 拦截编译器调用。
+  #
+  # 为什么用 compileDebugSources 而不是 assembleDebug：
+  #   assembleDebug 打包 APK 需要 jniLibs 下的 .so 原生库（mpv/ffmpeg），
+  #   而下载 4 种架构的 .so 文件耗时较长。compileDebugSources 只编译
+  #   Kotlin/Java 源码，不需要 .so 文件，足够 CodeQL 建立代码数据库。
+  # -----------------------------------------------------------------
+  analyze-kotlin:
+    name: Analyze Java/Kotlin
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Python 3.11 (for Chaquopy)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: yes | sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Create local.properties
+        working-directory: android
+        run: |
+          PYTHON_PATH=$(which python3.11 2>/dev/null || which python3 2>/dev/null || echo "python3")
+          echo "chaquopy.buildPython=$PYTHON_PATH" > local.properties
+          echo "Using Python: $PYTHON_PATH"
+
+      - name: Grant execute permission for gradlew
+        working-directory: android
+        run: chmod +x gradlew
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java
+          build-mode: manual
+
+      - name: Build Kotlin/Java sources
+        working-directory: android
+        run: ./gradlew compileDebugSources --no-daemon
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:java"
