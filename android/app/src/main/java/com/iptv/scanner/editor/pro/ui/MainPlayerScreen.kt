@@ -124,6 +124,13 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         }
     }
 
+    // TV 模式初始自动隐藏控制面板（几秒后自动隐藏，避免一直显示）
+    LaunchedEffect(uiMode) {
+        if (uiMode.isTV) {
+            viewModel.showControlsAutoHide()
+        }
+    }
+
     // 视频宽高比：用于 SurfaceView 比例保持（解决竖屏下视频被拉长铺满的问题）。
     // 根因：vo=mediacodec_embed 直接用 MediaCodec 渲染到 Surface buffer，不经过 GPU 渲染管线，
     // mpv 的 keepaspect/keepaspect-window 选项对 mediacodec_embed 不生效。

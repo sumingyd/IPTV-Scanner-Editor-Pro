@@ -98,6 +98,8 @@ fun ControlPanel(viewModel: AppViewModel) {
         }
     }
 
+    val isTV = viewModel.uiMode.value.isTV
+
     Surface(
         color = Color(0xCC000000),
         modifier = Modifier.fillMaxWidth()
@@ -115,13 +117,14 @@ fun ControlPanel(viewModel: AppViewModel) {
                 videoWidth = videoWidth,
                 videoHeight = videoHeight,
                 fileLoaded = fileLoaded,
-                tick = mediaBadgeTick
+                tick = mediaBadgeTick,
+                isTV = isTV
             )
 
             Spacer(modifier = Modifier.height(6.dp))
 
             // -----------------------------------------------------------------
-            // 第 2 行：节目信息
+            // 第 2 行：节目信息 + 节目描述
             // -----------------------------------------------------------------
             ProgramInfoRow(
                 channel = currentChannel,
@@ -132,6 +135,20 @@ fun ControlPanel(viewModel: AppViewModel) {
                 videoHeight = videoHeight
             )
 
+            // 节目描述（有的话单独一行显示，TV 端更易读）
+            val prog = currentProgram.value
+            if (prog != null && prog.desc.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = prog.desc,
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 11.sp,
+                    maxLines = if (isTV) 3 else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // -----------------------------------------------------------------
@@ -139,23 +156,26 @@ fun ControlPanel(viewModel: AppViewModel) {
             // -----------------------------------------------------------------
             ProgressBar(viewModel = viewModel)
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // TV 模式下仅在有回看/时移退出按钮时才显示控制按钮行
+            if (!isTV || showExitCatchup) {
+                Spacer(modifier = Modifier.height(8.dp))
 
-            ControlButtonsRow(
-                paused = paused,
-                muted = muted,
-                volume = volume,
-                isTV = viewModel.uiMode.value.isTV,
-                showExitCatchup = showExitCatchup,
-                playbackMode = playbackState.mode,
-                onPlayPause = { mpv.togglePause() },
-                onStop = { viewModel.stopPlay() },
-                onPrev = { viewModel.prevChannel() },
-                onNext = { viewModel.nextChannel() },
-                onMute = { mpv.toggleMute() },
-                onVolumeChange = { mpv.setVolume(it.toInt()) },
-                onExitCatchup = { viewModel.exitCatchup() }
-            )
+                ControlButtonsRow(
+                    paused = paused,
+                    muted = muted,
+                    volume = volume,
+                    isTV = isTV,
+                    showExitCatchup = showExitCatchup,
+                    playbackMode = playbackState.mode,
+                    onPlayPause = { mpv.togglePause() },
+                    onStop = { viewModel.stopPlay() },
+                    onPrev = { viewModel.prevChannel() },
+                    onNext = { viewModel.nextChannel() },
+                    onMute = { mpv.toggleMute() },
+                    onVolumeChange = { mpv.setVolume(it.toInt()) },
+                    onExitCatchup = { viewModel.exitCatchup() }
+                )
+            }
         }
     }
 }
@@ -183,7 +203,8 @@ private fun MediaBadgesRow(
     videoWidth: Int,
     videoHeight: Int,
     fileLoaded: Boolean,
-    tick: Long
+    tick: Long,
+    isTV: Boolean = false
 ) {
     if (!fileLoaded) return
 
@@ -261,24 +282,25 @@ private fun MediaBadgesRow(
 
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(if (isTV) 8.dp else 6.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isTV) 6.dp else 4.dp)
     ) {
+        val badgeFontSize = if (isTV) 12.sp else 10.sp
         if (videoInfo.isNotEmpty()) {
-            Badge(text = videoInfo, color = Color(0xFFBDBDBD))
+            Badge(text = videoInfo, color = Color(0xFFBDBDBD), fontSize = badgeFontSize)
         }
         if (isHdr) {
-            Badge(text = if (gamma == "pq") "HDR10" else "HLG", color = Color(0xFFFF9800))
+            Badge(text = if (gamma == "pq") "HDR10" else "HLG", color = Color(0xFFFF9800), fontSize = badgeFontSize)
         }
         if (audioInfo.isNotEmpty()) {
-            Badge(text = audioInfo, color = Color(0xFFBDBDBD))
+            Badge(text = audioInfo, color = Color(0xFFBDBDBD), fontSize = badgeFontSize)
         }
         if (networkInfo.isNotEmpty()) {
-            Badge(text = networkInfo, color = Color(0xFFBDBDBD))
+            Badge(text = networkInfo, color = Color(0xFFBDBDBD), fontSize = badgeFontSize)
         }
         // 缓冲徽章：仅缓冲中显示（0 < bufState < 100）
         if (bufferingState in 1..99) {
-            Badge(text = "缓冲 $bufferingState%", color = Color(0xFF4CAF50))
+            Badge(text = "缓冲 $bufferingState%", color = Color(0xFF4CAF50), fontSize = badgeFontSize)
         }
     }
 }
@@ -298,7 +320,7 @@ private fun formatBitrate(bitrate: Double): String {
 }
 
 @Composable
-private fun Badge(text: String, color: Color) {
+private fun Badge(text: String, color: Color, fontSize: androidx.compose.ui.unit.TextUnit = 10.sp) {
     Surface(
         color = color.copy(alpha = 0.15f),
         shape = RoundedCornerShape(4.dp),
@@ -307,7 +329,7 @@ private fun Badge(text: String, color: Color) {
         Text(
             text = text,
             color = color,
-            fontSize = 10.sp,
+            fontSize = fontSize,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -481,29 +503,31 @@ private fun ControlButtonsRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // 左侧：频道切换 + 播放控制
-        IconButton(onClick = onPrev, modifier = Modifier.size(36.dp).tvFocusBorder()) {
-            Icon(Icons.Default.SkipPrevious, contentDescription = "上一频道", tint = Color.White)
-        }
+        // 左侧：频道切换 + 播放控制（TV 模式下隐藏，由遥控器直接控制）
+        if (!isTV) {
+            IconButton(onClick = onPrev, modifier = Modifier.size(36.dp).tvFocusBorder()) {
+                Icon(Icons.Default.SkipPrevious, contentDescription = "上一频道", tint = Color.White)
+            }
 
-        IconButton(onClick = onPlayPause, modifier = Modifier.size(40.dp).tvFocusBorder()) {
-            Icon(
-                imageVector = if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                contentDescription = if (paused) "播放" else "暂停",
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
-            )
-        }
+            IconButton(onClick = onPlayPause, modifier = Modifier.size(40.dp).tvFocusBorder()) {
+                Icon(
+                    imageVector = if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = if (paused) "播放" else "暂停",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
 
-        IconButton(onClick = onStop, modifier = Modifier.size(36.dp).tvFocusBorder()) {
-            Icon(Icons.Default.Stop, contentDescription = "停止", tint = Color.White)
-        }
+            IconButton(onClick = onStop, modifier = Modifier.size(36.dp).tvFocusBorder()) {
+                Icon(Icons.Default.Stop, contentDescription = "停止", tint = Color.White)
+            }
 
-        IconButton(onClick = onNext, modifier = Modifier.size(36.dp).tvFocusBorder()) {
-            Icon(Icons.Default.SkipNext, contentDescription = "下一频道", tint = Color.White)
-        }
+            IconButton(onClick = onNext, modifier = Modifier.size(36.dp).tvFocusBorder()) {
+                Icon(Icons.Default.SkipNext, contentDescription = "下一频道", tint = Color.White)
+            }
 
-        Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+        }
 
         // 中间：静音 + 音量滑块（TV 模式下隐藏，由遥控器音量键控制）
         if (!isTV) {

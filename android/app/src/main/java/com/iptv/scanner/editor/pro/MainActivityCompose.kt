@@ -280,7 +280,12 @@ class MainActivityCompose : ComponentActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                viewModel.mpv.togglePause()
+                // 控制面板隐藏时先显示控制面板（auto-hide），可见时切换暂停
+                if (!viewModel.controlsVisible.value) {
+                    viewModel.showControlsAutoHide()
+                } else {
+                    viewModel.mpv.togglePause()
+                }
                 return true
             }
             KeyEvent.KEYCODE_SPACE -> {

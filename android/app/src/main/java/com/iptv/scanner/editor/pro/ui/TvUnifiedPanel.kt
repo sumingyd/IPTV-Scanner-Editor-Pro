@@ -62,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -96,19 +97,24 @@ import java.util.Locale
  */
 @Composable
 fun TvUnifiedPanel(viewModel: AppViewModel) {
-    val currentChannel by viewModel.currentChannel.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
     val channels by viewModel.channels.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val isFavorite = currentIdx >= 0 && favorites.contains(currentIdx)
 
-    // EPG 数据
-    val epg by viewModel.currentEpg.collectAsState()
-    val epgLoading by viewModel.epgLoading.collectAsState()
+    // EPG 数据（使用焦点频道的 EPG，而非当前播放频道的 EPG）
+    val focusedEpg by viewModel.focusedEpg.collectAsState()
+    val focusedEpgLoading by viewModel.focusedEpgLoading.collectAsState()
 
     // 统一面板状态
     var unifiedMode by remember { mutableStateOf(UnifiedMode.CHANNELS) }
     var selectedProgram by remember { mutableStateOf<IptvEpgProgram?>(null) }
+
+    // 焦点频道索引（频道列表中当前聚焦的频道，用于 EPG 跟随显示）
+    var focusedChannelIdx by remember { mutableStateOf(currentIdx) }
+    val focusedChannel = remember(focusedChannelIdx, channels) {
+        channels.getOrNull(focusedChannelIdx)
+    }
 
     // 焦点管理：初始焦点在第二列（频道列表）
     val column2Focus = remember { FocusRequester() }
@@ -116,10 +122,12 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
         kotlin.runCatching { column2Focus.requestFocus() }
     }
 
-    // 频道切换时刷新 EPG 并清空选中节目
-    LaunchedEffect(currentIdx) {
+    // 焦点频道变化时刷新 EPG
+    LaunchedEffect(focusedChannelIdx) {
         selectedProgram = null
-        viewModel.fetchEpgForCurrent()
+        if (focusedChannelIdx >= 0) {
+            viewModel.fetchEpgForChannel(focusedChannelIdx)
+        }
     }
 
     // 文件选择器（主菜单模式使用）
@@ -146,13 +154,19 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
             // -----------------------------------------------------------------
-            // 第一列：模式切换图标
+            // 第一列：模式切换图标 + OSD 按钮
             // -----------------------------------------------------------------
             ModeColumn(
                 mode = unifiedMode,
                 onModeChange = { newMode ->
                     unifiedMode = newMode
                     selectedProgram = null
+                },
+                onOsd = {
+                    // 显示当前频道的 OSD 信息并关闭面板
+                    viewModel.toggleTvUnifiedPanel()
+                    viewModel.showCurrentOsd()
+                    viewModel.showControlsAutoHide()
                 },
                 modifier = Modifier.width(72.dp)
             )
@@ -167,6 +181,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     currentIdx = currentIdx,
                     favorites = favorites,
                     onChannelClick = { idx -> viewModel.playChannel(idx) },
+                    onFocusedChannelChange = { idx -> focusedChannelIdx = idx },
                     modifier = Modifier.width(360.dp).focusRequester(column2Focus)
                 )
                 UnifiedMode.MENU -> MenuColumn(
@@ -221,13 +236,13 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
             }
 
             // -----------------------------------------------------------------
-            // 第三列：EPG 节目单 + 描述（仅频道列表模式显示）
+            // 第三列：EPG 节目单 + 描述（仅频道列表模式，跟随焦点频道）
             // -----------------------------------------------------------------
-            if (unifiedMode == UnifiedMode.CHANNELS && currentChannel != null) {
+            if (unifiedMode == UnifiedMode.CHANNELS && focusedChannel != null) {
                 EpgColumn(
-                    channel = currentChannel!!,
-                    epg = epg,
-                    loading = epgLoading,
+                    channel = focusedChannel,
+                    epg = focusedEpg,
+                    loading = focusedEpgLoading,
                     currentIdx = currentIdx,
                     selectedProgram = selectedProgram,
                     onProgramSelect = { program -> selectedProgram = program },
@@ -235,11 +250,12 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                         val now = System.currentTimeMillis()
                         val isPast = program.stopTs * 1000L < now
                         if (isPast) {
-                            // 过去节目：触发回看
+                            // 过去节目：触发回看（先切换到焦点频道再回看）
+                            viewModel.playChannel(focusedChannelIdx)
                             closeAndRun { viewModel.startCatchup(program) }
                         } else {
                             // 当前/未来节目：设置提醒
-                            viewModel.toggleReminder(program, currentChannel)
+                            viewModel.toggleReminder(program, focusedChannel)
                         }
                     },
                     isReminderSet = { program -> viewModel.isReminderSet(program) },
@@ -267,6 +283,7 @@ enum class UnifiedMode { CHANNELS, MENU }
 private fun ModeColumn(
     mode: UnifiedMode,
     onModeChange: (UnifiedMode) -> Unit,
+    onOsd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -289,6 +306,13 @@ private fun ModeColumn(
                 label = "菜单",
                 isSelected = mode == UnifiedMode.MENU,
                 onClick = { onModeChange(UnifiedMode.MENU) }
+            )
+            // OSD 按钮（显示当前频道信息）
+            ModeIconButton(
+                icon = Icons.Default.Info,
+                label = "OSD",
+                isSelected = false,
+                onClick = onOsd
             )
         }
     }
@@ -336,6 +360,7 @@ private fun ChannelsColumn(
     currentIdx: Int,
     favorites: Set<Int>,
     onChannelClick: (Int) -> Unit,
+    onFocusedChannelChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val filteredChannels = remember(channels) {
@@ -385,7 +410,10 @@ private fun ChannelsColumn(
                             channel = channel,
                             isPlaying = idx == currentIdx,
                             isFavorite = favorites.contains(idx),
-                            onClick = { onChannelClick(idx) }
+                            onClick = { onChannelClick(idx) },
+                            onFocusChange = { isFocused ->
+                                if (isFocused) onFocusedChannelChange(idx)
+                            }
                         )
                     }
                 }
@@ -399,11 +427,13 @@ private fun TvChannelItem(
     channel: IptvChannel,
     isPlaying: Boolean,
     isFavorite: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onFocusChange: (Boolean) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .onFocusChanged { onFocusChange(it.isFocused) }
             .clickable { onClick() }
             .tvFocusBorder()
             .padding(horizontal = 12.dp, vertical = 8.dp),

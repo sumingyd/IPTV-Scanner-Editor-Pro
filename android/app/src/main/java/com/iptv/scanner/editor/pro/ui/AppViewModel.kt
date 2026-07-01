@@ -261,6 +261,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _epgLoading = MutableStateFlow(false)
     val epgLoading: StateFlow<Boolean> = _epgLoading.asStateFlow()
 
+    /** TV 统一面板中焦点频道的 EPG（独立于当前播放频道的 EPG） */
+    private val _focusedEpg = MutableStateFlow<List<IptvEpgProgram>>(emptyList())
+    val focusedEpg: StateFlow<List<IptvEpgProgram>> = _focusedEpg.asStateFlow()
+
+    private val _focusedEpgLoading = MutableStateFlow(false)
+    val focusedEpgLoading: StateFlow<Boolean> = _focusedEpgLoading.asStateFlow()
+
     // -----------------------------------------------------------------
     // 播放状态（catchup/timeshift 状态机）
     // -----------------------------------------------------------------
@@ -299,6 +306,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _controlsVisible = MutableStateFlow(true)
     val controlsVisible: StateFlow<Boolean> = _controlsVisible.asStateFlow()
+
+    /** TV 端控制面板自动隐藏定时器（几秒后自动隐藏） */
+    private var tvControlsAutoHideJob: kotlinx.coroutines.Job? = null
 
     // -----------------------------------------------------------------
     // 订阅源管理
@@ -1263,6 +1273,54 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return ProgressHelper.findCurrentProgram(_currentEpg.value, System.currentTimeMillis())
     }
 
+    /**
+     * 获取指定频道的 EPG（用于 TV 统一面板焦点频道节目单显示）。
+     * 复用 epgCache 避免重复加载。与 fetchEpgForCurrent 逻辑一致但写入 _focusedEpg。
+     */
+    fun fetchEpgForChannel(idx: Int) {
+        val channel = _channels.value.getOrNull(idx) ?: run {
+            _focusedEpg.value = emptyList()
+            return
+        }
+        // 优先用缓存
+        epgCache[idx]?.let { cached ->
+            _focusedEpg.value = cached
+            return
+        }
+        _focusedEpgLoading.value = true
+        viewModelScope.launch {
+            val result = repository.getEpg(
+                channelName = channel.name,
+                tvgId = channel.tvgId,
+                tvgName = channel.tvgName,
+                commaName = channel.name
+            )
+            result.fold(
+                onSuccess = { epgList ->
+                    val programs = epgList.programmes
+                    epgCache[idx] = programs
+                    _focusedEpg.value = programs
+                    Log.i(TAG, "fetchEpgForChannel: ${programs.size} programs for ${channel.name}")
+                },
+                onFailure = { e ->
+                    Log.w(TAG, "fetchEpgForChannel failed: ${e.message}")
+                    _focusedEpg.value = emptyList()
+                }
+            )
+            _focusedEpgLoading.value = false
+        }
+    }
+
+    /** 显示当前频道的 OSD 信息（用于 TV 统一面板 OSD 按钮） */
+    fun showCurrentOsd() {
+        val channel = currentChannel.value
+        if (channel != null) {
+            val prog = getCurrentProgram()
+            val subtitle = if (prog != null && prog.title.isNotEmpty()) prog.title else channel.group
+            showOsd(channel.name, subtitle)
+        }
+    }
+
     /** 计算当前进度条信息（用于 UI 进度条渲染） */
     fun computeProgress(): ProgressHelper.ProgressInfo {
         return ProgressHelper.computeProgress(
@@ -1342,15 +1400,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleChannelsPanel() {
         _channelsPanelOpen.value = !_channelsPanelOpen.value
         // 关闭面板时自动显示控制层（避免面板关闭后控制层不显示）
-        if (!_channelsPanelOpen.value) _controlsVisible.value = true
+        if (!_channelsPanelOpen.value) showControlsAutoHide()
     }
     fun toggleEpgPanel() {
         _epgPanelOpen.value = !_epgPanelOpen.value
-        if (!_epgPanelOpen.value) _controlsVisible.value = true
+        if (!_epgPanelOpen.value) showControlsAutoHide()
     }
     fun toggleMenuPanel() {
         _menuPanelOpen.value = !_menuPanelOpen.value
-        if (!_menuPanelOpen.value) _controlsVisible.value = true
+        if (!_menuPanelOpen.value) showControlsAutoHide()
     }
     /** TV 端统一面板切换（打开时关闭其他面板，关闭时恢复控制层） */
     fun toggleTvUnifiedPanel() {
@@ -1361,10 +1419,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _epgPanelOpen.value = false
             _menuPanelOpen.value = false
         } else {
-            _controlsVisible.value = true
+            showControlsAutoHide()
         }
     }
-    fun toggleControls() { _controlsVisible.value = !_controlsVisible.value }
+    fun toggleControls() {
+        if (_controlsVisible.value) hideControls() else showControls()
+    }
 
     fun closeAllPanels() {
         _channelsPanelOpen.value = false
@@ -1398,7 +1458,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         stopAvSyncSampling()
         stopSubSync()
         // 关闭所有面板后自动显示控制层
-        _controlsVisible.value = true
+        showControlsAutoHide()
     }
 
     /**
@@ -1434,8 +1494,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun showEpgPanel() { _epgPanelOpen.value = true }
     fun showMenuPanel() { _menuPanelOpen.value = true }
 
-    fun hideControls() { _controlsVisible.value = false }
-    fun showControls() { _controlsVisible.value = true }
+    fun hideControls() {
+        _controlsVisible.value = false
+        tvControlsAutoHideJob?.cancel()
+    }
+    fun showControls() { showControlsAutoHide() }
+
+    /**
+     * 显示控制面板，TV 模式下 4 秒后自动隐藏（与 PC 端 autoHideControls 对齐）。
+     * 非TV 模式下仅显示不自动隐藏。
+     */
+    fun showControlsAutoHide() {
+        _controlsVisible.value = true
+        if (uiMode.value.isTV) {
+            tvControlsAutoHideJob?.cancel()
+            tvControlsAutoHideJob = viewModelScope.launch {
+                delay(4_000L)
+                _controlsVisible.value = false
+            }
+        }
+    }
 
     // -----------------------------------------------------------------
     // 更多功能面板切换（主菜单 → 播放 → 各子面板）
@@ -1443,21 +1521,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleVideoSettings() {
         _videoSettingsOpen.value = !_videoSettingsOpen.value
-        if (!_videoSettingsOpen.value) _controlsVisible.value = true
+        if (!_videoSettingsOpen.value) showControlsAutoHide()
     }
     fun toggleAudioSettings() {
         _audioSettingsOpen.value = !_audioSettingsOpen.value
-        if (!_audioSettingsOpen.value) _controlsVisible.value = true
+        if (!_audioSettingsOpen.value) showControlsAutoHide()
     }
     fun toggleSubtitleSettings() {
         _subtitleSettingsOpen.value = !_subtitleSettingsOpen.value
-        if (!_subtitleSettingsOpen.value) _controlsVisible.value = true
+        if (!_subtitleSettingsOpen.value) showControlsAutoHide()
     }
 
     /** 打开/关闭字幕在线搜索面板 */
     fun toggleSubtitleSearchPanel() {
         _subtitleSearchOpen.value = !_subtitleSearchOpen.value
-        if (!_subtitleSearchOpen.value) _controlsVisible.value = true
+        if (!_subtitleSearchOpen.value) showControlsAutoHide()
     }
 
     /**
@@ -1517,30 +1595,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun togglePlaybackPanel() {
         _playbackPanelOpen.value = !_playbackPanelOpen.value
-        if (!_playbackPanelOpen.value) _controlsVisible.value = true
+        if (!_playbackPanelOpen.value) showControlsAutoHide()
     }
     fun toggleScreenshotPanel() {
         _screenshotPanelOpen.value = !_screenshotPanelOpen.value
-        if (!_screenshotPanelOpen.value) _controlsVisible.value = true
+        if (!_screenshotPanelOpen.value) showControlsAutoHide()
     }
     fun toggleViewSettings() {
         _viewSettingsOpen.value = !_viewSettingsOpen.value
-        if (!_viewSettingsOpen.value) _controlsVisible.value = true
+        if (!_viewSettingsOpen.value) showControlsAutoHide()
     }
     fun toggleAboutPanel() {
         _aboutPanelOpen.value = !_aboutPanelOpen.value
-        if (!_aboutPanelOpen.value) _controlsVisible.value = true
+        if (!_aboutPanelOpen.value) showControlsAutoHide()
     }
     fun toggleOpenUrlDialog() {
         _openUrlDialogOpen.value = !_openUrlDialogOpen.value
-        if (!_openUrlDialogOpen.value) _controlsVisible.value = true
+        if (!_openUrlDialogOpen.value) showControlsAutoHide()
     }
     fun toggleMappingPanel() {
         _mappingPanelOpen.value = !_mappingPanelOpen.value
         if (_mappingPanelOpen.value) {
             loadMappings()
         } else {
-            _controlsVisible.value = true
+            showControlsAutoHide()
         }
     }
     fun toggleAvSyncPanel() {
@@ -1550,16 +1628,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         } else {
             stopAvSyncSampling()
             stopSubSync()
-            _controlsVisible.value = true
+            showControlsAutoHide()
         }
     }
     fun toggleNetworkPanel() {
         _networkPanelOpen.value = !_networkPanelOpen.value
-        if (!_networkPanelOpen.value) _controlsVisible.value = true
+        if (!_networkPanelOpen.value) showControlsAutoHide()
     }
     fun toggleToolsPanel() {
         _toolsPanelOpen.value = !_toolsPanelOpen.value
-        if (!_toolsPanelOpen.value) _controlsVisible.value = true
+        if (!_toolsPanelOpen.value) showControlsAutoHide()
     }
 
     // -----------------------------------------------------------------
@@ -1572,7 +1650,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (!_scanPanelOpen.value) {
             // 关闭面板时停止轮询（扫描本身仍在后台继续）
             stopScanPolling()
-            _controlsVisible.value = true
+            showControlsAutoHide()
         } else {
             // 打开面板时刷新一次状态（若仍在运行则启动轮询）
             refreshScanStatusOnce()
@@ -1734,7 +1812,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleReminderPanel() {
         _reminderPanelOpen.value = !_reminderPanelOpen.value
         if (!_reminderPanelOpen.value) {
-            _controlsVisible.value = true
+            showControlsAutoHide()
         } else {
             // 刷新最新数据
             _reminders.value = userPrefs.getReminders()
@@ -1814,7 +1892,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleResumePanel() {
         _resumePanelOpen.value = !_resumePanelOpen.value
         if (!_resumePanelOpen.value) {
-            _controlsVisible.value = true
+            showControlsAutoHide()
         } else {
             _resumeList.value = userPrefs.getResumeList()
         }
@@ -1842,7 +1920,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun playResume(item: ResumeItem) {
         _resumePanelOpen.value = false
-        _controlsVisible.value = true
+        showControlsAutoHide()
         // 跳过自动恢复，避免 seek 被覆盖
         skipNextResumeFlag = false  // 我们要主动 seek，不需要跳过
         if (item.channelIdx >= 0 && item.channelIdx in _channels.value.indices) {
@@ -1976,7 +2054,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleBookmarkPanel() {
         _bookmarkPanelOpen.value = !_bookmarkPanelOpen.value
         if (!_bookmarkPanelOpen.value) {
-            _controlsVisible.value = true
+            showControlsAutoHide()
         } else {
             // 刷新数据
             _currentBookmarks.value = userPrefs.getBookmarks(currentPlaybackUrl)
@@ -2023,7 +2101,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             mpv.seekAbsolute(item.position.toDouble())
             showOsd("书签", "${item.name} @${formatDuration(item.position)}")
             _bookmarkPanelOpen.value = false
-            _controlsVisible.value = true
+            showControlsAutoHide()
             return
         }
         // 跨 URL：在频道列表中查找
@@ -2038,7 +2116,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 showOsd("书签", "${item.name} @${formatDuration(item.position)}")
             }
             _bookmarkPanelOpen.value = false
-            _controlsVisible.value = true
+            showControlsAutoHide()
         } else {
             // 本地视频或网络流（不在频道列表中）
             skipNextResume()
@@ -2054,7 +2132,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 showOsd("书签", "${item.name} @${formatDuration(item.position)}")
             }
             _bookmarkPanelOpen.value = false
-            _controlsVisible.value = true
+            showControlsAutoHide()
         }
     }
 
@@ -2144,7 +2222,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleEpgTimelinePanel() {
         _epgTimelineOpen.value = !_epgTimelineOpen.value
         if (!_epgTimelineOpen.value) {
-            _controlsVisible.value = true
+            showControlsAutoHide()
         } else {
             // 首次打开自动加载
             if (_epgTimelineRows.value.isEmpty()) {
@@ -2273,7 +2351,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleSearchPanel() {
         _searchPanelOpen.value = !_searchPanelOpen.value
         if (!_searchPanelOpen.value) {
-            _controlsVisible.value = true
+            showControlsAutoHide()
             searchJob?.cancel()
         }
     }
@@ -2386,7 +2464,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleStreamQualityPanel() {
         _streamQualityPanelOpen.value = !_streamQualityPanelOpen.value
         if (!_streamQualityPanelOpen.value) {
-            _controlsVisible.value = true
+            showControlsAutoHide()
         }
     }
 
@@ -2757,7 +2835,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             refreshAdminServerStatus()
         } else {
             // 关闭面板时自动显示控制层
-            _controlsVisible.value = true
+            showControlsAutoHide()
         }
     }
 
@@ -2772,7 +2850,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun togglePlayerSettings() {
         _playerSettingsOpen.value = !_playerSettingsOpen.value
-        if (!_playerSettingsOpen.value) _controlsVisible.value = true
+        if (!_playerSettingsOpen.value) showControlsAutoHide()
     }
 
     /**
