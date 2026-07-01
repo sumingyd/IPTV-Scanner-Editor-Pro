@@ -369,6 +369,8 @@ class ServerContext:
         if self._standalone:
             self._config = ConfigManager()
             self._standalone_scanner = StandaloneScanner(self)
+            # 先从本地缓存加载频道（进程重启后立即可用，无需等待网络）
+            self._load_channels_from_cache()
             _threading.Thread(target=self._load_channels_from_file, daemon=True).start()
             # 异步初始化 EPG 解析器（不依赖 PySide6）
             _threading.Thread(target=self._init_epg_parser, daemon=True).start()
@@ -381,6 +383,44 @@ class ServerContext:
             cls._instance._main_window = main_window
             cls._instance._standalone = False
         return cls._instance
+
+    def _get_channels_cache_path(self) -> str:
+        """频道缓存文件路径（与 config.ini 同目录）"""
+        import os
+        return os.path.join(self._config.config_dir, 'channels_cache.json')
+
+    def _load_channels_from_cache(self):
+        """从本地缓存文件加载频道（进程重启后立即可用，无需等待网络）"""
+        if not self._config:
+            return
+        try:
+            import os, json, time
+            cache_path = self._get_channels_cache_path()
+            if os.path.exists(cache_path):
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                channels = data.get('channels', [])
+                if channels:
+                    self._channels = channels
+                    # 设置 _last_load_time 防止 reload_if_needed 立即触发同步 HTTP 重载
+                    # （后台 _load_channels_from_file 线程会异步更新频道和网络拉取完成后刷新此时间戳）
+                    self._last_load_time = time.time()
+                    logger.info(f"从缓存加载了 {len(channels)} 个频道")
+        except Exception as e:
+            logger.warning(f"加载频道缓存失败: {e}")
+
+    def _save_channels_to_cache(self):
+        """将频道列表保存到本地缓存文件（供下次进程重启时快速恢复）"""
+        if not self._config:
+            return
+        try:
+            import os, json, time
+            cache_path = self._get_channels_cache_path()
+            data = {'channels': self._channels, 'saved_at': time.time()}
+            with open(cache_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"保存频道缓存失败: {e}")
 
     def _load_channels_from_file(self):
         if not self._config:
@@ -404,10 +444,20 @@ class ServerContext:
                         all_channels.extend(channels)
                 except Exception as e:
                     logger.warning(f"加载源 {url} 失败: {e}")
-            self._channels = all_channels
+            # 网络加载到频道时更新内存+缓存；加载为空时保留已有频道（不覆盖）
+            if all_channels:
+                self._channels = all_channels
+                self._save_channels_to_cache()
+                logger.info(f"独立模式加载了 {len(all_channels)} 个频道")
+            else:
+                existing = len(self._channels)
+                if existing > 0:
+                    logger.info(f"网络加载为空，保留现有 {existing} 个频道")
+                else:
+                    self._channels = all_channels
+                    logger.info("独立模式加载了 0 个频道（无缓存可保留）")
             import time
             self._last_load_time = time.time()
-            logger.info(f"独立模式加载了 {len(all_channels)} 个频道")
         except Exception as e:
             logger.error(f"加载频道数据失败: {e}")
 
@@ -499,6 +549,7 @@ class ServerContext:
             # 更新频道列表
             if all_channels:
                 self._channels = all_channels
+                self._save_channels_to_cache()
                 import time
                 self._last_load_time = time.time()
                 with self._source_load_lock:

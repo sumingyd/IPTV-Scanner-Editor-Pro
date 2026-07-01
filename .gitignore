@@ -211,6 +211,7 @@ logo_cache/
 
 # 本地频道映射
 user_channel_mappings.json
+channels_cache.json
 编译助手.bat
 一键编译-无vlc+ffprobe.bat
 一键编译.bat
