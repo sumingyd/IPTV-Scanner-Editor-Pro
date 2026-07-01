@@ -103,6 +103,15 @@ android {
             jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
+
+    /* 多播放器 native 库冲突处理：
+     * - mpv 和 IJK 都包含 libc++_shared.so，用 pickFirst 选第一个
+     * - VLC 包含 lib三方 .so，与 mpv/IJK 可能冲突，pickFirst 兜底 */
+    packaging {
+        jniLibs {
+            pickFirsts += ['lib/*/libc++_shared.so']
+        }
+    }
 }
 
 chaquopy {
@@ -157,6 +166,45 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3'
     implementation 'com.google.zxing:core:3.5.3'
+
+    /* ExoPlayer (androidx.media3) - Google 官方播放器
+     * - media3-exoplayer: 核心播放引擎
+     * - media3-ui: PlayerView（Compose AndroidView 包裹用）
+     * - media3-common: 通用接口
+     * - media3-datasource-cronet: Cronet 网络栈（可选，提升 HLS 低延迟表现）
+     * 与 MPV 互为补充：HLS/DASH/SmoothStreaming 支持更好，API 更现代 */
+    implementation 'androidx.media3:media3-exoplayer:1.4.1'
+    implementation 'androidx.media3:media3-ui:1.4.1'
+    implementation 'androidx.media3:media3-common:1.4.1'
+
+    /* libVLC (VLC for Android) - 协议支持最广
+     * - libvlc-all: 包含所有 native 库 + Java 绑定
+     * groupId 是 org.videolan.android（不是 org.videolan）
+     * 支持 RTSP/RTMP/UDP/RTP/HTTP/HLS/MMS 等几乎所有协议
+     * 解码器覆盖最全（含 HEVC/AV1/VP9 硬解+软解） */
+    implementation 'org.videolan.android:libvlc-all:3.6.5'
+
+    /* IJKPlayer (Tencent IoT Maven Central fork) - 基于 FFmpeg 的轻量播放器
+     *
+     * 背景：Bilibili 原版 tv.danmaku.ijk.media:ijkplayer-*:0.8.8 发布在 bintray/jcenter，
+     * 这些仓库已于 2021 年停用，原 artifacts 在 Maven Central / JitPack 均不可用。
+     *
+     * 解决方案：使用腾讯 IoT 在 Maven Central 维护的 fork（无需额外仓库配置）
+     * - 仓库：https://github.com/tencentyun/iot-ijkplayer
+     * - 保留原包名 tv.danmaku.ijk.media.player.*，与 IjkController 代码完全兼容
+     * - 2.0.19 是最新版（2026-02-02 发布），基于 Bilibili ijkplayer 0.8.8
+     *
+     * ABI 覆盖：
+     * - 腾讯 fork 只提供 arm64 和 armv7a 两个 ABI 的 native 库
+     * - x86/x86_64 设备（主要是模拟器）IJK native 库不可用
+     *   IjkController 会在 native 加载失败时优雅降级，提示用户切换播放器
+     * - 真机绝大多数是 ARM 架构，不受影响
+     *
+     * native 库包含 libc++_shared.so，与 mpv 冲突，已在 packaging 中用 pickFirst 处理 */
+    implementation 'com.tencent.iot.thirdparty.android:ijkplayer-java:2.0.19'
+    implementation 'com.tencent.iot.thirdparty.android:ijkplayer-armv7a:2.0.19'
+    implementation 'com.tencent.iot.thirdparty.android:ijkplayer-arm64:2.0.19'
+
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }

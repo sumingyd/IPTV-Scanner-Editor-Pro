@@ -18,13 +18,20 @@ import com.iptv.scanner.editor.pro.data.IptvGroup
 import com.iptv.scanner.editor.pro.data.IptvRepository
 import com.iptv.scanner.editor.pro.data.IptvSource
 import com.iptv.scanner.editor.pro.data.IptvStatus
+import com.iptv.scanner.editor.pro.data.MappingEntry
 import com.iptv.scanner.editor.pro.data.UserPrefs
 import com.iptv.scanner.editor.pro.mpv.MpvController
 import com.iptv.scanner.editor.pro.player.CatchupHelper
 import com.iptv.scanner.editor.pro.player.CatchupProgram
+import com.iptv.scanner.editor.pro.player.ExoPlayerController
+import com.iptv.scanner.editor.pro.player.IjkController
 import com.iptv.scanner.editor.pro.player.PlayMode
 import com.iptv.scanner.editor.pro.player.PlaybackState
+import com.iptv.scanner.editor.pro.player.Player
+import com.iptv.scanner.editor.pro.player.PlayerCapabilities
+import com.iptv.scanner.editor.pro.player.PlayerType
 import com.iptv.scanner.editor.pro.player.ProgressHelper
+import com.iptv.scanner.editor.pro.player.VlcController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,8 +76,88 @@ import org.json.JSONObject
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repository = IptvRepository.getInstance()
-    val mpv = MpvController.getInstance()
     private val userPrefs = UserPrefs.getInstance().also { it.init(app) }
+
+    // -----------------------------------------------------------------
+    // 多播放器架构：MPV / ExoPlayer / VLC / IJK 可切换
+    //
+    // - mpvSingleton：MpvController 单例（始终保留，用于 setVoAndHwdec 等 mpv 专属 API）
+    // - _player：当前活跃的 Player 实例（默认 mpvSingleton，切换时换实例）
+    // - mpv：公共字段（类型为 Player 接口），保留字段名以避免大规模 UI 改动
+    //   所有 Player 接口方法都可通过 mpv.xxx 调用
+    // - playerType：当前播放器类型（持久化，下次启动自动恢复）
+    // - playerCapabilities：当前播放器能力（UI 据此决定哪些功能面板可用）
+    // -----------------------------------------------------------------
+    private val mpvSingleton: MpvController = MpvController.getInstance()
+
+    private val _player = MutableStateFlow<Player>(mpvSingleton)
+
+    /** 当前播放器实例（Player 接口类型，UI 用 mpv.xxx 调用 Player 接口方法） */
+    val mpv: Player get() = _player.value
+
+    private val _playerType = MutableStateFlow(
+        runCatching { PlayerType.valueOf(userPrefs.getPlayerType()) }.getOrDefault(PlayerType.MPV)
+    )
+    val playerType: StateFlow<PlayerType> = _playerType.asStateFlow()
+
+    val playerCapabilities: StateFlow<PlayerCapabilities> =
+        _player.map { it.capabilities }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, mpvSingleton.capabilities)
+
+    /**
+     * 切换播放器：保存当前播放状态 → detach 旧实例 → 创建新实例 → 通知 View 重建。
+     *
+     * View 重建由 MainPlayerScreen 监听 playerType 变化触发（key(playerType) 强制 AndroidView 重建）。
+     * 重建后调用 [consumePendingRestore] 获取保存的状态，在 attachView 完成后调用
+     * restorePlaybackState 恢复进度。
+     *
+     * @param newType 目标播放器类型
+     */
+    fun switchPlayer(newType: PlayerType) {
+        if (_playerType.value == newType) return
+        val oldPlayer = _player.value
+        // 1. 保存当前播放状态（url + timePos）
+        val savedState = oldPlayer.savePlaybackState()
+        // 2. detach 旧实例（释放资源）
+        oldPlayer.detach()
+        // 3. 创建新实例（mpv 用单例，其他播放器新建实例）
+        // 显式声明类型为 Player，避免 when 表达式类型推断为 Any
+        val newPlayer: Player = when (newType) {
+            PlayerType.MPV -> mpvSingleton
+            PlayerType.EXO -> ExoPlayerController(getApplication())
+            PlayerType.VLC -> VlcController(getApplication())
+            PlayerType.IJK -> IjkController(getApplication())
+        }
+        // 4. 检测 IJK native 库是否可用（x86/x86_64 设备上不可用）
+        if (newType == PlayerType.IJK && newPlayer is IjkController && !newPlayer.nativeAvailable) {
+            // IJK native 不可用，oldPlayer 已 detach 无法复用，回退到 MPV 单例作为安全兜底
+            _player.value = mpvSingleton
+            _playerType.value = PlayerType.MPV
+            userPrefs.setPlayerType(PlayerType.MPV.name)
+            showOsd("播放器", "IJK 在此设备不可用（需 ARM 架构），已回退到 MPV")
+            return
+        }
+        _player.value = newPlayer
+        _playerType.value = newType
+        userPrefs.setPlayerType(newType.name)
+        // 5. 保存待恢复状态，等 View 重建后 attachView 完成再恢复
+        pendingRestoreState = savedState
+        showOsd("播放器", "已切换到 ${newType.displayName}，重新加载中...")
+    }
+
+    /** 待恢复的播放状态（切换播放器后由 MainPlayerScreen 消费） */
+    private var pendingRestoreState: Pair<String, Double>? = null
+
+    /**
+     * 消费待恢复的播放状态（MainPlayerScreen 在新 View attachView 完成后调用）。
+     * 返回 Pair<url, timePosSec>，null 表示无待恢复状态。
+     */
+    fun consumePendingRestore(): Pair<String, Double>? {
+        val s = pendingRestoreState
+        pendingRestoreState = null
+        return s
+    }
+
 
     // -----------------------------------------------------------------
     // UI 模式（手机触摸 / TV 遥控器）
@@ -238,6 +325,99 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _adminCountdown = MutableStateFlow(0)
     val adminCountdown: StateFlow<Int> = _adminCountdown.asStateFlow()
     private var adminCountdownJob: Job? = null
+
+    // -----------------------------------------------------------------
+    // 更多功能面板（主菜单 → 播放 → 视频/音频/字幕/播放/截图/视图/关于）
+    // 与 PC 端 controllers 对齐，直接调 MpvController，不走 Python
+    // -----------------------------------------------------------------
+    private val _videoSettingsOpen = MutableStateFlow(false)
+    val videoSettingsOpen: StateFlow<Boolean> = _videoSettingsOpen.asStateFlow()
+
+    private val _audioSettingsOpen = MutableStateFlow(false)
+    val audioSettingsOpen: StateFlow<Boolean> = _audioSettingsOpen.asStateFlow()
+
+    private val _subtitleSettingsOpen = MutableStateFlow(false)
+    val subtitleSettingsOpen: StateFlow<Boolean> = _subtitleSettingsOpen.asStateFlow()
+
+    private val _playbackPanelOpen = MutableStateFlow(false)
+    val playbackPanelOpen: StateFlow<Boolean> = _playbackPanelOpen.asStateFlow()
+
+    private val _screenshotPanelOpen = MutableStateFlow(false)
+    val screenshotPanelOpen: StateFlow<Boolean> = _screenshotPanelOpen.asStateFlow()
+
+    private val _viewSettingsOpen = MutableStateFlow(false)
+    val viewSettingsOpen: StateFlow<Boolean> = _viewSettingsOpen.asStateFlow()
+
+    private val _aboutPanelOpen = MutableStateFlow(false)
+    val aboutPanelOpen: StateFlow<Boolean> = _aboutPanelOpen.asStateFlow()
+
+    /** 打开网络流 URL 输入对话框 */
+    private val _openUrlDialogOpen = MutableStateFlow(false)
+    val openUrlDialogOpen: StateFlow<Boolean> = _openUrlDialogOpen.asStateFlow()
+
+    // -----------------------------------------------------------------
+    // 频道映射面板
+    // -----------------------------------------------------------------
+    private val _mappingPanelOpen = MutableStateFlow(false)
+    val mappingPanelOpen: StateFlow<Boolean> = _mappingPanelOpen.asStateFlow()
+
+    /** 映射列表（远程 + 用户） */
+    private val _mappingList = MutableStateFlow<List<MappingEntry>>(emptyList())
+    val mappingList: StateFlow<List<MappingEntry>> = _mappingList.asStateFlow()
+
+    /** 映射加载中 */
+    private val _mappingLoading = MutableStateFlow(false)
+    val mappingLoading: StateFlow<Boolean> = _mappingLoading.asStateFlow()
+
+    /** 映射刷新状态文本 */
+    private val _mappingStatusText = MutableStateFlow("")
+    val mappingStatusText: StateFlow<String> = _mappingStatusText.asStateFlow()
+
+    // -----------------------------------------------------------------
+    // A/V 同步监控面板
+    // -----------------------------------------------------------------
+    private val _avSyncPanelOpen = MutableStateFlow(false)
+    val avSyncPanelOpen: StateFlow<Boolean> = _avSyncPanelOpen.asStateFlow()
+
+    /** A/V 差值（秒，正值=音频领先，负值=视频领先） */
+    private val _avDiff = MutableStateFlow(0.0)
+    val avDiff: StateFlow<Double> = _avDiff.asStateFlow()
+
+    /** 音频 PTS（秒） */
+    private val _audioPts = MutableStateFlow(0.0)
+    val audioPts: StateFlow<Double> = _audioPts.asStateFlow()
+
+    /** 视频 PTS（秒） */
+    private val _videoPts = MutableStateFlow(0.0)
+    val videoPts: StateFlow<Double> = _videoPts.asStateFlow()
+
+    /** 当前音频延迟（秒） */
+    private val _currentAudioDelay = MutableStateFlow(0.0)
+    val currentAudioDelay: StateFlow<Double> = _currentAudioDelay.asStateFlow()
+
+    /** avdiff 历史采样（用于波形图，最多 200 点） */
+    private val _avDiffHistory = MutableStateFlow<List<Float>>(emptyList())
+    val avDiffHistory: StateFlow<List<Float>> = _avDiffHistory.asStateFlow()
+
+    /** 字幕自动同步开关 */
+    private val _subSyncEnabled = MutableStateFlow(false)
+    val subSyncEnabled: StateFlow<Boolean> = _subSyncEnabled.asStateFlow()
+
+    /** 字幕自动同步采样协程 */
+    private var avSyncJob: Job? = null
+    private var subSyncJob: Job? = null
+
+    // -----------------------------------------------------------------
+    // 网络增强面板
+    // -----------------------------------------------------------------
+    private val _networkPanelOpen = MutableStateFlow(false)
+    val networkPanelOpen: StateFlow<Boolean> = _networkPanelOpen.asStateFlow()
+
+    // -----------------------------------------------------------------
+    // 工具面板
+    // -----------------------------------------------------------------
+    private val _toolsPanelOpen = MutableStateFlow(false)
+    val toolsPanelOpen: StateFlow<Boolean> = _toolsPanelOpen.asStateFlow()
 
     // -----------------------------------------------------------------
     // 初始化流程
@@ -885,6 +1065,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _menuPanelOpen.value = false
         _sourceManagerOpen.value = false
         _playerSettingsOpen.value = false
+        _videoSettingsOpen.value = false
+        _audioSettingsOpen.value = false
+        _subtitleSettingsOpen.value = false
+        _playbackPanelOpen.value = false
+        _screenshotPanelOpen.value = false
+        _viewSettingsOpen.value = false
+        _aboutPanelOpen.value = false
+        _openUrlDialogOpen.value = false
+        _mappingPanelOpen.value = false
+        _avSyncPanelOpen.value = false
+        _networkPanelOpen.value = false
+        _toolsPanelOpen.value = false
+        // 关闭 A/V 同步采样
+        stopAvSyncSampling()
+        stopSubSync()
         // 关闭所有面板后自动显示控制层
         _controlsVisible.value = true
     }
@@ -896,14 +1091,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun closeAnyPanel(): Boolean {
         val hadOpen = _channelsPanelOpen.value || _epgPanelOpen.value ||
                 _menuPanelOpen.value || _sourceManagerOpen.value ||
-                _playerSettingsOpen.value
-        _channelsPanelOpen.value = false
-        _epgPanelOpen.value = false
-        _menuPanelOpen.value = false
-        _sourceManagerOpen.value = false
-        _playerSettingsOpen.value = false
-        // 关闭面板后自动显示控制层
-        if (hadOpen) _controlsVisible.value = true
+                _playerSettingsOpen.value ||
+                _videoSettingsOpen.value || _audioSettingsOpen.value ||
+                _subtitleSettingsOpen.value || _playbackPanelOpen.value ||
+                _screenshotPanelOpen.value || _viewSettingsOpen.value ||
+                _aboutPanelOpen.value || _openUrlDialogOpen.value ||
+                _mappingPanelOpen.value || _avSyncPanelOpen.value ||
+                _networkPanelOpen.value || _toolsPanelOpen.value
+        closeAllPanels()
         return hadOpen
     }
 
@@ -913,6 +1108,236 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun hideControls() { _controlsVisible.value = false }
     fun showControls() { _controlsVisible.value = true }
+
+    // -----------------------------------------------------------------
+    // 更多功能面板切换（主菜单 → 播放 → 各子面板）
+    // -----------------------------------------------------------------
+
+    fun toggleVideoSettings() {
+        _videoSettingsOpen.value = !_videoSettingsOpen.value
+        if (!_videoSettingsOpen.value) _controlsVisible.value = true
+    }
+    fun toggleAudioSettings() {
+        _audioSettingsOpen.value = !_audioSettingsOpen.value
+        if (!_audioSettingsOpen.value) _controlsVisible.value = true
+    }
+    fun toggleSubtitleSettings() {
+        _subtitleSettingsOpen.value = !_subtitleSettingsOpen.value
+        if (!_subtitleSettingsOpen.value) _controlsVisible.value = true
+    }
+    fun togglePlaybackPanel() {
+        _playbackPanelOpen.value = !_playbackPanelOpen.value
+        if (!_playbackPanelOpen.value) _controlsVisible.value = true
+    }
+    fun toggleScreenshotPanel() {
+        _screenshotPanelOpen.value = !_screenshotPanelOpen.value
+        if (!_screenshotPanelOpen.value) _controlsVisible.value = true
+    }
+    fun toggleViewSettings() {
+        _viewSettingsOpen.value = !_viewSettingsOpen.value
+        if (!_viewSettingsOpen.value) _controlsVisible.value = true
+    }
+    fun toggleAboutPanel() {
+        _aboutPanelOpen.value = !_aboutPanelOpen.value
+        if (!_aboutPanelOpen.value) _controlsVisible.value = true
+    }
+    fun toggleOpenUrlDialog() {
+        _openUrlDialogOpen.value = !_openUrlDialogOpen.value
+        if (!_openUrlDialogOpen.value) _controlsVisible.value = true
+    }
+    fun toggleMappingPanel() {
+        _mappingPanelOpen.value = !_mappingPanelOpen.value
+        if (_mappingPanelOpen.value) {
+            loadMappings()
+        } else {
+            _controlsVisible.value = true
+        }
+    }
+    fun toggleAvSyncPanel() {
+        _avSyncPanelOpen.value = !_avSyncPanelOpen.value
+        if (_avSyncPanelOpen.value) {
+            startAvSyncSampling()
+        } else {
+            stopAvSyncSampling()
+            stopSubSync()
+            _controlsVisible.value = true
+        }
+    }
+    fun toggleNetworkPanel() {
+        _networkPanelOpen.value = !_networkPanelOpen.value
+        if (!_networkPanelOpen.value) _controlsVisible.value = true
+    }
+    fun toggleToolsPanel() {
+        _toolsPanelOpen.value = !_toolsPanelOpen.value
+        if (!_toolsPanelOpen.value) _controlsVisible.value = true
+    }
+
+    // -----------------------------------------------------------------
+    // 文件操作（打开播放列表 / 打开网络流 / 打开本地视频）
+    // 与 PC 端 文件 菜单组对齐
+    // -----------------------------------------------------------------
+
+    /**
+     * 播放本地视频文件（直接调 mpv.playFile，不走频道列表）。
+     * @param uri SAF 返回的 content:// URI 或 file:// 路径
+     */
+    fun playLocalVideo(uri: String) {
+        Log.i(TAG, "playLocalVideo: $uri")
+        _currentIdx.value = -1  // 清除当前频道选择（本地视频不在频道列表中）
+        _playbackState.value = PlaybackState(mode = PlayMode.LIVE)
+        mpv.playFile(uri)
+        showOsd("本地视频", uri.substringAfterLast('/').substringAfterLast('%'))
+        closeAllPanels()
+    }
+
+    /**
+     * 播放网络流 URL（直接调 mpv.playFile，不走频道列表）。
+     * @param url M3U/M3U8/HLS/RTSP/RTMP 等协议 URL
+     */
+    fun playUrl(url: String) {
+        if (url.isBlank()) {
+            showOsd("请输入 URL")
+            return
+        }
+        Log.i(TAG, "playUrl: $url")
+        _currentIdx.value = -1
+        _playbackState.value = PlaybackState(mode = PlayMode.LIVE)
+        mpv.playFile(url)
+        showOsd("网络流", url)
+        closeAllPanels()
+    }
+
+    /**
+     * 从 M3U 文件 URI 导入频道到列表。
+     * 读取文件内容后调用 repository.importChannels。
+     * @param uri SAF 返回的 content:// URI
+     */
+    fun importPlaylist(uri: Uri) {
+        viewModelScope.launch {
+            showOsd("正在导入播放列表...")
+            val content = withContext(Dispatchers.IO) {
+                try {
+                    getApplication<Application>().contentResolver.openInputStream(uri)?.use {
+                        it.bufferedReader().readText()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "importPlaylist read failed", e)
+                    null
+                }
+            } ?: run {
+                showOsd("导入失败", "无法读取文件")
+                return@launch
+            }
+            val result = repository.importChannels(content)
+            result.fold(
+                onSuccess = { count ->
+                    showOsd("导入成功", "已导入 $count 个频道")
+                    loadChannels()
+                },
+                onFailure = { e ->
+                    showOsd("导入失败", e.message ?: "")
+                }
+            )
+        }
+    }
+
+    /**
+     * 从本地字幕文件 URI 加载外挂字幕。
+     * @param uri SAF 返回的 content:// URI
+     */
+    fun loadSubtitleFile(uri: Uri) {
+        viewModelScope.launch {
+            // SAF 返回的 content:// URI 需要拷贝到缓存目录才能给 mpv 用
+            val subFile = withContext(Dispatchers.IO) {
+                try {
+                    val resolver = getApplication<Application>().contentResolver
+                    val cacheDir = getApplication<Application>().cacheDir
+                    val tempFile = File(cacheDir, "subtitle_${System.currentTimeMillis()}.srt")
+                    resolver.openInputStream(uri)?.use { input ->
+                        tempFile.outputStream().use { input.copyTo(it) }
+                    }
+                    tempFile.absolutePath
+                } catch (e: Exception) {
+                    Log.e(TAG, "loadSubtitleFile copy failed", e)
+                    null
+                }
+            } ?: run {
+                showOsd("字幕加载失败", "无法读取文件")
+                return@launch
+            }
+            mpv.addSubtitleFile(subFile)
+            showOsd("字幕已加载", subFile.substringAfterLast('/'))
+        }
+    }
+
+    /**
+     * 截图到 Pictures/IPTV_Screenshots 目录。
+     * @param mode "video"（仅画面）/ "subtitles"（含字幕）/ "window"（含 OSD）
+     */
+    fun takeScreenshot(mode: String = "video") {
+        viewModelScope.launch {
+            val now = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val filename = "screenshot_$now.png"
+
+            val savedPath = withContext(Dispatchers.IO) {
+                try {
+                    val app = getApplication<Application>()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        // Android 10+ 用 MediaStore 写到 Pictures 目录
+                        val resolver = app.contentResolver
+                        val values = ContentValues().apply {
+                            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                            put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+                            put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/IPTV_Screenshots")
+                        }
+                        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                            ?: return@withContext null
+                        // mpv screenshot-to-file 需要文件路径，不能直接写 content:// URI
+                        // 先截到缓存目录，再复制到 MediaStore
+                        val cacheFile = File(app.cacheDir, filename)
+                        mpv.screenshotToFile(cacheFile.absolutePath, mode)
+                        // 等待截图文件写入（mpv 异步执行）
+                        var retry = 0
+                        while (!cacheFile.exists() && retry < 10) {
+                            Thread.sleep(200)
+                            retry++
+                        }
+                        if (cacheFile.exists()) {
+                            resolver.openOutputStream(uri)?.use { out ->
+                                cacheFile.inputStream().use { it.copyTo(out) }
+                            }
+                            cacheFile.delete()
+                            "Pictures/IPTV_Screenshots/$filename"
+                        } else null
+                    } else {
+                        // Android 9 及以下，直接写到公共目录
+                        @Suppress("DEPRECATION")
+                        val dir = File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                            "IPTV_Screenshots"
+                        )
+                        if (!dir.exists()) dir.mkdirs()
+                        val file = File(dir, filename)
+                        mpv.screenshotToFile(file.absolutePath, mode)
+                        var retry = 0
+                        while (!file.exists() && retry < 10) {
+                            Thread.sleep(200)
+                            retry++
+                        }
+                        if (file.exists()) file.absolutePath else null
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "takeScreenshot failed", e)
+                    null
+                }
+            }
+            if (savedPath != null) {
+                showOsd("截图已保存", savedPath)
+            } else {
+                showOsd("截图失败")
+            }
+        }
+    }
 
     // -----------------------------------------------------------------
     // 订阅源管理（主菜单 → 文件 → 订阅源管理）
@@ -964,7 +1389,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // 切换回 gpu 时，清除 fallback 标记，重新启用黑屏检测
             userPrefs.setVoFallbackConfirmed(false)
         }
-        val hasFile = mpv.setVoAndHwdec(vo, hwdec)
+        // vo 切换只在 MPV 模式下有意义（其他播放器无 vo 概念）
+        val hasFile = (_player.value as? MpvController)?.setVoAndHwdec(vo, hwdec)
         showOsd(
             "播放器设置",
             "vo=$vo" + if (hasFile != null) "，已重新加载" else "（重启后生效）"
@@ -980,7 +1406,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setPlayerHwdec(hwdec: String) {
         userPrefs.setHwdec(hwdec)
         _currentHwdec.value = hwdec
-        mpv.setVoAndHwdec(_currentVo.value, hwdec)
+        (_player.value as? MpvController)?.setVoAndHwdec(_currentVo.value, hwdec)
         showOsd("播放器设置", "hwdec=$hwdec")
     }
 
@@ -992,7 +1418,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         userPrefs.resetPlayerSettings()
         _currentVo.value = userPrefs.getVo()
         _currentHwdec.value = userPrefs.getHwdec()
-        mpv.setVoAndHwdec(_currentVo.value, _currentHwdec.value)
+        (_player.value as? MpvController)?.setVoAndHwdec(_currentVo.value, _currentHwdec.value)
         showOsd("播放器设置", "已重置为默认值（重启后生效）")
     }
 
@@ -1395,6 +1821,263 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // -----------------------------------------------------------------
+    // 频道映射 CRUD（通过 IptvRepository 调用 Python bridge）
+    // -----------------------------------------------------------------
+
+    fun loadMappings() {
+        viewModelScope.launch {
+            _mappingLoading.value = true
+            _mappingStatusText.value = "加载中..."
+            val result = repository.getMappings()
+            _mappingLoading.value = false
+            result.onSuccess { list ->
+                _mappingList.value = list
+                _mappingStatusText.value = "共 ${list.size} 条映射"
+            }.onFailure { e ->
+                _mappingStatusText.value = "加载失败: ${e.message}"
+                Log.e(TAG, "loadMappings failed", e)
+            }
+        }
+    }
+
+    fun addMapping(rawName: String, standardName: String, logoUrl: String = "", groupName: String = "") {
+        if (rawName.isBlank() || standardName.isBlank()) {
+            showOsd("频道映射", "原始名和标准名不能为空")
+            return
+        }
+        viewModelScope.launch {
+            _mappingLoading.value = true
+            val result = repository.addMapping(rawName, standardName, logoUrl, groupName)
+            _mappingLoading.value = false
+            result.onSuccess {
+                showOsd("频道映射", "已添加: $rawName → $standardName")
+                loadMappings()
+            }.onFailure { e ->
+                showOsd("频道映射", "添加失败: ${e.message}")
+                Log.e(TAG, "addMapping failed", e)
+            }
+        }
+    }
+
+    fun deleteMapping(standardName: String, rawName: String = "") {
+        viewModelScope.launch {
+            _mappingLoading.value = true
+            val result = repository.deleteMapping(standardName, rawName)
+            _mappingLoading.value = false
+            result.onSuccess {
+                showOsd("频道映射", "已删除")
+                loadMappings()
+            }.onFailure { e ->
+                showOsd("频道映射", "删除失败: ${e.message}")
+                Log.e(TAG, "deleteMapping failed", e)
+            }
+        }
+    }
+
+    fun refreshMappings() {
+        viewModelScope.launch {
+            _mappingLoading.value = true
+            _mappingStatusText.value = "正在刷新远程映射..."
+            val result = repository.refreshMappings()
+            _mappingLoading.value = false
+            result.onSuccess {
+                _mappingStatusText.value = "远程映射已更新"
+                showOsd("频道映射", "远程映射已刷新")
+                loadMappings()
+            }.onFailure { e ->
+                _mappingStatusText.value = "刷新失败: ${e.message}"
+                showOsd("频道映射", "刷新失败: ${e.message}")
+                Log.e(TAG, "refreshMappings failed", e)
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // A/V 同步监控（仅 MPV 播放器支持，其他播放器属性返回 null）
+    // -----------------------------------------------------------------
+
+    /**
+     * 启动 A/V 同步采样：每 100ms 读取 mpv 的 avdiff / audio-pts / video-pts / audio-delay。
+     * 与 PC 端 av_sync_dialog.py 的 200ms 定时器对齐（Android 用协程替代 QTimer）。
+     */
+    private fun startAvSyncSampling() {
+        avSyncJob?.cancel()
+        avSyncJob = viewModelScope.launch {
+            while (isActive) {
+                // 仅 MPV 播放器支持属性读取
+                val mpv = mpvSingleton
+                val avdiff = mpv.getPropertyDouble("avdiff") ?: 0.0
+                val aPts = mpv.getPropertyDouble("audio-pts") ?: 0.0
+                val vPts = mpv.getPropertyDouble("video-pts") ?: 0.0
+                val aDelay = mpv.getPropertyDouble("audio-delay") ?: 0.0
+                _avDiff.value = avdiff
+                _audioPts.value = aPts
+                _videoPts.value = vPts
+                _currentAudioDelay.value = aDelay
+                // 追加历史采样（最多 200 点）
+                val history = _avDiffHistory.value.toMutableList()
+                history.add(avdiff.toFloat())
+                while (history.size > 200) history.removeAt(0)
+                _avDiffHistory.value = history
+                delay(100)
+            }
+        }
+    }
+
+    private fun stopAvSyncSampling() {
+        avSyncJob?.cancel()
+        avSyncJob = null
+    }
+
+    /**
+     * 设置音频延迟（秒）。
+     * 仅 MPV 播放器支持（capabilities.supportsAudioDelay）。
+     */
+    fun adjustAudioDelay(delta: Double) {
+        val newDelay = (_currentAudioDelay.value + delta)
+        val player = _player.value
+        if (player.capabilities.supportsAudioDelay) {
+            if (player.setAudioDelay(newDelay)) {
+                _currentAudioDelay.value = newDelay
+                showOsd("音频延迟", "${"%.3f".format(newDelay)}s")
+            }
+        } else {
+            showOsd("音频延迟", "当前播放器不支持")
+        }
+    }
+
+    fun resetAudioDelay() {
+        val player = _player.value
+        if (player.capabilities.supportsAudioDelay) {
+            if (player.setAudioDelay(0.0)) {
+                _currentAudioDelay.value = 0.0
+                showOsd("音频延迟", "已重置")
+            }
+        } else {
+            showOsd("音频延迟", "当前播放器不支持")
+        }
+    }
+
+    /**
+     * 切换字幕自动同步开关。
+     * 基于 avdiff 的比例控制算法（与 PC 端 _sub_sync_tick 对齐）：
+     * - 每 500ms 采样 avdiff，存入 6 点滑动窗口
+     * - 取最近 3+ 点平均，超过阈值（0.05s）时按 delta = avg * gain（0.30）调整 sub_delay
+     * - 跳过极端值（>1s，可能是 seek/暂停）
+     */
+    fun toggleSubSync() {
+        _subSyncEnabled.value = !_subSyncEnabled.value
+        if (_subSyncEnabled.value) {
+            startSubSync()
+            showOsd("字幕同步", "已开启自动同步")
+        } else {
+            stopSubSync()
+            showOsd("字幕同步", "已关闭自动同步")
+        }
+    }
+
+    private var subSyncWindow = ArrayDeque<Float>()
+
+    private fun startSubSync() {
+        subSyncJob?.cancel()
+        subSyncWindow.clear()
+        subSyncJob = viewModelScope.launch {
+            while (isActive) {
+                val avdiff = _avDiff.value.toFloat()
+                // 跳过极端值（>1s，可能是 seek/暂停）
+                if (kotlin.math.abs(avdiff) < 1.0f) {
+                    subSyncWindow.addLast(avdiff)
+                    while (subSyncWindow.size > 6) subSyncWindow.removeFirst()
+                    // 需要至少 3 个采样点
+                    if (subSyncWindow.size >= 3) {
+                        val avg = subSyncWindow.takeLast(3).average().toFloat()
+                        val threshold = 0.05f
+                        if (kotlin.math.abs(avg) > threshold) {
+                            val gain = 0.30f
+                            val delta = avg * gain
+                            val mpv = mpvSingleton
+                            val currentSubDelay = mpv.getPropertyDouble("sub-delay") ?: 0.0
+                            mpv.setSubDelay(currentSubDelay + delta)
+                        }
+                    }
+                }
+                delay(500)
+            }
+        }
+    }
+
+    private fun stopSubSync() {
+        subSyncJob?.cancel()
+        subSyncJob = null
+        subSyncWindow.clear()
+    }
+
+    // -----------------------------------------------------------------
+    // 网络增强（HTTP Referer / Proxy / Headers，仅 MPV 播放器支持）
+    // -----------------------------------------------------------------
+
+    /** 加载持久化的网络设置（面板打开时调用） */
+    fun loadNetworkSettings(): Triple<String, String, String> {
+        return Triple(
+            userPrefs.getHttpReferer(),
+            userPrefs.getHttpProxy(),
+            userPrefs.getHttpHeaders()
+        )
+    }
+
+    /**
+     * 应用网络设置到当前播放器（实时下发，仅对 MPV 有效）。
+     * 注意：referer 和 http-proxy 对当前播放的流不会立即生效，下次 loadfile 时才生效。
+     */
+    fun applyNetworkSettings(referer: String, proxy: String, headers: String) {
+        val mpv = mpvSingleton
+        // Referer
+        if (referer.isNotBlank()) {
+            mpv.setPropertyString("referrer", referer)
+        } else {
+            mpv.setPropertyString("referrer", "")
+        }
+        // HTTP Proxy
+        if (proxy.isNotBlank()) {
+            mpv.setPropertyString("http-proxy", proxy)
+        } else {
+            mpv.setPropertyString("http-proxy", "")
+        }
+        // HTTP Headers（每行 "Key: Value"，需逐条设置）
+        // mpv 的 http-header-fields 是列表属性，通过 command 设置
+        if (headers.isNotBlank()) {
+            headers.lines().filter { it.contains(":") }.forEach { line ->
+                val parts = line.split(":", limit = 2)
+                if (parts.size == 2) {
+                    val key = parts[0].trim()
+                    val value = parts[1].trim()
+                    mpv.command(arrayOf("set", "http-header-fields", "$key: $value"))
+                }
+            }
+        }
+        showOsd("网络增强", "已应用（下次加载生效）")
+    }
+
+    /** 保存网络设置到持久化存储 + 应用 */
+    fun saveNetworkSettings(referer: String, proxy: String, headers: String) {
+        userPrefs.setHttpReferer(referer)
+        userPrefs.setHttpProxy(proxy)
+        userPrefs.setHttpHeaders(headers)
+        applyNetworkSettings(referer, proxy, headers)
+    }
+
+    /** 清除所有网络设置 */
+    fun clearNetworkSettings() {
+        userPrefs.setHttpReferer("")
+        userPrefs.setHttpProxy("")
+        userPrefs.setHttpHeaders("")
+        val mpv = mpvSingleton
+        mpv.setPropertyString("referrer", "")
+        mpv.setPropertyString("http-proxy", "")
+        showOsd("网络增强", "已清除")
+    }
+
+    // -----------------------------------------------------------------
     // ViewModel 生命周期
     // -----------------------------------------------------------------
 
@@ -1402,6 +2085,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         super.onCleared()
         statusPollJob?.cancel()
         osdHideJob?.cancel()
+        avSyncJob?.cancel()
+        subSyncJob?.cancel()
     }
 
     // -----------------------------------------------------------------

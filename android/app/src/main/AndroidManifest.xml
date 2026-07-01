@@ -17,16 +17,8 @@
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config">
 
-        <!-- 旧 MainActivity（Java + WebView 三层架构），不再是 LAUNCHER，阶段 6 删除 -->
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
-            android:supportsPictureInPicture="true"
-            android:resizeableActivity="true"
-            android:windowSoftInputMode="adjustResize" />
-
-        <!-- 新 Compose 主入口 Activity（LAUNCHER） -->
+        <!-- Compose 主入口 Activity（LAUNCHER）
+             替换原 Java+WebView 三层架构，改为 Jetpack Compose 原生 UI + Chaquopy 直调 Python -->
         <activity
             android:name=".MainActivityCompose"
             android:exported="true"
@@ -39,14 +31,5 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- 阶段 0 技术验证 Activity（不设为 LAUNCHER，通过 adb 启动）
-             adb shell am start -n com.iptv.scanner.editor.pro/.ComposeSpikeActivity -->
-        <activity
-            android:name=".ComposeSpikeActivity"
-            android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
-            android:resizeableActivity="true"
-            android:windowSoftInputMode="adjustResize" />
     </application>
 </manifest>

@@ -162,7 +162,42 @@ class UserPrefs private constructor() {
             .remove(KEY_VO)
             .remove(KEY_HWDEC)
             .remove(KEY_VO_FALLBACK)
+            .remove(KEY_PLAYER_TYPE)
             .apply()
+    }
+
+    // -----------------------------------------------------------------
+    // 播放器类型（MPV / EXO / VLC / IJK）
+    //
+    // 持久化用户选择的播放器内核，下次启动自动恢复。
+    // 默认 "MPV"（功能最完整）。
+    // -----------------------------------------------------------------
+
+    /** 获取持久化的播放器类型名称（PlayerType.name()），默认 "MPV" */
+    fun getPlayerType(): String = prefs.getString(KEY_PLAYER_TYPE, "MPV") ?: "MPV"
+
+    fun setPlayerType(type: String) {
+        prefs.edit().putString(KEY_PLAYER_TYPE, type).apply()
+    }
+
+    // -----------------------------------------------------------------
+    // 网络增强设置（HTTP Referer / Proxy / Headers）
+    //
+    // 持久化用户配置的 HTTP 网络参数，用于绕过防盗链 / 代理 / 自定义头。
+    // 仅对 MPV 播放器生效（通过 setPropertyString 下发到 mpv）。
+    // -----------------------------------------------------------------
+
+    fun getHttpReferer(): String = prefs.getString(KEY_HTTP_REFERER, "") ?: ""
+    fun setHttpReferer(value: String) {
+        prefs.edit().putString(KEY_HTTP_REFERER, value).apply()
+    }
+    fun getHttpProxy(): String = prefs.getString(KEY_HTTP_PROXY, "") ?: ""
+    fun setHttpProxy(value: String) {
+        prefs.edit().putString(KEY_HTTP_PROXY, value).apply()
+    }
+    fun getHttpHeaders(): String = prefs.getString(KEY_HTTP_HEADERS, "") ?: ""
+    fun setHttpHeaders(value: String) {
+        prefs.edit().putString(KEY_HTTP_HEADERS, value).apply()
     }
 
     // -----------------------------------------------------------------
@@ -192,6 +227,12 @@ class UserPrefs private constructor() {
         private const val KEY_VO = "player_vo"
         private const val KEY_HWDEC = "player_hwdec"
         private const val KEY_VO_FALLBACK = "player_vo_fallback_confirmed"
+        private const val KEY_PLAYER_TYPE = "player_type"
+
+        // 网络增强设置 key
+        private const val KEY_HTTP_REFERER = "http_referer"
+        private const val KEY_HTTP_PROXY = "http_proxy"
+        private const val KEY_HTTP_HEADERS = "http_headers"
 
         // 播放器默认值（与 MPVView.DEFAULT_VO / DEFAULT_HWDEC 保持一致）
         // 这里用字符串常量而非引用 MPVView，避免 UserPrefs 反向依赖 mpv 层

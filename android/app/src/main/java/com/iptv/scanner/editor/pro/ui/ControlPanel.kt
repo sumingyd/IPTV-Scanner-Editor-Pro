@@ -177,7 +177,7 @@ fun ControlPanel(viewModel: AppViewModel) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MediaBadgesRow(
-    mpv: com.iptv.scanner.editor.pro.mpv.MpvController,
+    mpv: com.iptv.scanner.editor.pro.player.Player,
     videoWidth: Int,
     videoHeight: Int,
     fileLoaded: Boolean,

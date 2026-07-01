@@ -1,5 +1,8 @@
 package com.iptv.scanner.editor.pro.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -75,11 +78,38 @@ fun MainMenuPanel(viewModel: AppViewModel) {
 
     val isFavorite = currentIdx >= 0 && favorites.contains(currentIdx)
 
+    // SAF 文件选择器：用于"打开播放列表"和"打开本地视频"
+    // rememberLauncherForActivityResult 在 Composable 主体中创建（不能在 remember 块内），
+    // launcher 引用稳定，可被 remember 块中的闭包安全捕获。
+    val playlistLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) viewModel.importPlaylist(uri)
+    }
+
+    val videoLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) viewModel.playLocalVideo(uri.toString())
+    }
+
     val sections = remember(currentIdx, isFavorite) {
         buildMenuSections(
-            onOpenPlaylist = { viewModel.showOsd("打开播放列表", "功能开发中") },
-            onOpenUrl = { viewModel.showOsd("打开网络流", "功能开发中") },
-            onOpenLocalVideo = { viewModel.showOsd("打开本地视频", "功能开发中") },
+            onOpenPlaylist = {
+                // M3U/M3U8 文件常见 MIME 类型 + 通配 text/plain 和 octet-stream（部分设备不识别 m3u MIME）
+                playlistLauncher.launch(arrayOf(
+                    "application/x-mpegurl", "application/vnd.apple.mpegurl",
+                    "audio/x-mpegurl", "video/x-mpegurl",
+                    "text/plain", "application/octet-stream"
+                ))
+            },
+            onOpenUrl = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleOpenUrlDialog()
+            },
+            onOpenLocalVideo = {
+                videoLauncher.launch(arrayOf("video/*", "application/x-matroska", "application/octet-stream"))
+            },
             onSources = {
                 viewModel.setSourceTab(AppViewModel.SourceTab.PLAYLIST)
                 viewModel.toggleMenuPanel()
@@ -90,7 +120,10 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 viewModel.toggleMenuPanel()
                 viewModel.toggleSourceManager()
             },
-            onMapping = { viewModel.showOsd("频道映射", "功能开发中") },
+            onMapping = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleMappingPanel()
+            },
             onChannels = {
                 viewModel.toggleMenuPanel()
                 viewModel.showChannelsPanel()
@@ -99,20 +132,50 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 viewModel.toggleMenuPanel()
                 viewModel.showEpgPanel()
             },
-            onSubtitle = { viewModel.showOsd("字幕", "功能开发中") },
-            onVideo = { viewModel.showOsd("视频", "功能开发中") },
-            onAudio = { viewModel.showOsd("音频", "功能开发中") },
-            onPlayback = { viewModel.showOsd("播放", "功能开发中") },
-            onScreenshot = { viewModel.showOsd("截图", "功能开发中") },
-            onAvsync = { viewModel.showOsd("A/V 同步监控", "功能开发中") },
-            onNetwork = { viewModel.showOsd("网络增强", "功能开发中") },
-            onTools = { viewModel.showOsd("工具", "功能开发中") },
-            onView = { viewModel.showOsd("视图", "功能开发中") },
+            onSubtitle = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleSubtitleSettings()
+            },
+            onVideo = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleVideoSettings()
+            },
+            onAudio = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleAudioSettings()
+            },
+            onPlayback = {
+                viewModel.toggleMenuPanel()
+                viewModel.togglePlaybackPanel()
+            },
+            onScreenshot = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleScreenshotPanel()
+            },
+            onAvsync = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleAvSyncPanel()
+            },
+            onNetwork = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleNetworkPanel()
+            },
+            onTools = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleToolsPanel()
+            },
+            onView = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleViewSettings()
+            },
             onSettings = {
                 viewModel.toggleMenuPanel()
                 viewModel.togglePlayerSettings()
             },
-            onAbout = { viewModel.showOsd("关于", "功能开发中") },
+            onAbout = {
+                viewModel.toggleMenuPanel()
+                viewModel.toggleAboutPanel()
+            },
             onToggleFavorite = {
                 viewModel.toggleFavorite()
             },

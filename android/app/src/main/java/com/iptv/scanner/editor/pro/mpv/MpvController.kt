@@ -3,6 +3,9 @@ package com.iptv.scanner.editor.pro.mpv
 import android.util.Log
 import `is`.xyz.mpv.MPVLib
 import com.iptv.scanner.editor.pro.data.UserPrefs
+import com.iptv.scanner.editor.pro.player.Player
+import com.iptv.scanner.editor.pro.player.PlayerCapabilities
+import com.iptv.scanner.editor.pro.player.PlayerType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,7 +34,21 @@ import kotlinx.coroutines.flow.asStateFlow
  *      MpvController 暴露 savePlaybackState/restorePlaybackState 给 ViewModel 协调重建。
  *      实际重建由 Activity 销毁旧 MPVView + 创建新 MPVView 完成。
  */
-class MpvController : MPVLib.EventObserver {
+class MpvController : MPVLib.EventObserver, Player {
+
+    override val playerType = PlayerType.MPV
+
+    /** MPV 功能最完整，所有 capability 均为 true */
+    override val capabilities = PlayerCapabilities(
+        supportsBrightness = true, supportsContrast = true, supportsSaturation = true,
+        supportsHue = true, supportsGamma = true, supportsVideoRotate = true,
+        supportsVideoFlip = true, supportsVideoCrop = true, supportsAudioDelay = true,
+        supportsAudioEq = true, supportsSubDelay = true, supportsSubScale = true,
+        supportsSubPos = true, supportsAbLoop = true, supportsLoopFile = true,
+        supportsFrameStep = true, supportsChapters = true, supportsScreenshot = true,
+        supportsOsd = true, supportsAddSubtitleFile = true,
+        supportsSpeedControl = true, supportsTrackList = true
+    )
 
     @Volatile
     private var mpvView: MPVView? = null
@@ -44,49 +61,49 @@ class MpvController : MPVLib.EventObserver {
     private var voFallbackTriggered = false
 
     // -----------------------------------------------------------------
-    // StateFlow（Compose 可观察状态）
+    // StateFlow（Compose 可观察状态）— override Player 接口
     // -----------------------------------------------------------------
     private val _timePos = MutableStateFlow(0.0)
-    val timePos: StateFlow<Double> = _timePos.asStateFlow()
+    override val timePos: StateFlow<Double> = _timePos.asStateFlow()
 
     private val _duration = MutableStateFlow(0.0)
-    val duration: StateFlow<Double> = _duration.asStateFlow()
+    override val duration: StateFlow<Double> = _duration.asStateFlow()
 
     private val _paused = MutableStateFlow(true)
-    val paused: StateFlow<Boolean> = _paused.asStateFlow()
+    override val paused: StateFlow<Boolean> = _paused.asStateFlow()
 
     private val _volume = MutableStateFlow(100)
-    val volume: StateFlow<Int> = _volume.asStateFlow()
+    override val volume: StateFlow<Int> = _volume.asStateFlow()
 
     private val _muted = MutableStateFlow(false)
-    val muted: StateFlow<Boolean> = _muted.asStateFlow()
+    override val muted: StateFlow<Boolean> = _muted.asStateFlow()
 
     private val _mediaTitle = MutableStateFlow("")
-    val mediaTitle: StateFlow<String> = _mediaTitle.asStateFlow()
+    override val mediaTitle: StateFlow<String> = _mediaTitle.asStateFlow()
 
     private val _trackListJson = MutableStateFlow("")
-    val trackListJson: StateFlow<String> = _trackListJson.asStateFlow()
+    override val trackListJson: StateFlow<String> = _trackListJson.asStateFlow()
 
     private val _eofReached = MutableStateFlow(false)
-    val eofReached: StateFlow<Boolean> = _eofReached.asStateFlow()
+    override val eofReached: StateFlow<Boolean> = _eofReached.asStateFlow()
 
     private val _fileLoaded = MutableStateFlow(false)
-    val fileLoaded: StateFlow<Boolean> = _fileLoaded.asStateFlow()
+    override val fileLoaded: StateFlow<Boolean> = _fileLoaded.asStateFlow()
 
     private val _currentChapter = MutableStateFlow(-1)
-    val currentChapter: StateFlow<Int> = _currentChapter.asStateFlow()
+    override val currentChapter: StateFlow<Int> = _currentChapter.asStateFlow()
 
     private val _chapterCount = MutableStateFlow(0)
-    val chapterCount: StateFlow<Int> = _chapterCount.asStateFlow()
+    override val chapterCount: StateFlow<Int> = _chapterCount.asStateFlow()
 
     private val _videoWidth = MutableStateFlow(0)
-    val videoWidth: StateFlow<Int> = _videoWidth.asStateFlow()
+    override val videoWidth: StateFlow<Int> = _videoWidth.asStateFlow()
 
     private val _videoHeight = MutableStateFlow(0)
-    val videoHeight: StateFlow<Int> = _videoHeight.asStateFlow()
+    override val videoHeight: StateFlow<Int> = _videoHeight.asStateFlow()
 
     private val _speed = MutableStateFlow(1.0)
-    val speed: StateFlow<Double> = _speed.asStateFlow()
+    override val speed: StateFlow<Double> = _speed.asStateFlow()
 
     // -----------------------------------------------------------------
     // 生命周期
@@ -124,11 +141,20 @@ class MpvController : MPVLib.EventObserver {
         Log.i(TAG, "MpvController attached to MPVView")
     }
 
+    /** Player 接口实现：转发到 attach(MPVView) */
+    override fun attachView(view: Any) {
+        if (view is MPVView) {
+            attach(view)
+        } else {
+            Log.w(TAG, "attachView: view is not MPVView (${view.javaClass.name}), ignored")
+        }
+    }
+
     /**
      * 解绑 MPVView，移除 EventObserver。
      * 在 Activity.onDestroy 时调用。
      */
-    fun detach() {
+    override fun detach() {
         MPVLib.removeObserver(this)
         this.mpvView = null
         // 重置状态（避免 Compose 用旧值）
@@ -180,48 +206,48 @@ class MpvController : MPVLib.EventObserver {
     // -----------------------------------------------------------------
     // 基础播放控制
     // -----------------------------------------------------------------
-    fun playFile(url: String) = postOnUiThread { mpvView?.playFile(url) }
-    fun stop() = postOnUiThread { mpvView?.stop() }
-    fun togglePause() = postOnUiThread { MPVLib.command(arrayOf("cycle", "pause")) }
-    fun setPause(p: Boolean) = postOnUiThread { MPVLib.setPropertyBoolean("pause", p) }
+    override fun playFile(url: String) = postOnUiThread { mpvView?.playFile(url) }
+    override fun stop() = postOnUiThread { mpvView?.stop() }
+    override fun togglePause() = postOnUiThread { MPVLib.command(arrayOf("cycle", "pause")) }
+    override fun setPause(p: Boolean) = postOnUiThread { MPVLib.setPropertyBoolean("pause", p) }
 
-    fun seekTo(seconds: Double) =
+    override fun seekTo(seconds: Double) =
         postOnUiThread { MPVLib.setPropertyDouble("time-pos", seconds) }
 
-    fun seekRelative(seconds: Double) =
+    override fun seekRelative(seconds: Double) =
         postOnUiThread { MPVLib.command(arrayOf("seek", seconds.toString(), "relative")) }
 
-    fun seekAbsolute(seconds: Double) =
+    override fun seekAbsolute(seconds: Double) =
         postOnUiThread { MPVLib.command(arrayOf("seek", seconds.toString(), "absolute")) }
 
     // -----------------------------------------------------------------
     // 音量 / 静音 / 速度
     // -----------------------------------------------------------------
-    fun setVolume(v: Int) =
+    override fun setVolume(v: Int) =
         postOnUiThread { MPVLib.setPropertyInt("volume", v.coerceIn(0, 130)) }
 
-    fun adjustVolume(delta: Int) {
+    override fun adjustVolume(delta: Int) {
         val cur = _volume.value
         setVolume(cur + delta)
     }
 
-    fun toggleMute() = postOnUiThread { MPVLib.command(arrayOf("cycle", "mute")) }
-    fun setMute(m: Boolean) = postOnUiThread { MPVLib.setPropertyBoolean("mute", m) }
+    override fun toggleMute() = postOnUiThread { MPVLib.command(arrayOf("cycle", "mute")) }
+    override fun setMute(m: Boolean) = postOnUiThread { MPVLib.setPropertyBoolean("mute", m) }
 
-    fun setSpeed(s: Double) =
+    override fun setSpeed(s: Double) =
         postOnUiThread { MPVLib.setPropertyDouble("speed", s.coerceIn(0.01, 100.0)) }
 
     // -----------------------------------------------------------------
     // 音轨 / 字幕轨
     // -----------------------------------------------------------------
-    fun cycleAudio() = postOnUiThread { MPVLib.command(arrayOf("cycle", "audio")) }
-    fun cycleSub() = postOnUiThread { MPVLib.command(arrayOf("cycle", "sub")) }
+    override fun cycleAudio() = postOnUiThread { MPVLib.command(arrayOf("cycle", "audio")) }
+    override fun cycleSub() = postOnUiThread { MPVLib.command(arrayOf("cycle", "sub")) }
 
     /**
      * 设置音轨。id 对应 track-list 中 type=audio 项的 id。
      * 与 PC 端 set_track 一致：先 setPropertyInt，失败回退 command。
      */
-    fun setAudioTrack(id: Int) = postOnUiThread {
+    override fun setAudioTrack(id: Int) = postOnUiThread {
         try {
             MPVLib.setPropertyInt("aid", id)
         } catch (e: Exception) {
@@ -229,7 +255,7 @@ class MpvController : MPVLib.EventObserver {
         }
     }
 
-    fun setSubTrack(id: Int) = postOnUiThread {
+    override fun setSubTrack(id: Int) = postOnUiThread {
         try {
             MPVLib.setPropertyInt("sid", id)
         } catch (e: Exception) {
@@ -238,30 +264,30 @@ class MpvController : MPVLib.EventObserver {
     }
 
     /** 加载外挂字幕文件（select 表示立即选中） */
-    fun addSubtitleFile(path: String) =
+    override fun addSubtitleFile(path: String) =
         postOnUiThread { MPVLib.command(arrayOf("sub-add", path, "select")) }
 
     // -----------------------------------------------------------------
     // 字幕显示与样式
     // -----------------------------------------------------------------
-    fun setSubVisibility(v: Boolean) =
+    override fun setSubVisibility(v: Boolean) =
         postOnUiThread { MPVLib.setPropertyBoolean("sub-visibility", v) }
 
-    fun toggleSubVisibility() =
+    override fun toggleSubVisibility() =
         postOnUiThread { MPVLib.command(arrayOf("cycle", "sub-visibility")) }
 
-    fun setSubDelay(delaySec: Double) =
+    override fun setSubDelay(delaySec: Double) =
         postOnUiThread { MPVLib.setPropertyDouble("sub-delay", delaySec) }
 
-    fun adjustSubDelay(delta: Double) {
+    override fun adjustSubDelay(delta: Double) {
         val cur = MPVLib.getPropertyDouble("sub-delay") ?: 0.0
         setSubDelay(cur + delta)
     }
 
-    fun setSubScale(scale: Double) =
+    override fun setSubScale(scale: Double) =
         postOnUiThread { MPVLib.setPropertyDouble("sub-scale", scale.coerceIn(0.1, 10.0)) }
 
-    fun setSubPos(pos: Int) =
+    override fun setSubPos(pos: Int) =
         postOnUiThread { MPVLib.setPropertyInt("sub-pos", pos.coerceIn(0, 100)) }
 
     /**
@@ -275,87 +301,138 @@ class MpvController : MPVLib.EventObserver {
     // -----------------------------------------------------------------
     // 章节
     // -----------------------------------------------------------------
-    fun setChapter(idx: Int) = postOnUiThread {
-        try {
-            MPVLib.setPropertyInt("chapter", idx)
-        } catch (e: Exception) {
-            MPVLib.command(arrayOf("set", "chapter", idx.toString()))
+    override fun setChapter(idx: Int): Boolean {
+        postOnUiThread {
+            try {
+                MPVLib.setPropertyInt("chapter", idx)
+            } catch (e: Exception) {
+                MPVLib.command(arrayOf("set", "chapter", idx.toString()))
+            }
         }
+        return true
     }
 
-    fun chapterNext() = postOnUiThread { MPVLib.command(arrayOf("add", "chapter", "1")) }
-    fun chapterPrev() = postOnUiThread { MPVLib.command(arrayOf("add", "chapter", "-1")) }
+    override fun chapterNext(): Boolean {
+        postOnUiThread { MPVLib.command(arrayOf("add", "chapter", "1")) }
+        return true
+    }
+
+    override fun chapterPrev(): Boolean {
+        postOnUiThread { MPVLib.command(arrayOf("add", "chapter", "-1")) }
+        return true
+    }
 
     // -----------------------------------------------------------------
     // 画面调整（video EQ + 翻转 / 旋转 / 裁剪）
     // -----------------------------------------------------------------
-    fun setBrightness(v: Int) = postOnUiThread { MPVLib.setPropertyInt("brightness", v.coerceIn(-100, 100)) }
-    fun setContrast(v: Int) = postOnUiThread { MPVLib.setPropertyInt("contrast", v.coerceIn(-100, 100)) }
-    fun setSaturation(v: Int) = postOnUiThread { MPVLib.setPropertyInt("saturation", v.coerceIn(-100, 100)) }
-    fun setHue(v: Int) = postOnUiThread { MPVLib.setPropertyInt("hue", v.coerceIn(-100, 100)) }
-    fun setGamma(v: Int) = postOnUiThread { MPVLib.setPropertyInt("gamma", v.coerceIn(-100, 100)) }
+    override fun setBrightness(v: Int): Boolean {
+        postOnUiThread { MPVLib.setPropertyInt("brightness", v.coerceIn(-100, 100)) }
+        return true
+    }
 
-    fun setVideoRotate(degree: Int) =
+    override fun setContrast(v: Int): Boolean {
+        postOnUiThread { MPVLib.setPropertyInt("contrast", v.coerceIn(-100, 100)) }
+        return true
+    }
+
+    override fun setSaturation(v: Int): Boolean {
+        postOnUiThread { MPVLib.setPropertyInt("saturation", v.coerceIn(-100, 100)) }
+        return true
+    }
+
+    override fun setHue(v: Int): Boolean {
+        postOnUiThread { MPVLib.setPropertyInt("hue", v.coerceIn(-100, 100)) }
+        return true
+    }
+
+    override fun setGamma(v: Int): Boolean {
+        postOnUiThread { MPVLib.setPropertyInt("gamma", v.coerceIn(-100, 100)) }
+        return true
+    }
+
+    override fun setVideoRotate(degree: Int): Boolean {
         postOnUiThread { MPVLib.setPropertyInt("video-rotate", degree) }
+        return true
+    }
 
     /**
      * 设置视频翻转。mode: "" / "horizontal" / "vertical" / "both"
      * 与 PC 端 set_video_flip 一致：先 remove 旧 @iptv_flip，再 add 新的。
      * 注意：hwdec 必须为 auto-copy（默认）才能用 vf 滤镜。
      */
-    fun setVideoFlip(mode: String) = postOnUiThread {
-        MPVLib.command(arrayOf("vf", "remove", "@iptv_flip"))
-        val filters = when (mode) {
-            "horizontal" -> listOf("hflip")
-            "vertical" -> listOf("vflip")
-            "both" -> listOf("hflip", "vflip")
-            else -> emptyList()
+    override fun setVideoFlip(mode: String): Boolean {
+        postOnUiThread {
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_flip"))
+            val filters = when (mode) {
+                "horizontal" -> listOf("hflip")
+                "vertical" -> listOf("vflip")
+                "both" -> listOf("hflip", "vflip")
+                else -> emptyList()
+            }
+            if (filters.isNotEmpty()) {
+                val expr = "lavfi=[" + filters.joinToString(",") + "]"
+                MPVLib.command(arrayOf("vf", "add", "@iptv_flip:$expr"))
+            }
         }
-        if (filters.isNotEmpty()) {
-            val expr = "lavfi=[" + filters.joinToString(",") + "]"
-            MPVLib.command(arrayOf("vf", "add", "@iptv_flip:$expr"))
-        }
+        return true
     }
 
     /**
      * 设置视频裁剪（黑边裁剪）。w/h=0 表示清除。
      */
-    fun setVideoCrop(x: Int, y: Int, w: Int, h: Int) = postOnUiThread {
-        MPVLib.command(arrayOf("vf", "remove", "@iptv_crop"))
-        if (w > 0 && h > 0) {
-            MPVLib.command(arrayOf("vf", "add", "@iptv_crop:crop=$w:$h:$x:$y"))
+    override fun setVideoCrop(x: Int, y: Int, w: Int, h: Int): Boolean {
+        postOnUiThread {
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_crop"))
+            if (w > 0 && h > 0) {
+                MPVLib.command(arrayOf("vf", "add", "@iptv_crop:crop=$w:$h:$x:$y"))
+            }
         }
+        return true
     }
 
-    fun clearVideoCrop() = postOnUiThread { MPVLib.command(arrayOf("vf", "remove", "@iptv_crop")) }
-    fun clearAllVideoFilters() = postOnUiThread {
-        MPVLib.command(arrayOf("vf", "remove", "@iptv_flip"))
-        MPVLib.command(arrayOf("vf", "remove", "@iptv_crop"))
+    override fun clearVideoCrop() {
+        postOnUiThread { MPVLib.command(arrayOf("vf", "remove", "@iptv_crop")) }
+    }
+
+    override fun clearAllVideoFilters() {
+        postOnUiThread {
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_flip"))
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_crop"))
+        }
     }
 
     // -----------------------------------------------------------------
     // 音频调整
     // -----------------------------------------------------------------
-    fun setAudioDelay(delaySec: Double) =
+    override fun setAudioDelay(delaySec: Double): Boolean {
         postOnUiThread { MPVLib.setPropertyDouble("audio-delay", delaySec.coerceIn(-10.0, 10.0)) }
+        return true
+    }
 
-    fun adjustAudioDelay(delta: Double) {
+    override fun adjustAudioDelay(delta: Double): Boolean {
         val cur = MPVLib.getPropertyDouble("audio-delay") ?: 0.0
         setAudioDelay(cur + delta)
+        return true
     }
 
     /**
      * 设置 10 段均衡器。gains 长度必须为 10，每段 -12 ~ +12 dB。
      * 与 PC 端 set_audio_eq 一致：先 remove @iptv_eq，全 0 不添加，否则 add equalizer=g1:g2:...:g10。
      */
-    fun setAudioEq(gains: List<Float>) = postOnUiThread {
-        MPVLib.command(arrayOf("af", "remove", "@iptv_eq"))
-        if (gains.size != 10 || gains.all { it == 0f }) return@postOnUiThread
-        val eqStr = gains.joinToString(":") { "%.1f".format(it) }
-        MPVLib.command(arrayOf("af", "add", "@iptv_eq:equalizer=$eqStr"))
+    override fun setAudioEq(gains: List<Float>): Boolean {
+        postOnUiThread {
+            MPVLib.command(arrayOf("af", "remove", "@iptv_eq"))
+            if (gains.size != 10 || gains.all { it == 0f }) return@postOnUiThread
+            val eqStr = gains.joinToString(":") { "%.1f".format(it) }
+            MPVLib.command(arrayOf("af", "add", "@iptv_eq:equalizer=$eqStr"))
+        }
+        return true
     }
 
-    fun resetAudioEq() = postOnUiThread { MPVLib.command(arrayOf("af", "remove", "@iptv_eq")) }
+    override fun resetAudioEq(): Boolean {
+        postOnUiThread { MPVLib.command(arrayOf("af", "remove", "@iptv_eq")) }
+        return true
+    }
 
     // -----------------------------------------------------------------
     // 截图
@@ -367,80 +444,139 @@ class MpvController : MPVLib.EventObserver {
      *  - "window": 含 OSD
      *  - "each-frame": 连续截图（每帧）
      */
-    fun screenshotToFile(path: String, mode: String = "video") =
+    override fun screenshotToFile(path: String, mode: String): Boolean {
         postOnUiThread { MPVLib.command(arrayOf("screenshot-to-file", path, mode)) }
+        return true
+    }
 
     // -----------------------------------------------------------------
     // A/B 循环 + 单文件/列表循环 + 逐帧
     // -----------------------------------------------------------------
-    fun setAbLoopA() = postOnUiThread {
-        val t = MPVLib.getPropertyDouble("time-pos") ?: 0.0
-        MPVLib.setPropertyDouble("ab-loop-a", t)
+    override fun setAbLoopA(): Boolean {
+        postOnUiThread {
+            val t = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+            MPVLib.setPropertyDouble("ab-loop-a", t)
+        }
+        return true
     }
 
-    fun setAbLoopB() = postOnUiThread {
-        val t = MPVLib.getPropertyDouble("time-pos") ?: 0.0
-        MPVLib.setPropertyDouble("ab-loop-b", t)
+    override fun setAbLoopB(): Boolean {
+        postOnUiThread {
+            val t = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+            MPVLib.setPropertyDouble("ab-loop-b", t)
+        }
+        return true
     }
 
-    fun clearAbLoop() = postOnUiThread {
-        MPVLib.setPropertyString("ab-loop-a", "no")
-        MPVLib.setPropertyString("ab-loop-b", "no")
+    override fun clearAbLoop() {
+        postOnUiThread {
+            MPVLib.setPropertyString("ab-loop-a", "no")
+            MPVLib.setPropertyString("ab-loop-b", "no")
+        }
     }
 
     /** mode: "no" / "inf" / "yes" / "once" */
-    fun setLoopFile(mode: String) =
+    override fun setLoopFile(mode: String): Boolean {
         postOnUiThread { MPVLib.setPropertyString("loop-file", mode) }
+        return true
+    }
 
     /** mode: "no" / "inf" / "force" */
-    fun setLoopPlaylist(mode: String) =
+    override fun setLoopPlaylist(mode: String): Boolean {
         postOnUiThread { MPVLib.setPropertyString("loop-playlist", mode) }
+        return true
+    }
 
-    fun frameStep() = postOnUiThread { MPVLib.command(arrayOf("frame-step")) }
-    fun frameBackStep() = postOnUiThread { MPVLib.command(arrayOf("frame-back-step")) }
+    override fun frameStep(): Boolean {
+        postOnUiThread { MPVLib.command(arrayOf("frame-step")) }
+        return true
+    }
+
+    override fun frameBackStep(): Boolean {
+        postOnUiThread { MPVLib.command(arrayOf("frame-back-step")) }
+        return true
+    }
 
     // -----------------------------------------------------------------
     // OSD
     // -----------------------------------------------------------------
-    fun showOsd(text: String, durationMs: Int = 3000) =
+    override fun showOsd(text: String, durationMs: Int) {
         postOnUiThread { MPVLib.command(arrayOf("show-text", text, durationMs.toString())) }
+    }
 
     // -----------------------------------------------------------------
     // 通用 API（覆盖所有未封装的 mpv 属性/命令）
     // -----------------------------------------------------------------
-    fun setPropertyString(name: String, value: String) =
+    override fun setPropertyString(name: String, value: String) =
         postOnUiThread { MPVLib.setPropertyString(name, value) }
 
-    fun setPropertyInt(name: String, value: Int) =
+    override fun setPropertyInt(name: String, value: Int) =
         postOnUiThread { MPVLib.setPropertyInt(name, value) }
 
-    fun setPropertyDouble(name: String, value: Double) =
+    override fun setPropertyDouble(name: String, value: Double) =
         postOnUiThread { MPVLib.setPropertyDouble(name, value) }
 
-    fun setPropertyBoolean(name: String, value: Boolean) =
+    override fun setPropertyBoolean(name: String, value: Boolean) =
         postOnUiThread { MPVLib.setPropertyBoolean(name, value) }
 
     /** 同步读取属性（在调用线程执行，注意 mpv 线程安全）。libmpv 未初始化时返回 null，避免 native 崩溃。 */
-    fun getPropertyString(name: String): String? =
+    override fun getPropertyString(name: String): String? =
         if (mpvView != null) MPVLib.getPropertyString(name) else null
-    fun getPropertyInt(name: String): Int? =
+
+    override fun getPropertyInt(name: String): Int? =
         if (mpvView != null) MPVLib.getPropertyInt(name) else null
-    fun getPropertyDouble(name: String): Double? =
+
+    override fun getPropertyDouble(name: String): Double? =
         if (mpvView != null) MPVLib.getPropertyDouble(name) else null
-    fun getPropertyBoolean(name: String): Boolean? =
+
+    override fun getPropertyBoolean(name: String): Boolean? =
         if (mpvView != null) MPVLib.getPropertyBoolean(name) else null
 
-    fun command(args: Array<String>) = postOnUiThread { MPVLib.command(args) }
+    override fun command(args: Array<String>) = postOnUiThread { MPVLib.command(args) }
+
+    // -----------------------------------------------------------------
+    // 媒体信息（Player 接口实现）
+    // -----------------------------------------------------------------
+    /**
+     * 获取媒体信息（codec/bitrate/fps/cacheDuration 等），UI 层 MediaBadgesRow 通过 key 读取。
+     * 与 PC 端 MediaBadgesRow 显示的 key 对齐：
+     * - videoCodec / audioCodec / videoRes / fps / bitrate / cacheDuration / avdiff
+     */
+    override fun getMediaInfo(): Map<String, String?> {
+        if (mpvView == null) return emptyMap()
+        return try {
+            mapOf(
+                "videoCodec" to safeGet("video-format"),
+                "audioCodec" to safeGet("audio-codec-name"),
+                "videoRes" to "${_videoWidth.value}x${_videoHeight.value}",
+                "fps" to safeGet("estimated-vfps"),
+                "displayFps" to safeGet("display-fps"),
+                "bitrate" to safeGet("video-bitrate"),
+                "audioBitrate" to safeGet("audio-bitrate"),
+                "cacheDuration" to safeGet("cache-duration"),
+                "avdiff" to safeGet("total-avsync-change"),
+                "containerFormat" to safeGet("file-format"),
+                "hwdec" to safeGet("hwdec-current"),
+                "vo" to safeGet("vo")
+            )
+        } catch (e: Throwable) {
+            Log.w(TAG, "getMediaInfo failed: ${e.message}")
+            emptyMap()
+        }
+    }
+
+    private fun safeGet(name: String): String? =
+        try { MPVLib.getPropertyString(name) } catch (_: Throwable) { null }
 
     // -----------------------------------------------------------------
     // HDR 重建协调（保存/恢复进度）
     // -----------------------------------------------------------------
     /**
-     * 保存当前播放状态（用于 HDR 模式 / hwdec 模式切换前的重建）。
+     * 保存当前播放状态（用于 HDR 模式 / hwdec 模式切换 / 播放器切换前的重建）。
      * 返回 Pair<url, timePosSec>，重建后用 restorePlaybackState 恢复。
      * 返回 null 表示当前无文件播放。
      */
-    fun savePlaybackState(): Pair<String, Double>? {
+    override fun savePlaybackState(): Pair<String, Double>? {
         val url = MPVLib.getPropertyString("path") ?: return null
         if (url.isEmpty()) return null
         val time = MPVLib.getPropertyDouble("time-pos") ?: 0.0
@@ -451,13 +587,15 @@ class MpvController : MPVLib.EventObserver {
      * 重建后恢复播放状态。loadfile + seek absolute 恢复进度。
      * 注意：seek 在 file-loaded 事件后才会生效，调用方应在收到 fileLoaded 后再 seek。
      */
-    fun restorePlaybackState(url: String, timePosSec: Double) = postOnUiThread {
-        MPVLib.command(arrayOf("loadfile", url))
-        if (timePosSec > 0) {
-            // 用 absolute+exact 模式精确 seek
-            MPVLib.command(arrayOf("seek", timePosSec.toString(), "absolute", "exact"))
+    override fun restorePlaybackState(url: String, timePosSec: Double) {
+        postOnUiThread {
+            MPVLib.command(arrayOf("loadfile", url))
+            if (timePosSec > 0) {
+                // 用 absolute+exact 模式精确 seek
+                MPVLib.command(arrayOf("seek", timePosSec.toString(), "absolute", "exact"))
+            }
+            MPVLib.setPropertyBoolean("pause", false)
         }
-        MPVLib.setPropertyBoolean("pause", false)
     }
 
     // -----------------------------------------------------------------
