@@ -320,8 +320,8 @@ private fun EpgItem(
             .fillMaxWidth()
             .alpha(itemAlpha)
             .background(bgColor)
-            .clickable(onClick = onClick)
             .tvFocusBorder()
+            .clickable(onClick = onClick)
             .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)
     ) {
         // 左侧蓝色边框（当前节目）

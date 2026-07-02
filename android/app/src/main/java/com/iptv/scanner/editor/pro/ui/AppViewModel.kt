@@ -795,8 +795,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 delay(300)
 
                 // 1. 初始化 Python + ServerContext 单例（在 IO 线程执行，减少主线程压力）
+                // 传递 Android 存储路径给 Python（jnius 不可用时的兜底方案）
+                val app = getApplication<Application>()
+                val extFilesDir = app.getExternalFilesDir(null)?.absolutePath ?: ""
+                val filesDir = app.filesDir.absolutePath
                 val initResult = withContext(Dispatchers.IO) {
-                    repository.initContext()
+                    repository.initContext(extFilesDir, filesDir)
                 }
                 if (initResult.isFailure) {
                     val msg = initResult.exceptionOrNull()?.message ?: "初始化失败"
@@ -1013,12 +1017,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // 刷新当前 URL 的书签列表
         refreshCurrentBookmarks()
 
-        // 切台前先停止当前播放，让 mpv 释放 hwdec 解码器资源。
-        // keep-open=yes 下不 stop 会导致旧解码器不释放，新文件 hwdec 初始化失败（黑屏）。
-        // 与 PC 端 mpv_player_service.py play() 对齐。
-        if (mpv.fileLoaded.value) {
-            mpv.stop()
-        }
+        // 切台时不主动 stop，直接 loadfile 让 mpv 自动切换解码器。
+        // mpv 的 loadfile replace 模式会自动释放旧解码器、加载新文件，
+        // 配合 keep-open=yes 在切换间隙保持最后一帧画面，避免黑屏闪烁。
+        // （之前 stop + loadfile 会导致画面清空黑屏，PC 端窗口背景为黑色不明显，
+        //  但 TV 端 SurfaceView 黑屏很显眼）
 
         // FCC 快速换台：向 FCC 代理发送 leave/join 通知（组播场景加速切台）。
         // 与 PC 端 PlaybackController.play_channel() → fcc.on_channel_change() 对齐。
@@ -1026,7 +1029,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
         // 播放（去除 URL 中的 ?fcc= 参数，mpv 不理解该查询参数）
         val playUrl = FccHelper.extractOriginalUrl(channel.url)
-        mpv.playFile(playUrl)
+
+        // 协议兼容性检查：IJK/ExoPlayer 不支持 RTP/UDP 等非 HTTP 协议。
+        // 遇到不支持的协议时自动切换到 MPV（支持全部协议），避免播放失败无响应。
+        // switchPlayer 会触发 View 重建，重建后通过 pendingRestoreState 恢复播放。
+        if (!isUrlSupportedByPlayer(playUrl, _playerType.value)) {
+            Log.w(TAG, "playChannel: ${_playerType.value.displayName} does not support protocol of $playUrl, switching to MPV")
+            showOsd("协议不支持", "${_playerType.value.displayName} 不支持此协议，已切换到 MPV")
+            switchPlayer(PlayerType.MPV)
+            // 覆盖 switchPlayer 保存的旧状态，改为播放新频道 URL
+            pendingRestoreState = playUrl to 0.0
+        } else {
+            mpv.playFile(playUrl)
+        }
 
         // 显示 OSD
         if (!silent) {
@@ -1044,6 +1059,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
         // 预取 EPG（避免用户必须先打开 EPG 面板才能看到节目信息）
         fetchEpgForCurrent()
+    }
+
+    /**
+     * 检查 URL 协议是否被指定播放器类型支持。
+     *
+     * 各播放器协议支持范围：
+     * - MPV：全部协议（rtp/udp/rtsp/rtmp/http/https/file/content）
+     * - VLC：全部协议（rtp/udp/rtsp/rtmp/http/https/file）
+     * - IJK：http/https/rtsp/rtmp/file/content（FFmpeg fork 不含 RTP/UDP 协议）
+     * - ExoPlayer：仅 http/https/file/content（不支持 rtp/udp/rtsp/rtmp）
+     *
+     * 遇到不支持的协议时调用方应自动切换到 MPV。
+     */
+    private fun isUrlSupportedByPlayer(url: String, type: PlayerType): Boolean {
+        // content:// 和 file:// 协议所有播放器都支持
+        if (url.startsWith("content://") || url.startsWith("file://") || url.startsWith("/")) {
+            return true
+        }
+        val scheme = url.substringBefore("://", "").lowercase()
+        return when (type) {
+            PlayerType.MPV, PlayerType.VLC -> true  // 全协议支持
+            PlayerType.IJK -> scheme in setOf("http", "https", "rtsp", "rtmp")
+            PlayerType.EXO -> scheme in setOf("http", "https")
+        }
     }
 
     /**
@@ -3267,6 +3306,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // -----------------------------------------------------------------
 
     /**
+     * 检查设备是否有 SAF（Storage Access Framework）文件选择器可用。
+     *
+     * TV 设备通常没有预装文件管理器，调用 ActivityResultContracts.OpenDocument()
+     * 会提示"没有可执行的应用"。此方法在启动选择器前检查可用性，
+     * 不可用时调用方应显示替代方案（如订阅源管理）。
+     */
+    fun isSafAvailable(): Boolean {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+        val pm = getApplication<Application>().packageManager
+        return pm.queryIntentActivities(intent, 0).isNotEmpty()
+    }
+
+    /**
      * 播放本地视频文件（直接调 mpv.playFile，不走频道列表）。
      * @param uri SAF 返回的 content:// URI 或 file:// 路径
      */
@@ -3303,7 +3358,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         currentIsLocalFile = true  // 网络流走本地视频路径（chIdx=-1）
         // 刷新当前 URL 的书签列表
         refreshCurrentBookmarks()
-        mpv.playFile(url)
+        // 协议兼容性检查（与 playChannel 一致）
+        if (!isUrlSupportedByPlayer(url, _playerType.value)) {
+            Log.w(TAG, "playUrl: ${_playerType.value.displayName} does not support $url, switching to MPV")
+            showOsd("协议不支持", "${_playerType.value.displayName} 不支持此协议，已切换到 MPV")
+            switchPlayer(PlayerType.MPV)
+            pendingRestoreState = url to 0.0
+        } else {
+            mpv.playFile(url)
+        }
         showOsd("网络流", url)
         closeAllPanels()
     }

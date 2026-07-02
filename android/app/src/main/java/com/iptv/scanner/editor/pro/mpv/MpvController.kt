@@ -775,7 +775,7 @@ class MpvController : MPVLib.EventObserver, Player {
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
                 _fileLoaded.value = true
                 _eofReached.value = false
-                // 黑屏检测：文件加载后 2 秒检查 videoWidth，若为 0 则 fallback 到 mediacodec_embed
+                // 黑屏检测：文件加载后 6 秒检查 videoWidth 和 estimated-vfps，若渲染没工作则 fallback。
                 // 根因：mpv 0.41.0 + Mali-G76 等部分 GPU 存在 EGL 渲染兼容性问题，
                 // vo=gpu 会导致黑屏（有声音无画面）。用 mediacodec_embed 绕过 EGL 直接渲染到 Surface。
                 scheduleBlackScreenCheck()
@@ -794,8 +794,16 @@ class MpvController : MPVLib.EventObserver, Player {
         }
     }
 
+    /** 黑屏检测重试计数（避免直播流缓冲期间 estimated-vfps 暂时为 0 导致误判） */
+    private var blackScreenRetryCount = 0
+
     /**
-     * 黑屏检测 Runnable：3 秒后检查 videoWidth 和 estimated-vfps，若渲染没工作则触发 vo fallback。
+     * 黑屏检测 Runnable：检查 videoWidth 和 estimated-vfps，若渲染没工作则触发 vo fallback。
+     *
+     * 防误判机制：
+     * - 直播流（HLS/RTMP）刚加载时 estimated-vfps 可能暂时为 0（缓冲未完成）
+     * - 首次检测到"黑屏"后 3 秒复查，连续两次确认才 fallback
+     * - 实际首次检测在文件加载后 6 秒（scheduleBlackScreenCheck），复查在 9 秒
      *
      * 为什么用 estimated-vfps 而非仅 videoWidth？
      * - vo=gpu 在部分 GPU（如 Mali-G76）存在 EGL 兼容性问题，导致渲染内容不到 Surface（黑屏有声音）
@@ -803,7 +811,7 @@ class MpvController : MPVLib.EventObserver, Player {
      * - estimated-vfps（mpv 基于实际渲染帧计算的显示帧率）在渲染没工作时为 0
      * - 综合 width==0 || estimated-vfps<=0 判断黑屏更可靠
      */
-    private val blackScreenCheckRunnable = Runnable {
+    private val blackScreenCheckRunnable: Runnable = Runnable {
         if (voFallbackTriggered) return@Runnable
         if (!_fileLoaded.value) return@Runnable
 
@@ -829,13 +837,24 @@ class MpvController : MPVLib.EventObserver, Player {
         }
         Log.d(
             TAG,
-            "blackScreenCheck: vo=$currentVo, videoWidth=$videoWidth, estimatedVfps=$estimatedVfps"
+            "blackScreenCheck: vo=$currentVo, videoWidth=$videoWidth, estimatedVfps=$estimatedVfps, attempt=${blackScreenRetryCount + 1}"
         )
 
         if (videoWidth == 0 || estimatedVfps <= 0.0) {
+            blackScreenRetryCount++
+            if (blackScreenRetryCount < 2) {
+                // 首次检测到"黑屏"：可能是直播流还在缓冲，3 秒后复查
+                Log.w(
+                    TAG,
+                    "Possible black screen (attempt $blackScreenRetryCount, videoWidth=$videoWidth, estimatedVfps=$estimatedVfps), retrying in 3s..."
+                )
+                mpvView?.postDelayed(blackScreenCheckRunnable, 3000)
+                return@Runnable
+            }
+            // 连续两次检测到黑屏，确认并非缓冲问题
             Log.w(
                 TAG,
-                "Black screen detected (videoWidth=$videoWidth, estimatedVfps=$estimatedVfps), fallback to mediacodec_embed"
+                "Black screen confirmed after 2 attempts (videoWidth=$videoWidth, estimatedVfps=$estimatedVfps), fallback to mediacodec_embed"
             )
             voFallbackTriggered = true
             try {
@@ -860,12 +879,13 @@ class MpvController : MPVLib.EventObserver, Player {
     }
 
     /**
-     * 安排黑屏检测（在文件加载后 3 秒执行，给 estimated-vfps 足够时间稳定）。
+     * 安排黑屏检测（在文件加载后 6 秒执行，给直播流足够缓冲时间，避免 estimated-vfps 误判）。
      */
     private fun scheduleBlackScreenCheck() {
         val view = mpvView ?: return
         view.removeCallbacks(blackScreenCheckRunnable)
-        view.postDelayed(blackScreenCheckRunnable, 3000)
+        blackScreenRetryCount = 0
+        view.postDelayed(blackScreenCheckRunnable, 6000)
     }
 
     companion object {

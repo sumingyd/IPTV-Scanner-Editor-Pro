@@ -275,6 +275,9 @@ class VlcController(context: Context) : Player, MediaPlayer.EventListener {
                 media.addOption(":sub-file=$subPath")
             }
 
+            // 显式释放旧的 Media 对象，避免 native 引用泄漏
+            // （VLCObject finalized but not natively released 警告）
+            mediaPlayer.media?.release()
             mediaPlayer.media = media
             media.release() // MediaPlayer 持有引用，释放本地包装
             mediaPlayer.play()

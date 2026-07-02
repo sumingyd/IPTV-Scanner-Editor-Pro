@@ -135,8 +135,8 @@ class IptvRepository private constructor() {
     // -----------------------------------------------------------------
 
     /** 初始化 Python 环境 + ServerContext 单例。返回 'OK' 或 'FAILED: ...' */
-    suspend fun initContext(): Result<Unit> {
-        val raw = callPyRaw("init_context")
+    suspend fun initContext(extFilesDir: String = "", filesDir: String = ""): Result<Unit> {
+        val raw = callPyRaw("init_context", extFilesDir, filesDir)
         return if (raw.startsWith("OK")) {
             Result.success(Unit)
         } else {

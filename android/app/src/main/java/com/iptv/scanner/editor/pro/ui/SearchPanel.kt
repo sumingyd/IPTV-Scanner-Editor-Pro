@@ -236,8 +236,8 @@ private fun SearchResultRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .tvFocusBorder()
+            .clickable(onClick = onClick)
             .padding(vertical = 10.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

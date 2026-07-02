@@ -102,19 +102,29 @@ fun MainMenuPanel(viewModel: AppViewModel) {
     val sections = remember(currentIdx, isFavorite) {
         buildMenuSections(
             onOpenPlaylist = {
-                // M3U/M3U8 文件常见 MIME 类型 + 通配 text/plain 和 octet-stream（部分设备不识别 m3u MIME）
-                playlistLauncher.launch(arrayOf(
-                    "application/x-mpegurl", "application/vnd.apple.mpegurl",
-                    "audio/x-mpegurl", "video/x-mpegurl",
-                    "text/plain", "application/octet-stream"
-                ))
+                if (!viewModel.isSafAvailable()) {
+                    viewModel.toggleMenuPanel()
+                    viewModel.showOsd("无法打开文件选择器", "请使用 订阅源管理 添加 M3U URL")
+                } else {
+                    // M3U/M3U8 文件常见 MIME 类型 + 通配 text/plain 和 octet-stream（部分设备不识别 m3u MIME）
+                    playlistLauncher.launch(arrayOf(
+                        "application/x-mpegurl", "application/vnd.apple.mpegurl",
+                        "audio/x-mpegurl", "video/x-mpegurl",
+                        "text/plain", "application/octet-stream"
+                    ))
+                }
             },
             onOpenUrl = {
                 viewModel.toggleMenuPanel()
                 viewModel.toggleOpenUrlDialog()
             },
             onOpenLocalVideo = {
-                videoLauncher.launch(arrayOf("video/*", "application/x-matroska", "application/octet-stream"))
+                if (!viewModel.isSafAvailable()) {
+                    viewModel.toggleMenuPanel()
+                    viewModel.showOsd("无法打开文件选择器", "请使用 打开网络流 输入 URL")
+                } else {
+                    videoLauncher.launch(arrayOf("video/*", "application/x-matroska", "application/octet-stream"))
+                }
             },
             onSources = {
                 viewModel.setSourceTab(AppViewModel.SourceTab.PLAYLIST)
@@ -350,8 +360,8 @@ private fun MenuEntryItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .tvFocusBorder()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

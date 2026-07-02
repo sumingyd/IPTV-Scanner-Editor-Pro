@@ -12,7 +12,7 @@ def _log(msg, level='I'):
     print(f'[{level}][{elapsed:6.2f}s] {msg}', flush=True)
 
 
-def _setup_android_paths():
+def _setup_android_paths(ext_files_dir='', files_dir=''):
     """设置 Android 数据目录路径（IPTV_DATA_DIR 环境变量）。
 
     数据目录优先级（覆盖安装/卸载重装均不丢失）：
@@ -20,10 +20,12 @@ def _setup_android_paths():
     2. getExternalFilesDir()/ISEPP/（无需权限，覆盖安装不丢失）
     3. getFilesDir()/ISEPP/（最终兜底）
 
+    jnius 不可用时，使用 Kotlin 端传递的 ext_files_dir / files_dir 参数。
     并自动从旧目录 getFilesDir()/IPTV_Scanner_Editor_Pro/ 迁移数据。
     """
-    if not getattr(sys, 'platform', '') == 'android':
-        return
+    target_dir = None
+
+    # 尝试通过 jnius 获取路径（Chaquopy 某些版本支持）
     try:
         from jnius import autoclass
         Python = autoclass('com.chaquo.python.Python')
@@ -31,18 +33,20 @@ def _setup_android_paths():
         Environment = autoclass('android.os.Environment')
 
         # 确保 sys.path 包含 files_dir（Chaquopy 需要）
-        files_dir = app.getFilesDir().getAbsolutePath()
-        if files_dir not in sys.path:
-            sys.path.insert(0, files_dir)
-
-        target_dir = None
+        jnius_files_dir = app.getFilesDir().getAbsolutePath()
+        if jnius_files_dir not in sys.path:
+            sys.path.insert(0, jnius_files_dir)
+        # 同步 Kotlin 传递的路径（jnius 可用时以 jnius 为准）
+        if not files_dir:
+            files_dir = jnius_files_dir
+        if not ext_files_dir:
+            ext_files_dir = app.getExternalFilesDir(None).getAbsolutePath()
 
         # 1. 尝试 /sdcard/ISEPP/（需要存储权限）
         try:
             ext_storage = Environment.getExternalStorageDirectory().getAbsolutePath()
             candidate = os.path.join(ext_storage, 'ISEPP')
             os.makedirs(candidate, exist_ok=True)
-            # 测试写入权限
             test_file = os.path.join(candidate, '.write_test')
             with open(test_file, 'w') as f:
                 f.write('ok')
@@ -52,31 +56,44 @@ def _setup_android_paths():
         except Exception as e:
             _log(f'_setup_android_paths: /sdcard/ISEPP not writable: {e}')
 
-        # 2. 回退到 getExternalFilesDir()/ISEPP/
-        if not target_dir:
-            try:
-                ext_files_dir = app.getExternalFilesDir(None).getAbsolutePath()
-                candidate = os.path.join(ext_files_dir, 'ISEPP')
-                os.makedirs(candidate, exist_ok=True)
-                target_dir = candidate
-                _log(f'_setup_android_paths: using external files dir {target_dir}')
-            except Exception as e:
-                _log(f'_setup_android_paths: getExternalFilesDir failed: {e}')
+    except Exception as e:
+        _log(f'_setup_android_paths: jnius unavailable ({e}), using Kotlin-provided paths')
 
-        # 3. 最终回退到 getFilesDir()/ISEPP/
-        if not target_dir:
+    # 2. 回退到 getExternalFilesDir()/ISEPP/（使用 Kotlin 传递的路径）
+    if not target_dir and ext_files_dir:
+        try:
+            candidate = os.path.join(ext_files_dir, 'ISEPP')
+            os.makedirs(candidate, exist_ok=True)
+            target_dir = candidate
+            _log(f'_setup_android_paths: using external files dir {target_dir}')
+        except Exception as e:
+            _log(f'_setup_android_paths: ext_files_dir failed: {e}')
+
+    # 3. 回退到 getFilesDir()/ISEPP/（使用 Kotlin 传递的路径）
+    if not target_dir and files_dir:
+        try:
             candidate = os.path.join(files_dir, 'ISEPP')
             os.makedirs(candidate, exist_ok=True)
             target_dir = candidate
             _log(f'_setup_android_paths: using internal files dir {target_dir}')
+        except Exception as e:
+            _log(f'_setup_android_paths: files_dir failed: {e}')
 
+    # 4. 最终兜底：使用 expanduser
+    if not target_dir:
+        try:
+            candidate = os.path.join(os.path.expanduser('~'), 'ISEPP')
+            os.makedirs(candidate, exist_ok=True)
+            target_dir = candidate
+            _log(f'_setup_android_paths: using home dir {target_dir}')
+        except Exception as e:
+            _log(f'_setup_android_paths: home dir failed: {e}', 'E')
+
+    if target_dir:
         os.environ['IPTV_DATA_DIR'] = target_dir
-
-        # 迁移旧数据（从 getFilesDir()/IPTV_Scanner_Editor_Pro/ 到新目录）
-        _migrate_old_data(app, files_dir, target_dir)
-
-    except Exception as e:
-        _log(f'_setup_android_paths failed: {e}', 'E')
+        # 迁移旧数据
+        if files_dir:
+            _migrate_old_data(None, files_dir, target_dir)
 
 
 def _migrate_old_data(app, files_dir, new_dir):
@@ -360,8 +377,11 @@ def _err(message, **extra):
     return _json.dumps(payload, ensure_ascii=False)
 
 
-def init_context():
+def init_context(ext_files_dir='', files_dir=''):
     """初始化 Python 环境 + ServerContext 单例，立即返回（不阻塞）。
+
+    参数 ext_files_dir / files_dir 由 Kotlin 端通过 Chaquopy callAttr 传入，
+    用于在 jnius 不可用时定位 Android 数据目录。
 
     返回 'OK' 表示成功，'FAILED: ...' 表示错误。
     Compose 端应在 Dispatchers.IO 调用，调用后用 get_status_json() 轮询加载进度。
@@ -371,7 +391,7 @@ def init_context():
         if _inited:
             return 'OK'
         try:
-            _setup_android_paths()
+            _setup_android_paths(ext_files_dir, files_dir)
             _setup_android_logging()
             _log('init_context: paths and logging setup done')
 

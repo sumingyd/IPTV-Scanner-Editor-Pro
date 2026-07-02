@@ -193,17 +193,25 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     isFavorite = isFavorite,
                     onOpenPlaylist = {
                         closeAndRun {
-                            playlistLauncher.launch(arrayOf(
-                                "application/x-mpegurl", "application/vnd.apple.mpegurl",
-                                "audio/x-mpegurl", "video/x-mpegurl",
-                                "text/plain", "application/octet-stream"
-                            ))
+                            if (!viewModel.isSafAvailable()) {
+                                viewModel.showOsd("无法打开文件选择器", "请使用 订阅源管理 添加 M3U URL")
+                            } else {
+                                playlistLauncher.launch(arrayOf(
+                                    "application/x-mpegurl", "application/vnd.apple.mpegurl",
+                                    "audio/x-mpegurl", "video/x-mpegurl",
+                                    "text/plain", "application/octet-stream"
+                                ))
+                            }
                         }
                     },
                     onOpenUrl = { closeAndRun { viewModel.toggleOpenUrlDialog() } },
                     onOpenLocalVideo = {
                         closeAndRun {
-                            videoLauncher.launch(arrayOf("video/*", "application/x-matroska", "application/octet-stream"))
+                            if (!viewModel.isSafAvailable()) {
+                                viewModel.showOsd("无法打开文件选择器", "请使用 打开网络流 输入 URL")
+                            } else {
+                                videoLauncher.launch(arrayOf("video/*", "application/x-matroska", "application/octet-stream"))
+                            }
                         }
                     },
                     onSources = {
@@ -334,8 +342,8 @@ private fun ModeIconButton(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .background(if (isSelected) Color(0xFF2A4A6A) else Color.Transparent)
-            .clickable { onClick() }
             .tvFocusBorder()
+            .clickable { onClick() }
             .padding(horizontal = 8.dp, vertical = 10.dp)
     ) {
         Icon(
@@ -469,8 +477,8 @@ private fun TvChannelItem(
             .fillMaxWidth()
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged { onFocusChange(it.isFocused) }
-            .clickable { onClick() }
             .tvFocusBorder()
+            .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -636,8 +644,8 @@ private fun TvMenuItemRow(item: TvMenuItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { item.onClick() }
             .tvFocusBorder()
+            .clickable { item.onClick() }
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -865,11 +873,11 @@ private fun TvEpgItem(
         modifier = Modifier
             .fillMaxWidth()
             .background(if (isCurrent) Color(0x304A9EFF) else Color.Transparent)
+            .tvFocusBorder()
             .clickable {
                 onSelect()
                 onClick()
             }
-            .tvFocusBorder()
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

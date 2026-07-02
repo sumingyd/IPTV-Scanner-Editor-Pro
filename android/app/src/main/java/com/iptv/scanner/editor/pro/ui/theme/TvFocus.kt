@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 /**
  * TV 端焦点高亮边框 Modifier。
  *
- * 焦点反馈增强（亮色边框 + 半透明背景）：
- * - 获取焦点时显示 4dp 亮白色圆角边框 + 半透明白色背景
+ * 焦点反馈增强（柔和边框 + 半透明背景）：
+ * - 获取焦点时显示 2dp 白色圆角边框 + 半透明白色背景
  * - 未获取焦点时无边框无背景
  *
  * 仅添加焦点检测和条件边框，不添加 focusable（因为 `Modifier.clickable` 已内置 focusable）。
@@ -37,8 +37,8 @@ fun Modifier.tvFocusBorder(cornerRadius: Int = 8): Modifier = composed {
                     .clip(RoundedCornerShape(cornerRadius.dp))
                     .background(Color(0x22FFFFFF))
                     .border(
-                        width = 4.dp,
-                        color = Color(0xFFFFD700),
+                        width = 2.dp,
+                        color = Color.White,
                         shape = RoundedCornerShape(cornerRadius.dp)
                     )
             } else {
@@ -66,8 +66,8 @@ fun Modifier.tvFocusable(cornerRadius: Int = 8): Modifier = composed {
                     .clip(RoundedCornerShape(cornerRadius.dp))
                     .background(Color(0x22FFFFFF))
                     .border(
-                        width = 4.dp,
-                        color = Color(0xFFFFD700),
+                        width = 2.dp,
+                        color = Color.White,
                         shape = RoundedCornerShape(cornerRadius.dp)
                     )
             } else {
