@@ -910,7 +910,7 @@ def get_epg_status_json():
 def get_epg_json(channel_name='', tvg_id='', tvg_name='', comma_name=''):
     """获取指定频道的节目单 JSON。
     匹配优先级：tvg_name > tvg_id > comma_name > channel_name > EpgMatcher 模糊匹配。
-    返回 {programmes: [{title, desc, start, end}]} 或 {error}
+    返回 {programmes: [{title, desc, start, end, start_ts, stop_ts}]} 或 {error}
     """
     try:
         ctx = _get_ctx()
@@ -925,6 +925,19 @@ def get_epg_json(channel_name='', tvg_id='', tvg_name='', comma_name=''):
             tvg_name=tvg_name or None,
             comma_name=comma_name or None,
         )
+        # 填充 Unix 时间戳字段（Kotlin 端用此判断当前节目，与 server/routes.py handle_epg 逻辑一致）
+        for p in (programmes or []):
+            if 'start_ts' not in p:
+                try:
+                    from datetime import datetime
+                    start_str = p.get('start', '')
+                    stop_str = p.get('stop', p.get('end', ''))
+                    if start_str:
+                        p['start_ts'] = int(datetime.fromisoformat(start_str).timestamp())
+                    if stop_str:
+                        p['stop_ts'] = int(datetime.fromisoformat(stop_str).timestamp())
+                except Exception:
+                    pass
         return _ok({
             'programmes': programmes or [],
             'matched': bool(programmes),
