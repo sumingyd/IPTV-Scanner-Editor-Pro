@@ -68,18 +68,19 @@ jobs:
       - name: Build executable
         run: python build.py
 
-      - name: Verify executable
+      - name: Verify and rename executable
         shell: pwsh
         run: |
           if (-not (Test-Path "dist/IPTV Scanner Editor Pro.exe")) {
             throw "Expected executable was not found"
           }
+          Move-Item "dist/IPTV Scanner Editor Pro.exe" "dist/IPTV Scanner Editor Pro-Windows-x86_64.exe" -Force
 
-      - name: Upload executable to release
+      - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: dist/IPTV Scanner Editor Pro.exe
+          files: dist/IPTV Scanner Editor Pro-Windows-x86_64.exe
           fail_on_unmatched_files: true
           overwrite_files: true
         env:
