@@ -35,6 +35,7 @@ jobs:
 
       - name: Install build dependencies
         # 安装 mpv-winbuild-cmake 在 Ubuntu 上的所有依赖（来自官方 README）
+        # 注意：mimalloc 在 Ubuntu 22.04 官方仓库不存在，已移除（可选依赖，不影响构建）
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -44,7 +45,7 @@ jobs:
             clang lld libc++1 libc++abi1 \
             libgmp-dev libmpfr-dev libmpc-dev libgcrypt-dev \
             gperf ragel texinfo autopoint re2c asciidoc \
-            python3-pip docbook2x unzip p7zip-full curl mimalloc ccache
+            python3-pip docbook2x unzip p7zip-full curl ccache
           pip3 install rst2pdf meson mako jsonschema
 
       - name: Clone mpv-winbuild-cmake
