@@ -375,9 +375,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _menuPanelOpen = MutableStateFlow(false)
     val menuPanelOpen: StateFlow<Boolean> = _menuPanelOpen.asStateFlow()
 
-    /** 文件浏览器面板（SAF 不可用时的替代方案，浏览本地 M3U 文件） */
+    /** 文件浏览器面板（SAF 不可用时的替代方案，浏览本地 M3U/媒体文件） */
     private val _fileBrowserOpen = MutableStateFlow(false)
     val fileBrowserOpen: StateFlow<Boolean> = _fileBrowserOpen.asStateFlow()
+
+    /** 文件浏览器模式：PLAYLIST（选择 M3U 导入）/ MEDIA（选择音视频文件播放） */
+    enum class FileBrowserMode { PLAYLIST, MEDIA }
+    private val _fileBrowserMode = MutableStateFlow(FileBrowserMode.PLAYLIST)
+    val fileBrowserMode: StateFlow<FileBrowserMode> = _fileBrowserMode.asStateFlow()
 
     /** TV 端统一面板（三列：模式切换 + 频道列表/主菜单 + EPG 节目单） */
     private val _tvUnifiedPanelOpen = MutableStateFlow(false)
@@ -1774,6 +1779,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 打开文件浏览器面板（SAF 不可用时的替代方案） */
     fun showFileBrowser() {
         closeAllPanels()
+        _fileBrowserMode.value = FileBrowserMode.PLAYLIST
+        _fileBrowserOpen.value = true
+    }
+    /** 打开应用内文件浏览器选择音视频文件播放（SAF 不可用时的兜底） */
+    fun showMediaFileBrowser() {
+        closeAllPanels()
+        _fileBrowserMode.value = FileBrowserMode.MEDIA
         _fileBrowserOpen.value = true
     }
     fun toggleFileBrowser() {
@@ -3381,21 +3393,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * 播放本地视频文件（直接调 mpv.playFile，不走频道列表）。
+     * 播放本地音视频文件（直接调 mpv.playFile，不走频道列表）。
      * @param uri SAF 返回的 content:// URI 或 file:// 路径
      */
     fun playLocalVideo(uri: String) {
         Log.i(TAG, "playLocalVideo: $uri")
-        _currentIdx.value = -1  // 清除当前频道选择（本地视频不在频道列表中）
+        _currentIdx.value = -1  // 清除当前频道选择（本地文件不在频道列表中）
         _playbackState.value = PlaybackState(mode = PlayMode.LIVE)
-        // 续播位置：记录本地视频信息
+        // 续播位置：记录本地文件信息
         currentPlaybackUrl = uri
         currentPlaybackName = uri.substringAfterLast('/').substringAfterLast('%')
         currentIsLocalFile = true
         // 刷新当前 URL 的书签列表
         refreshCurrentBookmarks()
         mpv.playFile(uri)
-        showOsd("本地视频", currentPlaybackName)
+        showOsd("本地文件", currentPlaybackName)
         closeAllPanels()
     }
 

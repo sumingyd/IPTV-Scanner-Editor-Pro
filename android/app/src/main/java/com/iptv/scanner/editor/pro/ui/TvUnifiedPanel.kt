@@ -226,9 +226,9 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     onOpenLocalVideo = {
                         openOverlay {
                             if (!viewModel.isSafAvailable()) {
-                                viewModel.showOsd("无法打开文件选择器", "请使用 打开网络流 输入 URL")
+                                viewModel.showMediaFileBrowser()
                             } else {
-                                videoLauncher.launch(arrayOf("video/*", "application/x-matroska", "application/octet-stream"))
+                                videoLauncher.launch(arrayOf("video/*", "audio/*", "application/x-matroska", "application/octet-stream"))
                             }
                         }
                     },
@@ -604,7 +604,7 @@ private fun MenuColumn(
             // 文件分组
             TvMenuItem("打开播放列表", "选择 M3U/M3U8 文件", Icons.Default.FileOpen, onOpenPlaylist),
             TvMenuItem("打开网络流", "输入订阅源 URL", Icons.Default.Link, onOpenUrl),
-            TvMenuItem("打开本地视频", "播放设备视频文件", Icons.Default.Movie, onOpenLocalVideo),
+            TvMenuItem("打开本地文件", "播放设备视频/音频文件", Icons.Default.Movie, onOpenLocalVideo),
             TvMenuItem("订阅源管理", "添加 / 编辑 / 删除 M3U", Icons.Default.Web, onSources),
             TvMenuItem("EPG 订阅源", "管理节目单订阅地址", Icons.Default.CalendarMonth, onEpgSources),
             TvMenuItem("频道映射", "远程 + 用户映射管理", Icons.Default.SyncAlt, onMapping),

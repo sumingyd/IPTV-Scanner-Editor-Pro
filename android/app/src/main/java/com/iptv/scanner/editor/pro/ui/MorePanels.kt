@@ -2172,7 +2172,7 @@ fun ToolsPanel(viewModel: AppViewModel) {
                 viewModel.toggleToolsPanel()
                 viewModel.toggleReminderPanel()
             },
-            ToolEntry("续播位置", "本地视频/点播断点续播", Icons.Default.History) {
+            ToolEntry("续播位置", "本地文件/点播断点续播", Icons.Default.History) {
                 viewModel.toggleToolsPanel()
                 viewModel.toggleResumePanel()
             },
@@ -2900,7 +2900,7 @@ fun ResumePanel(viewModel: AppViewModel) {
                     Text("暂无续播记录", color = Color(0xFF666666), fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "播放本地视频或点播流时自动保存断点",
+                        "播放本地文件或点播流时自动保存断点",
                         color = Color(0xFF555555),
                         fontSize = 11.sp
                     )

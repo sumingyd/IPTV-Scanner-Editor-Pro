@@ -121,9 +121,9 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             onOpenLocalVideo = {
                 if (!viewModel.isSafAvailable()) {
                     viewModel.toggleMenuPanel()
-                    viewModel.showOsd("无法打开文件选择器", "请使用 打开网络流 输入 URL")
+                    viewModel.showMediaFileBrowser()
                 } else {
-                    videoLauncher.launch(arrayOf("video/*", "application/x-matroska", "application/octet-stream"))
+                    videoLauncher.launch(arrayOf("video/*", "audio/*", "application/x-matroska", "application/octet-stream"))
                 }
             },
             onSources = {
@@ -297,7 +297,7 @@ private fun buildMenuSections(
         entries = listOf(
             MenuEntry(Icons.Default.FileOpen, "打开播放列表", "选择设备上的 M3U/M3U8 文件", onOpenPlaylist),
             MenuEntry(Icons.Default.Link, "打开网络流", "输入 M3U/M3U8 订阅源 URL", onOpenUrl),
-            MenuEntry(Icons.Default.Movie, "打开本地视频", "直接播放设备上的视频文件", onOpenLocalVideo),
+            MenuEntry(Icons.Default.Movie, "打开本地文件", "播放设备上的视频/音频文件", onOpenLocalVideo),
             MenuEntry(Icons.Default.Web, "订阅源管理", "添加、编辑、删除 M3U 订阅源", onSources),
             MenuEntry(Icons.Default.CalendarMonth, "EPG 订阅源", "管理节目单订阅地址（XMLTV）", onEpgSources),
             MenuEntry(Icons.Default.SyncAlt, "频道映射", "远程映射 + 用户映射管理", onMapping)

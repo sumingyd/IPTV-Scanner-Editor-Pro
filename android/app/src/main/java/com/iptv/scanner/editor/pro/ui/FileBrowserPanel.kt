@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,19 +55,29 @@ import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import java.io.File
 
+// 与 PC 端 file_ops_mixin.py 对齐的扩展名
+private val VIDEO_EXTS = setOf("mp4", "mkv", "avi", "mov", "flv", "wmv", "ts", "m2ts", "webm")
+private val AUDIO_EXTS = setOf("mp3", "flac", "wav", "aac", "ogg", "opus", "wma", "m4a",
+    "ape", "alac", "wv", "tta", "dts", "ac3", "mid", "midi")
+private val MEDIA_EXTS = VIDEO_EXTS + AUDIO_EXTS
+
 /**
  * 文件浏览器面板：当系统 SAF 不可用时（Android TV 无文件选择器），
- * 提供应用内文件浏览功能，让用户选择本地 M3U/M3U8 文件导入。
+ * 提供应用内文件浏览功能。
+ *
+ * 两种模式（由 [AppViewModel.fileBrowserMode] 控制）：
+ * - PLAYLIST：选择 M3U/M3U8 文件导入频道列表
+ * - MEDIA：选择视频/音频文件直接播放
  *
  * 特性：
  * - 从外部存储根目录开始浏览
  * - 目录优先，文件按名称排序
- * - 高亮显示 M3U/M3U8 文件
+ * - 高亮显示目标文件
  * - 支持 TV 遥控器 DPAD 焦点导航
- * - 点击 M3U 文件触发 importPlaylistFromFile
  */
 @Composable
 fun FileBrowserPanel(viewModel: AppViewModel) {
+    val mode by viewModel.fileBrowserMode.collectAsState()
     val context = LocalContext.current
     var hasStoragePermission by remember { mutableStateOf(android.os.Environment.isExternalStorageManager()) }
     var currentPath by remember {
@@ -139,7 +151,10 @@ fun FileBrowserPanel(viewModel: AppViewModel) {
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "选择播放列表文件",
+                            text = when (mode) {
+                                AppViewModel.FileBrowserMode.PLAYLIST -> "选择播放列表文件"
+                                AppViewModel.FileBrowserMode.MEDIA -> "选择音视频文件"
+                            },
                             style = MaterialTheme.typography.titleMedium,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold
@@ -256,31 +271,54 @@ fun FileBrowserPanel(viewModel: AppViewModel) {
                         items = items,
                         key = { it.absolutePath }
                     ) { file ->
-                        val isM3u = file.extension.lowercase() in setOf("m3u", "m3u8")
+                        val ext = file.extension.lowercase()
+                        // 根据 mode 判断目标文件
+                        val isTarget = when (mode) {
+                            AppViewModel.FileBrowserMode.PLAYLIST -> ext in setOf("m3u", "m3u8")
+                            AppViewModel.FileBrowserMode.MEDIA -> ext in MEDIA_EXTS
+                        }
+                        val isVideo = ext in VIDEO_EXTS
+                        val isAudio = ext in AUDIO_EXTS
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     if (file.isDirectory) {
                                         currentPath = file.absolutePath
-                                    } else if (isM3u) {
-                                        viewModel.importPlaylistFromFile(file.absolutePath)
+                                    } else if (isTarget) {
+                                        when (mode) {
+                                            AppViewModel.FileBrowserMode.PLAYLIST ->
+                                                viewModel.importPlaylistFromFile(file.absolutePath)
+                                            AppViewModel.FileBrowserMode.MEDIA ->
+                                                viewModel.playLocalVideo(file.absolutePath)
+                                        }
                                     }
                                 }
                                 .padding(horizontal = 16.dp, vertical = 10.dp)
                                 .tvFocusBorder(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            val icon = when {
+                                file.isDirectory -> Icons.Default.Folder
+                                isVideo -> Icons.Default.Movie
+                                isAudio -> Icons.Default.MusicNote
+                                else -> Icons.Default.Description
+                            }
+                            val iconTint = when {
+                                file.isDirectory -> Color(0xFF66BB6A)
+                                isTarget -> Color(0xFFFFB74D)
+                                else -> Color(0xFF666666)
+                            }
                             Icon(
-                                imageVector = if (file.isDirectory) Icons.Default.Folder else Icons.Default.Description,
+                                imageVector = icon,
                                 contentDescription = null,
-                                tint = if (file.isDirectory) Color(0xFF66BB6A) else if (isM3u) Color(0xFFFFB74D) else Color(0xFF666666),
+                                tint = iconTint,
                                 modifier = Modifier.padding(end = 10.dp)
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = file.name,
-                                    color = if (isM3u) Color(0xFFFFB74D) else Color.White,
+                                    color = if (isTarget) Color(0xFFFFB74D) else Color.White,
                                     fontSize = 14.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -301,9 +339,14 @@ fun FileBrowserPanel(viewModel: AppViewModel) {
                                     )
                                 }
                             }
-                            if (isM3u) {
+                            if (isTarget) {
+                                val label = when {
+                                    ext in setOf("m3u", "m3u8") -> "M3U"
+                                    isVideo -> "VIDEO"
+                                    else -> "AUDIO"
+                                }
                                 Text(
-                                    text = "M3U",
+                                    text = label,
                                     color = Color(0xFFFFB74D),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
