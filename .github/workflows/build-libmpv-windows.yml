@@ -149,10 +149,21 @@ jobs:
           key: clang_root-x86_64-ubuntu-${{ github.run_id }}
 
       - name: Building mpv with CAVS support
+        # 构建 mpv 及所有依赖（包括 FFmpeg）
+        # 失败时输出 FFmpeg 的构建日志，便于诊断编译错误
         run: |
           cd mpv-winbuild-cmake
           ninja -C build_x86_64 update
-          ninja -C build_x86_64 mpv
+          ninja -C build_x86_64 mpv || {
+            echo "=== mpv build failed! Diagnostics below ==="
+            echo "=== FFmpeg build logs ==="
+            find build_x86_64/packages/ffmpeg-prefix -name "ffmpeg-build-*.log" -exec sh -c 'echo "--- {} ---"; tail -200 {}' \;
+            echo "=== FFmpeg configure logs ==="
+            find build_x86_64/packages/ffmpeg-prefix -name "ffmpeg-configure-*.log" -exec sh -c 'echo "--- {} ---"; tail -100 {}' \;
+            echo "=== FFmpeg config.log ==="
+            find build_x86_64/packages/ffmpeg-prefix -name "config.log" -exec sh -c 'echo "--- {} ---"; tail -200 {}' \;
+            exit 1
+          }
 
       - name: Packaging mpv
         run: |
