@@ -61,14 +61,14 @@ class UrlRangeInputWidget(QtWidgets.QWidget):
 
         self.text_edit = QtWidgets.QPlainTextEdit()
         self.text_edit.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
-        self.text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.text_edit.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.text_edit.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         layout.addWidget(self.text_edit)
 
         self._dropdown_btn = QtWidgets.QToolButton()
         self._dropdown_btn.setArrowType(QtCore.Qt.ArrowType.DownArrow)
         self._dropdown_btn.setFixedWidth(22)
-        self._dropdown_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._dropdown_btn.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self._dropdown_btn.clicked.connect(self._show_history_popup)
         layout.addWidget(self._dropdown_btn)
 
