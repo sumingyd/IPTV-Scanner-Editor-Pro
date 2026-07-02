@@ -1,12 +1,18 @@
 package com.iptv.scanner.editor.pro.ui
 
 import android.app.Application
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -437,6 +443,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 更新提示对话框是否显示 */
     private val _updateDialogOpen = MutableStateFlow(false)
     val updateDialogOpen: StateFlow<Boolean> = _updateDialogOpen.asStateFlow()
+
+    // -----------------------------------------------------------------
+    // 应用内 APK 下载更新（替代浏览器跳转，TV 端友好）
+    // -----------------------------------------------------------------
+    /** 下载状态：空闲 / 下载中 / 下载完成 / 下载失败 */
+    sealed class ApkDownloadState {
+        object Idle : ApkDownloadState()
+        data class Downloading(val progress: Int) : ApkDownloadState()  // 0-100
+        object Completed : ApkDownloadState()
+        data class Error(val message: String) : ApkDownloadState()
+    }
+
+    private val _apkDownloadState = MutableStateFlow<ApkDownloadState>(ApkDownloadState.Idle)
+    val apkDownloadState: StateFlow<ApkDownloadState> = _apkDownloadState.asStateFlow()
+
+    /** 当前下载任务的 DownloadManager ID（用于取消/查询） */
+    @Volatile
+    private var apkDownloadId: Long = -1L
+
+    /** 下载完成 BroadcastReceiver 实例（用于注销） */
+    @Volatile
+    private var apkDownloadReceiver: BroadcastReceiver? = null
+
+    /** 下载进度轮询协程 Job */
+    @Volatile
+    private var apkProgressJob: Job? = null
 
     /** 退出确认对话框是否显示（BACK 键退出时提示：立即退出 / 进入 PiP） */
     private val _exitConfirmOpen = MutableStateFlow(false)
@@ -1836,6 +1868,225 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 关闭更新提示对话框 */
     fun dismissUpdateDialog() {
         _updateDialogOpen.value = false
+    }
+
+    /**
+     * 应用内下载并安装 APK（替代浏览器跳转，TV 端友好）。
+     *
+     * 流程：
+     * 1. 注册 ACTION_DOWNLOAD_COMPLETE BroadcastReceiver
+     * 2. 通过 DownloadManager 系统服务发起下载（保存到 app 专属目录 update/）
+     * 3. 启动协程轮询下载进度，更新 [_apkDownloadState]
+     * 4. 收到下载完成广播后，通过 FileProvider 获取 content:// URI 调起安装 Intent
+     *
+     * @param url APK 下载 URL（来自 GitHub Release asset 的 browser_download_url）
+     */
+    fun downloadAndInstallApk(url: String) {
+        if (url.isBlank()) {
+            _apkDownloadState.value = ApkDownloadState.Error("下载地址为空")
+            return
+        }
+        if (_apkDownloadState.value is ApkDownloadState.Downloading) {
+            Log.w(TAG, "downloadAndInstallApk: already downloading, ignored")
+            return
+        }
+
+        val app = getApplication<Application>()
+        val downloadManager = app.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+        if (downloadManager == null) {
+            _apkDownloadState.value = ApkDownloadState.Error("下载服务不可用")
+            return
+        }
+
+        // 清理旧的下载任务（如有）
+        cancelApkDownload()
+
+        // 注册下载完成广播接收器
+        registerApkDownloadReceiver(app)
+
+        // 准备下载目录：app 专属外部存储（无需存储权限，卸载自动清理）
+        val updateDir = File(app.getExternalFilesDir(null), "update").apply {
+            if (!exists()) mkdirs()
+        }
+        val apkFile = File(updateDir, "isepp-update.apk")
+        // 删除旧文件避免 DownloadManager 报错 FILE_ALREADY_EXISTS
+        if (apkFile.exists()) apkFile.delete()
+
+        Log.i(TAG, "downloadAndInstallApk: starting download, url=$url, target=${apkFile.absolutePath}")
+
+        // 构建下载请求
+        val request = DownloadManager.Request(Uri.parse(url)).apply {
+            setTitle("IPTV Scanner Editor Pro 更新")
+            setDescription("正在下载最新版 APK...")
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+            setDestinationUri(Uri.fromFile(apkFile))
+            // 允许在移动网络和漫游下下载（更新包通常不大，且用户主动触发）
+            setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
+            setAllowedOverRoaming(true)
+        }
+
+        apkDownloadId = downloadManager.enqueue(request)
+        _apkDownloadState.value = ApkDownloadState.Downloading(0)
+        showOsd("应用更新", "开始下载 APK...")
+
+        // 启动进度轮询协程
+        apkProgressJob = viewModelScope.launch {
+            while (isActive) {
+                delay(500)  // 每 500ms 查询一次进度
+                try {
+                    val query = DownloadManager.Query().setFilterById(apkDownloadId)
+                    val cursor = downloadManager.query(query)
+                    if (cursor != null && cursor.moveToFirst()) {
+                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                        when (status) {
+                            DownloadManager.STATUS_RUNNING -> {
+                                val downloaded = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                                val total = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                                if (total > 0) {
+                                    val progress = ((downloaded * 100) / total).toInt().coerceIn(0, 100)
+                                    _apkDownloadState.value = ApkDownloadState.Downloading(progress)
+                                }
+                            }
+                            DownloadManager.STATUS_PAUSED -> {
+                                // 暂停（等待网络等），UI 仍显示下载中
+                            }
+                            DownloadManager.STATUS_PENDING -> {
+                                // 等待开始
+                            }
+                            DownloadManager.STATUS_FAILED -> {
+                                val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                                Log.e(TAG, "downloadAndInstallApk: download failed, reason=$reason")
+                                _apkDownloadState.value = ApkDownloadState.Error("下载失败（错误码 $reason）")
+                                unregisterApkDownloadReceiver(app)
+                                apkDownloadId = -1L
+                                cursor.close()
+                                return@launch
+                            }
+                        }
+                    }
+                    cursor?.close()
+                } catch (e: Throwable) {
+                    Log.w(TAG, "downloadAndInstallApk: progress poll error: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * 安装已下载完成的 APK（对外暴露，用于 UI 备用入口）。
+     * 通过 FileProvider 获取 content:// URI，调起系统安装器。
+     */
+    fun installDownloadedApk() {
+        val app = getApplication<Application>()
+        val apkFile = File(app.getExternalFilesDir(null), "update/isepp-update.apk")
+        if (!apkFile.exists()) {
+            _apkDownloadState.value = ApkDownloadState.Error("下载文件不存在")
+            return
+        }
+
+        try {
+            val authority = "${app.packageName}.fileprovider"
+            val uri = FileProvider.getUriForFile(app, authority, apkFile)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            app.startActivity(intent)
+            Log.i(TAG, "installDownloadedApk: install intent launched, uri=$uri")
+            // 安装界面已弹出，关闭更新对话框
+            _updateDialogOpen.value = false
+        } catch (e: Throwable) {
+            Log.e(TAG, "installDownloadedApk failed", e)
+            _apkDownloadState.value = ApkDownloadState.Error("启动安装失败：${e.message}")
+        }
+    }
+
+    /**
+     * 注册 APK 下载完成 BroadcastReceiver。
+     * 在收到 ACTION_DOWNLOAD_COMPLETE 后停止进度轮询并触发安装。
+     */
+    private fun registerApkDownloadReceiver(context: Context) {
+        unregisterApkDownloadReceiver(context)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) ?: -1L
+                if (id != apkDownloadId) return  // 不是我们的下载任务
+                Log.i(TAG, "APK download complete, id=$id")
+                apkProgressJob?.cancel()
+                apkProgressJob = null
+
+                val downloadManager = context?.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+                if (downloadManager == null) {
+                    _apkDownloadState.value = ApkDownloadState.Error("下载服务不可用")
+                    unregisterApkDownloadReceiver(context)
+                    return
+                }
+
+                // 查询下载结果
+                val query = DownloadManager.Query().setFilterById(id)
+                val cursor = downloadManager.query(query)
+                if (cursor != null && cursor.moveToFirst()) {
+                    val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        _apkDownloadState.value = ApkDownloadState.Completed
+                        showOsd("应用更新", "下载完成，正在启动安装...")
+                        // 稍延迟启动安装（让 UI 先更新）
+                        viewModelScope.launch {
+                            delay(300)
+                            installDownloadedApk()
+                        }
+                    } else {
+                        val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                        Log.e(TAG, "APK download failed on complete, reason=$reason")
+                        _apkDownloadState.value = ApkDownloadState.Error("下载失败（错误码 $reason）")
+                    }
+                    cursor.close()
+                } else {
+                    _apkDownloadState.value = ApkDownloadState.Error("下载结果查询失败")
+                }
+                unregisterApkDownloadReceiver(context)
+                apkDownloadId = -1L
+            }
+        }
+        context.registerReceiver(
+            receiver,
+            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        )
+        apkDownloadReceiver = receiver
+    }
+
+    /** 注销 APK 下载 BroadcastReceiver（如已注册） */
+    private fun unregisterApkDownloadReceiver(context: Context) {
+        apkDownloadReceiver?.let {
+            try {
+                context.unregisterReceiver(it)
+            } catch (e: Throwable) {
+                Log.w(TAG, "unregisterApkDownloadReceiver: ${e.message}")
+            }
+            apkDownloadReceiver = null
+        }
+    }
+
+    /**
+     * 取消当前 APK 下载任务（如有）。
+     * 用于用户主动取消或重新发起下载前清理。
+     */
+    fun cancelApkDownload() {
+        val app = getApplication<Application>()
+        apkProgressJob?.cancel()
+        apkProgressJob = null
+        if (apkDownloadId > 0) {
+            try {
+                val dm = app.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+                dm?.remove(apkDownloadId)
+            } catch (e: Throwable) {
+                Log.w(TAG, "cancelApkDownload: remove failed: ${e.message}")
+            }
+            apkDownloadId = -1L
+        }
+        unregisterApkDownloadReceiver(app)
+        _apkDownloadState.value = ApkDownloadState.Idle
     }
 
     /** 显示退出确认对话框 */
@@ -4191,6 +4442,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         subSyncJob?.cancel()
         reminderCheckJob?.cancel()
         resumeSaveJob?.cancel()
+        // 清理 APK 下载资源（避免 receiver 泄漏）
+        try {
+            apkProgressJob?.cancel()
+            apkProgressJob = null
+            if (apkDownloadId > 0) {
+                val app = getApplication<Application>()
+                val dm = app.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+                dm?.remove(apkDownloadId)
+                unregisterApkDownloadReceiver(app)
+            }
+        } catch (_: Throwable) {}
         // 退出前保存最后一次位置
         try { autoSaveResume() } catch (_: Exception) {}
     }

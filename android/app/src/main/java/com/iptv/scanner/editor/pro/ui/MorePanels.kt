@@ -1447,8 +1447,16 @@ private fun InfoRow(label: String, value: String) {
 }
 
 /**
- * 更新提示对话框：发现新版本时弹出，引导用户前往下载。
+ * 更新提示对话框：发现新版本时弹出，提供应用内直接下载安装功能。
+ *
  * 与 PC 端 UpdateController 的更新提示对齐。
+ * 改进：TV 端跳转浏览器不便，改为通过 DownloadManager 直接下载 APK 并调起系统安装器。
+ *
+ * UI 状态：
+ * - Idle / UpdateAvailable：显示「立即更新」按钮
+ * - Downloading(progress)：显示进度条 + 「取消」按钮（禁用关闭）
+ * - Completed：显示「立即安装」按钮（自动调起安装，按钮作为备用入口）
+ * - Error：显示错误信息 + 「重试」按钮
  */
 @Composable
 fun UpdateDialog(viewModel: AppViewModel) {
@@ -1457,7 +1465,7 @@ fun UpdateDialog(viewModel: AppViewModel) {
 
     val updateState by viewModel.updateState.collectAsState()
     val currentVersion = remember { viewModel.getCurrentVersion() }
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val apkState by viewModel.apkDownloadState.collectAsState()
 
     val info = updateState as? AppViewModel.UpdateState.UpdateAvailable
     if (info == null) {
@@ -1465,8 +1473,14 @@ fun UpdateDialog(viewModel: AppViewModel) {
         return
     }
 
+    val isDownloading = apkState is AppViewModel.ApkDownloadState.Downloading
+    val progress = (apkState as? AppViewModel.ApkDownloadState.Downloading)?.progress ?: 0
+
     AlertDialog(
-        onDismissRequest = { viewModel.dismissUpdateDialog() },
+        onDismissRequest = {
+            // 下载中不允许点外部关闭（防止误触中断下载）
+            if (!isDownloading) viewModel.dismissUpdateDialog()
+        },
         title = { Text("发现新版本", fontWeight = FontWeight.Bold) },
         text = {
             Column {
@@ -1483,29 +1497,124 @@ fun UpdateDialog(viewModel: AppViewModel) {
                     fontSize = 13.sp
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    "点击「前往下载」打开浏览器，从 GitHub Release 页面下载最新版 APK。",
-                    color = Color(0xFFCCCCCC),
-                    fontSize = 13.sp
-                )
+
+                when (val s = apkState) {
+                    is AppViewModel.ApkDownloadState.Idle -> {
+                        Text(
+                            "点击「立即更新」开始下载并安装最新版 APK。",
+                            color = Color(0xFFCCCCCC),
+                            fontSize = 13.sp
+                        )
+                    }
+                    is AppViewModel.ApkDownloadState.Downloading -> {
+                        Text(
+                            "正在下载更新包… ${s.progress}%",
+                            color = Color(0xFF4A9EFF),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { s.progress / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF4A9EFF),
+                            trackColor = Color(0xFF333333)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "下载过程中请保持网络畅通，完成后将自动弹出安装界面。",
+                            color = Color(0xFF888888),
+                            fontSize = 11.sp
+                        )
+                    }
+                    is AppViewModel.ApkDownloadState.Completed -> {
+                        Text(
+                            "下载完成，正在启动安装程序…",
+                            color = Color(0xFF4CAF50),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "若安装界面未自动弹出，请点击「立即安装」重试。",
+                            color = Color(0xFF888888),
+                            fontSize = 11.sp
+                        )
+                    }
+                    is AppViewModel.ApkDownloadState.Error -> {
+                        Text(
+                            "下载失败：${s.message}",
+                            color = Color(0xFFE57373),
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "请检查网络后重试，或点击「浏览器下载」跳转 GitHub。",
+                            color = Color(0xFF888888),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
-                    viewModel.dismissUpdateDialog()
-                },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("前往下载") }
+            when (apkState) {
+                is AppViewModel.ApkDownloadState.Idle -> {
+                    TextButton(
+                        onClick = { viewModel.downloadAndInstallApk(info.downloadUrl) },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("立即更新") }
+                }
+                is AppViewModel.ApkDownloadState.Downloading -> {
+                    // 下载中只显示取消按钮
+                    TextButton(
+                        onClick = { viewModel.cancelApkDownload() },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("取消下载", color = Color(0xFFE57373)) }
+                }
+                is AppViewModel.ApkDownloadState.Completed -> {
+                    TextButton(
+                        onClick = { viewModel.installDownloadedApk() },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("立即安装") }
+                }
+                is AppViewModel.ApkDownloadState.Error -> {
+                    TextButton(
+                        onClick = { viewModel.downloadAndInstallApk(info.downloadUrl) },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("重试") }
+                }
+            }
         },
         dismissButton = {
-            TextButton(
-                onClick = { viewModel.dismissUpdateDialog() },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("稍后提醒") }
+            when {
+                isDownloading -> {
+                    // 下载中不显示 dismissButton（避免误触关闭对话框）
+                }
+                apkState is AppViewModel.ApkDownloadState.Completed -> {
+                    TextButton(
+                        onClick = { viewModel.dismissUpdateDialog() },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("关闭") }
+                }
+                else -> {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    TextButton(
+                        onClick = {
+                            // 备用方案：跳转浏览器（用于下载失败或特殊场景）
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            try {
+                                context.startActivity(intent)
+                                viewModel.dismissUpdateDialog()
+                            } catch (e: Exception) {
+                                Log.e("UpdateDialog", "open browser failed", e)
+                            }
+                        },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text(if (apkState is AppViewModel.ApkDownloadState.Error) "浏览器下载" else "稍后提醒") }
+                }
+            }
         }
     )
 }
@@ -1562,6 +1671,8 @@ fun ExitConfirmDialog(viewModel: AppViewModel) {
                 TextButton(
                     onClick = {
                         viewModel.dismissExitConfirm()
+                        // 先停止播放，避免 Activity finish 后 mpv 在后台继续播放
+                        viewModel.stopPlay()
                         activity?.finishAffinity()
                     },
                     modifier = Modifier.tvFocusBorder()

@@ -371,13 +371,15 @@ class MainActivityCompose : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // 解绑 MpvController，移除 EventObserver
-        // 注意：MPVView.destroy() 由 AndroidView 的 DisposableEffect 处理
-        // 这里只 detach MpvController，避免泄漏
+        // 停止播放并解绑 MpvController
+        // 注意：MPVView.destroy()（销毁 mpv 原生实例）由 AndroidView 的 onRelease 处理
+        // 这里先 stop() 停止播放，再 detach() 移除观察者，避免泄漏
         try {
-            MpvController.getInstance().detach()
+            val mpv = MpvController.getInstance()
+            mpv.stop()
+            mpv.detach()
         } catch (e: Throwable) {
-            Log.w(TAG, "MpvController.detach failed: ${e.message}")
+            Log.w(TAG, "MpvController cleanup failed: ${e.message}")
         }
         Log.i(TAG, "onDestroy")
     }

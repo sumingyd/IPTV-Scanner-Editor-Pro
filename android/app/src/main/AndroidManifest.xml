@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- 应用内 APK 安装所需权限（Android 8+）：
+         用于发现新版本后直接通过 DownloadManager 下载并调起安装 Intent，
+         避免 TV 端跳转浏览器不便的问题 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- TV 端支持声明（required=false 让应用同时可在手机和 TV 上安装）：
          - leanback: Android TV 特性（D-pad 导航、TV UI 模式）
@@ -38,5 +42,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- FileProvider：用于应用内 APK 更新，把下载好的 APK 通过 content:// URI 分享给系统安装器 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

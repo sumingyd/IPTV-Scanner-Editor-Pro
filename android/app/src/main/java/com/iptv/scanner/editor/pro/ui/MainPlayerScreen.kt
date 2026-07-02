@@ -237,6 +237,15 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
                     }
                 },
                 update = { /* 各 View 的 surfaceChanged 等回调内部已处理 */ },
+                onRelease = { view ->
+                    // AndroidView 从窗口移除时释放播放器原生资源
+                    // MPVView.destroy() 调用 MPVLib.destroy() 销毁 mpv 原生实例
+                    // 不调用会导致 Activity finish 后 mpv 在后台继续播放
+                    Log.i("MainPlayerScreen", "onRelease: destroying player view")
+                    when (view) {
+                        is MPVView -> view.destroy()
+                    }
+                },
                 modifier = Modifier
                     .align(Alignment.Center)
                     .aspectRatio(aspectRatio)

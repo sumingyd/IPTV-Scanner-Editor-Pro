@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider 路径配置：用于应用内 APK 更新。
+  - 把 app update 目录下的 apk 文件通过 content:// URI 安全分享给系统安装器
+  - Android 7+ 必须用 FileProvider，不能再直接用 file:// URI
+-->
+<paths>
+    <!-- 应用专属外部存储：getExternalFilesDir(null)/update/ -->
+    <files-path
+        name="update_apks"
+        path="update/" />
+</paths>
