@@ -3,6 +3,11 @@ name: Build libmpv with CAVS support (Windows)
 # 构建 Windows 版 libmpv（带 CAVS Guangdian profile 支持）
 # 使用 sumingyd/FFmpeg fork 替代官方 FFmpeg，通过 mpv-winbuild-cmake 交叉编译
 # 产物上传到 GitHub Release，供 build.yml 下载使用
+#
+# 基础环境选择 ubuntu-22.04（而非 archlinux 容器）：
+# 原因：archlinux 容器宿主 GCC 16.1.1 与 GCC 14 源码存在根本性不兼容
+#       (safe-ctype.h 宏与 C++16 标准库 locale_facets.h 冲突)
+# Ubuntu 22.04 的 GCC 11.x 与 GCC 14 源码完全兼容
 
 on:
   workflow_dispatch:
@@ -18,8 +23,7 @@ permissions:
 jobs:
   build:
     name: Build libmpv with CAVS support
-    runs-on: ubuntu-latest
-    container: docker://ghcr.io/shinchiro/archlinux:latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 180
 
     steps:
@@ -28,6 +32,20 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global --add safe.directory $PWD
+
+      - name: Install build dependencies
+        # 安装 mpv-winbuild-cmake 在 Ubuntu 上的所有依赖（来自官方 README）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential checkinstall bison flex gettext git \
+            mercurial subversion ninja-build gyp cmake yasm nasm \
+            automake pkgconf libtool libtool-bin gcc-multilib g++-multilib \
+            clang lld libc++1 libc++abi1 \
+            libgmp-dev libmpfr-dev libmpc-dev libgcrypt-dev \
+            gperf ragel texinfo autopoint re2c asciidoc \
+            python3-pip docbook2x unzip p7zip-full curl mimalloc ccache
+          pip3 install rst2pdf meson mako jsonschema
 
       - name: Clone mpv-winbuild-cmake
         run: |
@@ -44,41 +62,30 @@ jobs:
           echo "=== Patched ffmpeg.cmake ==="
           grep "GIT_REPOSITORY" packages/ffmpeg.cmake
 
-      - name: Patch GCC toolchain for char8_t compatibility
-        # 根本原因：archlinux 容器宿主 GCC 16.x 默认 C++20 标准，u8"..." 类型为 const char8_t[]
-        # 但 GCC 14 的 libcody/buffer.cc 中 S2C() 函数只接受 const char[]，类型不匹配
-        # 错误: no matching function for call to 'S2C(const char8_t [2])'
-        # 解决: 通过 configure 设置 CXXFLAGS=-fno-char8_t 禁用 char8_t 特性
-        run: |
-          cd mpv-winbuild-cmake
-          sed -i 's|--disable-sjlj-exceptions|--disable-sjlj-exceptions CXXFLAGS=-fno-char8_t|' toolchain/gcc/gcc.cmake
-          echo "=== Patched gcc.cmake ==="
-          grep "CXXFLAGS" toolchain/gcc/gcc.cmake
-
       - name: Loading toolchain cache
         # 缓存 GCC 交叉编译工具链构建结果，失败也保存（重试可复用源码和配置）
         uses: actions/cache/restore@v4
         with:
           path: mpv-winbuild-cmake/build_x86_64
-          key: gcc-toolchain-x86_64-${{ github.run_id }}
+          key: gcc-toolchain-x86_64-ubuntu-${{ github.run_id }}
           restore-keys: |
-            gcc-toolchain-x86_64-
+            gcc-toolchain-x86_64-ubuntu-
 
       - name: Loading repository cache
         uses: actions/cache/restore@v4
         with:
           path: mpv-winbuild-cmake/src_packages
-          key: repository-x86_64-${{ github.run_id }}
+          key: repository-x86_64-ubuntu-${{ github.run_id }}
           restore-keys: |
-            repository-x86_64-
+            repository-x86_64-ubuntu-
 
       - name: Loading rustup cache
         uses: actions/cache/restore@v4
         with:
           path: mpv-winbuild-cmake/clang_root
-          key: clang_root-x86_64-${{ github.run_id }}
+          key: clang_root-x86_64-ubuntu-${{ github.run_id }}
           restore-keys: |
-            clang_root-x86_64-
+            clang_root-x86_64-ubuntu-
 
       - name: Downloading source
         # MAKEJOBS=2 降低 GCC 并行编译度，避免 GitHub Actions runner 内存不足 (OOM)
@@ -94,15 +101,9 @@ jobs:
 
       - name: Building toolchain (GCC cross-compiler)
         # 首次构建需要编译 GCC 交叉编译工具链（耗时较长，MAKEJOBS=2 约 40-60 分钟）
-        # 构建失败时保留 toolchain 目录，重试时可复用已下载的源码和配置结果
+        # Ubuntu 22.04 的 GCC 11.x 与 GCC 14 源码完全兼容，无需任何修补
         run: |
           cd mpv-winbuild-cmake
-          # 只删除 config.cache 文件（不能删除整个 gcc-build 目录，否则 configure 的 cd 会失败）
-          # config.cache 缓存了旧的 CXXFLAGS=-g -O2，检测到变化会报错
-          # 删除后 configure 会重新进行所有测试，使用新的 CXXFLAGS=-fno-char8_t
-          find build_x86_64/toolchain/gcc-prefix/src/gcc-build -name "config.cache" -delete 2>/dev/null || true
-          rm -f build_x86_64/toolchain/gcc-prefix/src/gcc-stamp/gcc-configure
-          rm -f build_x86_64/toolchain/gcc-prefix/src/gcc-stamp/gcc-build
           if [[ ! -f "build_x86_64/install/bin/cross-gcc" ]]; then
             ninja -C build_x86_64 gcc || {
               echo "=== GCC build failed! Diagnostics below ==="
@@ -130,21 +131,21 @@ jobs:
         if: always()
         with:
           path: mpv-winbuild-cmake/build_x86_64
-          key: gcc-toolchain-x86_64-${{ github.run_id }}
+          key: gcc-toolchain-x86_64-ubuntu-${{ github.run_id }}
 
       - name: Saving repository cache
         uses: actions/cache/save@v4
         if: always()
         with:
           path: mpv-winbuild-cmake/src_packages
-          key: repository-x86_64-${{ github.run_id }}
+          key: repository-x86_64-ubuntu-${{ github.run_id }}
 
       - name: Saving rustup cache
         uses: actions/cache/save@v4
         if: always()
         with:
           path: mpv-winbuild-cmake/clang_root
-          key: clang_root-x86_64-${{ github.run_id }}
+          key: clang_root-x86_64-ubuntu-${{ github.run_id }}
 
       - name: Building mpv with CAVS support
         run: |
