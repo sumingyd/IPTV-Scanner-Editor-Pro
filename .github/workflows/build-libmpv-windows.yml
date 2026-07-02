@@ -44,6 +44,17 @@ jobs:
           echo "=== Patched ffmpeg.cmake ==="
           grep "GIT_REPOSITORY" packages/ffmpeg.cmake
 
+      - name: Patch GCC toolchain for char8_t compatibility
+        # 根本原因：archlinux 容器宿主 GCC 16.x 默认 C++20 标准，u8"..." 类型为 const char8_t[]
+        # 但 GCC 14 的 libcody/buffer.cc 中 S2C() 函数只接受 const char[]，类型不匹配
+        # 错误: no matching function for call to 'S2C(const char8_t [2])'
+        # 解决: 通过 configure 设置 CXXFLAGS=-fno-char8_t 禁用 char8_t 特性
+        run: |
+          cd mpv-winbuild-cmake
+          sed -i 's|--disable-sjlj-exceptions|--disable-sjlj-exceptions CXXFLAGS=-fno-char8_t|' toolchain/gcc/gcc.cmake
+          echo "=== Patched gcc.cmake ==="
+          grep "CXXFLAGS" toolchain/gcc/gcc.cmake
+
       - name: Loading toolchain cache
         # 缓存 GCC 交叉编译工具链构建结果，失败也保存（重试可复用源码和配置）
         uses: actions/cache/restore@v4
@@ -86,6 +97,10 @@ jobs:
         # 构建失败时保留 toolchain 目录，重试时可复用已下载的源码和配置结果
         run: |
           cd mpv-winbuild-cmake
+          # 清除 GCC 的 configure/build stamp 文件（如果缓存恢复后存在）
+          # 确保 CXXFLAGS=-fno-char8_t 修补生效（上次 configure 用的是旧配置）
+          rm -f build_x86_64/toolchain/gcc-prefix/src/gcc-stamp/gcc-configure-*
+          rm -f build_x86_64/toolchain/gcc-prefix/src/gcc-stamp/gcc-build-*
           if [[ ! -f "build_x86_64/install/bin/cross-gcc" ]]; then
             ninja -C build_x86_64 gcc || {
               echo "=== GCC build failed! Diagnostics below ==="
