@@ -3809,6 +3809,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (closeAnyPanel()) return
                 if (playbackState.value.mode.isCatchupOrTimeshift) {
                     exitCatchup()
+                } else {
+                    showExitConfirm()
                 }
             }
             "menu" -> {
@@ -3825,7 +3827,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             "vol_down" -> mpv.adjustVolume(-5)
             "seek_forward" -> mpv.seekRelative(30.0)
             "seek_backward" -> mpv.seekRelative(-30.0)
-            "osd" -> showCurrentOsd()
+            "osd" -> toggleControlsPinned()
             "prev_channel" -> prevChannel()
             "next_channel" -> nextChannel()
             else -> Log.w(TAG, "未知遥控命令: $cmd")
