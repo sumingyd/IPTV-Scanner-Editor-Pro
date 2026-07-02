@@ -318,6 +318,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _controlsVisible = MutableStateFlow(true)
     val controlsVisible: StateFlow<Boolean> = _controlsVisible.asStateFlow()
 
+    /** 控制层持久模式（菜单 OSD 按钮触发，不自动隐藏，再次选中关闭） */
+    private val _controlsPinned = MutableStateFlow(false)
+    val controlsPinned: StateFlow<Boolean> = _controlsPinned.asStateFlow()
+
     /** TV 端控制面板自动隐藏定时器（几秒后自动隐藏） */
     private var tvControlsAutoHideJob: kotlinx.coroutines.Job? = null
 
@@ -1575,6 +1579,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun hideControls() {
         _controlsVisible.value = false
+        _controlsPinned.value = false
         tvControlsAutoHideJob?.cancel()
     }
     fun showControls() { showControlsAutoHide() }
@@ -1582,15 +1587,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * 显示控制面板，TV 模式下 4 秒后自动隐藏（与 PC 端 autoHideControls 对齐）。
      * 非TV 模式下仅显示不自动隐藏。
+     * 若控制层已 pin（持久模式），则不启动自动隐藏定时器。
      */
     fun showControlsAutoHide() {
         _controlsVisible.value = true
-        if (uiMode.value.isTV) {
+        if (uiMode.value.isTV && !_controlsPinned.value) {
             tvControlsAutoHideJob?.cancel()
             tvControlsAutoHideJob = viewModelScope.launch {
                 delay(4_000L)
                 _controlsVisible.value = false
             }
+        }
+    }
+
+    /**
+     * 切换控制层持久模式（菜单 OSD 按钮触发）。
+     * - 未 pin 时：显示控制层并 pin（不自动隐藏）
+     * - 已 pin 时：取消 pin 并隐藏控制层
+     */
+    fun toggleControlsPinned() {
+        if (_controlsPinned.value) {
+            _controlsPinned.value = false
+            _controlsVisible.value = false
+            tvControlsAutoHideJob?.cancel()
+        } else {
+            _controlsPinned.value = true
+            _controlsVisible.value = true
+            tvControlsAutoHideJob?.cancel()
         }
     }
 

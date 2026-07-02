@@ -43,6 +43,8 @@ import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.VideoSettings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Divider
@@ -105,6 +107,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     // EPG 数据（使用焦点频道的 EPG，而非当前播放频道的 EPG）
     val focusedEpg by viewModel.focusedEpg.collectAsState()
     val focusedEpgLoading by viewModel.focusedEpgLoading.collectAsState()
+    val controlsPinned by viewModel.controlsPinned.collectAsState()
 
     // 统一面板状态
     var unifiedMode by remember { mutableStateOf(UnifiedMode.CHANNELS) }
@@ -158,15 +161,15 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
             // -----------------------------------------------------------------
             ModeColumn(
                 mode = unifiedMode,
+                controlsPinned = controlsPinned,
                 onModeChange = { newMode ->
                     unifiedMode = newMode
                     selectedProgram = null
                 },
                 onOsd = {
-                    // 显示当前频道的 OSD 信息并关闭面板
+                    // 切换控制层持久模式（pin/unpin），关闭面板
                     viewModel.toggleTvUnifiedPanel()
-                    viewModel.showCurrentOsd()
-                    viewModel.showControlsAutoHide()
+                    viewModel.toggleControlsPinned()
                 },
                 modifier = Modifier.width(72.dp)
             )
@@ -282,6 +285,7 @@ enum class UnifiedMode { CHANNELS, MENU }
 @Composable
 private fun ModeColumn(
     mode: UnifiedMode,
+    controlsPinned: Boolean,
     onModeChange: (UnifiedMode) -> Unit,
     onOsd: () -> Unit,
     modifier: Modifier = Modifier
@@ -307,11 +311,11 @@ private fun ModeColumn(
                 isSelected = mode == UnifiedMode.MENU,
                 onClick = { onModeChange(UnifiedMode.MENU) }
             )
-            // OSD 按钮（显示当前频道信息）
+            // OSD 按钮（切换控制层持久显示）
             ModeIconButton(
-                icon = Icons.Default.Info,
+                icon = if (controlsPinned) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                 label = "OSD",
-                isSelected = false,
+                isSelected = controlsPinned,
                 onClick = onOsd
             )
         }
