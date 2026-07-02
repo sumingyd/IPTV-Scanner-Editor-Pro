@@ -6,6 +6,7 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +42,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -110,11 +114,17 @@ fun FileBrowserPanel(viewModel: AppViewModel) {
         }
     }
 
+    // 面板打开时自动请求焦点到第一个可聚焦元素
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        try { focusRequester.requestFocus() } catch (_: Exception) {}
+    }
+
     Surface(
         color = Color(0xF0161616),
         modifier = Modifier.fillMaxSize()
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().focusGroup()) {
             // 标题栏
             Surface(
                 color = Color(0xFF1F1F1F),
@@ -144,7 +154,9 @@ fun FileBrowserPanel(viewModel: AppViewModel) {
                     }
                     IconButton(
                         onClick = { viewModel.toggleFileBrowser() },
-                        modifier = Modifier.tvFocusBorder()
+                        modifier = Modifier
+                            .tvFocusBorder()
+                            .focusRequester(focusRequester)
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "关闭", tint = Color.White)
                     }
