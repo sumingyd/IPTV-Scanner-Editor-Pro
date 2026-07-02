@@ -4,7 +4,7 @@ import sys
 import locale
 
 from core.log_manager import global_logger as logger
-from utils.platform_utils import find_libmpv_path, find_libmpv_paths, get_libmpv_filename, is_macos, is_linux, is_android
+from utils.platform_utils import find_libmpv_path, find_libmpv_paths, get_libmpv_filename, is_windows, is_macos, is_linux, is_android
 
 _mpv_loaded = False
 
