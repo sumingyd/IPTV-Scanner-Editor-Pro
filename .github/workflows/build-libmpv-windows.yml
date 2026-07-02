@@ -1,7 +1,7 @@
 name: Build libmpv with CAVS support (Windows)
 
 # 构建 Windows 版 libmpv（带 CAVS Guangdian profile 支持）
-# 使用 llawsxx/FFmpeg 替代官方 FFmpeg，通过 mpv-winbuild-cmake 交叉编译
+# 使用 sumingyd/FFmpeg fork 替代官方 FFmpeg，通过 mpv-winbuild-cmake 交叉编译
 # 产物上传到 GitHub Release，供 build.yml 下载使用
 
 on:
@@ -20,7 +20,7 @@ jobs:
     name: Build libmpv with CAVS support
     runs-on: ubuntu-latest
     container: docker://ghcr.io/shinchiro/archlinux:latest
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     steps:
       - name: Setup git config
@@ -34,20 +34,47 @@ jobs:
           git clone --depth 1 https://github.com/shinchiro/mpv-winbuild-cmake.git
           git config --global --add safe.directory $PWD/mpv-winbuild-cmake
 
-      - name: Patch FFmpeg source to use llawsxx/FFmpeg
-        # 将 FFmpeg 源码从官方替换为 llawsxx/FFmpeg fork
-        # llawsxx/FFmpeg 添加了 CAVS Guangdian profile (AVS1-P16) 解码支持
+      - name: Patch FFmpeg source to use sumingyd/FFmpeg fork
+        # 使用 sumingyd/FFmpeg fork（fork 自 llawsxx/FFmpeg）
+        # 包含 CAVS Guangdian profile (AVS1-P16) 解码支持
         # 修改方式：用 libcavs.c + libcavsdec.c 替换原 cavsdec.c（内部实现，无需外部库）
         run: |
           cd mpv-winbuild-cmake
-          sed -i 's|https://github.com/FFmpeg/FFmpeg.git|https://github.com/llawsxx/FFmpeg.git|' packages/ffmpeg.cmake
+          sed -i 's|https://github.com/FFmpeg/FFmpeg.git|https://github.com/sumingyd/FFmpeg.git|' packages/ffmpeg.cmake
           echo "=== Patched ffmpeg.cmake ==="
           grep "GIT_REPOSITORY" packages/ffmpeg.cmake
 
+      - name: Loading toolchain cache
+        # 缓存 GCC 交叉编译工具链构建结果，失败也保存（重试可复用源码和配置）
+        uses: actions/cache/restore@v4
+        with:
+          path: mpv-winbuild-cmake/build_x86_64
+          key: gcc-toolchain-x86_64-${{ github.run_id }}
+          restore-keys: |
+            gcc-toolchain-x86_64-
+
+      - name: Loading repository cache
+        uses: actions/cache/restore@v4
+        with:
+          path: mpv-winbuild-cmake/src_packages
+          key: repository-x86_64-${{ github.run_id }}
+          restore-keys: |
+            repository-x86_64-
+
+      - name: Loading rustup cache
+        uses: actions/cache/restore@v4
+        with:
+          path: mpv-winbuild-cmake/clang_root
+          key: clang_root-x86_64-${{ github.run_id }}
+          restore-keys: |
+            clang_root-x86_64-
+
       - name: Downloading source
+        # MAKEJOBS=2 降低 GCC 并行编译度，避免 GitHub Actions runner 内存不足 (OOM)
         run: |
           cd mpv-winbuild-cmake
           cmake -DTARGET_ARCH=x86_64-w64-mingw32 \
+                -DMAKEJOBS=2 \
                 -DSINGLE_SOURCE_LOCATION=$PWD/src_packages \
                 -DRUSTUP_LOCATION=$PWD/clang_root/install_rustup \
                 -DENABLE_CCACHE=ON \
@@ -55,13 +82,52 @@ jobs:
           ninja -C build_x86_64 download || true
 
       - name: Building toolchain (GCC cross-compiler)
-        # 首次构建需要编译 GCC 交叉编译工具链（耗时较长，约 30-40 分钟）
+        # 首次构建需要编译 GCC 交叉编译工具链（耗时较长，MAKEJOBS=2 约 40-60 分钟）
+        # 构建失败时保留 toolchain 目录，重试时可复用已下载的源码和配置结果
         run: |
           cd mpv-winbuild-cmake
           if [[ ! -f "build_x86_64/install/bin/cross-gcc" ]]; then
-            ninja -C build_x86_64 gcc
+            ninja -C build_x86_64 gcc || {
+              echo "=== GCC build failed! Diagnostics below ==="
+              echo "=== Disk space ==="
+              df -h
+              echo "=== Memory ==="
+              free -h
+              echo "=== GCC build logs (last 300 lines) ==="
+              find build_x86_64/toolchain -name "gcc-build-*.log" -exec sh -c 'echo "--- {} ---"; tail -300 {}' \;
+              echo "=== GCC configure logs (last 100 lines) ==="
+              find build_x86_64/toolchain -name "gcc-configure-*.log" -exec sh -c 'echo "--- {} ---"; tail -100 {}' \;
+              echo "=== config.log files (last 100 lines) ==="
+              find build_x86_64/toolchain -name "config.log" -exec sh -c 'echo "--- {} ---"; tail -100 {}' \;
+              echo "=== dmesg (OOM killer check) ==="
+              dmesg 2>/dev/null | grep -i "killed process\|out of memory" | tail -20 || echo "Cannot access dmesg"
+              exit 1
+            }
+            # 构建成功后删除 toolchain 目录（保留 install 目录），节省缓存空间
             rm -rf build_x86_64/toolchain
           fi
+
+      - name: Saving toolchain cache
+        # 即使构建失败也保存缓存，重试时可复用已下载的源码和配置结果
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: mpv-winbuild-cmake/build_x86_64
+          key: gcc-toolchain-x86_64-${{ github.run_id }}
+
+      - name: Saving repository cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: mpv-winbuild-cmake/src_packages
+          key: repository-x86_64-${{ github.run_id }}
+
+      - name: Saving rustup cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: mpv-winbuild-cmake/clang_root
+          key: clang_root-x86_64-${{ github.run_id }}
 
       - name: Building mpv with CAVS support
         run: |
