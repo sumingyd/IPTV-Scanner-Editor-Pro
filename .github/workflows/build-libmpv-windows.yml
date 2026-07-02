@@ -97,10 +97,11 @@ jobs:
         # 构建失败时保留 toolchain 目录，重试时可复用已下载的源码和配置结果
         run: |
           cd mpv-winbuild-cmake
-          # 清除 GCC 的 configure/build stamp 文件（如果缓存恢复后存在）
-          # 确保 CXXFLAGS=-fno-char8_t 修补生效（上次 configure 用的是旧配置）
-          rm -f build_x86_64/toolchain/gcc-prefix/src/gcc-stamp/gcc-configure-*
-          rm -f build_x86_64/toolchain/gcc-prefix/src/gcc-stamp/gcc-build-*
+          # 只删除 GCC 的 configure/build stamp 文件（不带扩展名），保留 .cmake 脚本和 .log 日志
+          # 这样 ExternalProject 会重新运行 configure，使用新的 CXXFLAGS=-fno-char8_t
+          # 注意：不能用通配符 gcc-configure-*，会误删 gcc-configure-.cmake 脚本文件
+          rm -f build_x86_64/toolchain/gcc-prefix/src/gcc-stamp/gcc-configure
+          rm -f build_x86_64/toolchain/gcc-prefix/src/gcc-stamp/gcc-build
           if [[ ! -f "build_x86_64/install/bin/cross-gcc" ]]; then
             ninja -C build_x86_64 gcc || {
               echo "=== GCC build failed! Diagnostics below ==="
