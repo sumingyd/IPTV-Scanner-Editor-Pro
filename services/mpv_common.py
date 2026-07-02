@@ -4,7 +4,7 @@ import sys
 import locale
 
 from core.log_manager import global_logger as logger
-from utils.platform_utils import find_libmpv_path, get_libmpv_filename, is_macos, is_linux, is_android
+from utils.platform_utils import find_libmpv_path, find_libmpv_paths, get_libmpv_filename, is_macos, is_linux, is_android
 
 _mpv_loaded = False
 
@@ -45,69 +45,88 @@ def _is_mpv_available():
 
 
 def _ensure_libmpv_loaded():
-    global libmpv, MPV_AVAILABLE, _mpv_loaded
+    global libmpv, MPV_AVAILABLE, _mpv_loaded, libmpv_path
     if _mpv_loaded:
         return MPV_AVAILABLE
 
-    if not libmpv_path or not os.path.exists(libmpv_path):
-        logger.warning(f"未找到libmpv库: {libmpv_path}")
-        return False
-
-    try:
-        if is_linux() or is_android():
+    if is_linux() or is_android():
+        try:
             locale.setlocale(locale.LC_NUMERIC, "C")
+        except Exception:
+            pass
 
-        libmpv = ctypes.CDLL(libmpv_path)
+    # 逐一尝试所有候选路径：文件可能存在但损坏（UPX 解压损坏、杀毒软件拦截、依赖缺失），
+    # ctypes.CDLL 失败时继续尝试下一个路径（exe 同级 mpv/ 目录等 fallback）
+    candidate_paths = find_libmpv_paths()
+    last_error = None
+    for path in candidate_paths:
+        if not path or not os.path.exists(path):
+            continue
+        try:
+            libmpv = ctypes.CDLL(path)
 
-        libmpv.mpv_create.restype = ctypes.c_void_p
-        libmpv.mpv_create.argtypes = []
+            libmpv.mpv_create.restype = ctypes.c_void_p
+            libmpv.mpv_create.argtypes = []
 
-        libmpv.mpv_initialize.restype = ctypes.c_int
-        libmpv.mpv_initialize.argtypes = [ctypes.c_void_p]
+            libmpv.mpv_initialize.restype = ctypes.c_int
+            libmpv.mpv_initialize.argtypes = [ctypes.c_void_p]
 
-        libmpv.mpv_set_option_string.restype = ctypes.c_int
-        libmpv.mpv_set_option_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+            libmpv.mpv_set_option_string.restype = ctypes.c_int
+            libmpv.mpv_set_option_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
 
-        libmpv.mpv_set_property_string.restype = ctypes.c_int
-        libmpv.mpv_set_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+            libmpv.mpv_set_property_string.restype = ctypes.c_int
+            libmpv.mpv_set_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
 
-        libmpv.mpv_set_property.restype = ctypes.c_int
-        libmpv.mpv_set_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
+            libmpv.mpv_set_property.restype = ctypes.c_int
+            libmpv.mpv_set_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
 
-        libmpv.mpv_command.restype = ctypes.c_int
-        libmpv.mpv_command.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
+            libmpv.mpv_command.restype = ctypes.c_int
+            libmpv.mpv_command.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
 
-        libmpv.mpv_destroy.restype = None
-        libmpv.mpv_destroy.argtypes = [ctypes.c_void_p]
+            libmpv.mpv_destroy.restype = None
+            libmpv.mpv_destroy.argtypes = [ctypes.c_void_p]
 
-        libmpv.mpv_terminate_destroy.restype = None
-        libmpv.mpv_terminate_destroy.argtypes = [ctypes.c_void_p]
+            libmpv.mpv_terminate_destroy.restype = None
+            libmpv.mpv_terminate_destroy.argtypes = [ctypes.c_void_p]
 
-        libmpv.mpv_observe_property.restype = ctypes.c_int
-        libmpv.mpv_observe_property.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_char_p, ctypes.c_int]
+            libmpv.mpv_observe_property.restype = ctypes.c_int
+            libmpv.mpv_observe_property.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_char_p, ctypes.c_int]
 
-        libmpv.mpv_set_wakeup_callback.restype = None
-        libmpv.mpv_set_wakeup_callback.argtypes = [ctypes.c_void_p, ctypes.CFUNCTYPE(None, ctypes.c_void_p), ctypes.c_void_p]
+            libmpv.mpv_set_wakeup_callback.restype = None
+            libmpv.mpv_set_wakeup_callback.argtypes = [ctypes.c_void_p, ctypes.CFUNCTYPE(None, ctypes.c_void_p), ctypes.c_void_p]
 
-        libmpv.mpv_wait_event.restype = ctypes.c_void_p
-        libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
+            libmpv.mpv_wait_event.restype = ctypes.c_void_p
+            libmpv.mpv_wait_event.argtypes = [ctypes.c_void_p, ctypes.c_double]
 
-        libmpv.mpv_get_property_string.restype = ctypes.c_void_p
-        libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+            libmpv.mpv_get_property_string.restype = ctypes.c_void_p
+            libmpv.mpv_get_property_string.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
-        libmpv.mpv_free.restype = None
-        libmpv.mpv_free.argtypes = [ctypes.c_void_p]
+            libmpv.mpv_free.restype = None
+            libmpv.mpv_free.argtypes = [ctypes.c_void_p]
 
-        libmpv.mpv_get_property.restype = ctypes.c_int
-        libmpv.mpv_get_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
+            libmpv.mpv_get_property.restype = ctypes.c_int
+            libmpv.mpv_get_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
 
-        MPV_AVAILABLE = True
-        _mpv_loaded = True
-        return True
-    except Exception as e:
-        logger.error(f"加载libmpv失败: {e}")
-        _mpv_loaded = False
-        return False
+            libmpv.mpv_request_log_messages.restype = ctypes.c_int
+            libmpv.mpv_request_log_messages.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+
+            # 加载成功：更新 libmpv_path 和环境变量，确保后续使用正确的路径
+            libmpv_path = path
+            os.environ['MPV_LIBRARY'] = path
+            mpv_dir = os.path.dirname(path)
+            os.environ['MPV_HOME'] = mpv_dir
+            os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
+            MPV_AVAILABLE = True
+            _mpv_loaded = True
+            return True
+        except Exception as e:
+            last_error = e
+            logger.warning(f"libmpv路径加载失败，尝试下一个: {path} -> {e}")
+            continue
+
+    logger.error(f"加载libmpv失败（所有候选路径均失败）: {last_error}")
+    _mpv_loaded = False
+    return False
 
 
 class mpv_event(ctypes.Structure):
@@ -134,6 +153,15 @@ class mpv_event_property(ctypes.Structure):
         ('name', ctypes.c_char_p),
         ('format', ctypes.c_int),
         ('data', ctypes.c_void_p),
+    ]
+
+
+class mpv_event_log_message(ctypes.Structure):
+    """mpv 日志消息事件结构体（MPV_EVENT_LOG_MESSAGE）"""
+    _fields_ = [
+        ('prefix', ctypes.c_char_p),   # 模块前缀，如 "demuxer"、"vd"
+        ('level', ctypes.c_char_p),    # 级别，如 "debug"、"warn"、"error"
+        ('text', ctypes.c_char_p),     # 日志文本（含换行符）
     ]
 
 

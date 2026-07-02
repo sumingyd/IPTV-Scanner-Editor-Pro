@@ -145,9 +145,19 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
         if (uri != null) viewModel.playLocalVideo(uri.toString())
     }
 
-    /** 关闭统一面板后执行操作 */
+    /** 关闭统一面板后执行操作（仅用于在统一面板之前渲染的 ChannelsPanel/EpgPanel，避免被统一面板遮挡） */
     fun closeAndRun(action: () -> Unit) {
         viewModel.toggleTvUnifiedPanel()
+        action()
+    }
+
+    /**
+     * 直接打开全屏覆盖子面板（不关闭统一面板）。
+     * 用于在 TvUnifiedPanel 之后渲染的面板（见 MainPlayerScreen.kt 渲染顺序）：
+     * 它们会自然覆盖统一面板，子面板关闭后统一面板自动恢复显示，焦点回到菜单项。
+     * 这样用户可以连续调整多个设置，无需反复打开主菜单。
+     */
+    fun openOverlay(action: () -> Unit) {
         action()
     }
 
@@ -192,7 +202,9 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     currentIdx = currentIdx,
                     isFavorite = isFavorite,
                     onOpenPlaylist = {
-                        closeAndRun {
+                        // FileBrowserPanel 在统一面板之后渲染；SAF launcher 是系统级浮层。
+                        // 两者关闭后焦点自然回到统一面板菜单项。
+                        openOverlay {
                             if (!viewModel.isSafAvailable()) {
                                 viewModel.showFileBrowser()
                             } else {
@@ -204,9 +216,9 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                             }
                         }
                     },
-                    onOpenUrl = { closeAndRun { viewModel.toggleOpenUrlDialog() } },
+                    onOpenUrl = { openOverlay { viewModel.toggleOpenUrlDialog() } },
                     onOpenLocalVideo = {
-                        closeAndRun {
+                        openOverlay {
                             if (!viewModel.isSafAvailable()) {
                                 viewModel.showOsd("无法打开文件选择器", "请使用 打开网络流 输入 URL")
                             } else {
@@ -215,31 +227,32 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                         }
                     },
                     onSources = {
-                        closeAndRun {
+                        openOverlay {
                             viewModel.setSourceTab(AppViewModel.SourceTab.PLAYLIST)
                             viewModel.toggleSourceManager()
                         }
                     },
                     onEpgSources = {
-                        closeAndRun {
+                        openOverlay {
                             viewModel.setSourceTab(AppViewModel.SourceTab.EPG)
                             viewModel.toggleSourceManager()
                         }
                     },
-                    onMapping = { closeAndRun { viewModel.toggleMappingPanel() } },
+                    onMapping = { openOverlay { viewModel.toggleMappingPanel() } },
+                    // ChannelsPanel/EpgPanel 在统一面板之前渲染，会被统一面板遮挡，必须先关闭统一面板
                     onChannels = { closeAndRun { viewModel.showChannelsPanel() } },
                     onEpg = { closeAndRun { viewModel.showEpgPanel() } },
-                    onSubtitle = { closeAndRun { viewModel.toggleSubtitleSettings() } },
-                    onVideo = { closeAndRun { viewModel.toggleVideoSettings() } },
-                    onAudio = { closeAndRun { viewModel.toggleAudioSettings() } },
-                    onPlayback = { closeAndRun { viewModel.togglePlaybackPanel() } },
-                    onScreenshot = { closeAndRun { viewModel.toggleScreenshotPanel() } },
-                    onAvsync = { closeAndRun { viewModel.toggleAvSyncPanel() } },
-                    onNetwork = { closeAndRun { viewModel.toggleNetworkPanel() } },
-                    onTools = { closeAndRun { viewModel.toggleToolsPanel() } },
-                    onView = { closeAndRun { viewModel.toggleViewSettings() } },
-                    onSettings = { closeAndRun { viewModel.togglePlayerSettings() } },
-                    onAbout = { closeAndRun { viewModel.toggleAboutPanel() } },
+                    onSubtitle = { openOverlay { viewModel.toggleSubtitleSettings() } },
+                    onVideo = { openOverlay { viewModel.toggleVideoSettings() } },
+                    onAudio = { openOverlay { viewModel.toggleAudioSettings() } },
+                    onPlayback = { openOverlay { viewModel.togglePlaybackPanel() } },
+                    onScreenshot = { openOverlay { viewModel.toggleScreenshotPanel() } },
+                    onAvsync = { openOverlay { viewModel.toggleAvSyncPanel() } },
+                    onNetwork = { openOverlay { viewModel.toggleNetworkPanel() } },
+                    onTools = { openOverlay { viewModel.toggleToolsPanel() } },
+                    onView = { openOverlay { viewModel.toggleViewSettings() } },
+                    onSettings = { openOverlay { viewModel.togglePlayerSettings() } },
+                    onAbout = { openOverlay { viewModel.toggleAboutPanel() } },
                     onToggleFavorite = { viewModel.toggleFavorite() },
                     onQuit = { viewModel.showOsd("退出", "请使用系统返回键退出") },
                     modifier = Modifier.width(360.dp).focusRequester(column2Focus)
@@ -311,15 +324,17 @@ private fun ModeColumn(
                 icon = Icons.AutoMirrored.Filled.ListAlt,
                 label = "频道",
                 isSelected = mode == UnifiedMode.CHANNELS,
-                onClick = { onModeChange(UnifiedMode.CHANNELS) }
+                onClick = { onModeChange(UnifiedMode.CHANNELS) },
+                autoSelectOnFocus = true
             )
             ModeIconButton(
                 icon = Icons.Default.Menu,
                 label = "菜单",
                 isSelected = mode == UnifiedMode.MENU,
-                onClick = { onModeChange(UnifiedMode.MENU) }
+                onClick = { onModeChange(UnifiedMode.MENU) },
+                autoSelectOnFocus = true
             )
-            // OSD 按钮（切换控制层持久显示）
+            // OSD 按钮（切换控制层持久显示）：需要按 OK 键触发，不自动选中
             ModeIconButton(
                 icon = if (controlsPinned) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                 label = "OSD",
@@ -335,7 +350,8 @@ private fun ModeIconButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    autoSelectOnFocus: Boolean = false
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -343,6 +359,13 @@ private fun ModeIconButton(
             .clip(RoundedCornerShape(8.dp))
             .background(if (isSelected) Color(0xFF2A4A6A) else Color.Transparent)
             .tvFocusBorder()
+            .onFocusChanged { state ->
+                // 焦点切入时自动触发模式切换（TV 端无需按 OK 键）
+                // 已选中的不重复触发，避免 recomposition 循环
+                if (autoSelectOnFocus && state.isFocused && !isSelected) {
+                    onClick()
+                }
+            }
             .clickable { onClick() }
             .padding(horizontal = 8.dp, vertical = 10.dp)
     ) {

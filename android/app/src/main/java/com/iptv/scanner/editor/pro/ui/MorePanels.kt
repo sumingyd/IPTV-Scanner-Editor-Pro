@@ -114,6 +114,7 @@ private fun PanelScaffold(
     subtitle: String = "",
     onClose: () -> Unit,
     actions: @Composable (() -> Unit) = {},
+    scrollable: Boolean = true,
     content: @Composable () -> Unit
 ) {
     Surface(
@@ -151,11 +152,12 @@ private fun PanelScaffold(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            // 可滚动内容
+            // 内容区域：scrollable=true 时用 verticalScroll（适用于普通 Column 内容），
+            // scrollable=false 时不加 verticalScroll（适用于内含 LazyColumn 的面板，避免无限高度约束崩溃）
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
             ) {
                 content()
             }
@@ -2142,7 +2144,8 @@ fun ToolsPanel(viewModel: AppViewModel) {
     PanelScaffold(
         title = "工具",
         subtitle = "搜索 / EPG时间线 / 提醒 / 续播 / 书签 / 映射 / 扫描 / 流质量",
-        onClose = { viewModel.toggleToolsPanel() }
+        onClose = { viewModel.toggleToolsPanel() },
+        scrollable = false
     ) {
         val tools = listOf(
             ToolEntry("搜索", "全局搜索频道和节目", Icons.Default.Search) {
@@ -2244,7 +2247,8 @@ fun SubtitleSearchPanel(viewModel: AppViewModel) {
     PanelScaffold(
         title = "字幕搜索",
         subtitle = "SubHD / SubtitleCat / OpenSubtitles",
-        onClose = { viewModel.toggleSubtitleSearchPanel() }
+        onClose = { viewModel.toggleSubtitleSearchPanel() },
+        scrollable = false
     ) {
         // 搜索框
         OutlinedTextField(

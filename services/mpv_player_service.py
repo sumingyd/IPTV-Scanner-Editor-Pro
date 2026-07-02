@@ -10,12 +10,14 @@ from services.mpv_common import (
     mpv_event,
     mpv_event_end_file,
     mpv_event_property,
+    mpv_event_log_message,
     MPV_EVENT_NONE,
     MPV_EVENT_SHUTDOWN,
     MPV_EVENT_START_FILE,
     MPV_EVENT_END_FILE,
     MPV_EVENT_FILE_LOADED,
     MPV_EVENT_PROPERTY_CHANGE,
+    MPV_EVENT_LOG_MESSAGE,
     MPV_FORMAT_STRING,
     MPV_FORMAT_INT64,
     MPV_FORMAT_DOUBLE,
@@ -37,6 +39,7 @@ from services.mpv_common import (
     send_command as _mpv_send_command,
     observe_property as _mpv_observe_property,
     wait_for_event as _mpv_wait_event,
+    libmpv as _mpv_lib,
 )
 
 try:
@@ -314,7 +317,15 @@ class MpvPlayerController(QObject):
             _mpv_set_property_string(self.mpv_handle, 'osd-align-x', 'left')
             _mpv_set_property_string(self.mpv_handle, 'osd-align-y', 'top')
             self._apply_osd_colors()
-            _mpv_set_property_string(self.mpv_handle, 'log-level', 'fatal')
+            # 按模块设置日志级别：demuxer/vd/ad/hwdec=debug（诊断编解码/探测问题），
+            # 其他模块=fatal（避免日志被大量无关 info 淹没）。
+            # 注意：还需调用 mpv_request_log_messages(handle, "debug") 才能让
+            # MPV_EVENT_LOG_MESSAGE 事件被投递到事件队列，否则日志永远不会输出。
+            _mpv_set_property_string(self.mpv_handle, 'msg-level', 'all=fatal,demuxer=debug,vd=debug,ad=debug,hwdec=debug')
+            try:
+                _mpv_lib.mpv_request_log_messages(self.mpv_handle, b'debug')
+            except Exception as _e:
+                self.logger.debug(f"mpv_request_log_messages 调用失败: {_e}")
             _mpv_set_property_string(self.mpv_handle, 'no-window-dragging', 'yes')
             _mpv_set_property_string(self.mpv_handle, 'window-scale', '1.0')
             _mpv_set_property_string(self.mpv_handle, 'border', 'no')
@@ -895,8 +906,10 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('force-seekable', 'yes')
                 self.logger.debug(f"[mpv] rtsp-vod cache={cache_secs} transport={rtsp_transport}")
             else:
-                self._set_mpv_string('demuxer-lavf-probesize', '32')
-                self._set_mpv_string('demuxer-lavf-analyzeduration', '0')
+                # 直播流需要足够的探测数据让 demuxer 识别编码格式（如 CAVS）
+                # probesize=32 太少会导致 CAVS 流无法被识别（track-list 为空）
+                self._set_mpv_string('demuxer-lavf-probesize', '5000000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
                 self.logger.debug(f"[mpv] rtsp-tcp-live cache={cache_secs} transport={rtsp_transport}")
             return
 
@@ -942,6 +955,10 @@ class MpvPlayerController(QObject):
             return
 
         self._set_mpv_string('demuxer-lavf-format', '')
+        # 显式设置 probesize/analyzeduration，确保 CAVS 等编码能被 demuxer 正确识别
+        # （mpv 默认值可能因版本/平台不同而不一致）
+        self._set_mpv_string('demuxer-lavf-probesize', '5000000')
+        self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
         self._set_mpv_string('cache', 'yes')
         self._set_mpv_string('cache-secs', str(cache_secs))
         self._set_mpv_string('demuxer-max-bytes', f'{max_bytes_mib}MiB')
@@ -1094,6 +1111,26 @@ class MpvPlayerController(QObject):
                             self.logger.debug(f"END_FILE: 正常停止/退出 reason={reason}")
                         else:
                             self.logger.warning(f"END_FILE: 未知reason={reason}")
+
+                elif event.event_id == MPV_EVENT_LOG_MESSAGE:
+                    # 将 mpv 内部日志转发到 app logger（仅 demuxer/vd/ad/hwdec 模块的 debug 日志，
+                    # 由 msg-level 和 mpv_request_log_messages 共同控制）
+                    if event.data:
+                        try:
+                            log_msg = ctypes.cast(event.data, ctypes.POINTER(mpv_event_log_message)).contents
+                            prefix = log_msg.prefix.decode('utf-8', errors='ignore') if log_msg.prefix else ''
+                            level = log_msg.level.decode('utf-8', errors='ignore') if log_msg.level else ''
+                            text = log_msg.text.decode('utf-8', errors='ignore').rstrip() if log_msg.text else ''
+                            if not text:
+                                continue
+                            if level in ('error', 'fatal'):
+                                global_logger.error(f"[mpv:{prefix}] {text}")
+                            elif level == 'warn':
+                                global_logger.warning(f"[mpv:{prefix}] {text}")
+                            else:
+                                global_logger.debug(f"[mpv:{prefix}] {text}")
+                        except Exception:
+                            pass
 
         except Exception as e:
             self.logger.error(f"处理 mpv 事件失败：{str(e)}")

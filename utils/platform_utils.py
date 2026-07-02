@@ -140,7 +140,12 @@ def get_libmpv_filename():
     return 'libmpv.so.2'
 
 
-def find_libmpv_path():
+def find_libmpv_paths():
+    """返回所有候选 libmpv 路径列表（按优先级排序，含不存在的路径）。
+
+    调用方应逐一尝试加载，某个路径加载失败（文件存在但损坏/依赖缺失）时
+    继续尝试下一个路径，而不是仅凭 os.path.exists 判断。
+    """
     base_path = get_app_base_path()
     mpv_dir = os.path.join(base_path, 'mpv')
     filename = get_libmpv_filename()
@@ -159,48 +164,37 @@ def find_libmpv_path():
                 os.path.join(exe_dir, 'mpv', filename),  # 便携版 exe 同级 mpv/
                 os.path.join(exe_dir, filename),          # 直接放在 exe 旁边
             ])
-        for p in search_paths:
-            if os.path.exists(p):
-                return p
-        # 都找不到时返回默认路径（保持原行为，让加载逻辑报错）
-        return search_paths[0]
+        return search_paths
 
     if is_macos():
-        search_paths = [
+        return [
             os.path.join(mpv_dir, 'libmpv.2.dylib'),
             '/usr/local/lib/libmpv.2.dylib',
             '/opt/homebrew/lib/libmpv.2.dylib',
             '/usr/lib/libmpv.2.dylib',
         ]
-        for p in search_paths:
-            if os.path.exists(p):
-                return p
-        return search_paths[0]
 
     if is_android():
         possible_names = ['libmpv.so', 'libmpv.so.2', 'libmpv.so.1']
+        paths = []
         for name in possible_names:
-            p = os.path.join(mpv_dir, name)
-            if os.path.exists(p):
-                return p
+            paths.append(os.path.join(mpv_dir, name))
         lib_dir = os.path.join(base_path, 'lib')
         for name in possible_names:
-            p = os.path.join(lib_dir, name)
-            if os.path.exists(p):
-                return p
-        return os.path.join(mpv_dir, 'libmpv.so')
+            paths.append(os.path.join(lib_dir, name))
+        return paths
 
+    # Linux
     possible_names = ['libmpv.so.2', 'libmpv.so.1', 'libmpv.so']
+    paths = []
     for name in possible_names:
-        p = os.path.join(mpv_dir, name)
-        if os.path.exists(p):
-            return p
+        paths.append(os.path.join(mpv_dir, name))
 
     try:
         import ctypes.util
         found = ctypes.util.find_library('mpv')
         if found and os.path.exists(found):
-            return found
+            paths.append(found)
     except Exception:
         pass
 
@@ -213,9 +207,7 @@ def find_libmpv_path():
     ]
     for d in system_dirs:
         for name in possible_names:
-            p = os.path.join(d, name)
-            if os.path.exists(p):
-                return p
+            paths.append(os.path.join(d, name))
 
     try:
         import subprocess
@@ -227,11 +219,24 @@ def find_libmpv_path():
                     if len(parts) == 2:
                         p = parts[1].strip()
                         if os.path.exists(p):
-                            return p
+                            paths.append(p)
     except Exception:
         pass
 
-    return os.path.join(mpv_dir, 'libmpv.so.2')
+    return paths
+
+
+def find_libmpv_path():
+    """返回第一个存在的 libmpv 路径（向后兼容）。
+
+    注意：此函数仅判断文件是否存在，不验证可加载性。
+    加载逻辑应使用 find_libmpv_paths() 逐一尝试，以应对文件存在但损坏的情况。
+    """
+    for p in find_libmpv_paths():
+        if os.path.exists(p):
+            return p
+    # 都找不到时返回默认路径（保持原行为，让加载逻辑报错）
+    return find_libmpv_paths()[0] if find_libmpv_paths() else ''
 
 
 def get_ffprobe_filename():

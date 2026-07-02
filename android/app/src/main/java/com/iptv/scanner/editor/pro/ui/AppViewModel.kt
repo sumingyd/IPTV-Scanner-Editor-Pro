@@ -60,6 +60,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import java.io.File
@@ -4246,7 +4247,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             put("channel_name", JsonPrimitive(channel?.name ?: ""))
             put("channel_group", JsonPrimitive(channel?.group ?: ""))
             put("is_playing", JsonPrimitive(mpv.fileLoaded.value && !mpv.paused.value))
-            put("is_paused", JsonPrimitive(mpv.paused.value))
+            // is_paused 需同时满足 fileLoaded（文件未加载时 paused 可能是初始值 true，
+            // 此时显示"已暂停"会误导用户；应为"未播放"）
+            put("is_paused", JsonPrimitive(mpv.fileLoaded.value && mpv.paused.value))
             put("player_type", JsonPrimitive(_playerType.value.name))
             put("hardware_decode", JsonPrimitive(_hardwareDecode.value))
             put("play_mode", JsonPrimitive(state.mode.name.lowercase()))
@@ -4633,6 +4636,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         } catch (_: Throwable) {}
         // 退出前保存最后一次位置
         try { autoSaveResume() } catch (_: Exception) {}
+        // 停止局域网管理服务器（避免退出后端口/socket 残留）
+        // viewModelScope 已取消，用后台线程同步调用 Python 端 stop_admin_server
+        try {
+            adminCountdownJob?.cancel()
+            stopRemoteCommandPolling()
+            Thread {
+                runCatching { runBlocking { repository.stopAdminServer() } }
+            }.start()
+        } catch (_: Throwable) {}
     }
 
     // -----------------------------------------------------------------
