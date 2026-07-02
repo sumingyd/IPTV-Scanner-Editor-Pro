@@ -5,7 +5,7 @@ import sys
 import threading
 from PySide6.QtCore import QObject, Signal, QTimer
 from core.log_manager import global_logger
-from utils.platform_utils import is_windows, is_macos, is_linux, is_android
+from utils.platform_utils import is_windows, is_macos, is_linux, is_android, get_android_data_dir
 from services.mpv_common import (
     mpv_event,
     mpv_event_end_file,
@@ -1801,10 +1801,10 @@ class MpvPlayerController(QObject):
             return
         try:
             import hashlib
-            # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR
-            _android_data = os.environ.get('IPTV_DATA_DIR', '')
+            # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR（已指向 ISEPP 目录）
+            _android_data = get_android_data_dir()
             if _android_data:
-                cache_dir = os.path.join(_android_data, 'IPTV_Scanner_Editor_Pro', 'cache', 'thumbnails')
+                cache_dir = os.path.join(_android_data, 'cache', 'thumbnails')
             else:
                 cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
             os.makedirs(cache_dir, exist_ok=True)
@@ -1842,10 +1842,10 @@ class MpvPlayerController(QObject):
         if not url:
             return None
         import hashlib
-        # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR
-        _android_data = os.environ.get('IPTV_DATA_DIR', '')
+        # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR（已指向 ISEPP 目录）
+        _android_data = get_android_data_dir()
         if _android_data:
-            cache_dir = os.path.join(_android_data, 'IPTV_Scanner_Editor_Pro', 'cache', 'thumbnails')
+            cache_dir = os.path.join(_android_data, 'cache', 'thumbnails')
         else:
             cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache', 'thumbnails')
         filepath = os.path.join(cache_dir, f"{hashlib.md5(url.encode('utf-8')).hexdigest()}.png")

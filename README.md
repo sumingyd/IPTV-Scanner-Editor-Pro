@@ -320,7 +320,7 @@ adb install -g app/build/outputs/apk/debug/app-debug.apk
 
 > **PC 端 Python 模块打包**：Chaquopy 构建时会将项目根目录的 `core/`、`services/`、`server/` 等 Python 包打包进 APK（通过 `extractPackages "server"` 指令解压 server 包，其余以 .zip 形式加载）。`android/app/src/main/python/android_bridge.py` 是 Android 端唯一的 Python 入口文件，运行时通过 `import server` / `import core` 等动态导入 PC 端模块。
 
-> **数据持久化**：覆盖安装 APK 后，订阅源、EPG 源、设置等数据自动保留。数据存储在 `/data/data/com.iptv.scanner.editor.pro/files/IPTV_Scanner_Editor_Pro/` 目录下的 `config.ini` 中，与 Chaquopy 资产解压目录隔离，不受 APK 版本更新影响。
+> **数据持久化**：覆盖安装 APK 后，订阅源、EPG 源、设置等数据自动保留。所有数据（config.ini、缓存、收藏等）统一存放在外部存储根目录的 `/sdcard/ISEPP/` 下（三级回退：`/sdcard/ISEPP/` → `getExternalFilesDir()/ISEPP/` → `getFilesDir()/ISEPP/`），与 Chaquopy 资产解压目录完全隔离，不受 APK 版本更新影响。首次启动时会自动从旧目录 `getFilesDir()/IPTV_Scanner_Editor_Pro/` 迁移历史数据。
 
 ## 🚀 快速开始
 

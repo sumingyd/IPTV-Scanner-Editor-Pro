@@ -259,24 +259,26 @@ class MainActivityCompose : ComponentActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                // 回看/时移/本地视频：seek -10 秒；直播：打开统一面板
+                // 左键：快退
+                // - 回看/本地视频：直接 seek
+                // - 直播/时移：在缓冲区内快退，自动进入时移模式
                 val mode = viewModel.playbackState.value.mode
-                if (mode.isCatchupOrTimeshift || viewModel.currentChannel.value == null) {
+                if (mode.isCatchup || viewModel.currentChannel.value == null) {
                     viewModel.mpv.seekRelative(-10.0)
                 } else {
-                    // 直播模式：打开统一面板（三列布局含频道列表+EPG）
-                    viewModel.toggleTvUnifiedPanel()
+                    viewModel.seekLiveRelative(-10.0)
                 }
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                // 回看/时移/本地视频：seek +10 秒；直播：打开统一面板
+                // 右键：快进
+                // - 回看/本地视频：直接 seek
+                // - 直播/时移：时移下快进，追赶到前沿自动切回直播；直播前沿提示
                 val mode = viewModel.playbackState.value.mode
-                if (mode.isCatchupOrTimeshift || viewModel.currentChannel.value == null) {
+                if (mode.isCatchup || viewModel.currentChannel.value == null) {
                     viewModel.mpv.seekRelative(10.0)
                 } else {
-                    // 直播模式：打开统一面板（三列布局含频道列表+EPG）
-                    viewModel.toggleTvUnifiedPanel()
+                    viewModel.seekLiveRelative(10.0)
                 }
                 return true
             }

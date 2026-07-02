@@ -6,6 +6,7 @@ import threading
 from .log_manager import global_logger as logger
 from utils.config_notifier import notify_config_change
 from utils.singleton import Singleton
+from utils.platform_utils import get_android_data_dir
 
 
 class ConfigManager(Singleton):
@@ -14,9 +15,9 @@ class ConfigManager(Singleton):
         if self._initialized:
             return
 
-        android_data = os.environ.get('IPTV_DATA_DIR', '')
+        android_data = get_android_data_dir()
         if android_data:
-            config_dir = os.path.join(android_data, 'IPTV_Scanner_Editor_Pro')
+            config_dir = android_data
             os.makedirs(config_dir, exist_ok=True)
         elif getattr(sys, 'frozen', False):
             config_dir = os.path.dirname(sys.executable)

@@ -1289,6 +1289,66 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * 直播/时移模式下的相对 seek（用于遥控器左右键快进/快退）。
+     *
+     * 负值（快退）：
+     *   - 在 demuxer 缓冲区内 seek
+     *   - seek 后落后于直播前沿超过 2 秒时，自动切换到时移模式
+     * 正值（快进）：
+     *   - 时移模式下 seek，追赶到前沿时切回直播
+     *   - 直播模式下（已在前沿）显示提示
+     *
+     * @param seconds 相对秒数（负=快退，正=快进）
+     */
+    fun seekLiveRelative(seconds: Double) {
+        val state = _playbackState.value
+        val mpvTimePos = mpv.timePos.value
+        val cacheTime = mpv.getPropertyDouble("demuxer-cache-time") ?: 0.0
+
+        // 缓冲区信息不可用（刚切换频道，缓冲未建立）
+        if (mpvTimePos <= 0 || cacheTime <= 0) {
+            if (seconds < 0) {
+                showOsd("提示", "缓冲中，请稍候")
+            }
+            return
+        }
+
+        val currentOffset = (cacheTime - mpvTimePos).coerceAtLeast(0.0)
+
+        if (seconds < 0) {
+            // 快退：seek 后偏移增大
+            mpv.seekRelative(seconds)
+            val newOffset = (currentOffset + (-seconds)).toLong()
+            if (newOffset > 2) {
+                if (!state.mode.isTimeshift) {
+                    _playbackState.value = state.switchToTimeshift(newOffset)
+                } else {
+                    _playbackState.value = state.copy(liveTimeshiftSeconds = newOffset)
+                }
+                showOsd("时移", "落后 ${newOffset} 秒")
+            }
+        } else {
+            // 快进
+            if (state.mode.isTimeshift) {
+                val newOffset = (currentOffset - seconds).toLong().coerceAtLeast(0L)
+                if (newOffset <= 2) {
+                    // 追赶到直播前沿：seek 到前沿并切回 LIVE
+                    mpv.seekAbsolute(cacheTime - 1)
+                    _playbackState.value = state.copy(mode = PlayMode.LIVE, liveTimeshiftSeconds = 0L)
+                    showOsd("直播", "已恢复实时播放")
+                } else {
+                    mpv.seekRelative(seconds)
+                    _playbackState.value = state.copy(liveTimeshiftSeconds = newOffset)
+                    showOsd("时移", "落后 ${newOffset} 秒")
+                }
+            } else {
+                // 已在直播前沿，无法快进
+                showOsd("提示", "已是最新直播")
+            }
+        }
+    }
+
     // -----------------------------------------------------------------
     // EPG
     // -----------------------------------------------------------------
@@ -3783,19 +3843,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             "up" -> prevChannel()
             "down" -> nextChannel()
             "left" -> {
+                // 左键：快退（与 MainActivityCompose DPAD_LEFT 对齐）
                 val mode = playbackState.value.mode
-                if (mode.isCatchupOrTimeshift || currentChannel.value == null) {
+                if (mode.isCatchup || currentChannel.value == null) {
                     mpv.seekRelative(-10.0)
                 } else {
-                    toggleTvUnifiedPanel()
+                    seekLiveRelative(-10.0)
                 }
             }
             "right" -> {
+                // 右键：快进（与 MainActivityCompose DPAD_RIGHT 对齐）
                 val mode = playbackState.value.mode
-                if (mode.isCatchupOrTimeshift || currentChannel.value == null) {
+                if (mode.isCatchup || currentChannel.value == null) {
                     mpv.seekRelative(10.0)
                 } else {
-                    toggleTvUnifiedPanel()
+                    seekLiveRelative(10.0)
                 }
             }
             "ok" -> {

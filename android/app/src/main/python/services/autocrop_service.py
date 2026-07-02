@@ -78,9 +78,9 @@ class AutoCropService:
         """工作线程：截图 -> 分析 -> 应用滤镜"""
         try:
             # 1. 截图到临时文件
-            _android_data = os.environ.get('IPTV_DATA_DIR', '')
+            _android_data = get_android_data_dir()
             if _android_data:
-                cache_dir = os.path.join(_android_data, 'IPTV_Scanner_Editor_Pro', 'cache', 'autocrop')
+                cache_dir = os.path.join(_android_data, 'cache', 'autocrop')
             else:
                 cache_dir = os.path.join(
                     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

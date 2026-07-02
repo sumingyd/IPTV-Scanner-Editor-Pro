@@ -27,7 +27,9 @@ def _setup_android_env():
         app = Python.getPlatform().getApplication()
         files_dir = app.getFilesDir().getAbsolutePath()
         os.environ.setdefault('IPTV_DATA_DIR', files_dir)
-        config_dir = os.path.join(files_dir, 'IPTV_Scanner_Editor_Pro')
+        # 使用统一辅助函数获取 ISEPP 目录（兜底处理）
+        from utils.platform_utils import get_android_data_dir
+        config_dir = get_android_data_dir() or os.path.join(files_dir, 'ISEPP')
         os.makedirs(config_dir, exist_ok=True)
         os.chdir(config_dir)
     except Exception:
