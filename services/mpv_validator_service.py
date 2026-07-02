@@ -51,7 +51,7 @@ def _create_lightweight_mpv():
         _mpv_set_option_string(handle, 'log-level', 'fatal')
         _mpv_set_option_string(handle, 'config', 'no')
         _mpv_set_option_string(handle, 'demuxer-lavf-probesize', '1048576')
-        _mpv_set_option_string(handle, 'demuxer-lavf-analyzeduration', '5000000')
+        _mpv_set_option_string(handle, 'demuxer-lavf-analyzeduration', '5')
         _mpv_set_option_string(handle, 'cache', 'yes')
         _mpv_set_option_string(handle, 'cache-secs', '10')
         _mpv_set_option_string(handle, 'demuxer-max-bytes', '16MiB')

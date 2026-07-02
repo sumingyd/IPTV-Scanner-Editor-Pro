@@ -749,7 +749,7 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('demuxer', '')
             self._set_mpv_string('demuxer-lavf-format', '')
             self._set_mpv_string('demuxer-lavf-probesize', '5000000')
-            self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
+            self._set_mpv_string('demuxer-lavf-analyzeduration', '5')
             self._set_mpv_string('demuxer-lavf-buffersize', '')
             self._set_mpv_string('cache', 'no')
             self._set_mpv_string('cache-secs', '')
@@ -801,17 +801,17 @@ class MpvPlayerController(QObject):
             cache_secs = 120
             max_bytes_mib = 1024
             probesize = 50000000
-            analyzeduration = 10000000
+            analyzeduration = 10
             if is_4k and is_hdr:
                 cache_secs = 180
                 max_bytes_mib = 2048
                 probesize = 100000000
-                analyzeduration = 15000000
+                analyzeduration = 15
             elif is_4k:
                 cache_secs = 150
                 max_bytes_mib = 1536
                 probesize = 80000000
-                analyzeduration = 12000000
+                analyzeduration = 12
             if is_large_file:
                 cache_secs = max(cache_secs, 240)
                 max_bytes_mib = max(max_bytes_mib, 3072)
@@ -829,7 +829,7 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('demuxer', '')
             self._set_mpv_string('demuxer-lavf-format', '')
             self._set_mpv_string('demuxer-lavf-probesize', '100000000')
-            self._set_mpv_string('demuxer-lavf-analyzeduration', '20000000')
+            self._set_mpv_string('demuxer-lavf-analyzeduration', '20')
             self._set_mpv_string('cache', 'yes')
             self._set_mpv_string('cache-secs', '180')
             self._set_mpv_string('demuxer-max-bytes', '2048MiB')
@@ -846,7 +846,7 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('demuxer', '')
             self._set_mpv_string('demuxer-lavf-format', '')
             self._set_mpv_string('demuxer-lavf-probesize', '50000000')
-            self._set_mpv_string('demuxer-lavf-analyzeduration', '10000000')
+            self._set_mpv_string('demuxer-lavf-analyzeduration', '10')
             self._set_mpv_string('demuxer-lavf-buffersize', '50000000')
             self._set_mpv_string('cache', 'yes')
             self._set_mpv_string('cache-secs', '60')
@@ -895,7 +895,7 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('demuxer-lavf-format', '')
             if rtsp_transport == 'udp':
                 self._set_mpv_string('demuxer-lavf-probesize', '500000')
-                self._set_mpv_string('demuxer-lavf-analyzeduration', '500000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '1')
                 self._set_mpv_string('demuxer-max-bytes', f'{max_bytes_mib}MiB')
                 self._set_mpv_string('demuxer-max-back-bytes', f'{max_bytes_mib}MiB')
                 self._set_mpv_string('demuxer-readahead-secs', '5')
@@ -903,14 +903,14 @@ class MpvPlayerController(QObject):
                 self.logger.debug(f"[mpv] rtsp-udp-live cache={cache_secs} transport={rtsp_transport}")
             elif is_vod:
                 self._set_mpv_string('demuxer-lavf-probesize', '5000000')
-                self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '5')
                 self._set_mpv_string('force-seekable', 'yes')
                 self.logger.debug(f"[mpv] rtsp-vod cache={cache_secs} transport={rtsp_transport}")
             else:
                 # 直播流需要足够的探测数据让 demuxer 识别编码格式（如 CAVS）
                 # probesize=32 太少会导致 CAVS 流无法被识别（track-list 为空）
                 self._set_mpv_string('demuxer-lavf-probesize', '5000000')
-                self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '5')
                 self.logger.debug(f"[mpv] rtsp-tcp-live cache={cache_secs} transport={rtsp_transport}")
             return
 
@@ -920,13 +920,13 @@ class MpvPlayerController(QObject):
             self._set_mpv_string('demuxer-lavf-format', 'mpegts')
             if is_vod:
                 self._set_mpv_string('demuxer-lavf-probesize', '5000000')
-                self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '5')
                 self._set_mpv_string('force-seekable', 'yes')
             else:
                 # 直播流需要足够的探测数据让 demuxer 识别编码格式（如 CAVS）
                 # probesize=32 太少会导致 CAVS 流无法被识别（track-list 为空）
                 self._set_mpv_string('demuxer-lavf-probesize', '5000000')
-                self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '5')
             self._set_mpv_string('demuxer-lavf-buffersize', '128000')
             self._set_mpv_string('cache', 'yes')
             self._set_mpv_string('force-seekable', 'yes')
@@ -959,7 +959,7 @@ class MpvPlayerController(QObject):
         # 显式设置 probesize/analyzeduration，确保 CAVS 等编码能被 demuxer 正确识别
         # （mpv 默认值可能因版本/平台不同而不一致）
         self._set_mpv_string('demuxer-lavf-probesize', '5000000')
-        self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
+        self._set_mpv_string('demuxer-lavf-analyzeduration', '5')
         self._set_mpv_string('cache', 'yes')
         self._set_mpv_string('cache-secs', str(cache_secs))
         self._set_mpv_string('demuxer-max-bytes', f'{max_bytes_mib}MiB')
