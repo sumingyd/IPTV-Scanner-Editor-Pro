@@ -44,6 +44,24 @@ class LogManager(Singleton):
             if log_dir and not os.path.exists(log_dir):
                 os.makedirs(log_dir)
 
+            # 每次启动时清除旧日志文件，确保非追加模式。
+            # RotatingFileHandler 在 Python 3.9+ 强制 delay=True，mode='w' 可能不按预期截断
+            # （首次 emit 时 shouldRollover → _open 用 mode='w'，但某些环境下仍追加），
+            # 手动删除旧文件是最可靠的非追加方案。
+            if os.path.exists(self.log_file):
+                try:
+                    os.remove(self.log_file)
+                except Exception:
+                    pass
+            # 清除轮转备份文件
+            for i in range(1, self.backup_count + 1):
+                backup_file = f"{self.log_file}.{i}"
+                if os.path.exists(backup_file):
+                    try:
+                        os.remove(backup_file)
+                    except Exception:
+                        pass
+
             file_handler = RotatingFileHandler(
                 self.log_file,
                 maxBytes=self.max_bytes,
