@@ -581,24 +581,23 @@ textarea.form-input {
 .remote-status.ok { color: #4ade80; }
 .remote-status.err { color: #f87171; }
 
-/* 遥控器播放状态信息 */
-.remote-player-status {
-  background: var(--bg-secondary, #1e1e1e);
-  border-radius: 10px;
-  padding: 14px;
-  border: 1px solid var(--border, #333);
-}
-.rp-status-row {
+/* 遥控器播放状态条（显示在按键上方，单行紧凑） */
+.remote-status-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
   margin-bottom: 12px;
+  font-size: 13px;
 }
 .rp-channel {
-  font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary, #fff);
-  flex: 1;
+  color: #fff;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -606,8 +605,8 @@ textarea.form-input {
 .rp-badge {
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
   background: #444;
   color: #ccc;
   white-space: nowrap;
@@ -615,29 +614,11 @@ textarea.form-input {
 .rp-badge.playing { background: #16a34a; color: #fff; }
 .rp-badge.paused { background: #ca8a04; color: #fff; }
 .rp-badge.stopped { background: #555; color: #999; }
-.rp-badge.hdr { background: #7c3aed; color: #fff; margin-left: 4px; }
-.rp-info-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.rp-info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 8px;
-  background: rgba(255,255,255,0.03);
-  border-radius: 6px;
-}
-.rp-label {
-  font-size: 10px;
-  color: var(--text-secondary, #888);
-  text-transform: uppercase;
-}
-.rp-value {
-  font-size: 13px;
-  color: var(--text-primary, #ddd);
-  font-weight: 500;
+.rp-info-line {
+  color: var(--text-dim);
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -955,6 +936,13 @@ textarea.form-input {
         </div>
       </div>
       <div class="remote-wrap">
+        <!-- 当前播放状态（显示在按键上方） -->
+        <div class="remote-status-bar" id="remotePlayerStatus">
+          <span class="rp-channel" id="rpChannel">--</span>
+          <span class="rp-badge" id="rpPlayBadge">未播放</span>
+          <span class="rp-info-line" id="rpInfoLine">等待状态...</span>
+        </div>
+
         <!-- 方向键区 -->
         <div class="remote-section">
           <div class="remote-section-title">方向 / 确定</div>
@@ -1047,28 +1035,6 @@ textarea.form-input {
               <svg viewBox="0 0 24 24" width="22" height="22"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z" fill="currentColor"/></svg>
               <span style="font-size:11px">OSD</span>
             </button>
-          </div>
-        </div>
-
-        <!-- 当前播放状态信息 -->
-        <div class="remote-section">
-          <div class="remote-section-title">当前播放状态</div>
-          <div id="remotePlayerStatus" class="remote-player-status">
-            <div class="rp-status-row">
-              <span class="rp-channel" id="rpChannel">--</span>
-              <span class="rp-badge" id="rpPlayBadge">未播放</span>
-            </div>
-            <div class="rp-info-grid">
-              <div class="rp-info-item"><span class="rp-label">节目</span><span class="rp-value" id="rpProgram">--</span></div>
-              <div class="rp-info-item"><span class="rp-label">内核</span><span class="rp-value" id="rpPlayer">--</span></div>
-              <div class="rp-info-item"><span class="rp-label">解码</span><span class="rp-value" id="rpDecode">--</span></div>
-              <div class="rp-info-item"><span class="rp-label">模式</span><span class="rp-value" id="rpMode">--</span></div>
-              <div class="rp-info-item"><span class="rp-label">分辨率</span><span class="rp-value" id="rpRes">--</span></div>
-              <div class="rp-info-item"><span class="rp-label">编码</span><span class="rp-value" id="rpCodec">--</span></div>
-              <div class="rp-info-item"><span class="rp-label">帧率</span><span class="rp-value" id="rpFps">--</span></div>
-              <div class="rp-info-item"><span class="rp-label">HDR</span><span class="rp-value" id="rpHdr">--</span></div>
-              <div class="rp-info-item"><span class="rp-label">音量</span><span class="rp-value" id="rpVol">--</span></div>
-            </div>
           </div>
         </div>
 
@@ -1846,7 +1812,7 @@ function startPlayerStatusPolling() {
   if (playerStatusPollTimer) return;
   _playerStatusUnavailable = false;
   refreshPlayerStatus();   // 立即拉取一次
-  playerStatusPollTimer = setInterval(refreshPlayerStatus, 2000);
+  playerStatusPollTimer = setInterval(refreshPlayerStatus, 1500);
 }
 
 function stopPlayerStatusPolling() {
@@ -1865,7 +1831,6 @@ async function refreshPlayerStatus() {
   if (_playerStatusUnavailable) return;  // 后端不支持，跳过
   const d = await apiGet('/api/player/status');
   if (!d) {
-    // 请求失败：可能是后端不支持（404/500），标记并停止轮询
     _playerStatusUnavailable = true;
     stopPlayerStatusPolling();
     return;
@@ -1876,9 +1841,10 @@ async function refreshPlayerStatus() {
     return;
   }
   const s = d.status || {};
-  // 频道名 + 播放状态徽章
+  // 频道名
   const chName = s.channel_name || s.channel || '--';
   document.getElementById('rpChannel').textContent = chName;
+  // 播放状态徽章
   const badge = document.getElementById('rpPlayBadge');
   const isPlaying = !!s.is_playing;
   const isPaused = !!s.is_paused;
@@ -1886,23 +1852,24 @@ async function refreshPlayerStatus() {
   if (isPlaying) { badgeText = '播放中'; badgeClass = 'rp-badge playing'; }
   else if (isPaused) { badgeText = '已暂停'; badgeClass = 'rp-badge paused'; }
   else { badgeText = '未播放'; badgeClass = 'rp-badge stopped'; }
-  // HDR 徽章（追加在播放状态后面）
-  const hdr = s.hdr || '';
-  if (hdr) badgeText += ' · ' + hdr;
   badge.textContent = badgeText;
   badge.className = badgeClass;
-
-  // 信息网格
-  document.getElementById('rpProgram').textContent = s.current_program || '--';
-  document.getElementById('rpPlayer').textContent = _formatPlayerType(s.player_type);
-  document.getElementById('rpDecode').textContent = s.hardware_decode ? '硬解' : '软解';
-  document.getElementById('rpMode').textContent = _formatPlayMode(s.play_mode);
-  document.getElementById('rpRes').textContent = s.video_res || '--';
-  document.getElementById('rpCodec').textContent = s.video_codec || '--';
-  document.getElementById('rpFps').textContent = s.fps || '--';
-  document.getElementById('rpHdr').textContent = hdr || '--';
-  const vol = (s.volume != null) ? (s.muted ? '静音 ' + s.volume : s.volume) : '--';
-  document.getElementById('rpVol').textContent = vol;
+  // 单行信息：内核 解码 分辨率 帧率 HDR 模式 音量
+  const parts = [];
+  const pt = _formatPlayerType(s.player_type);
+  if (pt && pt !== '--') parts.push(pt);
+  parts.push(s.hardware_decode ? '硬解' : '软解');
+  if (s.video_res) parts.push(s.video_res);
+  if (s.fps) parts.push(s.fps + 'fps');
+  const hdr = s.hdr || '';
+  if (hdr) parts.push(hdr);
+  const mode = _formatPlayMode(s.play_mode);
+  if (mode && mode !== '--' && mode !== '直播') parts.push(mode);
+  if (s.current_program) parts.push('《' + s.current_program + '》');
+  if (s.volume != null) {
+    parts.push(s.muted ? '🔇' + s.volume : '🔊' + s.volume);
+  }
+  document.getElementById('rpInfoLine').textContent = parts.join(' · ') || '--';
 }
 
 function _formatPlayerType(t) {

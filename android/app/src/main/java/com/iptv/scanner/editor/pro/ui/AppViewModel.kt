@@ -3696,10 +3696,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * 定期上报播放状态到 admin 服务器（每 2 秒），供遥控器页面显示。
+     * 文件加载后也会立即上报（延迟 1.5 秒等 mpv 属性稳定）。
      */
     private fun startPlayerStatusReport() {
         playerStatusJob?.cancel()
         playerStatusJob = viewModelScope.launch {
+            // 监听 fileLoaded 事件，文件加载后延迟上报
+            launch {
+                mpv.fileLoaded.collect { loaded ->
+                    if (loaded) {
+                        delay(1500)  // 等 mpv 属性（fps/codec/hdr）稳定
+                        try { reportPlayerStatus() } catch (e: Exception) {}
+                    }
+                }
+            }
+            // 定期轮询上报
             while (isActive) {
                 try {
                     reportPlayerStatus()
@@ -3722,12 +3733,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val state = _playbackState.value
         val prog = getCurrentProgram()
         val mediaInfo = mpv.getMediaInfo()
-        // HDR 信息：检查 video-params/signature（pq=HDR10/HLG，hlg=HLG）
-        val hdrSig = mpv.getPropertyString("video-params/signature") ?: ""
+        // HDR 信息：综合 video-params/signature 和 gamma/primaries 判断
+        val hdrSig = (mpv.getPropertyString("video-params/signature") ?: "").lowercase()
+        val hdrGamma = (mpv.getPropertyString("video-params/gamma") ?: "").lowercase()
+        val hdrPrim = (mpv.getPropertyString("video-params/primaries") ?: "").lowercase()
         val hdrInfo = when {
-            hdrSig.contains("pq", ignoreCase = true) -> "HDR10"
-            hdrSig.contains("hlg", ignoreCase = true) -> "HLG"
+            hdrSig.contains("pq") || hdrGamma.contains("pq") -> "HDR10"
+            hdrSig.contains("hlg") || hdrGamma.contains("hlg") -> "HLG"
+            hdrPrim.contains("2020") && (hdrGamma.contains("pq") || hdrGamma.contains("hlg")) -> "HDR"
             else -> ""
+        }
+        // 帧率：优先 estimated-vfps，为空或 0 时尝试 container-fps
+        val fpsStr = mediaInfo["fps"] ?: ""
+        val fps = when {
+            fpsStr.isNotEmpty() && fpsStr != "0" && fpsStr != "0.0" -> fpsStr
+            else -> {
+                val cf = mpv.getPropertyString("container-fps") ?: ""
+                val cfNum = cf.toDoubleOrNull() ?: 0.0
+                if (cfNum > 0) String.format("%.1f", cfNum) else ""
+            }
         }
         val statusJson = buildJsonObject {
             put("channel_name", JsonPrimitive(channel?.name ?: ""))
@@ -3743,7 +3767,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             put("video_res", JsonPrimitive(mediaInfo["videoRes"] ?: ""))
             put("video_codec", JsonPrimitive(mediaInfo["videoCodec"] ?: ""))
             put("audio_codec", JsonPrimitive(mediaInfo["audioCodec"] ?: ""))
-            put("fps", JsonPrimitive(mediaInfo["fps"] ?: ""))
+            put("fps", JsonPrimitive(fps))
             put("bitrate", JsonPrimitive(mediaInfo["bitrate"] ?: ""))
             put("hdr", JsonPrimitive(hdrInfo))
         }
