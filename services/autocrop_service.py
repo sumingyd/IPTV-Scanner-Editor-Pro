@@ -14,6 +14,7 @@ import threading
 import time
 
 from core.log_manager import global_logger as logger
+from utils.platform_utils import get_android_data_dir
 
 
 # 黑边判定阈值（灰度 < 该值视为黑色）
