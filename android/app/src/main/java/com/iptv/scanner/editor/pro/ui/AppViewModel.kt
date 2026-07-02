@@ -374,6 +374,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _menuPanelOpen = MutableStateFlow(false)
     val menuPanelOpen: StateFlow<Boolean> = _menuPanelOpen.asStateFlow()
 
+    /** 文件浏览器面板（SAF 不可用时的替代方案，浏览本地 M3U 文件） */
+    private val _fileBrowserOpen = MutableStateFlow(false)
+    val fileBrowserOpen: StateFlow<Boolean> = _fileBrowserOpen.asStateFlow()
+
     /** TV 端统一面板（三列：模式切换 + 频道列表/主菜单 + EPG 节目单） */
     private val _tvUnifiedPanelOpen = MutableStateFlow(false)
     val tvUnifiedPanelOpen: StateFlow<Boolean> = _tvUnifiedPanelOpen.asStateFlow()
@@ -1700,6 +1704,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _epgPanelOpen.value = false
         _menuPanelOpen.value = false
         _tvUnifiedPanelOpen.value = false
+        _fileBrowserOpen.value = false
         _sourceManagerOpen.value = false
         _playerSettingsOpen.value = false
         _videoSettingsOpen.value = false
@@ -1738,7 +1743,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     val anyPanelOpen: Boolean
         get() = _channelsPanelOpen.value || _epgPanelOpen.value ||
-                _menuPanelOpen.value || _tvUnifiedPanelOpen.value ||
+                _menuPanelOpen.value || _tvUnifiedPanelOpen.value || _fileBrowserOpen.value ||
                 _sourceManagerOpen.value ||
                 _playerSettingsOpen.value ||
                 _videoSettingsOpen.value || _audioSettingsOpen.value ||
@@ -1764,6 +1769,48 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun showChannelsPanel() { _channelsPanelOpen.value = true }
     fun showEpgPanel() { _epgPanelOpen.value = true }
     fun showMenuPanel() { _menuPanelOpen.value = true }
+
+    /** 打开文件浏览器面板（SAF 不可用时的替代方案） */
+    fun showFileBrowser() {
+        closeAllPanels()
+        _fileBrowserOpen.value = true
+    }
+    fun toggleFileBrowser() {
+        _fileBrowserOpen.value = !_fileBrowserOpen.value
+        if (!_fileBrowserOpen.value) showControlsAutoHide()
+    }
+
+    /**
+     * 从本地文件路径导入 M3U 播放列表（不依赖 SAF，直接读取文件系统）。
+     * 用于 TV 端文件浏览器选择文件后的导入。
+     */
+    fun importPlaylistFromFile(path: String) {
+        viewModelScope.launch {
+            showOsd("正在导入播放列表...")
+            val content = withContext(Dispatchers.IO) {
+                try {
+                    File(path).readText(charset = Charsets.UTF_8)
+                } catch (e: Exception) {
+                    Log.e(TAG, "importPlaylistFromFile read failed: $path", e)
+                    null
+                }
+            } ?: run {
+                showOsd("导入失败", "无法读取文件")
+                return@launch
+            }
+            val result = repository.importChannels(content)
+            result.fold(
+                onSuccess = { count ->
+                    showOsd("导入成功", "已导入 $count 个频道")
+                    loadChannels()
+                    _fileBrowserOpen.value = false
+                },
+                onFailure = { e ->
+                    showOsd("导入失败", e.message ?: "")
+                }
+            )
+        }
+    }
 
     fun hideControls() {
         _controlsVisible.value = false
@@ -3318,7 +3365,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             type = "*/*"
         }
         val pm = getApplication<Application>().packageManager
-        return pm.queryIntentActivities(intent, 0).isNotEmpty()
+        // Android TV 系统可能注册了 frameworkpackagestubs 桩 activity，
+        // 它声明能处理 ACTION_OPEN_DOCUMENT 但实际启动时会提示"没有可执行的应用"。
+        // 需要排除此类 stub，只认可真实的文件管理器 activity。
+        val realActivities = pm.queryIntentActivities(intent, 0).filter { ri ->
+            val name = ri.activityInfo.name
+            val pkg = ri.activityInfo.packageName
+            val isStub = name.contains("Stub", ignoreCase = true) ||
+                pkg.contains("frameworkpackagestubs", ignoreCase = true)
+            !isStub
+        }
+        Log.i(TAG, "isSafAvailable: ${realActivities.size} real activities found (filtered out stubs)")
+        return realActivities.isNotEmpty()
     }
 
     /**

@@ -194,7 +194,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     onOpenPlaylist = {
                         closeAndRun {
                             if (!viewModel.isSafAvailable()) {
-                                viewModel.showOsd("无法打开文件选择器", "请使用 订阅源管理 添加 M3U URL")
+                                viewModel.showFileBrowser()
                             } else {
                                 playlistLauncher.launch(arrayOf(
                                     "application/x-mpegurl", "application/vnd.apple.mpegurl",

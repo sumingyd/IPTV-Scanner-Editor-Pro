@@ -79,6 +79,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val epgPanelOpen by viewModel.epgPanelOpen.collectAsState()
     val menuPanelOpen by viewModel.menuPanelOpen.collectAsState()
     val tvUnifiedPanelOpen by viewModel.tvUnifiedPanelOpen.collectAsState()
+    val fileBrowserOpen by viewModel.fileBrowserOpen.collectAsState()
     val sourceManagerOpen by viewModel.sourceManagerOpen.collectAsState()
     val playerSettingsOpen by viewModel.playerSettingsOpen.collectAsState()
     val videoSettingsOpen by viewModel.videoSettingsOpen.collectAsState()
@@ -349,6 +350,11 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         // TV 端统一面板（三列：模式切换 + 频道列表/主菜单 + EPG 节目单）
         if (tvUnifiedPanelOpen) {
             TvUnifiedPanel(viewModel = viewModel)
+        }
+
+        // 文件浏览器（全屏覆盖，SAF 不可用时的替代方案）
+        if (fileBrowserOpen) {
+            FileBrowserPanel(viewModel = viewModel)
         }
 
         // 订阅源管理（全屏覆盖）

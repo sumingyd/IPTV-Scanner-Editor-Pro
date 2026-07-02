@@ -909,8 +909,10 @@ class MpvPlayerController(QObject):
                 self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
                 self._set_mpv_string('force-seekable', 'yes')
             else:
-                self._set_mpv_string('demuxer-lavf-probesize', '32')
-                self._set_mpv_string('demuxer-lavf-analyzeduration', '0')
+                # 直播流需要足够的探测数据让 demuxer 识别编码格式（如 CAVS）
+                # probesize=32 太少会导致 CAVS 流无法被识别（track-list 为空）
+                self._set_mpv_string('demuxer-lavf-probesize', '5000000')
+                self._set_mpv_string('demuxer-lavf-analyzeduration', '5000000')
             self._set_mpv_string('demuxer-lavf-buffersize', '128000')
             self._set_mpv_string('cache', 'yes')
             self._set_mpv_string('force-seekable', 'yes')

@@ -104,7 +104,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             onOpenPlaylist = {
                 if (!viewModel.isSafAvailable()) {
                     viewModel.toggleMenuPanel()
-                    viewModel.showOsd("无法打开文件选择器", "请使用 订阅源管理 添加 M3U URL")
+                    viewModel.showFileBrowser()
                 } else {
                     // M3U/M3U8 文件常见 MIME 类型 + 通配 text/plain 和 octet-stream（部分设备不识别 m3u MIME）
                     playlistLauncher.launch(arrayOf(
