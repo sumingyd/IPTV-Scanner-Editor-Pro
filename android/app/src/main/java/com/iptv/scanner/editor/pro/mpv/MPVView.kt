@@ -54,6 +54,19 @@ class MPVView @JvmOverloads constructor(
         hwdec: String = DEFAULT_HWDEC
     ) {
         voInUse = vo
+        // 切换播放器（MPV → EXO/IJK/VLC → MPV）时，Compose 的 onRelease 是异步的，
+        // 上次 MPVView.destroy() 可能还未执行，native mpv 实例仍存活。
+        // 此时 MPVLib.create() 会在已存在的实例上调用，导致 native 崩溃（SIGSEGV）。
+        // 用 nativeInstanceAlive 标志位检测残留实例，先 destroy 再 create。
+        if (nativeInstanceAlive) {
+            Log.w(TAG, "initialize: native mpv instance still alive, destroying first")
+            try {
+                MPVLib.destroy()
+            } catch (e: Throwable) {
+                Log.w(TAG, "initialize: destroy previous instance failed: ${e.message}")
+            }
+            nativeInstanceAlive = false
+        }
         MPVLib.create(context)
 
         MPVLib.setOptionString("config", "yes")
@@ -140,6 +153,9 @@ class MPVView @JvmOverloads constructor(
         MPVLib.setOptionString("force-window", "no")
         MPVLib.setOptionString("idle", "once")
 
+        // native mpv 实例已创建并初始化，标记为存活（供下次 initialize 检测残留实例）
+        nativeInstanceAlive = true
+
         // 显式设置 SurfaceHolder 像素格式为 RGBA_8888。
         // 与 mpv-android 官方 BaseMPVView 对齐（其 init 块中调用 holder.setFormat(PixelFormat.RGBA_8888)）。
         // SurfaceView 默认格式是 OPAQUE，与 mpv vo=gpu 通过 eglChooseConfig 请求的
@@ -158,8 +174,19 @@ class MPVView @JvmOverloads constructor(
     }
 
     fun destroy() {
+        // 先移除回调，防止 surfaceDestroyed 在 MPVLib.destroy() 之后触发
+        // 导致 use-after-destroy（MPVLib.setPropertyString/detachSurface）
         holder.removeCallback(this)
-        MPVLib.destroy()
+        // 防止 double-destroy：onRelease 可能与 MpvController.detach 或
+        // Activity.onDestroy 多次调用 destroy，double-destroy 会导致 native 崩溃
+        if (nativeInstanceAlive) {
+            try {
+                MPVLib.destroy()
+            } catch (e: Throwable) {
+                Log.w(TAG, "destroy: MPVLib.destroy failed: ${e.message}")
+            }
+            nativeInstanceAlive = false
+        }
     }
 
     private fun observeProperties() {
@@ -235,6 +262,13 @@ class MPVView @JvmOverloads constructor(
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        // 防御 use-after-destroy：destroy() 中先 removeCallback 再 destroy，
+        // 但若 surfaceDestroyed 已在事件队列中排队，仍可能在 destroy 之后触发。
+        // 此时 native 实例已销毁，调用 setPropertyString/detachSurface 会 native 崩溃。
+        if (!nativeInstanceAlive) {
+            Log.i(TAG, "surfaceDestroyed: native instance already destroyed, skipping")
+            return
+        }
         Log.i(TAG, "surfaceDestroyed: detaching surface")
         MPVLib.setPropertyString("vo", "null")
         MPVLib.setPropertyString("force-window", "no")
@@ -253,5 +287,16 @@ class MPVView @JvmOverloads constructor(
          * 兼容性好（不依赖 vo surface），与 vo=gpu 配合使用。
          */
         const val DEFAULT_HWDEC = "auto-copy"
+
+        /**
+         * 跟踪 native mpv 实例是否存活（MPVLib 是全局单例，create/destroy 管理同一个 native 实例）。
+         *
+         * 用途：切换播放器（MPV → EXO/IJK → MPV）时，Compose 的 onRelease 是异步的，
+         * 上次 MPVView.destroy() 可能还未执行。切回 MPV 时 MPVView.initialize() 调用
+         * MPVLib.create()，如果 native 实例仍存活会导致 native 崩溃（double-create）。
+         * 此标志位让 initialize 检测残留实例并先 destroy，destroy 防止 double-destroy。
+         */
+        @Volatile
+        private var nativeInstanceAlive = false
     }
 }
