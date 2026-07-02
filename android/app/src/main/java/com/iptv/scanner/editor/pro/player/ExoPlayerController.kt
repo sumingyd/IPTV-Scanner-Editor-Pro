@@ -6,6 +6,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player as Media3Player
 import androidx.media3.common.Timeline
@@ -228,7 +229,38 @@ class ExoPlayerController(private val context: Context) : Player {
                 currentUrl?.substringAfterLast('/') ?: ""
             }
         }
+
+        /**
+         * 播放错误回调（关键诊断点）。
+         *
+         * ExoPlayer 播放失败时触发（codec 不支持、URL 协议不支持、网络错误等）。
+         * 之前缺失此回调导致播放失败时 UI 只显示"已暂停"，无任何错误信息。
+         */
+        override fun onPlayerError(error: PlaybackException) {
+            Log.e(TAG, "onPlayerError: ${error.errorCodeName}(${error.errorCode})", error)
+            _paused.value = true
+            _fileLoaded.value = false
+            // 记录错误信息供 UI 显示
+            _lastError.value = when (error.errorCode) {
+                PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+                PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+                PlaybackException.ERROR_CODE_DECODING_FAILED ->
+                    "解码失败（codec 不支持）"
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
+                    "网络连接失败"
+                PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED ->
+                    "媒体格式不支持（manifest 解析失败）"
+                PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW ->
+                    "直播窗口已过期"
+                else -> "播放错误: ${error.errorCodeName}"
+            }
+        }
     }
+
+    /** 最近一次播放错误信息（UI 可监听并提示用户） */
+    private val _lastError = MutableStateFlow("")
+    val lastError: StateFlow<String> = _lastError.asStateFlow()
 
     init {
         // 同步初始音量：_volume 默认 100，ExoPlayer 默认 1f（=130），需对齐
@@ -274,6 +306,7 @@ class ExoPlayerController(private val context: Context) : Player {
         currentUrl = url
         _eofReached.value = false
         _fileLoaded.value = false
+        _lastError.value = ""
         val mediaItem = MediaItem.fromUri(url)
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
@@ -531,10 +564,14 @@ class ExoPlayerController(private val context: Context) : Player {
         currentUrl = url
         _eofReached.value = false
         _fileLoaded.value = false
+        _lastError.value = ""  // 清除旧错误
         val mediaItem = MediaItem.fromUri(url)
-        // 用 setMediaItem 的 startPosition 参数恢复进度（ExoPlayer 推荐方式）
-        val startMs = (timePosSec * 1000).toLong().coerceAtLeast(0L)
-        exoPlayer.setMediaItem(mediaItem, startMs)
+        // 切换播放器后从 0 开始播放，不恢复进度。
+        // 原因：旧播放器的 timePos 对直播流可能是绝对时间戳或缓冲区相对位置，
+        // 直接传给 setMediaItem(mediaItem, startMs) 可能导致 seek 到无效位置，
+        // ExoPlayer 进入 IDLE 状态表现为"已暂停"。
+        // 切换播放器是低频操作，从头播放可接受。
+        exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
         exoPlayer.playWhenReady = true
     }
@@ -602,8 +639,16 @@ class ExoPlayerController(private val context: Context) : Player {
                     if (hardwareDecode) DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
                     else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
                 )
+                // 启用解码器回退：主解码器失败时自动尝试其它解码器。
+                // TV 设备的 MediaCodec 对某些 codec（如 HEVC 10bit、AV1）兼容性有限，
+                // 此选项让 ExoPlayer 在硬解失败时回退到软解，避免直接报错"已暂停"。
+                setEnableDecoderFallback(true)
             }
-            return ExoPlayer.Builder(context, renderersFactory).build()
+            return ExoPlayer.Builder(context, renderersFactory)
+                // 保持屏幕唤醒（播放时不息屏，TV 端重要）
+                .setWakeMode(C.WAKE_MODE_LOCAL)
+                // 延迟一帧渲染，减少丢帧（与 mpv framedrop=all 理念一致）
+                .build()
         }
     }
 }

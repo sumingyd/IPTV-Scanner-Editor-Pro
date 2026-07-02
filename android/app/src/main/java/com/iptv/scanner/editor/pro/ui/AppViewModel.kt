@@ -107,15 +107,38 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // -----------------------------------------------------------------
     private val mpvSingleton: MpvController = MpvController.getInstance()
 
-    private val _player = MutableStateFlow<Player>(mpvSingleton)
-
-    /** 当前播放器实例（Player 接口类型，UI 用 mpv.xxx 调用 Player 接口方法） */
-    val mpv: Player get() = _player.value
-
+    /**
+     * 持久化的播放器类型（从 UserPrefs 读取，可能在 MPV/EXO/VLC/IJK 之间切换）。
+     *
+     * 声明在 [_player] 之前：[_player] 初始化时需要读取此值创建对应实例，
+     * 保证启动时 _player 与 _playerType 同步（避免 UI 按 playerType 创建 View
+     * 但 _player 仍是 mpvSingleton 导致 attachView 类型不匹配 → "已暂停"假象）。
+     */
     private val _playerType = MutableStateFlow(
         runCatching { PlayerType.valueOf(userPrefs.getPlayerType()) }.getOrDefault(PlayerType.MPV)
     )
     val playerType: StateFlow<PlayerType> = _playerType.asStateFlow()
+
+    /**
+     * 当前活跃的 Player 实例。
+     *
+     * 启动时根据持久化的 [_playerType] 创建对应实例（MPV 用单例，其他新建实例），
+     * 保证 _player 与 _playerType 一致。IJK native 不可用时回退到 MPV（_playerType
+     * 在 init 块中修正为 MPV）。
+     */
+    private val _player = MutableStateFlow<Player>(
+        when (_playerType.value) {
+            PlayerType.MPV -> mpvSingleton
+            PlayerType.EXO -> ExoPlayerController(getApplication())
+            PlayerType.VLC -> VlcController(getApplication())
+            PlayerType.IJK -> IjkController(getApplication()).let {
+                if (it.nativeAvailable) it else mpvSingleton
+            }
+        }
+    )
+
+    /** 当前播放器实例（Player 接口类型，UI 用 mpv.xxx 调用 Player 接口方法） */
+    val mpv: Player get() = _player.value
 
     val playerCapabilities: StateFlow<PlayerCapabilities> =
         _player.map { it.capabilities }
@@ -161,7 +184,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _hardwareDecode.value = newPlayer.isHardwareDecodeEnabled()
         // 5. 保存待恢复状态，等 View 重建后 attachView 完成再恢复
         pendingRestoreState = savedState
+        // 6. 监听新播放器的错误状态，显示 OSD 提示用户
+        observePlayerError(newPlayer)
         showOsd("播放器", "已切换到 ${newType.displayName}，重新加载中...")
+    }
+
+    /**
+     * 监听播放器的错误状态（ExoPlayer/IJK 播放失败时显示 OSD 提示）。
+     *
+     * ExoPlayer/IJK 播放失败时 _paused 变为 true 但 UI 只显示"已暂停"，
+     * 用户无法知道是主动暂停还是播放失败。此方法监听 lastError StateFlow，
+     * 有错误时显示 OSD 提示具体原因。
+     */
+    private var playerErrorJob: Job? = null
+    private fun observePlayerError(player: Player) {
+        playerErrorJob?.cancel()
+        val errorFlow = when (player) {
+            is ExoPlayerController -> player.lastError
+            is IjkController -> player.lastError
+            else -> return  // MPV/VLC 有自己的错误处理
+        }
+        playerErrorJob = viewModelScope.launch {
+            errorFlow.collect { error ->
+                if (error.isNotEmpty()) {
+                    Log.w(TAG, "Player error: $error")
+                    showOsd("播放错误", error)
+                }
+            }
+        }
     }
 
     /** 待恢复的播放状态（切换播放器后由 MainPlayerScreen 消费） */
@@ -202,6 +252,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // 所有属性初始化完成后再启动初始化（Kotlin 按声明顺序初始化，init 块必须在所有 StateFlow 声明之后）
     init {
+        // 修正 IJK native 不可用时的 _playerType（_player 已在声明处回退到 mpvSingleton）
+        if (_playerType.value == PlayerType.IJK && _player.value === mpvSingleton) {
+            _playerType.value = PlayerType.MPV
+            userPrefs.setPlayerType(PlayerType.MPV.name)
+        }
+        // 监听非 MPV 播放器的错误状态（启动时 _player 可能是 EXO/IJK/VLC）
+        observePlayerError(_player.value)
         startInitialization()
     }
 

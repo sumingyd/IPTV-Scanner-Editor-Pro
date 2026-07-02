@@ -191,6 +191,10 @@ class IjkController(private val context: Context) : Player {
     private val _chapterCount = MutableStateFlow(0)
     override val chapterCount: StateFlow<Int> = _chapterCount.asStateFlow()
 
+    /** 最近一次播放错误信息（UI 可监听并提示用户） */
+    private val _lastError = MutableStateFlow("")
+    val lastError: StateFlow<String> = _lastError.asStateFlow()
+
     // -----------------------------------------------------------------
     // 能力声明
     // -----------------------------------------------------------------
@@ -343,6 +347,22 @@ class IjkController(private val context: Context) : Player {
     private fun onError(mp: IMediaPlayer, what: Int, extra: Int) {
         Log.e(TAG, "onError: what=$what extra=$extra")
         _fileLoaded.value = false
+        // 错误时必须更新 _paused：之前只更新 _fileLoaded，
+        // 导致 _paused 保持 false（onPrepared 已设置）但实际播放已停止，UI 状态不一致。
+        // 切换播放器后若 onPrepared 未触发（URL 不支持/解码失败），_paused 保持初始值 true，UI 显示"已暂停"。
+        _paused.value = true
+        // 记录错误信息供 UI 显示
+        _lastError.value = when (what) {
+            IMediaPlayer.MEDIA_ERROR_UNKNOWN -> when (extra) {
+                IMediaPlayer.MEDIA_ERROR_IO -> "IO 错误（网络或文件读取失败）"
+                IMediaPlayer.MEDIA_ERROR_MALFORMED -> "媒体数据格式错误"
+                IMediaPlayer.MEDIA_ERROR_UNSUPPORTED -> "媒体格式不支持"
+                IMediaPlayer.MEDIA_ERROR_TIMED_OUT -> "操作超时"
+                else -> "未知错误 ($what/$extra)"
+            }
+            IMediaPlayer.MEDIA_ERROR_SERVER_DIED -> "媒体服务已停止"
+            else -> "播放错误 ($what/$extra)"
+        }
     }
 
     private fun onSeekComplete(mp: IMediaPlayer) {
@@ -445,11 +465,13 @@ class IjkController(private val context: Context) : Player {
         Log.i(TAG, "playFile: $url")
         if (!nativeAvailable) {
             Log.e(TAG, "playFile: IJK native library not available on this device")
+            _lastError.value = "IJK native 库不可用（需 ARM 架构设备）"
             return
         }
         currentUrl = url
         _eofReached.value = false
         _fileLoaded.value = false
+        _lastError.value = ""
         _timePos.value = 0.0
         _duration.value = 0.0
         _trackListJson.value = ""
@@ -471,6 +493,7 @@ class IjkController(private val context: Context) : Player {
         val p = ijkPlayer
         if (p == null) {
             Log.e(TAG, "playFile: IjkMediaPlayer instance is null")
+            _lastError.value = "IJK 播放器实例不可用"
             return
         }
 
@@ -485,6 +508,7 @@ class IjkController(private val context: Context) : Player {
             }
         } catch (e: Exception) {
             Log.e(TAG, "playFile: setDataSource failed", e)
+            _lastError.value = "数据源设置失败: ${e.message ?: "未知错误"}"
             return
         }
 
@@ -505,6 +529,7 @@ class IjkController(private val context: Context) : Player {
             p.prepareAsync()
         } catch (e: Exception) {
             Log.e(TAG, "playFile: prepareAsync failed", e)
+            _lastError.value = "准备播放失败: ${e.message ?: "未知错误"}"
         }
     }
 
