@@ -39,7 +39,6 @@ from services.mpv_common import (
     send_command as _mpv_send_command,
     observe_property as _mpv_observe_property,
     wait_for_event as _mpv_wait_event,
-    libmpv as _mpv_lib,
 )
 
 try:
@@ -323,7 +322,9 @@ class MpvPlayerController(QObject):
             # MPV_EVENT_LOG_MESSAGE 事件被投递到事件队列，否则日志永远不会输出。
             _mpv_set_property_string(self.mpv_handle, 'msg-level', 'all=fatal,demuxer=debug,vd=debug,ad=debug,hwdec=debug')
             try:
-                _mpv_lib.mpv_request_log_messages(self.mpv_handle, b'debug')
+                # 必须通过 _mpv_mod.libmpv 访问，不能用模块级导入的 libmpv
+                # （模块级导入时 libmpv 是 None，_ensure_libmpv_loaded() 后才被赋值）
+                _mpv_mod.libmpv.mpv_request_log_messages(self.mpv_handle, b'debug')
             except Exception as _e:
                 self.logger.debug(f"mpv_request_log_messages 调用失败: {_e}")
             _mpv_set_property_string(self.mpv_handle, 'no-window-dragging', 'yes')

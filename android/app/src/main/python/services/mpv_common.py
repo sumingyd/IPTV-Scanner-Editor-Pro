@@ -210,11 +210,19 @@ class mpv_event_property(ctypes.Structure):
 
 
 class mpv_event_log_message(ctypes.Structure):
-    """mpv 日志消息事件结构体（MPV_EVENT_LOG_MESSAGE）"""
+    """mpv 日志消息事件结构体（MPV_EVENT_LOG_MESSAGE）
+
+    对应 mpv client.h 中的 mpv_event_log_message：
+        const char *prefix;   // 模块前缀，如 "demuxer"、"vd"
+        const char *level;    // 级别字符串，如 "debug"、"warn"、"error"
+        const char *text;     // 日志文本（含换行符）
+        mpv_log_level log_level;  // 级别枚举值（int）
+    """
     _fields_ = [
-        ('prefix', ctypes.c_char_p),   # 模块前缀，如 "demuxer"、"vd"
-        ('level', ctypes.c_char_p),    # 级别，如 "debug"、"warn"、"error"
-        ('text', ctypes.c_char_p),     # 日志文本（含换行符）
+        ('prefix', ctypes.c_char_p),
+        ('level', ctypes.c_char_p),
+        ('text', ctypes.c_char_p),
+        ('log_level', ctypes.c_int),
     ]
 
 
