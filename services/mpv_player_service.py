@@ -150,13 +150,13 @@ class MpvPlayerController(QObject):
         try:
             import services.mpv_common as _mpv_mod
             if not _mpv_mod._ensure_libmpv_loaded():
-                error_msg = "libmpv加载失败"
+                error_msg = getattr(_mpv_mod, '_last_load_error', '') or "libmpv加载失败"
                 self.logger.error(error_msg)
                 self._safe_emit(self.play_error, error_msg)
                 return False
 
             if not _mpv_mod.MPV_AVAILABLE or _mpv_mod.libmpv is None:
-                error_msg = "libmpv加载失败"
+                error_msg = getattr(_mpv_mod, '_last_load_error', '') or "libmpv加载失败"
                 self.logger.error(error_msg)
                 self._safe_emit(self.play_error, error_msg)
                 return False

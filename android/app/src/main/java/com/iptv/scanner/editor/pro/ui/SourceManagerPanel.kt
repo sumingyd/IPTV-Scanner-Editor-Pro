@@ -50,6 +50,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusGroup
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -85,12 +88,18 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
         if (adminRunning) showQrCode = true
     }
 
+    // 面板打开时主动抢焦点，避免焦点回落到下层统一面板的菜单项
+    val closeFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        runCatching { closeFocusRequester.requestFocus() }
+    }
+
     Surface(
         color = Color(0xF0121212),
         modifier = Modifier.fillMaxSize()
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp)
+            modifier = Modifier.fillMaxSize().focusGroup().padding(16.dp)
         ) {
             // 标题栏
             Row(
@@ -142,7 +151,7 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                         }
                     }
                     // 关闭按钮
-                    IconButton(onClick = { viewModel.toggleSourceManager() }, modifier = Modifier.tvFocusBorder()) {
+                    IconButton(onClick = { viewModel.toggleSourceManager() }, modifier = Modifier.tvFocusBorder().focusRequester(closeFocusRequester)) {
                         Icon(Icons.Default.Close, contentDescription = "关闭", tint = Color.White)
                     }
                 }

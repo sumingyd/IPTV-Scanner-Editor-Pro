@@ -202,6 +202,13 @@ HIDDEN_IMPORTS = [
     "utils.thread_safety",
 ]
 
+# 需要完整收集的包（含 C 扩展、数据文件、子模块）。
+# numpy 仅用 --hidden-import 不够，其 C 扩展（如 _multiarray_umath）必须用 --collect-all 才能正确打包，
+# 否则用户运行时报 "Importing the numpy C-extensions failed"。
+COLLECT_ALL = [
+    "numpy",
+]
+
 
 def _find_macos_libmpv():
     search_paths = [
@@ -403,6 +410,8 @@ def build_macos():
     ])
     for imp in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", imp])
+    for pkg in COLLECT_ALL:
+        cmd.extend(["--collect-all", pkg])
     cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
     return cmd
 
@@ -433,6 +442,8 @@ def build_windows():
     ])
     for imp in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", imp])
+    for pkg in COLLECT_ALL:
+        cmd.extend(["--collect-all", pkg])
     cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
     return cmd
 
@@ -492,6 +503,8 @@ def build_linux():
         cmd.extend(["--add-binary", f"{xcb_cursor_lib}{DATA_SEP}."])
     for imp in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", imp])
+    for pkg in COLLECT_ALL:
+        cmd.extend(["--collect-all", pkg])
     cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
     return cmd
 
@@ -528,6 +541,8 @@ def build_android():
     ])
     for imp in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", imp])
+    for pkg in COLLECT_ALL:
+        cmd.extend(["--collect-all", pkg])
     cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
     return cmd
 

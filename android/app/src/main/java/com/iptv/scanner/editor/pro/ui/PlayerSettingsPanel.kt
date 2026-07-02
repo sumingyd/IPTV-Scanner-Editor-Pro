@@ -21,11 +21,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusGroup
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,6 +63,12 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
     val hardwareDecode by viewModel.hardwareDecode.collectAsState()
     val isMpvMode = playerType == PlayerType.MPV
 
+    // 面板打开时主动抢焦点，避免焦点回落到下层统一面板的菜单项
+    val closeFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        runCatching { closeFocusRequester.requestFocus() }
+    }
+
     Surface(
         color = Color(0xF0121212),
         modifier = Modifier.fillMaxSize()
@@ -66,6 +76,7 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .focusGroup()
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -86,7 +97,7 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
                         Icon(Icons.Default.Refresh, contentDescription = "重置", tint = Color.White)
                     }
                     // 关闭按钮
-                    IconButton(onClick = { viewModel.togglePlayerSettings() }, modifier = Modifier.tvFocusBorder()) {
+                    IconButton(onClick = { viewModel.togglePlayerSettings() }, modifier = Modifier.tvFocusBorder().focusRequester(closeFocusRequester)) {
                         Icon(Icons.Default.Close, contentDescription = "关闭", tint = Color.White)
                     }
                 }

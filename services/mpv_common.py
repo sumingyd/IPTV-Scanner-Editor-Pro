@@ -37,6 +37,7 @@ if is_macos() and os.path.isdir(mpv_dir):
 MPV_AVAILABLE = False
 libmpv = None
 _mpv_loaded = False
+_last_load_error = ""  # 最后一次加载失败的诊断信息（供 UI 层读取并展示给用户）
 
 
 def _is_mpv_available():
@@ -45,7 +46,7 @@ def _is_mpv_available():
 
 
 def _ensure_libmpv_loaded():
-    global libmpv, MPV_AVAILABLE, _mpv_loaded, libmpv_path
+    global libmpv, MPV_AVAILABLE, _mpv_loaded, libmpv_path, _last_load_error
     if _mpv_loaded:
         return MPV_AVAILABLE
 
@@ -63,6 +64,15 @@ def _ensure_libmpv_loaded():
         if not path or not os.path.exists(path):
             continue
         try:
+            # Windows 上先添加 DLL 所在目录到搜索路径，
+            # 确保 libmpv-2.dll 的依赖 DLL（如 MinGW 运行时、VC++ Runtime）能被找到。
+            # Python 3.8+ 不再使用 PATH 搜索 DLL，必须显式调用 os.add_dll_directory。
+            if is_windows():
+                dll_dir = os.path.dirname(os.path.abspath(path))
+                try:
+                    os.add_dll_directory(dll_dir)
+                except Exception:
+                    pass
             libmpv = ctypes.CDLL(path)
 
             libmpv.mpv_create.restype = ctypes.c_void_p
@@ -119,12 +129,55 @@ def _ensure_libmpv_loaded():
             MPV_AVAILABLE = True
             _mpv_loaded = True
             return True
+        except OSError as e:
+            last_error = e
+            # Windows 上从 winerror 提取详细错误码，区分"依赖缺失"和"文件损坏"
+            winerror = getattr(e, 'winerror', None)
+            if winerror == 126:
+                # ERROR_MOD_NOT_FOUND: 文件存在但依赖的 DLL 缺失（通常是 VC++ Runtime）
+                logger.warning(f"libmpv加载失败（依赖DLL缺失，可能是VC++ Runtime未安装）: {path} -> winerror={winerror}")
+            elif winerror == 193:
+                # ERROR_BAD_EXE_FORMAT: 架构不匹配（32/64位）
+                logger.warning(f"libmpv加载失败（架构不匹配）: {path} -> winerror={winerror}")
+            elif winerror == 5:
+                # ERROR_ACCESS_DENIED: 杀毒软件拦截或权限不足
+                logger.warning(f"libmpv加载失败（访问被拒绝，可能是杀毒软件拦截）: {path} -> winerror={winerror}")
+            else:
+                logger.warning(f"libmpv路径加载失败，尝试下一个: {path} -> winerror={winerror}, {e}")
+            continue
         except Exception as e:
             last_error = e
             logger.warning(f"libmpv路径加载失败，尝试下一个: {path} -> {e}")
             continue
 
+    # 所有路径均失败：输出诊断信息
     logger.error(f"加载libmpv失败（所有候选路径均失败）: {last_error}")
+    diag_msg = "libmpv加载失败"
+    if is_windows():
+        winerror = getattr(last_error, 'winerror', None) if last_error else None
+        if winerror == 126:
+            # ERROR_MOD_NOT_FOUND: 检查 VC++ Runtime 是否存在并提供解决建议
+            system_dir = os.path.join(os.environ.get('SystemRoot', r'C:\Windows'), 'System32')
+            vcruntime_files = ['MSVCP140.dll', 'VCRUNTIME140.dll', 'VCRUNTIME140_1.dll']
+            missing = [f for f in vcruntime_files if not os.path.exists(os.path.join(system_dir, f))]
+            if missing:
+                diag_msg = (f"libmpv加载失败：Visual C++ Runtime 缺失（缺少 {', '.join(missing)}）。"
+                            f"请安装 VC++ Redistributable: https://aka.ms/vs/17/release/vc_redist.x64.exe")
+                logger.error(f"诊断: {diag_msg}")
+            else:
+                diag_msg = ("libmpv加载失败：依赖 DLL 缺失（VC++ Runtime 已安装，"
+                            "可能是其他依赖项问题）。建议重新下载程序或安装 mpv 播放器。")
+                logger.error(f"诊断: {diag_msg}")
+        elif winerror == 193:
+            diag_msg = "libmpv加载失败：架构不匹配，请确认使用 64 位 Windows 系统。"
+            logger.error(f"诊断: {diag_msg}")
+        elif winerror == 5:
+            diag_msg = "libmpv加载失败：访问被拒绝，可能是杀毒软件拦截。请将程序加入白名单。"
+            logger.error(f"诊断: {diag_msg}")
+        else:
+            diag_msg = f"libmpv加载失败（winerror={winerror}）: {last_error}"
+            logger.error(f"诊断: {diag_msg}")
+    _last_load_error = diag_msg
     _mpv_loaded = False
     return False
 

@@ -70,6 +70,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusGroup
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -117,12 +120,18 @@ private fun PanelScaffold(
     scrollable: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    // 面板打开时主动抢焦点，避免焦点回落到下层统一面板的菜单项导致无法操作子面板。
+    // focusGroup() 让 DPAD 导航限制在面板内部，不外溢到下层。
+    val closeFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        runCatching { closeFocusRequester.requestFocus() }
+    }
     Surface(
         color = Color(0xF0121212),
         modifier = Modifier.fillMaxSize()
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp)
+            modifier = Modifier.fillMaxSize().focusGroup().padding(16.dp)
         ) {
             // 标题栏
             Row(
@@ -146,7 +155,10 @@ private fun PanelScaffold(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     actions()
-                    IconButton(onClick = onClose, modifier = Modifier.tvFocusBorder()) {
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.tvFocusBorder().focusRequester(closeFocusRequester)
+                    ) {
                         Icon(Icons.Default.Close, contentDescription = "关闭", tint = Color.White)
                     }
                 }

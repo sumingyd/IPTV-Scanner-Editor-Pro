@@ -164,6 +164,15 @@ def find_libmpv_paths():
                 os.path.join(exe_dir, 'mpv', filename),  # 便携版 exe 同级 mpv/
                 os.path.join(exe_dir, filename),          # 直接放在 exe 旁边
             ])
+        # 从系统 PATH 搜索（如果用户安装了 mpv 播放器）
+        for d in os.environ.get('PATH', '').split(os.pathsep):
+            if d:
+                p = os.path.join(d, filename)
+                if p not in search_paths:
+                    search_paths.append(p)
+        # 从常见 mpv 安装路径搜索
+        for d in [r'C:\Program Files\mpv', r'C:\Program Files (x86)\mpv']:
+            search_paths.append(os.path.join(d, filename))
         return search_paths
 
     if is_macos():

@@ -200,8 +200,18 @@ class ConfigManager(Singleton):
                 except Exception as e:
                     logger.error(f"配置管理-加载配置文件失败: {str(e)}", exc_info=True)
                     return False
-            logger.warning(f"配置管理-配置文件不存在: {self.config_file}")
-            return False
+            # 配置文件不存在：立即创建空文件，避免后续"缺少 config.ini"提示
+            logger.info(f"配置管理-配置文件不存在，自动创建: {self.config_file}")
+            try:
+                config_dir = os.path.dirname(self.config_file)
+                if not os.path.exists(config_dir):
+                    os.makedirs(config_dir, exist_ok=True)
+                with open(self.config_file, 'w', encoding='utf-8') as f:
+                    self.config.write(f)
+                return True
+            except Exception as e:
+                logger.warning(f"配置管理-自动创建配置文件失败: {e}")
+                return False
 
     def save_config(self):
         with self._lock:
