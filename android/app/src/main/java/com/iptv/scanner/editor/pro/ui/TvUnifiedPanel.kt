@@ -152,12 +152,18 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     }
 
     /**
-     * 直接打开全屏覆盖子面板（不关闭统一面板）。
-     * 用于在 TvUnifiedPanel 之后渲染的面板（见 MainPlayerScreen.kt 渲染顺序）：
-     * 它们会自然覆盖统一面板，子面板关闭后统一面板自动恢复显示，焦点回到菜单项。
-     * 这样用户可以连续调整多个设置，无需反复打开主菜单。
+     * 打开全屏覆盖子面板，同时关闭统一面板。
+     *
+     * 关键：必须关闭统一面板，让 TvUnifiedPanel 从 Compose 树中移除。
+     * 否则 TvUnifiedPanel 残留在树中，子面板 focusGroup() 在 DPAD 边缘
+     * 会让焦点逃逸到下层 TvUnifiedPanel 的菜单项（特别是 ModeIconButton 的
+     * autoSelectOnFocus=true 会自动触发模式切换），导致遥控器操作下层菜单
+     * 而非当前子面板。
+     *
+     * 子面板关闭后回到播放界面，用户按 MENU 键可重新打开主菜单。
      */
     fun openOverlay(action: () -> Unit) {
+        viewModel.toggleTvUnifiedPanel()
         action()
     }
 
