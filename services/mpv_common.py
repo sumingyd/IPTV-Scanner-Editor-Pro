@@ -6,15 +6,26 @@ import locale
 from core.log_manager import global_logger as logger
 from utils.platform_utils import find_libmpv_path, get_libmpv_filename, is_macos, is_linux, is_android
 
-_mpvt_loaded = False
+_mpv_loaded = False
 
-if getattr(sys, 'frozen', False):
-    base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+libmpv_path = find_libmpv_path()
+
+# mpv_dir 从实际找到的 libmpv_path 推导（dll/so 所在目录），
+# 而不是固定用 base_path/mpv。这样当 _MEIPASS/mpv/libmpv-2.dll 丢失时，
+# 能从 exe 同级目录的 mpv/ 找到 dll，并正确设置 MPV_HOME 和 PATH。
+if libmpv_path and os.path.exists(libmpv_path):
+    os.environ['MPV_LIBRARY'] = libmpv_path
+    mpv_dir = os.path.dirname(libmpv_path)
 else:
-    from models.channel_mappings import get_app_data_dir
-    base_path = get_app_data_dir()
+    # 备用：使用默认 mpv_dir（base_path/mpv）
+    if getattr(sys, 'frozen', False):
+        base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    else:
+        from models.channel_mappings import get_app_data_dir
+        base_path = get_app_data_dir()
+    mpv_dir = os.path.join(base_path, 'mpv')
+    logger.warning(f"未找到libmpv库: {libmpv_path}")
 
-mpv_dir = os.path.join(base_path, 'mpv')
 os.environ['MPV_HOME'] = mpv_dir
 os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
 
@@ -22,13 +33,6 @@ if is_macos() and os.path.isdir(mpv_dir):
     existing = os.environ.get('DYLD_LIBRARY_PATH', '')
     if mpv_dir not in existing:
         os.environ['DYLD_LIBRARY_PATH'] = mpv_dir + (os.pathsep + existing if existing else '')
-
-libmpv_path = find_libmpv_path()
-
-if libmpv_path and os.path.exists(libmpv_path):
-    os.environ['MPV_LIBRARY'] = libmpv_path
-else:
-    logger.warning(f"未找到libmpv库: {libmpv_path}")
 
 MPV_AVAILABLE = False
 libmpv = None

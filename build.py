@@ -422,6 +422,15 @@ def build_windows():
         "--add-data", f"{PROJECT_ROOT / 'ffmpeg'}{DATA_SEP}ffmpeg",
         "--add-data", f"{PROJECT_ROOT / 'resources'}{DATA_SEP}resources",
     ])
+    # 排除 libmpv 的 UPX 压缩：UPX 压缩的 dll 容易被杀毒软件拦截或解压失败，
+    # 导致 onefile 模式运行时 _MEIPASS/mpv/libmpv-2.dll 丢失
+    cmd.extend([
+        "--upx-exclude", "libmpv-2.dll",
+        "--upx-exclude", "libmpv.2.dylib",
+        "--upx-exclude", "libmpv.so",
+        "--upx-exclude", "libmpv.so.1",
+        "--upx-exclude", "libmpv.so.2",
+    ])
     for imp in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", imp])
     cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
@@ -521,6 +530,42 @@ def build_android():
         cmd.extend(["--hidden-import", imp])
     cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
     return cmd
+
+
+def post_process_windows():
+    """Windows 打包后处理：在 exe 同级目录创建备用 mpv/ 和 ffmpeg/ 目录。
+
+    onefile 模式的 _MEIPASS 临时目录可能因 UPX 解压失败、杀毒软件删除、
+    临时目录被清理等原因丢失 dll。find_libmpv_path() 会从 exe 同级目录的
+    mpv/ 查找备用 dll，此函数确保备用 dll 就位。
+    """
+    dist_dir = PROJECT_ROOT / "dist"
+    exe_path = dist_dir / f"{APP_NAME}.exe"
+    if not exe_path.exists():
+        print(f"警告: 可执行文件未找到: {exe_path}")
+        return
+
+    # 复制 libmpv-2.dll 到 dist/mpv/（备用路径，_MEIPASS 解压失败时使用）
+    src_dll = PROJECT_ROOT / "mpv" / "libmpv-2.dll"
+    if src_dll.exists():
+        dest_mpv_dir = dist_dir / "mpv"
+        dest_mpv_dir.mkdir(parents=True, exist_ok=True)
+        dest_dll = dest_mpv_dir / "libmpv-2.dll"
+        shutil.copy2(str(src_dll), str(dest_dll))
+        print(f"备用 libmpv-2.dll 已复制: {dest_dll}")
+    else:
+        print("警告: mpv/libmpv-2.dll 不存在，跳过备用 dll 复制")
+
+    # 复制 ffprobe.exe 到 dist/ffmpeg/（备用路径）
+    src_ffprobe = PROJECT_ROOT / "ffmpeg" / "ffprobe.exe"
+    if src_ffprobe.exists():
+        dest_ffmpeg_dir = dist_dir / "ffmpeg"
+        dest_ffmpeg_dir.mkdir(parents=True, exist_ok=True)
+        dest_ffprobe = dest_ffmpeg_dir / "ffprobe.exe"
+        shutil.copy2(str(src_ffprobe), str(dest_ffprobe))
+        print(f"备用 ffprobe.exe 已复制: {dest_ffprobe}")
+    else:
+        print("警告: ffmpeg/ffprobe.exe 不存在，跳过备用 ffprobe 复制")
 
 
 def post_process_macos_app():
@@ -749,6 +794,7 @@ def run_build():
             post_process_linux()
             print(f"打包完成! 可执行文件位于: dist/{APP_NAME}")
         else:
+            post_process_windows()
             print(f"打包完成! 可执行文件位于: dist/{APP_NAME}.exe")
 
     except Exception as e:

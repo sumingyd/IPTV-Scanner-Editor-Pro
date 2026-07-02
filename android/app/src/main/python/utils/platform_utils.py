@@ -143,9 +143,27 @@ def get_libmpv_filename():
 def find_libmpv_path():
     base_path = get_app_base_path()
     mpv_dir = os.path.join(base_path, 'mpv')
+    filename = get_libmpv_filename()
 
     if is_windows():
-        return os.path.join(mpv_dir, get_libmpv_filename())
+        # 按优先级查找 libmpv-2.dll
+        search_paths = [
+            os.path.join(mpv_dir, filename),  # PyInstaller _MEIPASS/mpv/ 或开发模式 data_dir/mpv/
+        ]
+        # frozen 模式下增加备用路径：
+        # onefile 模式的 _MEIPASS 临时目录可能因 UPX 解压失败、杀毒软件删除、
+        # 临时目录被清理等原因丢失 dll，此时从 exe 同级目录查找（便携版分发模式）
+        if getattr(sys, 'frozen', False):
+            exe_dir = os.path.dirname(sys.executable)
+            search_paths.extend([
+                os.path.join(exe_dir, 'mpv', filename),  # 便携版 exe 同级 mpv/
+                os.path.join(exe_dir, filename),          # 直接放在 exe 旁边
+            ])
+        for p in search_paths:
+            if os.path.exists(p):
+                return p
+        # 都找不到时返回默认路径（保持原行为，让加载逻辑报错）
+        return search_paths[0]
 
     if is_macos():
         search_paths = [
@@ -233,6 +251,15 @@ def get_ffprobe_path():
     ffprobe_exe_alt = os.path.join(ffprobe_dir_alt, filename)
     if os.path.exists(ffprobe_exe_alt):
         return ffprobe_exe_alt
+    # frozen 模式下从 exe 同级目录查找备用（_MEIPASS 解压失败时的兜底）
+    if getattr(sys, 'frozen', False):
+        exe_dir = os.path.dirname(sys.executable)
+        for p in [
+            os.path.join(exe_dir, 'ffmpeg', filename),
+            os.path.join(exe_dir, filename),
+        ]:
+            if os.path.exists(p):
+                return p
     return None
 
 
@@ -247,7 +274,8 @@ def get_ffmpeg_path():
 
     优先级：
     1. 打包目录下的 ffmpeg/ffmpeg(.exe)
-    2. 系统 PATH 中的 ffmpeg
+    2. exe 同级目录的 ffmpeg/ffmpeg(.exe)（frozen 模式备用）
+    3. 系统 PATH 中的 ffmpeg
     """
     base_path = get_app_base_path()
     ffmpeg_dir = os.path.join(base_path, 'ffmpeg')
@@ -255,6 +283,15 @@ def get_ffmpeg_path():
     ffmpeg_exe = os.path.join(ffmpeg_dir, filename)
     if os.path.exists(ffmpeg_exe):
         return ffmpeg_exe
+    # frozen 模式下从 exe 同级目录查找备用（_MEIPASS 解压失败时的兜底）
+    if getattr(sys, 'frozen', False):
+        exe_dir = os.path.dirname(sys.executable)
+        for p in [
+            os.path.join(exe_dir, 'ffmpeg', filename),
+            os.path.join(exe_dir, filename),
+        ]:
+            if os.path.exists(p):
+                return p
     # 退回到系统 PATH
     import shutil as _sh
     sys_ffmpeg = _sh.which('ffmpeg')
