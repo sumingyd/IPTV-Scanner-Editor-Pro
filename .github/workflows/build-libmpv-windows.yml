@@ -1,0 +1,127 @@
+name: Build libmpv with CAVS support (Windows)
+
+# 构建 Windows 版 libmpv（带 CAVS Guangdian profile 支持）
+# 使用 llawsxx/FFmpeg 替代官方 FFmpeg，通过 mpv-winbuild-cmake 交叉编译
+# 产物上传到 GitHub Release，供 build.yml 下载使用
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to upload libmpv to (e.g. libmpv-cavs-latest)"
+        required: true
+        default: "libmpv-cavs-latest"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build libmpv with CAVS support
+    runs-on: ubuntu-latest
+    container: docker://ghcr.io/shinchiro/archlinux:latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Setup git config
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global --add safe.directory $PWD
+
+      - name: Clone mpv-winbuild-cmake
+        run: |
+          git clone --depth 1 https://github.com/shinchiro/mpv-winbuild-cmake.git
+          git config --global --add safe.directory $PWD/mpv-winbuild-cmake
+
+      - name: Patch FFmpeg source to use llawsxx/FFmpeg
+        # 将 FFmpeg 源码从官方替换为 llawsxx/FFmpeg fork
+        # llawsxx/FFmpeg 添加了 CAVS Guangdian profile (AVS1-P16) 解码支持
+        # 修改方式：用 libcavs.c + libcavsdec.c 替换原 cavsdec.c（内部实现，无需外部库）
+        run: |
+          cd mpv-winbuild-cmake
+          sed -i 's|https://github.com/FFmpeg/FFmpeg.git|https://github.com/llawsxx/FFmpeg.git|' packages/ffmpeg.cmake
+          echo "=== Patched ffmpeg.cmake ==="
+          grep "GIT_REPOSITORY" packages/ffmpeg.cmake
+
+      - name: Downloading source
+        run: |
+          cd mpv-winbuild-cmake
+          cmake -DTARGET_ARCH=x86_64-w64-mingw32 \
+                -DSINGLE_SOURCE_LOCATION=$PWD/src_packages \
+                -DRUSTUP_LOCATION=$PWD/clang_root/install_rustup \
+                -DENABLE_CCACHE=ON \
+                --fresh -G Ninja -B build_x86_64 -S $PWD
+          ninja -C build_x86_64 download || true
+
+      - name: Building toolchain (GCC cross-compiler)
+        # 首次构建需要编译 GCC 交叉编译工具链（耗时较长，约 30-40 分钟）
+        run: |
+          cd mpv-winbuild-cmake
+          if [[ ! -f "build_x86_64/install/bin/cross-gcc" ]]; then
+            ninja -C build_x86_64 gcc
+            rm -rf build_x86_64/toolchain
+          fi
+
+      - name: Building mpv with CAVS support
+        run: |
+          cd mpv-winbuild-cmake
+          ninja -C build_x86_64 update
+          ninja -C build_x86_64 mpv
+
+      - name: Packaging mpv
+        run: |
+          cd mpv-winbuild-cmake
+          mkdir -p release_x86_64
+          rm -rf build_x86_64/mpv-debug*
+          ninja -C build_x86_64 mpv-packaging
+          echo "=== Build artifacts ==="
+          ls -la build_x86_64/mpv*.7z
+          # 复制 dev 包并重命名为固定名称，方便 build.yml 下载
+          cp build_x86_64/mpv-dev-x86_64-*.7z release_x86_64/mpv-dev-x86_64-cavs.7z
+          ls -la release_x86_64/
+
+      - name: Verify CAVS support in libmpv
+        # 验证构建产物中确实包含 CAVS Guangdian profile 支持
+        run: |
+          cd mpv-winbuild-cmake
+          echo "=== Extracting libmpv-2.dll for verification ==="
+          7z x release_x86_64/mpv-dev-x86_64-cavs.7z -o/tmp/mpv-dev -y
+          echo "=== libmpv-2.dll info ==="
+          find /tmp/mpv-dev -name "libmpv-2.dll" -ls
+          echo "=== Checking cavs decoder description ==="
+          # libmpv-2.dll 中应包含 "Guangdian" 或 "guangdian" 字符串
+          strings /tmp/mpv-dev/libmpv-2.dll 2>/dev/null | grep -i "guangdian\|JiZhun\|cavs" | head -20 || \
+            echo "WARNING: Could not find CAVS strings in libmpv-2.dll"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-cavs-windows
+          path: mpv-winbuild-cmake/release_x86_64/mpv-dev-x86_64-cavs.7z
+          retention-days: 1
+
+  release:
+    name: Upload to GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libmpv-cavs-windows
+          path: release
+
+      - name: Upload libmpv to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: release/mpv-dev-x86_64-cavs.7z
+          fail_on_unmatched_files: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

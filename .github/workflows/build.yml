@@ -30,8 +30,18 @@ jobs:
       - name: Download and Prepare MPV/FFmpeg
         shell: powershell
         run: |
-          Write-Host "Downloading mpv from: $env:MPV_URL"
-          Invoke-WebRequest -Uri $env:MPV_URL -OutFile "mpv.7z"
+          # 优先从项目 Release 下载带 CAVS Guangdian profile 支持的 libmpv
+          # 如果 Release 不存在（未构建过），fallback 到官方 shinchiro 构建
+          $cavsUrl = "https://github.com/${{ github.repository }}/releases/download/libmpv-cavs-latest/mpv-dev-x86_64-cavs.7z"
+          try {
+            Write-Host "Downloading CAVS-enabled libmpv from: $cavsUrl"
+            Invoke-WebRequest -Uri $cavsUrl -OutFile "mpv.7z" -ErrorAction Stop
+            Write-Host "Successfully downloaded CAVS-enabled libmpv"
+          } catch {
+            Write-Host "CAVS-enabled libmpv not found, falling back to official shinchiro build"
+            Write-Host "Downloading mpv from: $env:MPV_URL"
+            Invoke-WebRequest -Uri $env:MPV_URL -OutFile "mpv.7z"
+          }
           7z x mpv.7z -ompv -y
           dir ./mpv
 
