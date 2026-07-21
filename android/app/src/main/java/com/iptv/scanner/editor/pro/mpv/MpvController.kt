@@ -417,33 +417,46 @@ class MpvController : MPVLib.EventObserver, Player {
     // -----------------------------------------------------------------
     // 基础播放控制
     // -----------------------------------------------------------------
+    @Volatile
+    private var needPreStop = false
+
+    @Volatile
+    private var pendingLoadUrl: String = ""
+
+    @Volatile
+    private var loadingUrl: String = ""
+
     override fun playFile(url: String) = postOnUiThread {
-        // 始终先 stop + playlist-clear 清除旧 demuxer，防止坏流卡死后影响后续频道。
-        //
-        // 问题场景：切到一个坏频道后，mpv 的 demuxer 线程卡在等待网络数据。
-        // 即使坏流触发了 MPV_EVENT_FILE_LOADED（demuxer 打开了 HTTP 连接但无有效视频数据），
-        // _fileLoaded 仍为 true，导致条件性 pre-stop 被跳过。
-        // 直接 loadfile 在旧 demuxer 未释放时被发送，新流也无法加载——
-        // 此后所有频道都无法播放（即使切回之前能正常播放的频道）。
-        //
-        // 修复：无条件 stop + playlist-clear，确保旧 demuxer 被终止。
-        // keep-open=yes 会在 stop 后保留最后一帧画面，正常切台时不会黑屏闪烁。
-        try {
-            MPVLib.command(arrayOf("stop"))
-            MPVLib.command(arrayOf("playlist-clear"))
-            Log.i(TAG, "playFile: pre-stop + playlist-clear (clearing previous demuxer)")
-        } catch (e: Throwable) {
-            Log.w(TAG, "playFile: pre-stop failed: ${e.message}")
+        pendingLoadUrl = url
+        if (needPreStop) {
+            try {
+                MPVLib.command(arrayOf("stop"))
+                MPVLib.command(arrayOf("playlist-clear"))
+                Log.i(TAG, "playFile: pre-stop + playlist-clear (recovering from error)")
+            } catch (e: Throwable) {
+                Log.w(TAG, "playFile: pre-stop failed: ${e.message}")
+            }
+            needPreStop = false
         }
         setupProtocolOptions(url)
-        // 立即设置 _paused=false，避免 UI 在 loadfile 和 pause 属性事件到达之间
-        // 误显示"已暂停"。detach() 会将 _paused 设为 true（安全默认值），
-        // 但 playFile 后实际会播放，需立即更新 UI 状态。
         _paused.value = false
-        // MPVView.playFile 内部会调用 ensureInstanceAlive() 检测核心是否存活，
-        // 如果核心已 shutdown 则自动重建后再执行 loadfile。
         mpvView?.playFile(url)
     }
+
+    fun markNeedPreStop() {
+        needPreStop = true
+        Log.i(TAG, "markNeedPreStop: next playFile will pre-stop before loadfile")
+    }
+
+    fun getPath(): String {
+        return try {
+            MPVLib.getPropertyString("path") ?: ""
+        } catch (e: Throwable) {
+            Log.w(TAG, "getPath failed: ${e.message}")
+            ""
+        }
+    }
+
     override fun stop() = postOnUiThread {
         mpvView?.stop()
     }
@@ -1137,6 +1150,7 @@ class MpvController : MPVLib.EventObserver, Player {
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
                 _fileLoaded.value = true
                 _eofReached.value = false
+                loadingUrl = ""
                 // Surface 重建后重新 loadfile，恢复播放位置（本地文件/VOD）
                 // 直播流 pendingResumePos=-1.0 不 seek，从最新位置播放
                 mpvView?.let { v ->
@@ -1159,16 +1173,24 @@ class MpvController : MPVLib.EventObserver, Player {
             MPVLib.MpvEvent.MPV_EVENT_START_FILE -> {
                 _fileLoaded.value = false
                 _eofReached.value = false
+                loadingUrl = pendingLoadUrl
+                Log.i(TAG, "MPV_EVENT_START_FILE: loadingUrl=$loadingUrl")
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
                 val wasLoaded = _fileLoaded.value
                 _fileLoaded.value = false
                 _videoWidth.value = 0
                 _videoHeight.value = 0
+                val endedUrl = try { MPVLib.getPropertyString("path") ?: "" } catch (_: Throwable) { "" }
                 if (!wasLoaded) {
-                    Log.w(TAG, "MPV_EVENT_END_FILE: file failed to load (never got FILE_LOADED), notifying error")
-                    postOnUiThread { onFileError?.invoke() }
+                    if (endedUrl != loadingUrl && loadingUrl.isNotEmpty()) {
+                        Log.i(TAG, "MPV_EVENT_END_FILE: old stream '$endedUrl' replaced by '$loadingUrl', not an error")
+                    } else {
+                        Log.w(TAG, "MPV_EVENT_END_FILE: file '$endedUrl' failed to load, notifying error")
+                        postOnUiThread { onFileError?.invoke() }
+                    }
                 }
+                loadingUrl = ""
             }
             MPVLib.MpvEvent.MPV_EVENT_SHUTDOWN -> {
                 Log.w(TAG, "MPV_EVENT_SHUTDOWN: mpv core has shut down, marking instance as dead")
@@ -1240,40 +1262,10 @@ class MpvController : MPVLib.EventObserver, Player {
 
         Log.d(TAG, "blackScreenCheck: vo=$currentVo, videoWidth=$videoWidth, vfps=$estimatedVfps, attempt=${blackScreenRetryCount + 1}, fboDowngraded=$fboFormatDowngraded")
 
-        // 黑屏条件：
-        // 1. videoWidth==0（解码器没工作）
-        // 2. videoWidth>0 但 vfps==0（GPU vo 解码了但没有输出帧到 Surface）
-        //    → 立即 fallback 到 mediacodec_embed，并保存到 UserPrefs 避免下次再等
-        val gpuRenderFailed = videoWidth > 0 && estimatedVfps == 0.0
+        // 黑屏条件：仅以 videoWidth==0 为准
+        // 不使用 estimated-vfps 判断：IPTV 直播流的 estimated-vfps 经常长时间为0，
+        // 即使视频正常渲染也会误判为 GPU 渲染失败，导致从 gpu 错误 fallback 到 gpu-next。
         val isBlackScreen = videoWidth == 0
-
-        if (gpuRenderFailed) {
-            if (voFallbackTriggered) {
-                // 已经 fallback 过了，不再重复触发
-                return@Runnable
-            }
-            Log.w(TAG, "GPU render failed (videoWidth=$videoWidth, vfps=0), falling back to gpu-next")
-            try {
-                UserPrefs.getInstance().setVo("gpu-next")
-                mpvView?.setVoInUse("gpu-next")
-            } catch (_: Exception) {}
-            // 切换到 gpu-next（SurfaceView 支持）
-            voFallbackTriggered = true
-            try {
-                mpvView?.reattachSurfaceWithVo("gpu-next")
-                onVoFallback?.invoke("gpu-next", UserPrefs.getInstance().getHwdec())
-                // 重新加载当前文件
-                val path = MPVLib.getPropertyString("path")
-                if (path != null && path.isNotEmpty()) {
-                    MPVLib.command(arrayOf("loadfile", path))
-                    MPVLib.setPropertyBoolean("pause", false)
-                }
-                Log.i(TAG, "Switched to vo=gpu-next (persisted)")
-            } catch (e: Throwable) {
-                Log.e(TAG, "Fallback to gpu-next failed", e)
-            }
-            return@Runnable
-        }
 
         if (isBlackScreen) {
             blackScreenRetryCount++
