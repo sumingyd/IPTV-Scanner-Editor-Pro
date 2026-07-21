@@ -60,7 +60,7 @@ import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import kotlinx.coroutines.delay
 
-private val TV_BOTTOM_BAR_HEIGHT = 64.dp
+private val TV_BOTTOM_BAR_HEIGHT = 80.dp
 
 @Composable
 fun TvPlayerLayout(
@@ -135,9 +135,10 @@ fun TvPlayerLayout(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
+
         ) {
             AnimatedVisibility(
-                visible = showOverlays,
+                visible = showOverlays && !sidebarVisible,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
