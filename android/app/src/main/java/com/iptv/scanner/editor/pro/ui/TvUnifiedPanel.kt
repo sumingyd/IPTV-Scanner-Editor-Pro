@@ -158,9 +158,14 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     }
 
     // 焦点管理：初始焦点在第三列（频道列表）
+    val sidebarVisible by viewModel.landscapeSidebarVisible.collectAsState()
+
     val channelListFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) {
-        kotlin.runCatching { channelListFocus.requestFocus() }
+    LaunchedEffect(sidebarVisible) {
+        if (sidebarVisible) {
+            kotlinx.coroutines.delay(300)
+            kotlin.runCatching { channelListFocus.requestFocus() }
+        }
     }
 
     // 焦点频道变化时刷新 EPG（防抖 300ms，避免快速滚动时大量 EPG 请求堆积导致卡死）
@@ -188,7 +193,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
 
     /** 关闭统一面板后执行操作（仅用于在统一面板之前渲染的 ChannelsPanel/EpgPanel，避免被统一面板遮挡） */
     fun closeAndRun(action: () -> Unit) {
-        viewModel.toggleTvUnifiedPanel()
+        viewModel.setLandscapeSidebarVisible(false)
         action()
     }
 
@@ -204,12 +209,12 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
      * 子面板关闭后回到播放界面，用户按 MENU 键可重新打开主菜单。
      */
     fun openOverlay(action: () -> Unit) {
-        viewModel.toggleTvUnifiedPanel()
+        viewModel.setLandscapeSidebarVisible(false)
         action()
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.background.copy(alpha = 0.9f),
+        color = Color.Transparent,
         modifier = Modifier.fillMaxSize()
     ) {
 Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
@@ -236,7 +241,7 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                 },
                 onOsd = {
                     // 切换控制层持久模式（pin/unpin），关闭面板
-                    viewModel.toggleTvUnifiedPanel()
+                    viewModel.setLandscapeSidebarVisible(false)
                     viewModel.toggleControlsPinned()
                 },
                 modifier = Modifier.width(72.dp)
@@ -336,12 +341,12 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                         currentMultiViewLayout = if (multiViewState.active) multiViewState.layout else null,
                         onEnterMultiView = { layout ->
                             // 进入多画面：关闭统一面板，让多画面网格可见
-                            viewModel.toggleTvUnifiedPanel()
+                            viewModel.setLandscapeSidebarVisible(false)
                             viewModel.enterMultiView(layout)
                         },
                         onExitMultiView = {
                             viewModel.exitMultiView()
-                            viewModel.toggleTvUnifiedPanel()
+                            viewModel.setLandscapeSidebarVisible(false)
                         },
                         onOpenPlaylist = {
                             // SAF launcher 注册在 TvUnifiedPanel 内，必须在结果返回时保持面板存活。
@@ -349,7 +354,7 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                             // 修复：SAF 是系统级浮层会覆盖面板，保持面板打开让 launcher 存活；
                             //       FileBrowser 路径才需要关闭统一面板（FileBrowser 在统一面板之后渲染会被遮挡）。
                             if (!viewModel.isSafAvailable()) {
-                                viewModel.toggleTvUnifiedPanel()
+                                viewModel.setLandscapeSidebarVisible(false)
                                 viewModel.showFileBrowser()
                             } else {
                                 playlistLauncher.launch(arrayOf(
@@ -363,7 +368,7 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                         onOpenLocalVideo = {
                             // 同 onOpenPlaylist：SAF 路径保持面板打开，FileBrowser 路径关闭面板
                             if (!viewModel.isSafAvailable()) {
-                                viewModel.toggleTvUnifiedPanel()
+                                viewModel.setLandscapeSidebarVisible(false)
                                 viewModel.showMediaFileBrowser()
                             } else {
                                 videoLauncher.launch(arrayOf("video/*", "audio/*", "application/x-matroska", "application/octet-stream"))
@@ -435,7 +440,7 @@ private fun ModeColumn(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = Color(0x15FFFFFF),
         modifier = modifier.fillMaxHeight()
     ) {
         Column(
@@ -490,7 +495,7 @@ private fun ModeIconButton(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
+            .background(if (isSelected) Color(0x30FFFFFF) else Color.Transparent)
             .tvFocusBorder()
             .onFocusChanged { state ->
                 if (autoSelectOnFocus && state.isFocused && !isSelected) {
@@ -527,7 +532,7 @@ private fun GroupColumn(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = Color.Transparent,
         modifier = modifier.fillMaxHeight()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -539,7 +544,7 @@ private fun GroupColumn(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
             )
-            Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+            Divider(color = Color(0x20FFFFFF))
 
             if (groups.isEmpty()) {
                 Box(
@@ -671,7 +676,7 @@ private fun ChannelsColumn(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = Color.Transparent,
         modifier = modifier.fillMaxHeight()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -684,7 +689,7 @@ private fun ChannelsColumn(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
             )
 
-            Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+            Divider(color = Color(0x20FFFFFF))
 
             // 频道列表
             if (filteredChannels.isEmpty()) {
@@ -976,7 +981,7 @@ private fun MenuColumn(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = Color.Transparent,
         modifier = modifier.fillMaxHeight()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -987,7 +992,7 @@ private fun MenuColumn(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
             )
-            Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+            Divider(color = Color(0x20FFFFFF))
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -1099,7 +1104,7 @@ private fun EpgListColumn(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = Color.Transparent,
         modifier = modifier.fillMaxHeight()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -1132,7 +1137,7 @@ private fun EpgListColumn(
                 )
             }
 
-            Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+            Divider(color = Color(0x20FFFFFF))
 
             when {
                 loading -> {
@@ -1265,7 +1270,7 @@ private fun EpgDescColumn(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = Color.Transparent,
         modifier = modifier.fillMaxHeight()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -1289,7 +1294,7 @@ private fun EpgDescColumn(
                 )
             }
 
-            Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+            Divider(color = Color(0x20FFFFFF))
 
             Box(
                 modifier = Modifier.fillMaxSize().padding(12.dp)
