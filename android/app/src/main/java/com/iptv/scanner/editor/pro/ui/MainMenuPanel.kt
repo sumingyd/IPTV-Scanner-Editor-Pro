@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -247,25 +248,25 @@ fun MainMenuPanel(viewModel: AppViewModel) {
         )
     }
 
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val useDualColumn = maxWidth > 500.dp
 
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
-            // 标题栏
-            PanelHeader(
-                title = "主菜单",
-                subtitle = "功能入口",
-                onClose = { viewModel.toggleMenuPanel() }
-            )
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+                // 标题栏
+                PanelHeader(
+                    title = "主菜单",
+                    subtitle = "功能入口",
+                    onClose = { viewModel.toggleMenuPanel() }
+                )
 
-            if (isLandscape) {
-                // ---- 横屏：多列网格布局 ----
-                LandscapeMenuGrid(sections = sections)
-            } else {
+                if (useDualColumn) {
+                    // ---- 横屏：多列网格布局 ----
+                    LandscapeMenuGrid(sections = sections)
+                } else {
                 // ---- 竖屏：单列列表布局 ----
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -291,6 +292,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 }
             }
         }
+    }
     }
 }
 
