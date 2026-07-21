@@ -276,6 +276,7 @@ class MPVTextureView @JvmOverloads constructor(
         MPVView.nativeInstanceAlive = false
     }
 
+
     private fun ensureInstanceAlive(): Boolean {
         if (MPVView.forceRecreatePending) {
             MPVView.forceRecreatePending = false
