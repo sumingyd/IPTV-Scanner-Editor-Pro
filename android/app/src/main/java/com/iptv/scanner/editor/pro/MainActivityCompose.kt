@@ -215,22 +215,18 @@ class MainActivityCompose : ComponentActivity() {
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             val isTv = viewModel.uiMode.value == UiMode.TV
             when {
-                // 统一面板已打开（TV）→ 关闭
-                isTv && viewModel.tvUnifiedPanelOpen.value -> {
-                    viewModel.toggleTvUnifiedPanel()
+                isTv -> {
+                    viewModel.setLandscapeSidebarVisible(!viewModel.landscapeSidebarVisible.value)
                 }
-                // 主菜单已打开（PHONE）→ 关闭
-                !isTv && viewModel.menuPanelOpen.value -> {
+                viewModel.menuPanelOpen.value -> {
                     viewModel.closeAllPanels()
                 }
                 viewModel.anyPanelOpen -> {
-                    // 其他面板打开，先关闭再开对应面板
                     viewModel.closeAllPanels()
-                    if (isTv) viewModel.toggleTvUnifiedPanel() else viewModel.toggleMenuPanel()
+                    viewModel.toggleMenuPanel()
                 }
                 else -> {
-                    // 无面板，打开对应面板
-                    if (isTv) viewModel.toggleTvUnifiedPanel() else viewModel.toggleMenuPanel()
+                    viewModel.toggleMenuPanel()
                 }
             }
             return true
@@ -447,9 +443,9 @@ class MainActivityCompose : ComponentActivity() {
             if (viewModel.anyPanelOpen) {
                 return super.onKeyUp(keyCode, event)
             }
-            // 短按 OK 键：打开统一面板（替代菜单键，适配无菜单键遥控器）
-            viewModel.toggleTvUnifiedPanel()
-            Log.i(TAG, "Short press OK: open unified panel")
+            // 短按 OK 键：打开侧边栏（替代统一面板，适配无菜单键遥控器）
+            viewModel.setLandscapeSidebarVisible(!viewModel.landscapeSidebarVisible.value)
+            Log.i(TAG, "Short press OK: toggle sidebar")
             return true
         }
         return super.onKeyUp(keyCode, event)
