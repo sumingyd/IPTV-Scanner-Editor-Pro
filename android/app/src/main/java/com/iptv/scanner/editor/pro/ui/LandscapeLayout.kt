@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -63,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -149,8 +151,8 @@ fun LandscapePlayerLayout(
 
         AnimatedVisibility(
             visible = sidebarVisible,
-            enter = slideInHorizontally(initialOffsetX = { -it }),
-            exit = slideOutHorizontally(targetOffsetX = { -it }),
+            enter = slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(150)),
+            exit = slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(120)),
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
             LandscapeSideBar(viewModel = viewModel, hasEpg = hasEpg, sidebarWidth = sidebarWidth)
@@ -252,21 +254,29 @@ private fun LandscapeGestureOverlay(
 private fun LandscapeSideBar(viewModel: AppViewModel, hasEpg: Boolean, sidebarWidth: androidx.compose.ui.unit.Dp) {
     val oc = rememberPlayerOverlayColors()
 
-    Surface(
-        color = Color(0xDD1A1A2E),
-        modifier = Modifier
+    val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+
+    Box(modifier = Modifier
             .fillMaxHeight()
             .width(sidebarWidth)
             .padding(bottom = BOTTOM_BAR_HEIGHT)
     ) {
-        if (hasEpg) {
-            Row(modifier = Modifier.fillMaxSize()) {
-                LandscapeChannelColumn(viewModel = viewModel, modifier = Modifier.weight(1f))
-                Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(oc.iconTint.copy(alpha = 0.15f)))
-                LandscapeEpgColumn(viewModel = viewModel, modifier = Modifier.weight(1f))
+        if (isAndroid12Plus) {
+            Box(modifier = Modifier.matchParentSize().blur(20.dp).background(oc.topBarBg.copy(alpha = 0.40f)))
+        }
+        Surface(
+            color = if (isAndroid12Plus) oc.topBarBg.copy(alpha = 0.25f) else oc.topBarBg.copy(alpha = 0.85f),
+            modifier = Modifier.matchParentSize()
+        ) {
+            if (hasEpg) {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    LandscapeChannelColumn(viewModel = viewModel, modifier = Modifier.weight(1f))
+                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(oc.iconTint.copy(alpha = 0.15f)))
+                    LandscapeEpgColumn(viewModel = viewModel, modifier = Modifier.weight(1f))
+                }
+            } else {
+                LandscapeChannelColumn(viewModel = viewModel, modifier = Modifier.fillMaxWidth())
             }
-        } else {
-            LandscapeChannelColumn(viewModel = viewModel, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -279,6 +289,7 @@ private fun LandscapeChannelColumn(viewModel: AppViewModel, modifier: Modifier =
     val favorites by viewModel.favorites.collectAsState()
     val history by viewModel.history.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
+    val multiViewState by viewModel.multiViewState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
 
@@ -358,7 +369,13 @@ private fun LandscapeChannelColumn(viewModel: AppViewModel, modifier: Modifier =
                 Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
                         .then(if (isCurrent) Modifier.background(oc.accent.copy(alpha = 0.2f)) else Modifier)
-                        .clickable { viewModel.playChannel(idx) }
+                        .clickable {
+                            if (multiViewState.active) {
+                                viewModel.addChannelToMultiView(idx)
+                            } else {
+                                viewModel.playChannel(idx)
+                            }
+                        }
                         .padding(horizontal = 6.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -517,10 +534,16 @@ private fun LandscapeBottomBar(
         buildMediaBadges(viewModel.mpv, videoWidth, videoHeight)
     } else emptyList()
 
-    Surface(
-        color = Color(0xDD1A1A2E),
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        if (isAndroid12Plus) {
+            Box(modifier = Modifier.matchParentSize().blur(15.dp).background(oc.topBarBg.copy(alpha = 0.35f)))
+        }
+        Surface(
+            color = if (isAndroid12Plus) oc.topBarBg.copy(alpha = 0.20f) else oc.topBarBg.copy(alpha = 0.85f),
+            modifier = Modifier.matchParentSize()
+        ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -612,6 +635,7 @@ private fun LandscapeBottomBar(
                     }
                 }
             }
+        }
         }
     }
 }
