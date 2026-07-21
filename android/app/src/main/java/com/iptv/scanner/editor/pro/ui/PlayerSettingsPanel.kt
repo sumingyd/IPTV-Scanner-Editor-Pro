@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -80,60 +81,63 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
         runCatching { closeFocusRequester.requestFocus() }
     }
 
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
-    Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+    BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .focusGroup()
-                .systemBarsPadding()
-                .padding(16.dp)
+        val useDualColumn = maxWidth > 500.dp
+
+        Surface(
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            modifier = Modifier.fillMaxSize()
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .focusGroup()
+                    .systemBarsPadding()
+                    .padding(16.dp)
             ) {
-                Text(
-                    text = "播放器设置",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { viewModel.resetPlayerSettings() }, modifier = Modifier.tvFocusBorder()) {
-                        Icon(Icons.Default.Refresh, contentDescription = "重置", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                    IconButton(onClick = { viewModel.togglePlayerSettings() }, modifier = Modifier.tvFocusBorder().focusRequester(closeFocusRequester)) {
-                        Icon(Icons.Default.Close, contentDescription = "关闭", tint = MaterialTheme.colorScheme.onSurface)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "播放器设置",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { viewModel.resetPlayerSettings() }, modifier = Modifier.tvFocusBorder()) {
+                            Icon(Icons.Default.Refresh, contentDescription = "重置", tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                        IconButton(onClick = { viewModel.togglePlayerSettings() }, modifier = Modifier.tvFocusBorder().focusRequester(closeFocusRequester)) {
+                            Icon(Icons.Default.Close, contentDescription = "关闭", tint = MaterialTheme.colorScheme.onSurface)
+                        }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            if (isLandscape) {
-                Row(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        PlayerSettingsLeftColumn(viewModel)
+                if (useDualColumn) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            PlayerSettingsLeftColumn(viewModel)
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            PlayerSettingsRightColumn(viewModel)
+                        }
                     }
-                    Column(modifier = Modifier.weight(1f)) {
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                    ) {
+                        PlayerSettingsLeftColumn(viewModel)
                         PlayerSettingsRightColumn(viewModel)
                     }
-                }
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                ) {
-                    PlayerSettingsLeftColumn(viewModel)
-                    PlayerSettingsRightColumn(viewModel)
                 }
             }
         }
