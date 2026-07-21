@@ -426,21 +426,27 @@ class MpvController : MPVLib.EventObserver, Player {
     @Volatile
     private var loadingUrl: String = ""
 
-    override fun playFile(url: String) = postOnUiThread {
+    override fun playFile(url: String) {
         pendingLoadUrl = url
-        if (needPreStop) {
-            try {
-                MPVLib.command(arrayOf("stop"))
-                MPVLib.command(arrayOf("playlist-clear"))
-                Log.i(TAG, "playFile: pre-stop + playlist-clear (recovering from error)")
-            } catch (e: Throwable) {
-                Log.w(TAG, "playFile: pre-stop failed: ${e.message}")
+        postOnUiThread {
+            if (pendingLoadUrl != url) {
+                Log.i(TAG, "playFile: skipped, superseded by newer request (pending=$pendingLoadUrl, this=$url)")
+                return@postOnUiThread
             }
-            needPreStop = false
+            if (needPreStop) {
+                try {
+                    MPVLib.command(arrayOf("stop"))
+                    MPVLib.command(arrayOf("playlist-clear"))
+                    Log.i(TAG, "playFile: pre-stop + playlist-clear (recovering from error)")
+                } catch (e: Throwable) {
+                    Log.w(TAG, "playFile: pre-stop failed: ${e.message}")
+                }
+                needPreStop = false
+            }
+            setupProtocolOptions(url)
+            _paused.value = false
+            mpvView?.playFile(url)
         }
-        setupProtocolOptions(url)
-        _paused.value = false
-        mpvView?.playFile(url)
     }
 
     fun markNeedPreStop() {
