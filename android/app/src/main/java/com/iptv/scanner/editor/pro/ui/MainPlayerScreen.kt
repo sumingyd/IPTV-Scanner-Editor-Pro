@@ -222,12 +222,12 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val showHome by viewModel.showHome.collectAsState()
     val portraitTab by viewModel.portraitTab.collectAsState()
     val landscapeSidebarVisible by viewModel.landscapeSidebarVisible.collectAsState()
+    val multiViewState by viewModel.multiViewState.collectAsState()
 
-    // 系统返回键处理：播放页面→返回首页；首页→退出确认
+    // 系统返回键处理：侧边栏→退出多画面→返回首页→退出确认
     BackHandler(enabled = true) {
         when {
-            channelsPanelOpen || epgPanelOpen || menuPanelOpen || tvUnifiedPanelOpen ||
-            landscapeSidebarVisible ||
+            landscapeSidebarVisible || channelsPanelOpen || epgPanelOpen || menuPanelOpen || tvUnifiedPanelOpen ||
             fileBrowserOpen || sourceManagerOpen || playerSettingsOpen || videoSettingsOpen ||
             audioSettingsOpen || subtitleSettingsOpen || subtitleSearchOpen || playbackPanelOpen ||
             screenshotPanelOpen || viewSettingsOpen || aboutPanelOpen || mappingPanelOpen ||
@@ -237,12 +237,13 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             audioVisualizerOpen || lyricsOpen || channelInfoOpen || openUrlDialogOpen -> {
                 viewModel.closeAllPanels()
             }
+            multiViewState.active -> {
+                viewModel.exitMultiView()
+            }
             !showHome -> {
-                // 播放页面：返回首页
                 viewModel.showHomeScreen()
             }
             else -> {
-                // 首页：显示退出确认
                 if (exitConfirmOpen) {
                     viewModel.dismissExitConfirm()
                 } else {
@@ -269,8 +270,6 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     // 主题自适应覆盖颜色
     val oc = rememberPlayerOverlayColors()
 
-    // 多画面状态
-    val multiViewState by viewModel.multiViewState.collectAsState()
 
     // 文件加载完成时触发续播位置恢复（与 PC 端 _on_file_loaded 对齐）
     // 同时应用 HDR 配置（与 PC 端 _apply_hdr_on_file_loaded 对齐）
