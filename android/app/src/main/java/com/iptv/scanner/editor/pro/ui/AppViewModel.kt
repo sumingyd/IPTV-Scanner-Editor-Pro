@@ -332,8 +332,9 @@ val listViewMode: StateFlow<ListViewMode> = _listViewMode.asStateFlow()
 private val _listSourceTab = MutableStateFlow(ListSourceTab.SUBSCRIPTION)
 val listSourceTab: StateFlow<ListSourceTab> = _listSourceTab.asStateFlow()
 
-/** 竖屏首页/播放器模式切换：true=首页（浏览），false=播放器界面 */
-private val _showHome = MutableStateFlow(true)
+/** 竖屏首页/播放器模式切换：true=首页（浏览），false=播放器界面
+ * TV 模式无首页，始终为 false，避免 playChannel 走 pendingSwitchPlayUrl 分支导致黑屏 */
+private val _showHome = MutableStateFlow(!UiModeDetector.detect(app).isTV)
 val showHome: StateFlow<Boolean> = _showHome.asStateFlow()
 
 /** 切换到播放器界面（选择频道/打开文件后调用） */
@@ -683,10 +684,15 @@ Log.i(TAG, "onVoFallback: UI updated vo=$vo, hwdec=$hwdec (session only)")
 mpvSingleton.onFileError = {
 if (mpv.fileLoaded.value) {
     Log.i(TAG, "onFileError: skipped, file already loaded (stale callback)")
-} else if (_playbackState.value.mode.isCatchup || _playbackState.value.mode.isTimeshift) {
+} else if (playChannelDebounceJob?.isActive == true) {
+    Log.i(TAG, "onFileError: skipped, channel switch in progress (debounce job active)")
+} else {
+    val mpvPath = try { mpvSingleton.getPath() } catch (_: Throwable) { "" }
+    if (mpvPath.isNotEmpty() && mpvPath != currentPlaybackUrl) {
+        Log.i(TAG, "onFileError: skipped, mpv path='$mpvPath' != currentUrl='$currentPlaybackUrl' (stale END_FILE from previous channel)")
+    } else if (_playbackState.value.mode.isCatchup || _playbackState.value.mode.isTimeshift) {
 Log.w(TAG, "onFileError: in catchup/timeshift mode, skipping auto-switch")
 showOsd("回看失败", "该节目可能无法回看或已过期")
-// 回到直播模式
 _playbackState.value = PlaybackState(mode = PlayMode.LIVE)
 val curIdx = _currentIdx.value
 if (curIdx >= 0) {
@@ -695,6 +701,7 @@ if (ch != null) mpv.playFile(ch.url)
 }
 } else {
 Log.w(TAG, "onFileError: file failed to load, triggering switch after delay")
+mpvSingleton.markNeedPreStop()
 timeoutSwitchJob?.cancel()
 fileErrorSwitchJob?.cancel()
 consecutiveTimeoutCount++
@@ -705,24 +712,20 @@ consecutiveTimeoutCount = 0
 showOsd("自动换源已停止", "连续加载失败，请检查网络或切换播放器内核")
 } else {
 showOsd("加载失败", "当前频道无法播放，自动切换")
-// 延迟 1 秒再切换，给 mpv 核心时间清理旧流的 demuxer 状态
-// 保存为 fileErrorSwitchJob，用户手动切台时可取消（避免竞态）
 fileErrorSwitchJob = viewModelScope.launch {
 delay(1000)
-// 再次检查：如果用户在延迟期间手动切台并成功加载，则不执行自动换源
 if (mpv.fileLoaded.value) {
 Log.i(TAG, "onFileError: skipped auto-switch, file already loaded (user manually switched)")
 return@launch
 }
-// 连续错误 >= 1 次时，强制重置 mpv 状态，清除可能卡死的 demuxer
-// 场景：坏流的 TLS/网络 I/O 阻塞了 demuxer 线程，stop 命令无法中断，
-// 后续 loadfile 在旧 demuxer 未释放时被发送，新流也无法加载。
 if (_playerType.value == PlayerType.MPV) {
 Log.w(TAG, "onFileError: forcing mpv state reset before switch")
 mpvSingleton.forceRecreate()
+mpvSingleton.markNeedPreStop()
 delay(500)
 }
 nextChannel()
+}
 }
 }
 }
@@ -1443,6 +1446,8 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
      * 7. 加入历史（去重后插入队首）
      * 8. 预取 EPG
      */
+    private var playChannelDebounceJob: Job? = null
+
     fun playChannel(idx: Int, silent: Boolean = false) {
         val channel = _channels.value.getOrNull(idx) ?: run {
             Log.w(TAG, "playChannel: invalid idx $idx")
@@ -1473,10 +1478,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         // 刷新当前 URL 的书签列表
         refreshCurrentBookmarks()
 
-        // 切台时不主动 stop，直接 loadfile 让 mpv 自动切换解码器。
-        // mpv 的 loadfile replace 模式会自动释放旧解码器、加载新文件，
-        // 配合 keep-open=yes 在切换间隙保持最后一帧画面，避免黑屏闪烁。
-
         // FCC 快速换台：向 FCC 代理发送 leave/join 通知（组播场景加速切台）。
         // 与 PC 端 PlaybackController.play_channel() → fcc.on_channel_change() 对齐。
         fccService.onChannelChange(channel.url)
@@ -1485,59 +1486,68 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         // mpv/ffmpeg 会忽略不认识的查询参数，rt2phttpd 代理则通过该参数处理 FCC。
         val playUrl = channel.url
 
-        // 应用频道级播放器设置（如果开启"频道记忆"且该频道有保存设置）
-        applyChannelSettingsIfNeeded(idx)
-
-        // 加载按 URL 持久化的播放设置（#24：音轨/字幕/音量/比例等）
-        loadPlaybackSettingsFromStore(playUrl)
-
-        // MPV 支持全部协议，直接播放
-        // 如果播放器不在 Compose 树中（Tab 模式），先缓存 URL，等 attach 后自动播放
-        if (_showHome.value) {
-            // Tab 模式：播放器未渲染，缓存 URL，先切换到播放器界面
-            _pendingSwitchPlayUrl.value = playUrl
-            _showHome.value = false
-        } else {
-            // 播放器模式：直接播放
-            mpv.playFile(playUrl)
-        }
-
-        // 启动超时换源定时器（与酷9 LIVE_CONNECT_TIMEOUT 对齐）
-        startTimeoutSwitchSource(idx)
-
-        // 显示 OSD
-        if (!silent) {
-            showOsd(channel.name, channel.group)
-        }
-
         // 关闭面板（横屏沉浸侧边栏模式下保持侧边栏打开，方便连续切台）
         if (!silent) {
-            val wasLandscapeSidebar = _landscapeSidebarVisible.value
-            closeAllPanels()
-            if (wasLandscapeSidebar) {
-                _landscapeSidebarVisible.value = true
-            }
+            closeAllPanelsExceptSidebar()
         }
 
         // 切换到播放器界面（竖屏模式下从首页切换到播放器）
         _showHome.value = false
 
-        // 加入历史
-        userPrefs.addToHistory(idx)
-        _history.value = userPrefs.getHistory()
+        // 防抖：快速连按上下键时，取消前一次延迟播放，只执行最后一次
+        // 立即更新 UI 状态（频道名/idx），延迟 150ms 才真正执行 mpv.playFile
+        // silent 模式（自动续播/换源）不需要防抖，立即播放
+        playChannelDebounceJob?.cancel()
+        if (silent) {
+            applyChannelSettingsIfNeeded(idx)
+            loadPlaybackSettingsFromStore(playUrl)
+            if (_showHome.value) {
+                _pendingSwitchPlayUrl.value = playUrl
+                _showHome.value = false
+            } else {
+                mpv.playFile(playUrl)
+            }
+            startTimeoutSwitchSource(idx)
+            userPrefs.addToHistory(idx)
+            _history.value = userPrefs.getHistory()
+            userPrefs.setLastChannelUrl(channel.url)
+            fetchEpgForCurrent()
+            prefetchAdjacentChannels(idx)
+            captureChannelThumbnail()
+        } else {
+            val debounceIdx = idx
+            playChannelDebounceJob = viewModelScope.launch {
+                delay(150)
+                if (_currentIdx.value != debounceIdx) {
+                    Log.i(TAG, "playChannel debounce: idx changed from $debounceIdx to ${_currentIdx.value}, skipping stale playFile")
+                    return@launch
+                }
+                applyChannelSettingsIfNeeded(debounceIdx)
+                loadPlaybackSettingsFromStore(playUrl)
 
-        // 记住上次播放的频道 URL（启动时按 URL 查找恢复，比 idx 更稳健）
-        userPrefs.setLastChannelUrl(channel.url)
+                if (_showHome.value) {
+                    _pendingSwitchPlayUrl.value = playUrl
+                    _showHome.value = false
+                } else {
+                    mpv.playFile(playUrl)
+                }
 
-        // 预取 EPG（避免用户必须先打开 EPG 面板才能看到节目信息）
-        fetchEpgForCurrent()
+                startTimeoutSwitchSource(debounceIdx)
 
-        // 预取相邻频道的 DNS/TCP 连接（与 PC 端 _prefetch_adjacent_channels 对齐）
-        // 在后台协程中预解析下一/上一频道的域名，减少切台时的 DNS 查询延迟
-        prefetchAdjacentChannels(idx)
+                if (uiMode.value.isTV) {
+                    showControlsAutoHide()
+                } else {
+                    showOsd(channel.name, channel.group)
+                }
 
-        // 自动截取频道缩略图（延迟几秒让画面加载，用于列表页缩略图模式）
-        captureChannelThumbnail()
+                userPrefs.addToHistory(debounceIdx)
+                _history.value = userPrefs.getHistory()
+                userPrefs.setLastChannelUrl(channel.url)
+                fetchEpgForCurrent()
+                prefetchAdjacentChannels(debounceIdx)
+                captureChannelThumbnail()
+            }
+        }
     }
 
     /**
@@ -1570,7 +1580,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                 if (consecutiveTimeoutCount >= 1 && _playerType.value == PlayerType.MPV) {
                     Log.w(TAG, "Timeout switch: forcing mpv state reset (consecutive=$consecutiveTimeoutCount)")
                     mpvSingleton.forceRecreate()
-                    // 短暂等待 stop + playlist-clear 生效，让 demuxer 有时间释放
+                    mpvSingleton.markNeedPreStop()
                     delay(500)
                 } else {
                     mpv.stop()
@@ -2158,11 +2168,12 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                     if (it.index == targetIdx) it.copy(
                         channelIdx = channelIdx,
                         channelName = channel.name,
-                        isMuted = true  // 副画面默认静音
+                        isMuted = true
                     ) else it
                 }
             )
             showOsd("多画面", "${channel.name} → 画面 ${targetIdx + 1}")
+
             return targetIdx
         } catch (e: Throwable) {
             Log.e(TAG, "addChannelToMultiView: failed to play on viewport $targetIdx", e)
@@ -3139,6 +3150,48 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     }
     fun toggleControls() {
         if (_controlsVisible.value) hideControls() else showControls()
+    }
+
+    fun closeAllPanelsExceptSidebar() {
+        _channelsPanelOpen.value = false
+        _epgPanelOpen.value = false
+        _menuPanelOpen.value = false
+        _tvUnifiedPanelOpen.value = false
+        _fileBrowserOpen.value = false
+        _sourceManagerOpen.value = false
+        _playerSettingsOpen.value = false
+        _videoSettingsOpen.value = false
+        _audioSettingsOpen.value = false
+        _subtitleSettingsOpen.value = false
+        _subtitleSearchOpen.value = false
+        _playbackPanelOpen.value = false
+        _screenshotPanelOpen.value = false
+        _viewSettingsOpen.value = false
+        _aboutPanelOpen.value = false
+        _updateDialogOpen.value = false
+        _exitConfirmOpen.value = false
+        _openUrlDialogOpen.value = false
+        _mappingPanelOpen.value = false
+        _avSyncPanelOpen.value = false
+        _networkPanelOpen.value = false
+        _toolsPanelOpen.value = false
+        _scanPanelOpen.value = false
+        _reminderPanelOpen.value = false
+        _resumePanelOpen.value = false
+        _bookmarkPanelOpen.value = false
+        _epgTimelineOpen.value = false
+        _searchPanelOpen.value = false
+        _streamQualityPanelOpen.value = false
+        _recentPanelOpen.value = false
+        _clipExportPanelOpen.value = false
+        _audioVisualizerOpen.value = false
+        _lyricsOpen.value = false
+        stopScanPolling()
+        stopAvSyncSampling()
+        stopSubSync()
+        if (!_landscapeSidebarVisible.value) {
+            showControlsAutoHide()
+        }
     }
 
     fun closeAllPanels() {
@@ -6954,7 +7007,13 @@ showOsd("播放器设置", "日志等级: $levelName")
                 }
             }
             "menu" -> {
-                if (uiMode.value.isTV) toggleTvUnifiedPanel() else toggleMenuPanel()
+                if (uiMode.value.isTV) {
+                    if (_landscapeSidebarVisible.value) {
+                        _landscapeSidebarVisible.value = false
+                    } else {
+                        _landscapeSidebarVisible.value = true
+                    }
+                } else toggleMenuPanel()
             }
             "play" -> mpv.setPause(false)
             "pause" -> mpv.setPause(true)
