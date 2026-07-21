@@ -1455,98 +1455,55 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         }
         Log.i(TAG, "playChannel: ${channel.name} (${channel.url})")
 
-        // 关键修复：取消 onFileError 延迟换源任务，避免竞态条件。
-        // 场景：坏频道触发 onFileError → 1秒延迟中用户手动切台 →
-        // 如果不取消，nextChannel() 会把用户刚选的频道切走。
         fileErrorSwitchJob?.cancel()
         fileErrorSwitchJob = null
 
-        // 频道记忆：切换前自动保存当前频道的播放器设置（无需手动保存）
         if (userPrefs.isPerChannelPlayerSettings() && _currentIdx.value >= 0 && _currentIdx.value != idx) {
             autoSaveCurrentSettingsToChannel(_currentIdx.value)
         }
 
         _currentIdx.value = idx
-
-        // 重置 catchup/timeshift 状态（与 PC 端 _exit_catchup_mode 对齐）
         _playbackState.value = PlaybackState(mode = PlayMode.LIVE)
-
-        // 续播位置：记录当前播放 URL（用于自动保存）
         currentPlaybackUrl = channel.url
         currentPlaybackName = channel.name
         currentIsLocalFile = false
-        // 刷新当前 URL 的书签列表
         refreshCurrentBookmarks()
-
-        // FCC 快速换台：向 FCC 代理发送 leave/join 通知（组播场景加速切台）。
-        // 与 PC 端 PlaybackController.play_channel() → fcc.on_channel_change() 对齐。
         fccService.onChannelChange(channel.url)
 
-        // 播放：URL 原样传给 mpv。?fcc= 参数只是一个标记，指定 FCC 代理地址，
-        // mpv/ffmpeg 会忽略不认识的查询参数，rt2phttpd 代理则通过该参数处理 FCC。
         val playUrl = channel.url
 
-        // 关闭面板（横屏沉浸侧边栏模式下保持侧边栏打开，方便连续切台）
         if (!silent) {
             closeAllPanelsExceptSidebar()
         }
 
-        // 切换到播放器界面（竖屏模式下从首页切换到播放器）
         _showHome.value = false
 
-        // 防抖：快速连按上下键时，取消前一次延迟播放，只执行最后一次
-        // 立即更新 UI 状态（频道名/idx），延迟 150ms 才真正执行 mpv.playFile
-        // silent 模式（自动续播/换源）不需要防抖，立即播放
         playChannelDebounceJob?.cancel()
-        if (silent) {
+        playChannelDebounceJob = viewModelScope.launch {
             applyChannelSettingsIfNeeded(idx)
             loadPlaybackSettingsFromStore(playUrl)
+
             if (_showHome.value) {
                 _pendingSwitchPlayUrl.value = playUrl
                 _showHome.value = false
             } else {
                 mpv.playFile(playUrl)
             }
+
             startTimeoutSwitchSource(idx)
+
+            if (uiMode.value.isTV) {
+                showControlsAutoHide()
+            } else {
+                showOsd(channel.name, channel.group)
+            }
+
             userPrefs.addToHistory(idx)
             _history.value = userPrefs.getHistory()
             userPrefs.setLastChannelUrl(channel.url)
             fetchEpgForCurrent()
             prefetchAdjacentChannels(idx)
             captureChannelThumbnail()
-        } else {
-            val debounceIdx = idx
-            playChannelDebounceJob = viewModelScope.launch {
-                delay(150)
-                if (_currentIdx.value != debounceIdx) {
-                    Log.i(TAG, "playChannel debounce: idx changed from $debounceIdx to ${_currentIdx.value}, skipping stale playFile")
-                    return@launch
-                }
-                applyChannelSettingsIfNeeded(debounceIdx)
-                loadPlaybackSettingsFromStore(playUrl)
-
-                if (_showHome.value) {
-                    _pendingSwitchPlayUrl.value = playUrl
-                    _showHome.value = false
-                } else {
-                    mpv.playFile(playUrl)
-                }
-
-                startTimeoutSwitchSource(debounceIdx)
-
-                if (uiMode.value.isTV) {
-                    showControlsAutoHide()
-                } else {
-                    showOsd(channel.name, channel.group)
-                }
-
-                userPrefs.addToHistory(debounceIdx)
-                _history.value = userPrefs.getHistory()
-                userPrefs.setLastChannelUrl(channel.url)
-                fetchEpgForCurrent()
-                prefetchAdjacentChannels(debounceIdx)
-                captureChannelThumbnail()
-            }
         }
     }
 
