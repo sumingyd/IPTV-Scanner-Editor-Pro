@@ -152,6 +152,33 @@ class MainActivityCompose : ComponentActivity() {
      *
      * PHONE 模式下也处理部分按键（BACK、MENU），方便外接键盘测试。
      */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (viewModel.uiMode.value == UiMode.TV) {
+            val kc = event.keyCode
+            val isOk = kc == KeyEvent.KEYCODE_DPAD_CENTER || kc == KeyEvent.KEYCODE_ENTER
+            val isDpad = kc == KeyEvent.KEYCODE_DPAD_UP || kc == KeyEvent.KEYCODE_DPAD_DOWN ||
+                    kc == KeyEvent.KEYCODE_DPAD_LEFT || kc == KeyEvent.KEYCODE_DPAD_RIGHT
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (isOk) {
+                    if (viewModel.landscapeSidebarVisible.value) {
+                        viewModel.setLandscapeSidebarVisible(false)
+                        Log.i(TAG, "dispatchKeyEvent: DPAD_CENTER close sidebar")
+                        return true
+                    }
+                    if (!viewModel.anyPanelOpen) {
+                        viewModel.setLandscapeSidebarVisible(true)
+                        Log.i(TAG, "dispatchKeyEvent: DPAD_CENTER open sidebar")
+                        return true
+                    }
+                }
+                if (isDpad && !viewModel.anyPanelOpen) {
+                    return onKeyDown(kc, event)
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         // 初始化未完成时，按键交给系统处理
         val initState = viewModel.initState.value
@@ -217,6 +244,7 @@ class MainActivityCompose : ComponentActivity() {
             when {
                 isTv -> {
                     viewModel.setLandscapeSidebarVisible(!viewModel.landscapeSidebarVisible.value)
+                    Log.i(TAG, "MENU: toggle sidebar (visible=${viewModel.landscapeSidebarVisible.value})")
                 }
                 viewModel.menuPanelOpen.value -> {
                     viewModel.closeAllPanels()
@@ -306,6 +334,13 @@ class MainActivityCompose : ComponentActivity() {
                 keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
                 keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
                 keyCode == KeyEvent.KEYCODE_ENTER
+        // TV 侧边栏打开时，OK 键关闭侧边栏（不交给 Compose 焦点系统）
+        if (viewModel.uiMode.value == UiMode.TV && viewModel.landscapeSidebarVisible.value &&
+            (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+            viewModel.setLandscapeSidebarVisible(false)
+            Log.i(TAG, "DPAD_CENTER: close sidebar")
+            return true
+        }
         if (viewModel.anyPanelOpen && isDpadNavigation) {
             // 交给 Compose 焦点系统处理（在面板内导航/确认）
             return super.onKeyDown(keyCode, event)
@@ -337,6 +372,14 @@ class MainActivityCompose : ComponentActivity() {
             KeyEvent.KEYCODE_DPAD_DOWN -> {
                 viewModel.nextChannel()
                 return true
+            }
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                if (viewModel.uiMode.value == UiMode.TV) {
+                    viewModel.setLandscapeSidebarVisible(!viewModel.landscapeSidebarVisible.value)
+                    Log.i(TAG, "DPAD_CENTER: toggle sidebar")
+                    return true
+                }
+                return super.onKeyDown(keyCode, event)
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 // 左键：快退
@@ -434,12 +477,13 @@ class MainActivityCompose : ComponentActivity() {
      */
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
-            // 长按已处理（显示控制层），跳过短按逻辑
             if (okKeyLongPressed) {
                 okKeyLongPressed = false
                 return true
             }
-            // 面板打开时交给 Compose 焦点系统处理（确认操作）
+            if (viewModel.uiMode.value == UiMode.TV) {
+                return true
+            }
             if (viewModel.anyPanelOpen) {
                 return super.onKeyUp(keyCode, event)
             }
