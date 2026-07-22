@@ -1,5 +1,7 @@
 package com.iptv.scanner.editor.pro.mpv
 
+import android.os.Handler
+import android.os.HandlerThread
 import android.util.Log
 import `is`.xyz.mpv.MPVLib
 import com.iptv.scanner.editor.pro.data.UserPrefs
@@ -53,6 +55,7 @@ class MpvController : MPVLib.EventObserver, Player {
 
     @Volatile
     private var mpvView: MPVViewLike? = null
+
 
     /**
      * 黑屏 fallback 标志：vo=gpu 在部分 GPU（如 Mali-G76）上存在 EGL 兼容性问题导致黑屏。
@@ -430,7 +433,7 @@ class MpvController : MPVLib.EventObserver, Player {
         pendingLoadUrl = url
         postOnUiThread {
             if (pendingLoadUrl != url) {
-                Log.i(TAG, "playFile: skipped, superseded by newer request (pending=$pendingLoadUrl, this=$url)")
+                Log.i(TAG, "playFile: skipped, superseded (pending=$pendingLoadUrl, this=$url)")
                 return@postOnUiThread
             }
             if (needPreStop) {
@@ -445,7 +448,13 @@ class MpvController : MPVLib.EventObserver, Player {
             }
             setupProtocolOptions(url)
             _paused.value = false
-            mpvView?.playFile(url)
+            try {
+                Log.i(TAG, "playFile: loadfile $url (surface=${mpvView?.isSurfaceValid})")
+                MPVLib.command(arrayOf("loadfile", url))
+                MPVLib.setPropertyBoolean("pause", false)
+            } catch (e: Throwable) {
+                Log.w(TAG, "playFile: loadfile failed: ${e.message}")
+            }
         }
     }
 
@@ -1157,24 +1166,45 @@ class MpvController : MPVLib.EventObserver, Player {
                 _fileLoaded.value = true
                 _eofReached.value = false
                 loadingUrl = ""
-                // Surface 重建后重新 loadfile，恢复播放位置（本地文件/VOD）
-                // 直播流 pendingResumePos=-1.0 不 seek，从最新位置播放
-                mpvView?.let { v ->
-                    val pos = v.pendingResumePos
-                    if (pos > 0) {
-                        v.pendingResumePos = -1.0
-                        postOnUiThread {
-                            try {
-                                MPVLib.command(arrayOf("seek", pos.toString(), "absolute"))
-                            } catch (e: Throwable) {
-                                Log.w(TAG, "resume seek after surface rebuild failed: ${e.message}")
+                // 硬解降级：hwdec=auto 但 hwdec-current=no（硬解失败回退软解），
+                // 自动降级到 auto-copy（拷贝模式兼容性更好，避免 4K HEVC 软解卡顿）
+                var hwdecDowngraded = false
+                try {
+                    val hwdec = MPVLib.getPropertyString("hwdec") ?: ""
+                    val hwdecCurrent = MPVLib.getPropertyString("hwdec-current") ?: ""
+                    if ((hwdec == "auto" || hwdec == "auto-copy") && (hwdecCurrent == "no" || hwdecCurrent.isEmpty())) {
+                        val newHwdec = if (hwdec == "auto") "auto-copy" else "mediacodec-copy"
+                        Log.w(TAG, "hwdec=$hwdec failed (current=$hwdecCurrent), trying $newHwdec")
+                        MPVLib.setPropertyString("hwdec", newHwdec)
+                        _hwdecCache = newHwdec
+                        val path = MPVLib.getPropertyString("path") ?: ""
+                        if (path.isNotEmpty()) {
+                            MPVLib.command(arrayOf("loadfile", path))
+                            MPVLib.setPropertyBoolean("pause", false)
+                        }
+                        hwdecDowngraded = true
+                    } else if (hwdec == "mediacodec-copy" && (hwdecCurrent == "no" || hwdecCurrent.isEmpty() || hwdecCurrent == "none")) {
+                        Log.w(TAG, "hwdec=mediacodec-copy also failed, falling back to vo=mediacodec_embed")
+                        fallbackToMediacodecEmbed()
+                        hwdecDowngraded = true
+                    }
+                } catch (_: Throwable) {}
+                if (!hwdecDowngraded) {
+                    mpvView?.let { v ->
+                        val pos = v.pendingResumePos
+                        if (pos > 0) {
+                            v.pendingResumePos = -1.0
+                            postOnUiThread {
+                                try {
+                                    MPVLib.command(arrayOf("seek", pos.toString(), "absolute"))
+                                } catch (e: Throwable) {
+                                    Log.w(TAG, "resume seek after surface rebuild failed: ${e.message}")
+                                }
                             }
                         }
                     }
+                    scheduleBlackScreenCheck()
                 }
-                // 黑屏检测：文件加载后 6 秒检查 videoWidth，若解码器没工作则 fallback。
-                // 仅以 videoWidth==0 为准（不使用 estimated-vfps，避免 IPTV 流误判）。
-                scheduleBlackScreenCheck()
             }
             MPVLib.MpvEvent.MPV_EVENT_START_FILE -> {
                 _fileLoaded.value = false
