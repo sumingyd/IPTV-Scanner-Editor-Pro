@@ -175,7 +175,7 @@ import java.io.File
 @Composable
 fun MainPlayerScreen(viewModel: AppViewModel) {
     val uiMode by viewModel.uiMode.collectAsState()
-    val currentChannel by viewModel.currentChannel.collectAsState()
+
     val controlsVisible by viewModel.controlsVisible.collectAsState()
     val channelsPanelOpen by viewModel.channelsPanelOpen.collectAsState()
     val epgPanelOpen by viewModel.epgPanelOpen.collectAsState()
@@ -303,29 +303,9 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         16f / 9f  // 默认 16:9（未加载时）
     }
 
-    // 是否有任何面板或对话框打开（控制层在面板/对话框打开时自动隐藏）
-    // 使用 derivedStateOf 避免每次单个面板状态变化都触发重组
-    val anyPanelOpen by remember {
-        derivedStateOf {
-            channelsPanelOpen || epgPanelOpen || menuPanelOpen ||
-                    tvUnifiedPanelOpen || landscapeSidebarVisible ||
-                    sourceManagerOpen || playerSettingsOpen ||
-                    videoSettingsOpen || audioSettingsOpen || subtitleSettingsOpen || subtitleSearchOpen ||
-                    playbackPanelOpen || screenshotPanelOpen || viewSettingsOpen || aboutPanelOpen ||
-                    mappingPanelOpen || avSyncPanelOpen || networkPanelOpen || toolsPanelOpen || scanPanelOpen ||
-                    reminderPanelOpen || resumePanelOpen || bookmarkPanelOpen ||
-                    epgTimelineOpen || searchPanelOpen || streamQualityPanelOpen ||
-                    recentPanelOpen || clipExportPanelOpen || audioVisualizerOpen || lyricsOpen ||
-                    exitConfirmOpen || openUrlDialogOpen || updateDialogOpen ||
-                    channelInfoOpen
-        }
-    }
-    // 控制层是否应该显示
+    val anyPanelOpen by viewModel.anyPanelOpenFlow.collectAsState()
     val showControls = controlsVisible && !anyPanelOpen
 
-    // PHONE 竖屏分屏：竖屏 PHONE 模式且非多画面时生效
-    // 注意：不检查面板状态！面板作为叠加层显示在竖屏布局上方，
-    // 避免 portraitSplit 切换导致播放器视图重建（TextureView ↔ SurfaceView）引发崩溃。
     val anyFullScreenPanel by remember {
         derivedStateOf {
             menuPanelOpen || sourceManagerOpen || playerSettingsOpen ||
