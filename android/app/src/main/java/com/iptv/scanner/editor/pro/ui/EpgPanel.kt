@@ -84,7 +84,10 @@ import java.util.Locale
 @Composable
 fun EpgPanel(viewModel: AppViewModel, compact: Boolean = false) {
     val currentChannel by viewModel.currentChannel.collectAsState()
-    val epg by viewModel.currentEpg.collectAsState()
+    val epgTrimmed by viewModel.currentEpg.collectAsState()
+    val epg = remember(epgTrimmed, viewModel.epgCacheVersion.value) {
+        viewModel.getFullEpgForCurrent()
+    }
     val loading by viewModel.epgLoading.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
 
