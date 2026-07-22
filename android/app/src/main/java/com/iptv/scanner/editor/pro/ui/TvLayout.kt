@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,7 +46,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,6 +60,7 @@ import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import kotlinx.coroutines.delay
 
+
 private val TV_BOTTOM_BAR_HEIGHT = 80.dp
 
 @Composable
@@ -72,7 +73,7 @@ fun TvPlayerLayout(
     val sidebarVisible by viewModel.landscapeSidebarVisible.collectAsState()
     val controlsVisible by viewModel.controlsVisible.collectAsState()
     val controlsPinned by viewModel.controlsPinned.collectAsState()
-    val currentChannel by viewModel.currentChannel.collectAsState()
+    val displayInfo by viewModel.channelDisplayInfo.collectAsState()
     val paused by viewModel.mpv.paused.collectAsState()
     val fileLoaded by viewModel.mpv.fileLoaded.collectAsState()
     val videoWidth by viewModel.mpv.videoWidth.collectAsState()
@@ -80,25 +81,13 @@ fun TvPlayerLayout(
     val showExitCatchup by viewModel.showExitCatchup.collectAsState()
     val playbackState by viewModel.playbackState.collectAsState()
     val currentEpg by viewModel.currentEpg.collectAsState()
-    val currentIdx by viewModel.currentIdx.collectAsState()
-    val favorites by viewModel.favorites.collectAsState()
-    val multiViewState by viewModel.multiViewState.collectAsState()
 
     val currentProgram = remember(currentEpg) {
         ProgressHelper.findCurrentProgram(currentEpg, System.currentTimeMillis())
     }
 
     val showOverlays by derivedStateOf { sidebarVisible || controlsVisible || controlsPinned }
-    val focusManager = LocalFocusManager.current
 
-    LaunchedEffect(sidebarVisible) {
-        if (sidebarVisible) {
-            delay(200)
-            runCatching { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Right) }
-            delay(300)
-            runCatching { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Right) }
-        }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         primaryPlayer()
@@ -107,7 +96,10 @@ fun TvPlayerLayout(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clickable { viewModel.showControlsAutoHide() }
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { viewModel.showControlsAutoHide() }
             )
         }
 
@@ -144,7 +136,7 @@ fun TvPlayerLayout(
             ) {
                 TvBottomBar(
                     viewModel = viewModel,
-                    channel = currentChannel,
+                    displayInfo = displayInfo,
                     paused = paused,
                     fileLoaded = fileLoaded,
                     videoWidth = videoWidth,
@@ -161,7 +153,7 @@ fun TvPlayerLayout(
 @Composable
 private fun TvBottomBar(
     viewModel: AppViewModel,
-    channel: IptvChannel?,
+    displayInfo: ChannelDisplayInfo,
     paused: Boolean,
     fileLoaded: Boolean,
     videoWidth: Int,
@@ -199,8 +191,8 @@ private fun TvBottomBar(
                         modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x18FFFFFF)),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (channel != null && channel.logo.isNotEmpty()) {
-                            AsyncImage(model = channel.logo, contentDescription = channel.name, modifier = Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit)
+                        if (displayInfo.logo.isNotEmpty()) {
+                            AsyncImage(model = displayInfo.logo, contentDescription = displayInfo.name, modifier = Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit)
                         } else {
                             Icon(Icons.Default.PlayArrow, contentDescription = null, tint = oc.accent, modifier = Modifier.size(22.dp))
                         }
@@ -211,8 +203,8 @@ private fun TvBottomBar(
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = channel?.name?.ifEmpty { null } ?: "未选择频道",
-                                color = if (channel != null) oc.textPrimary else oc.textSecondary,
+                                text = displayInfo.name.ifEmpty { "未选择频道" },
+                                color = if (displayInfo.idx >= 0) oc.textPrimary else oc.textSecondary,
                                 fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis
                             )
@@ -253,10 +245,16 @@ private fun TvBottomBar(
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         val timePos by mpv.timePos.collectAsState()
                         val duration by mpv.duration.collectAsState()
-                        val progress = remember(tick, timePos, duration, channel, currentProgram) {
+                        val progress = remember(tick, timePos, duration, displayInfo, currentProgram) {
+                            val fakeChannel = if (displayInfo.idx >= 0) IptvChannel(
+                                name = displayInfo.name,
+                                url = if (displayInfo.isLocal) "file:///local" else "http://live",
+                                group = displayInfo.group,
+                                logo = displayInfo.logo
+                            ) else null
                             ProgressHelper.computeProgress(
                                 viewModel.playbackState.value,
-                                channel, currentProgram, timePos, duration
+                                fakeChannel, currentProgram, timePos, duration
                             )
                         }
                         Text(text = progress.startLabel, color = oc.textSecondary, fontSize = 11.sp, modifier = Modifier.width(48.dp))
