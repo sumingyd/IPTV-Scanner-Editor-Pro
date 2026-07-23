@@ -1,12 +1,16 @@
 package com.iptv.scanner.editor.pro.mpv
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.PixelFormat
 import android.util.AttributeSet
 import android.util.Log
+import android.view.PixelCopy
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import `is`.xyz.mpv.MPVLib
 import com.iptv.scanner.editor.pro.data.UserPrefs
 
@@ -301,11 +305,29 @@ class MPVView @JvmOverloads constructor(
         val videoFormat = try { MPVLib.getPropertyString("video-format") ?: "none" } catch (_: Throwable) { "error" }
         val width = try { MPVLib.getPropertyInt("width") ?: 0 } catch (_: Throwable) { -1 }
         val height = try { MPVLib.getPropertyInt("height") ?: 0 } catch (_: Throwable) { -1 }
-        val vfps = try { MPVLib.getPropertyDouble("estimated-vfps") ?: 0.0 } catch (_: Throwable) { -1.0 }
         val surfaceValid = holder.surface?.isValid ?: false
         return "vo=$vo, hwdec=$hwdec, hwdec-current=$hwdecCurrent, " +
-            "video-format=$videoFormat, ${width}x${height}, vfps=$vfps, " +
+            "video-format=$videoFormat, ${width}x${height}, " +
             "surfaceValid=$surfaceValid, voInUse=$voInUse"
+    }
+
+    override fun captureFrameSync(): Bitmap? {
+        if (width <= 0 || height <= 0) return null
+        val surface = holder.surface
+        if (surface == null || !surface.isValid) return null
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val latch = CountDownLatch(1)
+        var success = false
+        try {
+            PixelCopy.request(this, bitmap, { result ->
+                success = result == PixelCopy.SUCCESS
+                latch.countDown()
+            }, handler)
+        } catch (_: Throwable) {
+            return null
+        }
+        latch.await(300, TimeUnit.MILLISECONDS)
+        return if (success) bitmap else null
     }
 
     override fun playFile(path: String) {
