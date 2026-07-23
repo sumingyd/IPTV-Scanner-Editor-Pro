@@ -1,5 +1,6 @@
 package com.iptv.scanner.editor.pro.mpv
 
+import android.graphics.Bitmap
 import android.view.View
 
 /**
@@ -49,4 +50,7 @@ interface MPVViewLike {
 
     /** 返回 View 实例（用于 postDelayed 等 View 方法） */
     fun asView(): View
+
+    /** 同步截取当前视频帧（用于切台时保持最后一帧），调用者应在 IO 线程 */
+    fun captureFrameSync(): Bitmap?
 }
