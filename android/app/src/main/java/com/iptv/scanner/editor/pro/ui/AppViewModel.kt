@@ -95,6 +95,14 @@ import org.json.JSONObject
  * - CATCHUP/TIMESHIFT → LIVE（exitCatchup）
  * - 任意 → IDLE（stopPlay）
  */
+data class ChannelDisplayInfo(
+    val name: String = "",
+    val logo: String = "",
+    val group: String = "",
+    val idx: Int = -1,
+    val isLocal: Boolean = false
+)
+
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repository = IptvRepository.getInstance()
@@ -290,6 +298,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val currentChannel: StateFlow<IptvChannel?> = combine(_currentIdx, _channels) { idx, channels ->
         channels.getOrNull(idx)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val _channelDisplayInfo = MutableStateFlow(ChannelDisplayInfo())
+    val channelDisplayInfo: StateFlow<ChannelDisplayInfo> = _channelDisplayInfo.asStateFlow()
+
+    private val _switchingFrame = MutableStateFlow<android.graphics.Bitmap?>(null)
+    val switchingFrame: StateFlow<android.graphics.Bitmap?> = _switchingFrame.asStateFlow()
 
     // -----------------------------------------------------------------
     // 多画面状态（TV 端多画面功能）
@@ -598,6 +612,7 @@ data class LyricsLine(val time: Long, val text: String)
         }
     }
 
+
     /** 控制层持久模式（菜单 OSD 按钮触发，不自动隐藏，再次选中关闭） */
     private val _controlsPinned = MutableStateFlow(false)
     val controlsPinned: StateFlow<Boolean> = _controlsPinned.asStateFlow()
@@ -866,6 +881,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     private val _openUrlDialogOpen = MutableStateFlow(false)
     val openUrlDialogOpen: StateFlow<Boolean> = _openUrlDialogOpen.asStateFlow()
 
+
     // -----------------------------------------------------------------
     // 频道映射面板
     // -----------------------------------------------------------------
@@ -977,10 +993,9 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     private var resumeSaveJob: Job? = null
     /** 当前正在播放的 URL（用于自动保存） */
     private var currentPlaybackUrl: String = ""
-    /** 当前播放名（频道名/文件名） */
     private var currentPlaybackName: String = ""
-    /** 是否为本地视频（决定 chIdx 是否为 -1） */
     private var currentIsLocalFile: Boolean = false
+
     /** 跳过下次自动恢复（队列/书签切换时设置） */
     private var skipNextResumeFlag: Boolean = false
 
@@ -1128,6 +1143,18 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     /** 当前高亮的歌词行索引 */
     private val _currentLyricLine = MutableStateFlow(-1)
     val currentLyricLine: StateFlow<Int> = _currentLyricLine.asStateFlow()
+
+    val anyPanelOpenFlow: StateFlow<Boolean> = combine(
+        _channelsPanelOpen, _epgPanelOpen, _menuPanelOpen, _tvUnifiedPanelOpen,
+        _fileBrowserOpen, _sourceManagerOpen, _playerSettingsOpen, _videoSettingsOpen,
+        _audioSettingsOpen, _subtitleSettingsOpen, _subtitleSearchOpen, _playbackPanelOpen,
+        _screenshotPanelOpen, _viewSettingsOpen, _aboutPanelOpen, _mappingPanelOpen,
+        _avSyncPanelOpen, _networkPanelOpen, _toolsPanelOpen, _scanPanelOpen,
+        _reminderPanelOpen, _resumePanelOpen, _bookmarkPanelOpen, _epgTimelineOpen,
+        _searchPanelOpen, _streamQualityPanelOpen, _recentPanelOpen, _clipExportPanelOpen,
+        _audioVisualizerOpen, _lyricsOpen, _exitConfirmOpen, _channelInfoOpen,
+        _openUrlDialogOpen, _updateDialogOpen, _landscapeSidebarVisible
+    ) { arr -> arr.any { it } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /** PiP 回调（Activity 注入，ViewModel 不能直接调用 Activity 方法）
      *  使用 WeakReference 防止 Configuration Change 后旧 Activity 泄漏 */
@@ -1448,62 +1475,69 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
      */
     private var playChannelDebounceJob: Job? = null
 
+    private var uiUpdateJob: kotlinx.coroutines.Job? = null
+
     fun playChannel(idx: Int, silent: Boolean = false) {
-        val channel = _channels.value.getOrNull(idx) ?: run {
-            Log.w(TAG, "playChannel: invalid idx $idx")
+        val channel = _channels.value.getOrNull(idx) ?: return
+        if (currentPlaybackUrl == channel.url && mpv.fileLoaded.value && _currentIdx.value == idx) {
+            Log.i(TAG, "playChannel: skipped, same URL already playing")
             return
         }
         Log.i(TAG, "playChannel: ${channel.name} (${channel.url})")
 
-        fileErrorSwitchJob?.cancel()
-        fileErrorSwitchJob = null
-
-        if (userPrefs.isPerChannelPlayerSettings() && _currentIdx.value >= 0 && _currentIdx.value != idx) {
-            autoSaveCurrentSettingsToChannel(_currentIdx.value)
-        }
-
+        _channelDisplayInfo.value = ChannelDisplayInfo(
+            name = channel.name, logo = channel.logo, group = channel.group, idx = idx,
+            isLocal = channel.source.isEmpty() || ProgressHelper.isLocalFile(channel.url)
+        )
         _currentIdx.value = idx
         _playbackState.value = PlaybackState(mode = PlayMode.LIVE)
+        _showHome.value = false
         currentPlaybackUrl = channel.url
         currentPlaybackName = channel.name
         currentIsLocalFile = false
-        refreshCurrentBookmarks()
+
+
         fccService.onChannelChange(channel.url)
 
-        val playUrl = channel.url
+        fileErrorSwitchJob?.cancel()
+        fileErrorSwitchJob = null
 
-        if (!silent) {
-            closeAllPanelsExceptSidebar()
-        }
+        uiUpdateJob?.cancel()
+        uiUpdateJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val frame = mpvSingleton.captureFrameSync()
+            if (frame != null) {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    _switchingFrame.value = frame
+                }
+            }
 
-        _showHome.value = false
+            mpv.playFile(channel.url)
 
-        playChannelDebounceJob?.cancel()
-        playChannelDebounceJob = viewModelScope.launch {
+            if (!silent && !_landscapeSidebarVisible.value) {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    closeAllPanelsExceptSidebar()
+                }
+            }
+            if (!silent) {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (uiMode.value.isTV) showControlsAutoHide() else showOsd(channel.name, channel.group)
+                }
+            }
+
+            if (userPrefs.isPerChannelPlayerSettings() && _currentIdx.value >= 0 && _currentIdx.value != idx) {
+                autoSaveCurrentSettingsToChannel(_currentIdx.value)
+            }
+            refreshCurrentBookmarks()
+
             applyChannelSettingsIfNeeded(idx)
-            loadPlaybackSettingsFromStore(playUrl)
-
-            if (_showHome.value) {
-                _pendingSwitchPlayUrl.value = playUrl
-                _showHome.value = false
-            } else {
-                mpv.playFile(playUrl)
-            }
-
+            loadPlaybackSettingsFromStore(channel.url)
             startTimeoutSwitchSource(idx)
-
-            if (uiMode.value.isTV) {
-                showControlsAutoHide()
-            } else {
-                showOsd(channel.name, channel.group)
-            }
-
             userPrefs.addToHistory(idx)
             _history.value = userPrefs.getHistory()
             userPrefs.setLastChannelUrl(channel.url)
             fetchEpgForCurrent()
             prefetchAdjacentChannels(idx)
-            captureChannelThumbnail()
+            if (uiMode.value != UiMode.TV) captureChannelThumbnail()
         }
     }
 
@@ -2302,42 +2336,51 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     fun prevChannel() {
         val cur = _currentIdx.value
         if (cur < 0) return
-        // shuffle 模式：从撤销栈弹出上一个随机播放的频道
         if (_shuffleMode.value && shuffleBackStack.isNotEmpty()) {
-            // 当前频道压回历史栈（让 nextChannel 能回到它）
             cur.let { shuffleHistory.add(it) }
             val prev = shuffleBackStack.removeAt(shuffleBackStack.lastIndex)
-            playChannel(prev)
+            playChannelDebounced(prev)
             return
         }
         val channels = _channels.value
         if (channels.isEmpty()) return
-        // 边界保护：只有 1 个频道时不循环
         if (channels.size <= 1) return
         val next = if (cur > 0) cur - 1 else channels.lastIndex
-        if (next >= 0 && next < channels.size) playChannel(next)
+        if (next >= 0 && next < channels.size) playChannelDebounced(next)
     }
 
-    /** 下一频道 */
     fun nextChannel() {
         val cur = _currentIdx.value
         if (cur < 0) return
-        // shuffle 模式：随机选择（避免短期重复）
         if (_shuffleMode.value) {
             val next = pickRandomChannelIdx(cur)
             if (next >= 0 && next != cur) {
-                // 当前频道压入撤销栈，便于 prevChannel 回退
                 shuffleBackStack.add(cur)
-                // 清理过长的撤销栈（与历史栈上限一致）
                 if (shuffleBackStack.size > shuffleHistoryMax) {
                     shuffleBackStack.removeAt(0)
                 }
             }
-            if (next in _channels.value.indices) playChannel(next)
+            if (next in _channels.value.indices) playChannelDebounced(next)
             return
         }
         val next = if (cur < _channels.value.lastIndex) cur + 1 else 0
-        if (next in _channels.value.indices) playChannel(next)
+        if (next in _channels.value.indices) playChannelDebounced(next)
+    }
+
+    private fun playChannelDebounced(idx: Int) {
+        val channel = _channels.value.getOrNull(idx) ?: return
+        _currentIdx.value = idx
+        _channelDisplayInfo.value = ChannelDisplayInfo(
+            name = channel.name, logo = channel.logo, group = channel.group, idx = idx,
+            isLocal = channel.source.isEmpty() || ProgressHelper.isLocalFile(channel.url)
+        )
+        fccService.onChannelChange(channel.url)
+        playChannelDebounceJob?.cancel()
+        playChannelDebounceJob = viewModelScope.launch {
+            delay(250)
+            playChannel(idx, silent = true)
+            if (uiMode.value.isTV) showControlsAutoHide() else showOsd(channel.name, channel.group)
+        }
     }
 
     /**
@@ -2823,6 +2866,49 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     // EPG
     // -----------------------------------------------------------------
 
+    private var thumbnailJob: Job? = null
+
+    /**
+     * 裁剪 EPG 数据：只保留当前时间附近的节目，避免 898 条数据触发大量 Compose 重组。
+     * 保留范围：过去 2 小时 + 未来 12 小时。如果裁剪后为空则保留原始数据（兜底）。
+     */
+    private fun trimEpgNearNow(programs: List<IptvEpgProgram>): List<IptvEpgProgram> {
+        if (programs.size <= 30) return programs
+        val now = System.currentTimeMillis()
+        val pastMs = 2 * 3600_000L
+        val futureMs = 12 * 3600_000L
+        val hasTimestamps = programs.any { it.startTs > 0 || it.stopTs > 0 }
+        val firstWithTs = programs.firstOrNull { it.startTs > 0 }
+        val tsScale = if (firstWithTs != null && firstWithTs.startTs > 1_000_000_000_000L) 1L else 1000L
+        val trimmed = if (hasTimestamps) {
+            programs.filter { p ->
+                val start = if (p.startTs > 0) p.startTs * tsScale else 0L
+                val stop = if (p.stopTs > 0) p.stopTs * tsScale else Long.MAX_VALUE
+                stop > now - pastMs && start < now + futureMs
+            }
+        } else {
+            val centerIdx = programs.indexOfFirst { p ->
+                p.start.isNotEmpty() && p.stop.isNotEmpty()
+            }.coerceAtLeast(0)
+            val from = (centerIdx - 5).coerceAtLeast(0)
+            val to = (centerIdx + 25).coerceAtMost(programs.size)
+            programs.subList(from, to)
+        }
+        var result = if (trimmed.isNotEmpty()) trimmed else programs
+        if (result.size > 50 && hasTimestamps) {
+            val currentIdx = result.indexOfFirst { p ->
+                val s = if (p.startTs > 0) p.startTs * tsScale else 0L
+                val e = if (p.stopTs > 0) p.stopTs * tsScale else Long.MAX_VALUE
+                s <= now && e > now
+            }.coerceAtLeast(0)
+            val from = (currentIdx - 5).coerceAtLeast(0)
+            val to = (currentIdx + 45).coerceAtMost(result.size)
+            result = result.subList(from, to)
+        }
+        Log.d(TAG, "trimEpgNearNow: ${programs.size} -> ${result.size}")
+        return result
+    }
+
     /**
      * 预取当前频道的 EPG（与 PC 端 fetchEpgForCurrent 对齐）。
      * 切换频道时自动调用，避免用户必须先打开 EPG 面板才能看到节目信息。
@@ -2835,16 +2921,19 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         }
         val channel = _channels.value.getOrNull(idx) ?: return
 
-        // 优先用缓存
+        // 优先用缓存（裁剪后给UI，缓存保留完整数据供EPG面板展开用）
         epgCache[idx]?.let { cached ->
-            _currentEpg.value = cached
+            _currentEpg.value = trimEpgNearNow(cached)
             return
         }
 
         _epgLoading.value = true
+        val baseName = channel.name
+            .removeSuffix("-4K").removeSuffix("-HDR").removeSuffix("-8K")
+            .removeSuffix(" 4K").removeSuffix(" HDR").removeSuffix(" 8K")
         viewModelScope.launch {
             val result = repository.getEpg(
-                channelName = channel.name,
+                channelName = baseName,
                 tvgId = channel.tvgId,
                 tvgName = channel.tvgName,
                 commaName = channel.name
@@ -2862,12 +2951,12 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                         val retryPrograms = retry.getOrNull()?.programmes ?: emptyList()
                         epgCache[idx] = retryPrograms
                         _epgCacheVersion.value++
-                        _currentEpg.value = retryPrograms
+                        _currentEpg.value = trimEpgNearNow(retryPrograms)
                         Log.i(TAG, "fetchEpgForCurrent (retry): ${retryPrograms.size} programs for ${channel.name}")
                     } else {
                         epgCache[idx] = programs
                         _epgCacheVersion.value++
-                        _currentEpg.value = programs
+                        _currentEpg.value = trimEpgNearNow(programs)
                         Log.i(TAG, "fetchEpgForCurrent: ${programs.size} programs for ${channel.name}")
                     }
                 },
@@ -2882,7 +2971,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                         val retryPrograms = retry.getOrNull()?.programmes ?: emptyList()
                         epgCache[idx] = retryPrograms
                         _epgCacheVersion.value++
-                        _currentEpg.value = retryPrograms
+                        _currentEpg.value = trimEpgNearNow(retryPrograms)
                         Log.i(TAG, "fetchEpgForCurrent (retry after fail): ${retryPrograms.size} programs for ${channel.name}")
                     } catch (e2: Exception) {
                         _currentEpg.value = emptyList()
@@ -2898,6 +2987,13 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         return ProgressHelper.findCurrentProgram(_currentEpg.value, System.currentTimeMillis())
     }
 
+    /** EPG 面板展开时获取完整（未裁剪）的 EPG 数据 */
+    fun getFullEpgForCurrent(): List<IptvEpgProgram> {
+        val idx = _currentIdx.value
+        if (idx < 0) return emptyList()
+        return epgCache[idx] ?: _currentEpg.value
+    }
+
     /**
      * 获取指定频道的 EPG（用于 TV 统一面板焦点频道节目单显示）。
      * 复用 epgCache 避免重复加载。与 fetchEpgForCurrent 逻辑一致但写入 _focusedEpg。
@@ -2907,15 +3003,18 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             _focusedEpg.value = emptyList()
             return
         }
-        // 优先用缓存
+        // 优先用缓存（裁剪后给UI）
         epgCache[idx]?.let { cached ->
-            _focusedEpg.value = cached
+            _focusedEpg.value = trimEpgNearNow(cached)
             return
         }
         _focusedEpgLoading.value = true
+        val baseName = channel.name
+            .removeSuffix("-4K").removeSuffix("-HDR").removeSuffix("-8K")
+            .removeSuffix(" 4K").removeSuffix(" HDR").removeSuffix(" 8K")
         viewModelScope.launch {
             val result = repository.getEpg(
-                channelName = channel.name,
+                channelName = baseName,
                 tvgId = channel.tvgId,
                 tvgName = channel.tvgName,
                 commaName = channel.name
@@ -2925,7 +3024,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                     val programs = epgList.programmes
                     epgCache[idx] = programs
                     _epgCacheVersion.value++
-                    _focusedEpg.value = programs
+                    _focusedEpg.value = trimEpgNearNow(programs)
                     Log.i(TAG, "fetchEpgForChannel: ${programs.size} programs for ${channel.name}")
                 },
                 onFailure = { e ->
@@ -3110,39 +3209,41 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     }
 
     fun closeAllPanelsExceptSidebar() {
-        _channelsPanelOpen.value = false
-        _epgPanelOpen.value = false
-        _menuPanelOpen.value = false
-        _tvUnifiedPanelOpen.value = false
-        _fileBrowserOpen.value = false
-        _sourceManagerOpen.value = false
-        _playerSettingsOpen.value = false
-        _videoSettingsOpen.value = false
-        _audioSettingsOpen.value = false
-        _subtitleSettingsOpen.value = false
-        _subtitleSearchOpen.value = false
-        _playbackPanelOpen.value = false
-        _screenshotPanelOpen.value = false
-        _viewSettingsOpen.value = false
-        _aboutPanelOpen.value = false
-        _updateDialogOpen.value = false
-        _exitConfirmOpen.value = false
-        _openUrlDialogOpen.value = false
-        _mappingPanelOpen.value = false
-        _avSyncPanelOpen.value = false
-        _networkPanelOpen.value = false
-        _toolsPanelOpen.value = false
-        _scanPanelOpen.value = false
-        _reminderPanelOpen.value = false
-        _resumePanelOpen.value = false
-        _bookmarkPanelOpen.value = false
-        _epgTimelineOpen.value = false
-        _searchPanelOpen.value = false
-        _streamQualityPanelOpen.value = false
-        _recentPanelOpen.value = false
-        _clipExportPanelOpen.value = false
-        _audioVisualizerOpen.value = false
-        _lyricsOpen.value = false
+        androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+            _channelsPanelOpen.value = false
+            _epgPanelOpen.value = false
+            _menuPanelOpen.value = false
+            _tvUnifiedPanelOpen.value = false
+            _fileBrowserOpen.value = false
+            _sourceManagerOpen.value = false
+            _playerSettingsOpen.value = false
+            _videoSettingsOpen.value = false
+            _audioSettingsOpen.value = false
+            _subtitleSettingsOpen.value = false
+            _subtitleSearchOpen.value = false
+            _playbackPanelOpen.value = false
+            _screenshotPanelOpen.value = false
+            _viewSettingsOpen.value = false
+            _aboutPanelOpen.value = false
+            _updateDialogOpen.value = false
+            _exitConfirmOpen.value = false
+            _openUrlDialogOpen.value = false
+            _mappingPanelOpen.value = false
+            _avSyncPanelOpen.value = false
+            _networkPanelOpen.value = false
+            _toolsPanelOpen.value = false
+            _scanPanelOpen.value = false
+            _reminderPanelOpen.value = false
+            _resumePanelOpen.value = false
+            _bookmarkPanelOpen.value = false
+            _epgTimelineOpen.value = false
+            _searchPanelOpen.value = false
+            _streamQualityPanelOpen.value = false
+            _recentPanelOpen.value = false
+            _clipExportPanelOpen.value = false
+            _audioVisualizerOpen.value = false
+            _lyricsOpen.value = false
+        }
         stopScanPolling()
         stopAvSyncSampling()
         stopSubSync()
@@ -3152,40 +3253,42 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     }
 
     fun closeAllPanels() {
-        _channelsPanelOpen.value = false
-        _epgPanelOpen.value = false
-        _menuPanelOpen.value = false
-        _tvUnifiedPanelOpen.value = false
-        _fileBrowserOpen.value = false
-        _sourceManagerOpen.value = false
-        _playerSettingsOpen.value = false
-        _videoSettingsOpen.value = false
-        _audioSettingsOpen.value = false
-        _subtitleSettingsOpen.value = false
-        _landscapeSidebarVisible.value = false
-        _subtitleSearchOpen.value = false
-        _playbackPanelOpen.value = false
-        _screenshotPanelOpen.value = false
-        _viewSettingsOpen.value = false
-        _aboutPanelOpen.value = false
-        _updateDialogOpen.value = false
-        _exitConfirmOpen.value = false
-        _openUrlDialogOpen.value = false
-        _mappingPanelOpen.value = false
-        _avSyncPanelOpen.value = false
-        _networkPanelOpen.value = false
-        _toolsPanelOpen.value = false
-        _scanPanelOpen.value = false
-        _reminderPanelOpen.value = false
-        _resumePanelOpen.value = false
-        _bookmarkPanelOpen.value = false
-        _epgTimelineOpen.value = false
-        _searchPanelOpen.value = false
-        _streamQualityPanelOpen.value = false
-        _recentPanelOpen.value = false
-        _clipExportPanelOpen.value = false
-        _audioVisualizerOpen.value = false
-        _lyricsOpen.value = false
+        androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+            _channelsPanelOpen.value = false
+            _epgPanelOpen.value = false
+            _menuPanelOpen.value = false
+            _tvUnifiedPanelOpen.value = false
+            _fileBrowserOpen.value = false
+            _sourceManagerOpen.value = false
+            _playerSettingsOpen.value = false
+            _videoSettingsOpen.value = false
+            _audioSettingsOpen.value = false
+            _subtitleSettingsOpen.value = false
+            _landscapeSidebarVisible.value = false
+            _subtitleSearchOpen.value = false
+            _playbackPanelOpen.value = false
+            _screenshotPanelOpen.value = false
+            _viewSettingsOpen.value = false
+            _aboutPanelOpen.value = false
+            _updateDialogOpen.value = false
+            _exitConfirmOpen.value = false
+            _openUrlDialogOpen.value = false
+            _mappingPanelOpen.value = false
+            _avSyncPanelOpen.value = false
+            _networkPanelOpen.value = false
+            _toolsPanelOpen.value = false
+            _scanPanelOpen.value = false
+            _reminderPanelOpen.value = false
+            _resumePanelOpen.value = false
+            _bookmarkPanelOpen.value = false
+            _epgTimelineOpen.value = false
+            _searchPanelOpen.value = false
+            _streamQualityPanelOpen.value = false
+            _recentPanelOpen.value = false
+            _clipExportPanelOpen.value = false
+            _audioVisualizerOpen.value = false
+            _lyricsOpen.value = false
+        }
         stopScanPolling()
         // 关闭 A/V 同步采样
         stopAvSyncSampling()
@@ -3199,7 +3302,8 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
      * 用于 TV 端 DPAD 路由：面板打开时方向键交给 Compose 焦点系统在面板内导航。
      */
     val anyPanelOpen: Boolean
-        get() = _channelsPanelOpen.value || _epgPanelOpen.value ||
+        get() = _landscapeSidebarVisible.value ||
+                _channelsPanelOpen.value || _epgPanelOpen.value ||
                 _menuPanelOpen.value || _tvUnifiedPanelOpen.value || _fileBrowserOpen.value ||
                 _sourceManagerOpen.value ||
                 _playerSettingsOpen.value ||
@@ -5459,6 +5563,11 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
 
     /** 从外部 URI 导入播放列表 */
     fun openPlaylistFromUri(uri: String, name: String) {
+        if (uri.startsWith("content://") || uri.startsWith("file://")) {
+            val parsed = android.net.Uri.parse(uri)
+            importPlaylist(parsed)
+            return
+        }
         viewModelScope.launch {
             showOsd("打开播放列表", name)
             try {
@@ -5527,6 +5636,12 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         val mode = _hdrMode.value
         val mpv = this.mpv
         if (!mpv.fileLoaded.value) return
+
+        val currentVo = try { mpv.getPropertyString("vo") ?: "" } catch (_: Throwable) { "" }
+        if (currentVo == "mediacodec_embed") {
+            Log.i(TAG, "HDR 配置：跳过，vo=mediacodec_embed 不支持 GPU 色调映射属性")
+            return
+        }
 
         try {
             // disable 模式：直接重置 SDR 参数
@@ -5760,7 +5875,11 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     fun playLocalVideo(uri: String) {
         Log.i(TAG, "playLocalVideo: $uri")
         viewModelScope.launch {
-            _currentIdx.value = -1  // 清除当前频道选择（本地文件不在频道列表中）
+            _currentIdx.value = -1
+            _channelDisplayInfo.value = ChannelDisplayInfo(
+                name = uri.substringAfterLast('/').substringAfterLast('%'),
+                idx = -1, isLocal = true
+            )
             _playbackState.value = PlaybackState(mode = PlayMode.LIVE)
             currentIsLocalFile = true
 
@@ -5831,6 +5950,9 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                             val newIdx = _channels.value.indexOfLast { it.url == playPath }
                             if (newIdx >= 0) {
                                 _currentIdx.value = newIdx
+                                _channelDisplayInfo.value = ChannelDisplayInfo(
+                                    name = fileName, group = "本地视频", idx = newIdx, isLocal = true
+                                )
                                 currentIsLocalFile = false
                                 userPrefs.addToHistory(newIdx)
                                 _history.value = userPrefs.getHistory()
@@ -5840,10 +5962,13 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                             Log.w(TAG, "playLocalVideo: addChannel failed: ${e.message}")
                         }
                     } else {
-                        // 已存在：添加到历史
                         userPrefs.addToHistory(existingIdx)
                         _history.value = userPrefs.getHistory()
                         _currentIdx.value = existingIdx
+                        _channelDisplayInfo.value = ChannelDisplayInfo(
+                            name = _channels.value.getOrNull(existingIdx)?.name ?: "",
+                            group = "本地视频", idx = existingIdx, isLocal = true
+                        )
                         currentIsLocalFile = false
                         Log.i(TAG, "playLocalVideo: existing channel idx=$existingIdx")
                     }
@@ -5869,6 +5994,10 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             return
         }
         Log.i(TAG, "playUrl: $url")
+        _channelDisplayInfo.value = ChannelDisplayInfo(
+            name = url.substringAfterLast('/').takeIf { it.isNotEmpty() } ?: url,
+            idx = -1, isLocal = true
+        )
         // 添加到本地频道列表（如果尚未存在）
         viewModelScope.launch {
             val existing = _channels.value.find { it.url == url }
@@ -6120,7 +6249,7 @@ fun loadThumbnailPaths() {
     }
 }
 
-/** 播放时自动截取缩略图（延迟几秒让画面加载） */
+/** 播放时自动截取缩略图（延迟几秒让画面加载，切台时自动取消上一个截图任务） */
 fun captureChannelThumbnail() {
     val idx = _currentIdx.value
     if (idx < 0) return
@@ -6128,8 +6257,9 @@ fun captureChannelThumbnail() {
     val url = channel.url
     if (url.isEmpty()) return
 
-    viewModelScope.launch {
-        delay(3000)  // 等 3 秒让画面加载
+    thumbnailJob?.cancel()
+    thumbnailJob = viewModelScope.launch {
+        delay(3000)
         if (!mpv.fileLoaded.value) return@launch
         try {
             val app = getApplication<Application>()
@@ -6836,9 +6966,9 @@ showOsd("播放器设置", "日志等级: $levelName")
             launch {
                 mpv.fileLoaded.collect { loaded ->
                     if (loaded) {
-                        // 频道成功加载，重置连续超时计数器
+                        _switchingFrame.value = null
                         consecutiveTimeoutCount = 0
-                        delay(1500)  // 等 mpv 属性（fps/codec/hdr）稳定
+                        delay(1500)
                         try { reportPlayerStatus() } catch (e: Exception) {}
                     }
                 }
