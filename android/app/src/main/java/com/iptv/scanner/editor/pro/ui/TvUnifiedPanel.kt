@@ -151,6 +151,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     var unifiedMode by remember { mutableStateOf(UnifiedMode.CHANNELS) }
     var selectedProgram by remember { mutableStateOf<IptvEpgProgram?>(null) }
 
+
     // 焦点频道索引（频道列表中当前聚焦的频道，用于 EPG 跟随显示）
     var focusedChannelIdx by remember { mutableStateOf(currentIdx) }
     val focusedChannel = remember(focusedChannelIdx, channels) {
@@ -159,6 +160,18 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
 
     // 焦点管理：初始焦点在第三列（频道列表）
     val sidebarVisible by viewModel.landscapeSidebarVisible.collectAsState()
+
+    // EPG 列延迟加载：侧边栏打开 300ms 后才显示 EPG 列和描述列，减少首次渲染开销
+    var epgColumnsReady by remember { mutableStateOf(false) }
+    LaunchedEffect(sidebarVisible) {
+        if (sidebarVisible) {
+            epgColumnsReady = false
+            kotlinx.coroutines.delay(300)
+            epgColumnsReady = true
+        } else {
+            epgColumnsReady = false
+        }
+    }
 
     val channelListFocus = remember { FocusRequester() }
     LaunchedEffect(sidebarVisible) {
@@ -294,7 +307,7 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                     // -----------------------------------------------------------------
                     // 第四列：节目单（仅有焦点频道时显示）
                     // -----------------------------------------------------------------
-                    if (showEpg && focusedChannel != null) {
+                    if (showEpg && focusedChannel != null && epgColumnsReady) {
                         EpgListColumn(
                             channel = focusedChannel,
                             epg = focusedEpg,
@@ -321,7 +334,7 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                     // -----------------------------------------------------------------
                     // 第五列：节目描述（仅有焦点频道时显示）
                     // -----------------------------------------------------------------
-                    if (showEpg && focusedChannel != null) {
+                    if (showEpg && focusedChannel != null && epgColumnsReady) {
                         EpgDescColumn(
                             epg = focusedEpg,
                             selectedProgram = selectedProgram,
@@ -1075,7 +1088,7 @@ private fun EpgListColumn(
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(1_000L)
+            kotlinx.coroutines.delay(5_000L)
             now = System.currentTimeMillis()
         }
     }
@@ -1303,7 +1316,7 @@ private fun EpgDescColumn(
                 var now by remember { mutableStateOf(System.currentTimeMillis()) }
                 LaunchedEffect(Unit) {
                     while (true) {
-                        kotlinx.coroutines.delay(1_000L)
+                        kotlinx.coroutines.delay(5_000L)
                         now = System.currentTimeMillis()
                     }
                 }
