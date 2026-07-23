@@ -373,14 +373,7 @@ class MainActivityCompose : ComponentActivity() {
                 viewModel.nextChannel()
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                if (viewModel.uiMode.value == UiMode.TV) {
-                    viewModel.setLandscapeSidebarVisible(!viewModel.landscapeSidebarVisible.value)
-                    Log.i(TAG, "DPAD_CENTER: toggle sidebar")
-                    return true
-                }
-                return super.onKeyDown(keyCode, event)
-            }
+
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 // 左键：快退
                 // - 回看/本地视频：直接 seek
