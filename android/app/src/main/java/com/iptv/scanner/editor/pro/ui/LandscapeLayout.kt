@@ -10,6 +10,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -68,6 +69,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -140,9 +142,19 @@ fun LandscapePlayerLayout(
     val showOverlays by derivedStateOf { sidebarVisible || controlsVisible }
     val isIdle = playbackState.mode == PlayMode.IDLE
     val showBottomBar = showOverlays && !isIdle
+    val switchingFrame by viewModel.switchingFrame.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         primaryPlayer()
+
+        if (switchingFrame != null) {
+            Image(
+                bitmap = switchingFrame!!.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
 
         LandscapeGestureOverlay(
             viewModel = viewModel,
