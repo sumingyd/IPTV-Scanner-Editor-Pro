@@ -447,7 +447,6 @@ class MpvController : MPVLib.EventObserver, Player {
                 needPreStop = false
             }
             setupProtocolOptions(url)
-            _paused.value = false
             try {
                 Log.i(TAG, "playFile: loadfile $url (surface=${mpvView?.isSurfaceValid})")
                 MPVLib.command(arrayOf("loadfile", url))
@@ -470,6 +469,10 @@ class MpvController : MPVLib.EventObserver, Player {
             Log.w(TAG, "getPath failed: ${e.message}")
             ""
         }
+    }
+
+    fun captureFrameSync(): android.graphics.Bitmap? {
+        return mpvView?.captureFrameSync()
     }
 
     override fun stop() = postOnUiThread {
@@ -1022,7 +1025,7 @@ class MpvController : MPVLib.EventObserver, Player {
                 "audioCodec" to safeGet("audio-codec-name"),
                 "videoRes" to "${_videoWidth.value}x${_videoHeight.value}",
                 "fps" to safeGet("container-fps"),
-                "displayFps" to safeGet("display-fps"),
+                "displayFps" to safeGetDouble("display-fps"),
                 "bitrate" to safeGet("video-bitrate"),
                 "audioBitrate" to safeGet("audio-bitrate"),
                 "cacheDuration" to safeGet("demuxer-cache-duration"),
@@ -1040,8 +1043,20 @@ class MpvController : MPVLib.EventObserver, Player {
         }
     }
 
-    private fun safeGet(name: String): String? =
-        try { MPVLib.getPropertyString(name) } catch (_: Throwable) { null }
+    private val unavailableProperties = mutableSetOf<String>()
+
+    private fun safeGet(name: String): String? {
+        if (name in unavailableProperties) return null
+        return try { MPVLib.getPropertyString(name) } catch (_: Throwable) { unavailableProperties.add(name); null }
+    }
+
+    private fun safeGetDouble(name: String): String? {
+        if (name in unavailableProperties) return null
+        return try {
+            val v = MPVLib.getPropertyDouble(name)
+            if (v != null && v > 0) String.format("%.1f", v) else null
+        } catch (_: Throwable) { unavailableProperties.add(name); null }
+    }
 
     // -----------------------------------------------------------------
     // HDR 重建协调（保存/恢复进度）
@@ -1210,6 +1225,7 @@ class MpvController : MPVLib.EventObserver, Player {
                 _fileLoaded.value = false
                 _eofReached.value = false
                 loadingUrl = pendingLoadUrl
+                unavailableProperties.clear()
                 Log.i(TAG, "MPV_EVENT_START_FILE: loadingUrl=$loadingUrl")
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
@@ -1292,11 +1308,8 @@ class MpvController : MPVLib.EventObserver, Player {
         // 注意：不使用 estimated-vfps，因为 IPTV 直播流（通过 rt2phttpd HTTP 代理）的
         // estimated-vfps 可能长时间为 0，即使视频正常渲染，会导致误判 fallback。
         val videoWidth = _videoWidth.value
-        val estimatedVfps = try {
-            MPVLib.getPropertyDouble("estimated-vfps") ?: 0.0
-        } catch (_: Throwable) { 0.0 }
 
-        Log.d(TAG, "blackScreenCheck: vo=$currentVo, videoWidth=$videoWidth, vfps=$estimatedVfps, attempt=${blackScreenRetryCount + 1}, fboDowngraded=$fboFormatDowngraded")
+        Log.d(TAG, "blackScreenCheck: vo=$currentVo, videoWidth=$videoWidth, attempt=${blackScreenRetryCount + 1}, fboDowngraded=$fboFormatDowngraded")
 
         // 黑屏条件：仅以 videoWidth==0 为准
         // 不使用 estimated-vfps 判断：IPTV 直播流的 estimated-vfps 经常长时间为0，
@@ -1307,7 +1320,7 @@ class MpvController : MPVLib.EventObserver, Player {
             blackScreenRetryCount++
             if (blackScreenRetryCount < 2) {
                 // 首次检测到黑屏：可能是直播流还在缓冲，3 秒后复查
-                Log.w(TAG, "Possible black screen (attempt $blackScreenRetryCount, videoWidth=$videoWidth, vfps=$estimatedVfps), retrying in 3s...")
+                Log.w(TAG, "Possible black screen (attempt $blackScreenRetryCount, videoWidth=$videoWidth), retrying in 3s...")
                 mpvView?.asView()?.postDelayed(blackScreenCheckRunnable, 3000)
                 return@Runnable
             }
