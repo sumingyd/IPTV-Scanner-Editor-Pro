@@ -1,6 +1,7 @@
 package com.iptv.scanner.editor.pro.mpv
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.SurfaceTexture
 import android.util.AttributeSet
 import android.util.Log
@@ -249,11 +250,14 @@ class MPVTextureView @JvmOverloads constructor(
         val videoFormat = try { MPVLib.getPropertyString("video-format") ?: "none" } catch (_: Throwable) { "error" }
         val width = try { MPVLib.getPropertyInt("width") ?: 0 } catch (_: Throwable) { -1 }
         val height = try { MPVLib.getPropertyInt("height") ?: 0 } catch (_: Throwable) { -1 }
-        val vfps = try { MPVLib.getPropertyDouble("estimated-vfps") ?: 0.0 } catch (_: Throwable) { -1.0 }
         val surfaceValid = surface?.isValid ?: false
         return "vo=$vo, hwdec=$hwdec, hwdec-current=$hwdecCurrent, " +
-            "video-format=$videoFormat, ${width}x${height}, vfps=$vfps, " +
+            "video-format=$videoFormat, ${width}x${height}, " +
             "surfaceValid=$surfaceValid, voInUse=$voInUse"
+    }
+
+    override fun captureFrameSync(): Bitmap? {
+        return try { getBitmap() } catch (_: Throwable) { null }
     }
 
     override fun playFile(path: String) {
