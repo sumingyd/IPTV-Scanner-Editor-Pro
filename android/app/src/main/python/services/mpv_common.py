@@ -7,44 +7,48 @@ from core.log_manager import global_logger as logger
 from utils.platform_utils import find_libmpv_path, find_libmpv_paths, get_libmpv_filename, is_windows, is_macos, is_linux, is_android
 
 _mpv_loaded = False
+_env_initialized = False
 
-libmpv_path = find_libmpv_path()
-
-# mpv_dir 从实际找到的 libmpv_path 推导（dll/so 所在目录），
-# 而不是固定用 base_path/mpv。这样当 _MEIPASS/mpv/libmpv-2.dll 丢失时，
-# 能从 exe 同级目录的 mpv/ 找到 dll，并正确设置 MPV_HOME 和 PATH。
-if libmpv_path and os.path.exists(libmpv_path):
-    os.environ['MPV_LIBRARY'] = libmpv_path
-    mpv_dir = os.path.dirname(libmpv_path)
-else:
-    # 备用：使用默认 mpv_dir（base_path/mpv）
-    if getattr(sys, 'frozen', False):
-        base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
-    else:
-        from models.channel_mappings import get_app_data_dir
-        base_path = get_app_data_dir()
-    mpv_dir = os.path.join(base_path, 'mpv')
-    logger.warning(f"未找到libmpv库: {libmpv_path}")
-
-os.environ['MPV_HOME'] = mpv_dir
-os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
-
-if is_macos() and os.path.isdir(mpv_dir):
-    existing = os.environ.get('DYLD_LIBRARY_PATH', '')
-    if mpv_dir not in existing:
-        os.environ['DYLD_LIBRARY_PATH'] = mpv_dir + (os.pathsep + existing if existing else '')
-
-# Linux: 设置 LD_LIBRARY_PATH，确保能找到自定义构建的 FFmpeg 库（如 CAVS 版本）
-# PyInstaller 只将 _MEIPASS 加入 LD_LIBRARY_PATH，不包含 _MEIPASS/mpv/
-if is_linux() and os.path.isdir(mpv_dir):
-    existing = os.environ.get('LD_LIBRARY_PATH', '')
-    if mpv_dir not in existing:
-        os.environ['LD_LIBRARY_PATH'] = mpv_dir + (os.pathsep + existing if existing else '')
+libmpv_path = ''
+mpv_dir = ''
 
 MPV_AVAILABLE = False
 libmpv = None
-_mpv_loaded = False
-_last_load_error = ""  # 最后一次加载失败的诊断信息（供 UI 层读取并展示给用户）
+_last_load_error = ""
+
+
+def _ensure_env_initialized():
+    global libmpv_path, mpv_dir, _env_initialized
+    if _env_initialized:
+        return
+    _env_initialized = True
+
+    libmpv_path = find_libmpv_path()
+
+    if libmpv_path and os.path.exists(libmpv_path):
+        os.environ['MPV_LIBRARY'] = libmpv_path
+        mpv_dir = os.path.dirname(libmpv_path)
+    else:
+        if getattr(sys, 'frozen', False):
+            base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+        else:
+            from models.channel_mappings import get_app_data_dir
+            base_path = get_app_data_dir()
+        mpv_dir = os.path.join(base_path, 'mpv')
+        logger.warning(f"未找到libmpv库: {libmpv_path}")
+
+    os.environ['MPV_HOME'] = mpv_dir
+    os.environ['PATH'] = mpv_dir + os.pathsep + os.environ.get('PATH', '')
+
+    if is_macos() and os.path.isdir(mpv_dir):
+        existing = os.environ.get('DYLD_LIBRARY_PATH', '')
+        if mpv_dir not in existing:
+            os.environ['DYLD_LIBRARY_PATH'] = mpv_dir + (os.pathsep + existing if existing else '')
+
+    if is_linux() and os.path.isdir(mpv_dir):
+        existing = os.environ.get('LD_LIBRARY_PATH', '')
+        if mpv_dir not in existing:
+            os.environ['LD_LIBRARY_PATH'] = mpv_dir + (os.pathsep + existing if existing else '')
 
 
 def _extract_real_winerror(exc):
@@ -140,6 +144,8 @@ def _ensure_libmpv_loaded():
     global libmpv, MPV_AVAILABLE, _mpv_loaded, libmpv_path, _last_load_error
     if _mpv_loaded:
         return MPV_AVAILABLE
+
+    _ensure_env_initialized()
 
     if is_linux() or is_android():
         try:
