@@ -60,6 +60,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
@@ -302,8 +303,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _channelDisplayInfo = MutableStateFlow(ChannelDisplayInfo())
     val channelDisplayInfo: StateFlow<ChannelDisplayInfo> = _channelDisplayInfo.asStateFlow()
 
-    private val _switchingFrame = MutableStateFlow<android.graphics.Bitmap?>(null)
-    val switchingFrame: StateFlow<android.graphics.Bitmap?> = _switchingFrame.asStateFlow()
 
     // -----------------------------------------------------------------
     // 多画面状态（TV 端多画面功能）
@@ -402,11 +401,7 @@ fun setPortraitTab(tab: PortraitTab) {
 
 /** 打开 EPG 面板（不重载视频） */
 fun playChannelAndShowEpg(idx: Int) {
-    // 不调用 playChannel，避免重载视频。只获取该频道 EPG 数据并显示面板。
-    if (idx != _currentIdx.value) {
-        _currentIdx.value = idx
-    }
-    fetchEpgForCurrent()
+    fetchEpgForChannel(idx)
     showEpgPanel()
 }
 
@@ -722,9 +717,26 @@ fileErrorSwitchJob?.cancel()
 consecutiveTimeoutCount++
 val maxConsecutive = minOf(10, maxOf(3, _channels.value.size / 3))
 if (consecutiveTimeoutCount > maxConsecutive) {
-Log.w(TAG, "onFileError: stopped after $consecutiveTimeoutCount consecutive errors")
-consecutiveTimeoutCount = 0
-showOsd("自动换源已停止", "连续加载失败，请检查网络或切换播放器内核")
+    Log.w(TAG, "onFileError: stopped after $consecutiveTimeoutCount consecutive errors")
+    consecutiveTimeoutCount = 0
+    showOsd("自动换源已停止", "连续加载失败，请检查网络或切换播放器内核")
+} else if (consecutiveTimeoutCount <= 3 && currentPlaybackUrl.isNotEmpty()) {
+    showOsd("重新连接", "频道断流，尝试重连 ($consecutiveTimeoutCount/3)")
+    val retryUrl = currentPlaybackUrl
+    val retryIdx = _currentIdx.value
+    fileErrorSwitchJob = viewModelScope.launch {
+        delay(800)
+        if (mpv.fileLoaded.value) {
+            Log.i(TAG, "onFileError: skipped reconnect, file already loaded")
+            return@launch
+        }
+        Log.i(TAG, "onFileError: reconnecting to same channel: $retryUrl")
+        if (retryIdx >= 0) {
+            playChannel(retryIdx, silent = true)
+        } else {
+            mpv.playFile(retryUrl)
+        }
+    }
 } else {
 showOsd("加载失败", "当前频道无法播放，自动切换")
 fileErrorSwitchJob = viewModelScope.launch {
@@ -1485,6 +1497,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         }
         Log.i(TAG, "playChannel: ${channel.name} (${channel.url})")
 
+        val oldIdx = _currentIdx.value
         _channelDisplayInfo.value = ChannelDisplayInfo(
             name = channel.name, logo = channel.logo, group = channel.group, idx = idx,
             isLocal = channel.source.isEmpty() || ProgressHelper.isLocalFile(channel.url)
@@ -1496,22 +1509,15 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         currentPlaybackName = channel.name
         currentIsLocalFile = false
 
-
-        fccService.onChannelChange(channel.url)
-
         fileErrorSwitchJob?.cancel()
         fileErrorSwitchJob = null
+        consecutiveTimeoutCount = 0
 
         uiUpdateJob?.cancel()
         uiUpdateJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            val frame = mpvSingleton.captureFrameSync()
-            if (frame != null) {
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    _switchingFrame.value = frame
-                }
-            }
-
             mpv.playFile(channel.url)
+            mpv.fileLoaded.first { it }
+            fccService.onChannelChange(channel.url)
 
             if (!silent && !_landscapeSidebarVisible.value) {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
@@ -1524,8 +1530,8 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                 }
             }
 
-            if (userPrefs.isPerChannelPlayerSettings() && _currentIdx.value >= 0 && _currentIdx.value != idx) {
-                autoSaveCurrentSettingsToChannel(_currentIdx.value)
+            if (userPrefs.isPerChannelPlayerSettings() && oldIdx >= 0 && oldIdx != idx) {
+                autoSaveCurrentSettingsToChannel(oldIdx)
             }
             refreshCurrentBookmarks()
 
@@ -2374,14 +2380,19 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             name = channel.name, logo = channel.logo, group = channel.group, idx = idx,
             isLocal = channel.source.isEmpty() || ProgressHelper.isLocalFile(channel.url)
         )
-        fccService.onChannelChange(channel.url)
+        if (uiMode.value.isTV) {
+            playChannel(idx, silent = true)
+            showControlsAutoHide()
+            return
+        }
         playChannelDebounceJob?.cancel()
         playChannelDebounceJob = viewModelScope.launch {
             delay(250)
             playChannel(idx, silent = true)
-            if (uiMode.value.isTV) showControlsAutoHide() else showOsd(channel.name, channel.group)
+            showOsd(channel.name, channel.group)
         }
     }
+
 
     /**
      * 随机选择一个频道索引（避免短期重复，与 PC 端 _pick_random_index 对齐）。
@@ -3196,7 +3207,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     fun toggleTvUnifiedPanel() {
         _tvUnifiedPanelOpen.value = !_tvUnifiedPanelOpen.value
         if (_tvUnifiedPanelOpen.value) {
-            // 打开统一面板时关闭其他面板
             _channelsPanelOpen.value = false
             _epgPanelOpen.value = false
             _menuPanelOpen.value = false
@@ -3204,11 +3214,15 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             showControlsAutoHide()
         }
     }
+    fun closeTvUnifiedPanel() {
+        _tvUnifiedPanelOpen.value = false
+    }
     fun toggleControls() {
         if (_controlsVisible.value) hideControls() else showControls()
     }
 
-    fun closeAllPanelsExceptSidebar() {
+    private fun resetAllPanelStates() {
+        val wasPlayerSettingsOpen = _playerSettingsOpen.value
         androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
             _channelsPanelOpen.value = false
             _epgPanelOpen.value = false
@@ -3244,6 +3258,13 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             _audioVisualizerOpen.value = false
             _lyricsOpen.value = false
         }
+        if (wasPlayerSettingsOpen) {
+            Log.w(TAG, "resetAllPanelStates: closed playerSettings panel!")
+        }
+    }
+
+    fun closeAllPanelsExceptSidebar() {
+        resetAllPanelStates()
         stopScanPolling()
         stopAvSyncSampling()
         stopSubSync()
@@ -3253,47 +3274,11 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     }
 
     fun closeAllPanels() {
-        androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
-            _channelsPanelOpen.value = false
-            _epgPanelOpen.value = false
-            _menuPanelOpen.value = false
-            _tvUnifiedPanelOpen.value = false
-            _fileBrowserOpen.value = false
-            _sourceManagerOpen.value = false
-            _playerSettingsOpen.value = false
-            _videoSettingsOpen.value = false
-            _audioSettingsOpen.value = false
-            _subtitleSettingsOpen.value = false
-            _landscapeSidebarVisible.value = false
-            _subtitleSearchOpen.value = false
-            _playbackPanelOpen.value = false
-            _screenshotPanelOpen.value = false
-            _viewSettingsOpen.value = false
-            _aboutPanelOpen.value = false
-            _updateDialogOpen.value = false
-            _exitConfirmOpen.value = false
-            _openUrlDialogOpen.value = false
-            _mappingPanelOpen.value = false
-            _avSyncPanelOpen.value = false
-            _networkPanelOpen.value = false
-            _toolsPanelOpen.value = false
-            _scanPanelOpen.value = false
-            _reminderPanelOpen.value = false
-            _resumePanelOpen.value = false
-            _bookmarkPanelOpen.value = false
-            _epgTimelineOpen.value = false
-            _searchPanelOpen.value = false
-            _streamQualityPanelOpen.value = false
-            _recentPanelOpen.value = false
-            _clipExportPanelOpen.value = false
-            _audioVisualizerOpen.value = false
-            _lyricsOpen.value = false
-        }
+        resetAllPanelStates()
+        _landscapeSidebarVisible.value = false
         stopScanPolling()
-        // 关闭 A/V 同步采样
         stopAvSyncSampling()
         stopSubSync()
-        // 关闭所有面板后自动显示控制层
         showControlsAutoHide()
     }
 
@@ -5086,6 +5071,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                 _playbackState.value = PlaybackState(mode = PlayMode.LIVE)
                 currentPlaybackUrl = entry.uri
                 currentPlaybackName = entry.name
+                currentIsLocalFile = true
                 mpv.playFile(entry.uri)
                 showOsd("播放", entry.name)
             }
@@ -5953,7 +5939,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                                 _channelDisplayInfo.value = ChannelDisplayInfo(
                                     name = fileName, group = "本地视频", idx = newIdx, isLocal = true
                                 )
-                                currentIsLocalFile = false
+
                                 userPrefs.addToHistory(newIdx)
                                 _history.value = userPrefs.getHistory()
                                 Log.i(TAG, "playLocalVideo: added local channel idx=$newIdx, name=$fileName")
@@ -5969,7 +5955,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                             name = _channels.value.getOrNull(existingIdx)?.name ?: "",
                             group = "本地视频", idx = existingIdx, isLocal = true
                         )
-                        currentIsLocalFile = false
+
                         Log.i(TAG, "playLocalVideo: existing channel idx=$existingIdx")
                     }
                 } catch (e: Exception) {
@@ -6332,6 +6318,7 @@ fun generateMissingThumbnails(channelsToGen: List<IptvChannel>) {
 
     fun togglePlayerSettings() {
         _playerSettingsOpen.value = !_playerSettingsOpen.value
+        Log.i(TAG, "togglePlayerSettings: open=${_playerSettingsOpen.value}")
         if (!_playerSettingsOpen.value) showControlsAutoHide()
     }
 
@@ -6966,7 +6953,7 @@ showOsd("播放器设置", "日志等级: $levelName")
             launch {
                 mpv.fileLoaded.collect { loaded ->
                     if (loaded) {
-                        _switchingFrame.value = null
+
                         consecutiveTimeoutCount = 0
                         delay(1500)
                         try { reportPlayerStatus() } catch (e: Exception) {}
