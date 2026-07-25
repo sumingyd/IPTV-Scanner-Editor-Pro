@@ -428,8 +428,15 @@ class MpvController : MPVLib.EventObserver, Player {
 
     @Volatile
     private var loadingUrl: String = ""
+    private var lastLoadedUrl: String = ""
+
+    @Volatile
+    private var pendingEndFileError: Runnable? = null
 
     override fun playFile(url: String) {
+        pendingEndFileError?.let { mpvView?.asView()?.removeCallbacks(it) }
+        pendingEndFileError = null
+        loadingUrl = url
         pendingLoadUrl = url
         postOnUiThread {
             if (pendingLoadUrl != url) {
@@ -471,9 +478,6 @@ class MpvController : MPVLib.EventObserver, Player {
         }
     }
 
-    fun captureFrameSync(): android.graphics.Bitmap? {
-        return mpvView?.captureFrameSync()
-    }
 
     override fun stop() = postOnUiThread {
         mpvView?.stop()
@@ -1179,6 +1183,8 @@ class MpvController : MPVLib.EventObserver, Player {
         when (eventId) {
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
                 _fileLoaded.value = true
+
+                lastLoadedUrl = try { MPVLib.getPropertyString("path") ?: "" } catch (_: Throwable) { "" }
                 _eofReached.value = false
                 loadingUrl = ""
                 // 硬解降级：hwdec=auto 但 hwdec-current=no（硬解失败回退软解），
@@ -1226,6 +1232,8 @@ class MpvController : MPVLib.EventObserver, Player {
                 _eofReached.value = false
                 loadingUrl = pendingLoadUrl
                 unavailableProperties.clear()
+                pendingEndFileError?.let { mpvView?.asView()?.removeCallbacks(it) }
+                pendingEndFileError = null
                 Log.i(TAG, "MPV_EVENT_START_FILE: loadingUrl=$loadingUrl")
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
@@ -1234,15 +1242,28 @@ class MpvController : MPVLib.EventObserver, Player {
                 _videoWidth.value = 0
                 _videoHeight.value = 0
                 val endedUrl = try { MPVLib.getPropertyString("path") ?: "" } catch (_: Throwable) { "" }
-                if (!wasLoaded) {
-                    if (endedUrl != loadingUrl && loadingUrl.isNotEmpty()) {
-                        Log.i(TAG, "MPV_EVENT_END_FILE: old stream '$endedUrl' replaced by '$loadingUrl', not an error")
-                    } else {
-                        Log.w(TAG, "MPV_EVENT_END_FILE: file '$endedUrl' failed to load, notifying error")
+                val replacedByNew = loadingUrl.isNotEmpty() && endedUrl != loadingUrl
+                val wasPlaying = wasLoaded || endedUrl == lastLoadedUrl
+
+                pendingEndFileError?.let { mpvView?.asView()?.removeCallbacks(it) }
+                pendingEndFileError = null
+
+                if (!wasPlaying && !replacedByNew) {
+                    Log.w(TAG, "MPV_EVENT_END_FILE: file '$endedUrl' failed to load, notifying error")
+                    postOnUiThread { onFileError?.invoke() }
+                } else if (wasPlaying && !_eofReached.value) {
+                    Log.i(TAG, "MPV_EVENT_END_FILE: stream '$endedUrl' ended mid-stream (wasLoaded=$wasLoaded), delayed error check 300ms")
+                    val runnable = Runnable {
+                        Log.w(TAG, "MPV_EVENT_END_FILE: stream ended mid-stream, no START_FILE followed, notifying error")
                         postOnUiThread { onFileError?.invoke() }
                     }
+                    pendingEndFileError = runnable
+                    mpvView?.asView()?.postDelayed(runnable, 300)
+                } else {
+                    Log.i(TAG, "MPV_EVENT_END_FILE: stream '$endedUrl' ended normally (wasLoaded=$wasLoaded, eof=${_eofReached.value})")
                 }
                 loadingUrl = ""
+
             }
             MPVLib.MpvEvent.MPV_EVENT_SHUTDOWN -> {
                 Log.w(TAG, "MPV_EVENT_SHUTDOWN: mpv core has shut down, marking instance as dead")
