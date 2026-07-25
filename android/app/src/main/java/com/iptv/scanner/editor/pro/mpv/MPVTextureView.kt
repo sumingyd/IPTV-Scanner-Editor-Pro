@@ -1,7 +1,7 @@
 package com.iptv.scanner.editor.pro.mpv
 
 import android.content.Context
-import android.graphics.Bitmap
+
 import android.graphics.SurfaceTexture
 import android.util.AttributeSet
 import android.util.Log
@@ -256,9 +256,6 @@ class MPVTextureView @JvmOverloads constructor(
             "surfaceValid=$surfaceValid, voInUse=$voInUse"
     }
 
-    override fun captureFrameSync(): Bitmap? {
-        return try { getBitmap() } catch (_: Throwable) { null }
-    }
 
     override fun playFile(path: String) {
         if (!ensureInstanceAlive()) {
