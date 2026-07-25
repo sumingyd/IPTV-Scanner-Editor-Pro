@@ -35,7 +35,10 @@ from services.mpv_common import (
     observe_property as _mpv_observe_property,
 )
 
+from services.mpv_common import _ensure_env_initialized
+
 try:
+    _ensure_env_initialized()
     import mpv
 except ImportError as _e:
     import logging as _logging
