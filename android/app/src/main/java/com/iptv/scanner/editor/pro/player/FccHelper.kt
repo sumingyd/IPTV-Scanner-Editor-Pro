@@ -1,6 +1,8 @@
 package com.iptv.scanner.editor.pro.player
 
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
@@ -38,7 +40,7 @@ object FccHelper {
     private var persistentSock: DatagramSocket? = null
     private val sockLock = Any()
 
-    private fun getUdpSocket(): DatagramSocket {
+    internal fun getUdpSocket(): DatagramSocket {
         persistentSock?.let { return it }
         synchronized(sockLock) {
             persistentSock?.let { return it }
@@ -103,10 +105,15 @@ object FccHelper {
         return try {
             val uri = URI(url)
             val host = uri.host ?: return null
-            val port = uri.port
-            if (port <= 0) return null
-            if (!isMulticastIp(host)) return null
-            Pair(host, port)
+            if (isMulticastIp(host) && uri.port > 0) {
+                return Pair(host, uri.port)
+            }
+            val path = uri.path ?: return null
+            val mcastRegex = Regex("""/rtp/(\d+\.\d+\.\d+\.\d+):(\d+)""")
+            val match = mcastRegex.find(path) ?: return null
+            val ip = match.groupValues[1]
+            val port = match.groupValues[2].toIntOrNull() ?: return null
+            if (isMulticastIp(ip)) Pair(ip, port) else null
         } catch (e: Exception) {
             null
         }
@@ -135,7 +142,7 @@ object FccHelper {
      * @param joinAddr 要加入的组播地址 (ip, port)，可为 null
      * @return 是否发送成功
      */
-    fun sendFccNotification(
+    suspend fun sendFccNotification(
         fccIp: String,
         fccPort: Int,
         leaveAddr: Pair<String, Int>? = null,
@@ -150,16 +157,16 @@ object FccHelper {
         return sendUdp(fccIp, fccPort, payload)
     }
 
-    private fun sendUdp(ip: String, port: Int, data: ByteArray): Boolean {
-        return try {
+    private suspend fun sendUdp(ip: String, port: Int, data: ByteArray): Boolean = withContext(Dispatchers.IO) {
+        try {
             val sock = getUdpSocket()
             val addr = InetAddress.getByName(ip)
             val packet = DatagramPacket(data, data.size, addr, port)
             sock.send(packet)
-            Log.d(TAG, "FCC通知已发送: $ip:$port, 数据: ${String(data)}")
+            Log.i(TAG, "FCC通知已发送: $ip:$port, 数据: ${String(data)}")
             true
         } catch (e: Exception) {
-            Log.d(TAG, "FCC通知发送失败: ${e.message}")
+            Log.e(TAG, "FCC通知发送失败: ip=$ip port=$port error=${e.javaClass.simpleName}: ${e.message}", e)
             false
         }
     }
@@ -185,9 +192,11 @@ class FccService {
      * 非阻塞 socket + send() 耗时 < 0.1ms，无需异步线程。
      * @param newUrl 新频道的URL（含 ?fcc= 参数）
      */
-    fun onChannelChange(newUrl: String) {
+    suspend fun onChannelChange(newUrl: String) {
         val fccAddr = FccHelper.parseFccFromUrl(newUrl)
         val newMulticast = FccHelper.parseMulticastFromUrl(newUrl)
+
+        Log.i("FccService", "onChannelChange: fccAddr=$fccAddr, newMulticast=$newMulticast, url=$newUrl")
 
         if (fccAddr == null) {
             currentMulticast = newMulticast
@@ -201,11 +210,8 @@ class FccService {
         currentMulticast = newMulticast
         currentFcc = fccAddr
 
-        // 同一组播地址，无需通知
         if (leaveAddr == joinAddr) return
 
-        // 合并 LEAVE+JOIN 为单个 UDP 包，一次发送完成
-        // 非阻塞 socket + send() 耗时 < 0.1ms，无需异步线程
         if (joinAddr != null || leaveAddr != null) {
             try {
                 FccHelper.sendFccNotification(
@@ -214,7 +220,7 @@ class FccService {
                     joinAddr = joinAddr
                 )
             } catch (e: Exception) {
-                Log.d("FccService", "FCC通知发送失败: ${e.message}")
+                Log.e("FccService", "FCC通知发送失败: ${e.message}", e)
             }
         }
     }
@@ -227,9 +233,21 @@ class FccService {
         val leave = currentMulticast
         if (fcc != null && leave != null) {
             try {
-                FccHelper.sendFccNotification(fcc.first, fcc.second, leaveAddr = leave)
+                val messages = "LEAVE ${leave.first} ${leave.second}\n"
+                val payload = messages.toByteArray(Charsets.UTF_8)
+                Thread {
+                    try {
+                        val sock = FccHelper.getUdpSocket()
+                        val addr = InetAddress.getByName(fcc.first)
+                        val packet = DatagramPacket(payload, payload.size, addr, fcc.second)
+                        sock.send(packet)
+                        Log.i("FccService", "FCC leave通知已发送: ${fcc.first}:${fcc.second}")
+                    } catch (e: Exception) {
+                        Log.e("FccService", "FCC leave通知失败: ${e.message}")
+                    }
+                }.start()
             } catch (e: Exception) {
-                Log.d("FccService", "FCC leave通知失败: ${e.message}")
+                Log.e("FccService", "FCC leave通知失败: ${e.message}")
             }
         }
         currentMulticast = null
