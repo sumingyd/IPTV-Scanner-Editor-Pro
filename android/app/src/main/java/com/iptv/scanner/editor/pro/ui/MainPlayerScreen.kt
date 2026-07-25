@@ -4848,35 +4848,59 @@ fun PortraitPanelDialog(
     val dialogShape = RoundedCornerShape(20.dp)
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false
-        )
-    ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isTv = context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+    if (isTv) {
         Box(
             modifier = Modifier
-                .then(if (isLandscape) Modifier.fillMaxWidth(0.75f).fillMaxHeight(0.82f) else Modifier.fillMaxWidth(0.92f).fillMaxHeight(0.85f))
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
         ) {
-            // 底层：模糊背景层（只模糊背景，不影响内容）
-            if (isAndroid12Plus) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .blur(25.dp)
-                        .background(oc.topBarBg.copy(alpha = 0.55f), dialogShape)
-                )
-            }
-            // 上层：半透明色 + 边框 + 内容（不模糊）
-            Surface(
-                color = if (isAndroid12Plus) oc.topBarBg.copy(alpha = 0.30f) else oc.topBarBg.copy(alpha = 0.80f),
-                shape = dialogShape,
-                border = BorderStroke(1.dp, oc.accent.copy(alpha = 0.35f)),
-                modifier = Modifier.matchParentSize()
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth(0.75f)
+                    .fillMaxHeight(0.82f)
             ) {
-                content()
+                Surface(
+                    color = oc.topBarBg.copy(alpha = 0.85f),
+                    shape = dialogShape,
+                    border = BorderStroke(1.dp, oc.accent.copy(alpha = 0.35f)),
+                    modifier = Modifier.matchParentSize()
+                ) {
+                    content()
+                }
+            }
+        }
+    } else {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = false
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .then(if (isLandscape) Modifier.fillMaxWidth(0.75f).fillMaxHeight(0.82f) else Modifier.fillMaxWidth(0.92f).fillMaxHeight(0.85f))
+            ) {
+                if (isAndroid12Plus) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .blur(25.dp)
+                            .background(oc.topBarBg.copy(alpha = 0.55f), dialogShape)
+                    )
+                }
+                Surface(
+                    color = if (isAndroid12Plus) oc.topBarBg.copy(alpha = 0.30f) else oc.topBarBg.copy(alpha = 0.80f),
+                    shape = dialogShape,
+                    border = BorderStroke(1.dp, oc.accent.copy(alpha = 0.35f)),
+                    modifier = Modifier.matchParentSize()
+                ) {
+                    content()
+                }
             }
         }
     }
