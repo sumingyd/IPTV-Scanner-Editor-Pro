@@ -207,24 +207,16 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     /** 关闭统一面板后执行操作（仅用于在统一面板之前渲染的 ChannelsPanel/EpgPanel，避免被统一面板遮挡） */
     fun closeAndRun(action: () -> Unit) {
         viewModel.setLandscapeSidebarVisible(false)
+        viewModel.closeTvUnifiedPanel()
         action()
     }
 
-    /**
-     * 打开全屏覆盖子面板，同时关闭统一面板。
-     *
-     * 关键：必须关闭统一面板，让 TvUnifiedPanel 从 Compose 树中移除。
-     * 否则 TvUnifiedPanel 残留在树中，子面板 focusGroup() 在 DPAD 边缘
-     * 会让焦点逃逸到下层 TvUnifiedPanel 的菜单项（特别是 ModeIconButton 的
-     * autoSelectOnFocus=true 会自动触发模式切换），导致遥控器操作下层菜单
-     * 而非当前子面板。
-     *
-     * 子面板关闭后回到播放界面，用户按 MENU 键可重新打开主菜单。
-     */
     fun openOverlay(action: () -> Unit) {
-        viewModel.setLandscapeSidebarVisible(false)
         action()
+        viewModel.setLandscapeSidebarVisible(false)
+        viewModel.closeTvUnifiedPanel()
     }
+
 
     Surface(
         color = Color.Transparent,
