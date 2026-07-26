@@ -101,17 +101,6 @@ class MPVView @JvmOverloads constructor(
 
         MPVLib.setOptionString("vo", vo)
         MPVLib.setOptionString("hwdec", hwdec)
-        // user-agent：与 PC 端一致，使用 Chrome UA。
-        // 根因：本地代理服务器（rt2phttpd）会根据 UA 决定是否保持连接。
-        // - Chrome UA：服务器保持长连接（PC 端实测无循环暂停问题）
-        // - mpv 默认 UA（libmpv/版本号）：服务器在几秒后关闭流，导致 LIVE EOF 循环
-        // 设为 option 而非 property：user-agent 是启动选项，init() 后无法修改
-        MPVLib.setOptionString("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        // keep-open=yes：与 PC 端一致。
-        // 根因：keep-open=always 会导致 LIVE 流断开后 mpv 保留最后一帧并设置 eof-reached=true，
-        // 触发 startReconnect 自动重连。但服务器会再次关闭流，导致循环暂停。
-        // keep-open=yes 时流断后 mpv 显示黑屏但不触发自动重连，避免循环。
-        // PC 端用 keep-open=yes 实测无循环暂停问题。
         MPVLib.setOptionString("keep-open", "yes")
         MPVLib.setOptionString("keepaspect", "yes")
         MPVLib.setOptionString("keepaspect-window", "no")

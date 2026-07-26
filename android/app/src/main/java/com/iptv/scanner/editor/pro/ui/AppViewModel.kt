@@ -194,9 +194,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         timeoutSwitchJob = null
         reconnectJob?.cancel()
         reconnectJob = null
-        liveEofReconnectJob?.cancel()
-        liveEofReconnectJob = null
-        liveEofReconnected = false
         switchPlayJob?.cancel()
         switchPlayJob = null
         consecutiveTimeoutCount = 0
@@ -471,19 +468,6 @@ private var switchPlayJob: Job? = null
     private var reconnectJob: Job? = null
 
     /**
-     * LIVE EOF 单次重连 Job。
-     *
-     * 服务器关闭 LIVE 流时 mpv 报告 eof-reached=true，keep-open=yes 导致画面暂停。
-     * 此 Job 在 LIVE EOF 后延迟 2 秒重连一次（重新 loadfile），
-     * 避免用户看到"播放几秒后自动暂停"且无法自动恢复。
-     *
-     * 仅重连一次（liveEofReconnected 标志），防止服务器持续关闭流时循环暂停。
-     * 切换频道时重置标志和取消 Job。
-     */
-    private var liveEofReconnectJob: Job? = null
-    private var liveEofReconnected = false
-
-    /**
      * 文件加载错误自动换源 Job：onFileError 回调中启动的延迟换源任务。
      *
      * 关键：用户手动切台时必须取消此 Job，避免以下竞态条件：
@@ -696,7 +680,16 @@ val logLevel: StateFlow<String> = _logLevel.asStateFlow()
     private val _hardwareDecode = MutableStateFlow(userPrefs.getHwdec() != "no")
 
     init {
-        // 注册文件加载错误回调：当 mpv 报告文件加载失败时换源，
+        // 注册 MPV 黑屏 fallback 回调：当 vo=gpu 渲染黑屏自动 fallback 到 mediacodec_embed 时，
+        // 同步更新 UI 状态（_currentVo / _currentHwdec），使设置面板的选中项正确显示。
+        // 不持久化（仅本次会话），避免误判永久化。
+mpvSingleton.onVoFallback = { vo, hwdec ->
+_currentVo.value = vo
+_currentHwdec.value = hwdec
+Log.i(TAG, "onVoFallback: UI updated vo=$vo, hwdec=$hwdec (session only)")
+}
+
+// 注册文件加载错误回调：当 mpv 报告文件加载失败时换源，
 // 添加短暂延迟避免坏流导致 mpv 核心状态未清理就加载下一个流。
 mpvSingleton.onFileError = {
 if (mpv.fileLoaded.value) {
@@ -721,8 +714,6 @@ Log.w(TAG, "onFileError: file failed to load, triggering switch after delay")
 mpvSingleton.markNeedPreStop()
 timeoutSwitchJob?.cancel()
 fileErrorSwitchJob?.cancel()
-liveEofReconnectJob?.cancel()
-liveEofReconnectJob = null
 consecutiveTimeoutCount++
 val maxConsecutive = minOf(10, maxOf(3, _channels.value.size / 3))
 if (consecutiveTimeoutCount > maxConsecutive) {
@@ -739,30 +730,11 @@ if (consecutiveTimeoutCount > maxConsecutive) {
             Log.i(TAG, "onFileError: skipped reconnect, file already loaded")
             return@launch
         }
-        // FCC 流重连：只发 JOIN 不发 LEAVE，避免中止 rtp2httpd 正在进行的组播加入。
-        // playChannel() 会调用 fccService.onChannelChange() 发送 LEAVE+JOIN，
-        // LEAVE 会让 rtp2httpd 中止组播加入并重置状态，导致单播→组播循环。
-        // 与 startReconnect() 对齐：直接 mpv.playFile + 只发 JOIN。
-        val isFcc = "?fcc=" in retryUrl.lowercase()
-        if (isFcc) {
-            Log.i(TAG, "onFileError: FCC stream reconnect (JOIN only, no LEAVE): $retryUrl")
-            val fccAddr = FccHelper.parseFccFromUrl(retryUrl)
-            val joinAddr = FccHelper.parseMulticastFromUrl(retryUrl)
-            if (fccAddr != null && joinAddr != null) {
-                FccHelper.sendFccNotification(
-                    fccAddr.first, fccAddr.second,
-                    leaveAddr = null,
-                    joinAddr = joinAddr
-                )
-            }
-            mpv.playFile(retryUrl)
+        Log.i(TAG, "onFileError: reconnecting to same channel: $retryUrl")
+        if (retryIdx >= 0) {
+            playChannel(retryIdx, silent = true)
         } else {
-            Log.i(TAG, "onFileError: reconnecting to same channel: $retryUrl")
-            if (retryIdx >= 0) {
-                playChannel(retryIdx, silent = true)
-            } else {
-                mpv.playFile(retryUrl)
-            }
+            mpv.playFile(retryUrl)
         }
     }
 } else {
@@ -788,19 +760,8 @@ nextChannel()
     }
 
     init {
-    // 监听 mpv eofReached：
-    // - 时移模式：自动重建 URL 续播（与 PC 端 catchup_controller.continue_timeshift 对齐）
-    // - LIVE 模式：服务器关闭流时 mpv 报告 eof-reached=true（不是网络断开，网络断开走 onFileError），
-    //   当前代码未处理会导致 mpv 在 keep-open=always 下保留最后一帧并暂停（用户看到"播放几秒后自动暂停"），
-    //   触发 startReconnect 重新加载当前 URL。
-    //
-    // 避免切换频道误触发：
-    // - loadfile 替换旧流时 eof-reached 通常不会被设置为 true（reason=redirect 而非 eof）
-    // - 但仍有竞态可能，所以延迟 1.5s 后二次检查：
-    //   * mode 仍为 LIVE（切到 timeshift/catchup/idle 时不重连）
-    //   * fileLoaded=false（新流已加载说明是切换频道）
-    //   * eofReached=true（仍处于 EOF 状态）
-    //   * path==currentPlaybackUrl（避免 stale EOF 触发）
+    // 时移 EOF 自动续播：监听 mpv eofReached，在时移模式下自动重建 URL 续播
+    // （与 PC 端 catchup_controller.continue_timeshift 对齐）
     viewModelScope.launch {
         mpvSingleton.eofReached.collect { eof ->
             if (eof && _playbackState.value.mode.isTimeshift) {
@@ -810,38 +771,6 @@ nextChannel()
                     delay(500) // 短暂延迟避免与 end-file 事件竞态
                     if (_playbackState.value.mode.isTimeshift) {
                         continueTimeshift()
-                    }
-                }
-            }
-            // LIVE 模式 EOF 单次重连：
-            // 服务器关闭 LIVE 流时 mpv 报告 eof-reached=true，keep-open=yes 导致画面暂停。
-            // 用户看到"播放几秒后自动暂停"。
-            // 修复：延迟 2 秒后重连一次（重新 loadfile），如果重连后仍 EOF 则不再重连。
-            // 与之前的循环重连（每 16-21 秒一次）不同，此处仅重连一次，
-            // 避免服务器持续关闭流时的循环暂停。
-            if (eof && _playbackState.value.mode == PlayMode.LIVE && !liveEofReconnected) {
-                val url = currentPlaybackUrl
-                if (url.isNotEmpty()) {
-                    liveEofReconnected = true
-                    liveEofReconnectJob?.cancel()
-                    liveEofReconnectJob = viewModelScope.launch {
-                        delay(2000)
-                        // 二次检查：仍在 LIVE 模式且仍处于 EOF 状态
-                        if (_playbackState.value.mode == PlayMode.LIVE &&
-                            mpvSingleton.eofReached.value && !mpv.fileLoaded.value) {
-                            Log.i(TAG, "LIVE EOF: single reconnect to $url")
-                            // 重新发送 FCC join 通知
-                            val fccAddr = FccHelper.parseFccFromUrl(url)
-                            val joinAddr = FccHelper.parseMulticastFromUrl(url)
-                            if (fccAddr != null && joinAddr != null) {
-                                FccHelper.sendFccNotification(
-                                    fccAddr.first, fccAddr.second,
-                                    leaveAddr = null,
-                                    joinAddr = joinAddr
-                                )
-                            }
-                            mpv.playFile(url)
-                        }
                     }
                 }
             }
@@ -1377,16 +1306,10 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                     onSuccess = { status ->
                         _iptvStatus.value = status
                         // 订阅源加载完成导致频道数变化时，自动重载频道列表
-                        // 关键保护：channelsTotal 降为 0 时不触发重载，避免 Python 服务
-                        // 短暂异常（如内存被回收、Chaquopy 重新初始化）导致频道列表被清空。
-                        // 只有 channelsTotal > 0 且与上次不同时才重载。
-                        if (status.channelsTotal != lastTotal && status.channelsTotal > 0) {
+                        if (status.channelsTotal != lastTotal) {
                             Log.i(TAG, "channels total changed: $lastTotal → ${status.channelsTotal}, reload")
                             lastTotal = status.channelsTotal
                             loadChannels()
-                        } else if (status.channelsTotal == 0 && lastTotal > 0) {
-                            // channelsTotal 从非零降为 0，记录但不重载
-                            Log.w(TAG, "channels total dropped to 0 (was $lastTotal), skipping reload to preserve channel list")
                         }
                     },
                     onFailure = { /* 静默忽略 */ }
@@ -1406,12 +1329,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             val result = repository.getChannels(page = 1, size = 10_000)
             result.fold(
                 onSuccess = { page ->
-                    // 关键保护：如果新频道列表为空但当前列表非空，不替换。
-                    // 避免 Python 服务短暂异常（如内存回收、Chaquopy 重新初始化）
-                    // 导致频道列表被清空，用户无法切台。
-                    if (page.channels.isEmpty() && _channels.value.isNotEmpty()) {
-                        Log.w(TAG, "loadChannels: server returned empty list, keeping existing ${_channels.value.size} channels")
-                    } else {
                     // 保存当前播放的 URL，防止频道列表更新后 currentChannel 变 null
                     val savedUrl = currentPlaybackUrl
                     val savedIdx = _currentIdx.value
@@ -1434,7 +1351,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                         .distinct()
                     _groups.value = groupList
                     Log.i(TAG, "Loaded ${page.channels.size} channels, ${groupList.size} groups")
-                    }
                 },
                 onFailure = { e ->
                     Log.e(TAG, "loadChannels failed: ${e.message}")
@@ -1596,33 +1512,12 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         fileErrorSwitchJob?.cancel()
         fileErrorSwitchJob = null
         consecutiveTimeoutCount = 0
-        // 取消 LIVE EOF 触发的延迟重连检查，避免切换频道时残留任务在新流加载后误触发重连
-        reconnectJob?.cancel()
-        reconnectJob = null
-        liveEofReconnectJob?.cancel()
-        liveEofReconnectJob = null
-        liveEofReconnected = false
 
         uiUpdateJob?.cancel()
         uiUpdateJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            // 关键修复：超时换源定时器必须在 playFile 之前启动。
-            // 原代码在 fileLoaded.first { it } 之后才启动，如果流加载缓慢（如坏流），
-            // 超时保护不会触发，用户会长时间看到黑屏。
-            // 现在在 playFile 之前启动，如果超时内 fileLoaded 仍为 false，
-            // 则自动切换到下一个频道。
-            startTimeoutSwitchSource(idx)
-            // 关键：FCC 通知必须在 playFile 之前发送。
-            // 根因：FCC 代理（rtp2httpd）收到 join 通知后会预加入组播并缓冲流数据，
-            // 这样 mpv playFile 时能立即读到流数据，实现秒开。
-            // 之前 FCC 通知在 fileLoaded 之后发送，导致 mpv 在 FCC 代理还没加入组播时
-            // 就开始读取流，FCC 代理只能用单播模式转发，几秒后组播加入失败，流断了。
-            // 与 PC 端 play_channel 对齐：PC 端也是先发送 FCC 再 play。
-            fccService.onChannelChange(channel.url)
             mpv.playFile(channel.url)
             mpv.fileLoaded.first { it }
-            // 文件已加载成功，取消超时换源定时器（避免误触发）
-            timeoutSwitchJob?.cancel()
-            timeoutSwitchJob = null
+            fccService.onChannelChange(channel.url)
 
             if (!silent && !_landscapeSidebarVisible.value) {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
@@ -1642,6 +1537,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
 
             applyChannelSettingsIfNeeded(idx)
             loadPlaybackSettingsFromStore(channel.url)
+            startTimeoutSwitchSource(idx)
             userPrefs.addToHistory(idx)
             _history.value = userPrefs.getHistory()
             userPrefs.setLastChannelUrl(channel.url)
@@ -1709,12 +1605,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
      *
      * 播放出错或 EOF 时，根据重连档位延迟后重新加载当前 URL。
      * 仅在直播模式下触发（回看/时移/本地视频不重连）。
-     *
-     * 关键：重连前必须重新发送 FCC join 通知。
-     * 根因：LIVE 流被服务器关闭后，FCC 代理（rtp2httpd）已释放该频道的组播资源。
-     * 如果直接 playFile 重连而不通知 FCC 代理重新加入组播，
-     * 服务器会在几秒后再次关闭流，导致循环暂停。
-     * PC 端通过 play_channel 触发完整 FCC 流程，Android 端 startReconnect 需手动补发。
      */
     fun startReconnect() {
         val delayMs = userPrefs.getReconnectDelayMs()
@@ -1728,19 +1618,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             val url = currentPlaybackUrl
             if (url.isNotEmpty() && _playbackState.value.mode == PlayMode.LIVE) {
                 Log.i(TAG, "Reconnecting: $url")
-                // 重连前重新发送 FCC join 通知，让 FCC 代理重新加入组播
-                // 注意：不能调用 fccService.onChannelChange，因为它在 leave==join 时会跳过
-                // 重连场景下需要强制发送 join，即使频道的组播地址没变
-                val fccAddr = FccHelper.parseFccFromUrl(url)
-                val joinAddr = FccHelper.parseMulticastFromUrl(url)
-                if (fccAddr != null && joinAddr != null) {
-                    FccHelper.sendFccNotification(
-                        fccAddr.first, fccAddr.second,
-                        leaveAddr = null,  // 不发送 leave，避免 FCC 代理误释放正在加入的组播
-                        joinAddr = joinAddr
-                    )
-                    Log.i(TAG, "Reconnect: FCC join re-sent for $joinAddr")
-                }
                 mpv.playFile(url)
                 showOsd("正在重连...")
             }
@@ -1852,10 +1729,8 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         _screenLock.value = enabled
         userPrefs.setScreenLock(enabled)
         // 对 MPV：通过 keep-open 属性控制
-        // - 启用时用 yes（与 PC 端一致，流断后显示黑屏但不触发循环重连）
-        // - 关闭时用 no（换台时清空画面）
         if (_playerType.value == PlayerType.MPV) {
-            mpvSingleton.setPropertyString("keep-open", if (enabled) "yes" else "no")
+            mpvSingleton.setPropertyBoolean("keep-open", enabled)
         }
     }
 
@@ -2560,10 +2435,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         // 停止重连定时器
         reconnectJob?.cancel()
         reconnectJob = null
-        // 停止 LIVE EOF 重连
-        liveEofReconnectJob?.cancel()
-        liveEofReconnectJob = null
-        liveEofReconnected = false
         // 重置连续超时计数器
         consecutiveTimeoutCount = 0
         mpv.stop()
@@ -2626,10 +2497,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         //    这就是"点击回看后视频断了一下又接着直播播放"的根因。
         timeoutSwitchJob?.cancel()
         timeoutSwitchJob = null
-        // 3. liveEofReconnectJob：LIVE EOF 单次重连定时器
-        liveEofReconnectJob?.cancel()
-        liveEofReconnectJob = null
-        liveEofReconnected = false
 
         // 播放 catchup URL
         mpv.playFile(catchupUrl)
@@ -2707,9 +2574,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         fileErrorSwitchJob = null
         timeoutSwitchJob?.cancel()
         timeoutSwitchJob = null
-        liveEofReconnectJob?.cancel()
-        liveEofReconnectJob = null
-        liveEofReconnected = false
 
         // 播放 timeshift URL
         mpv.playFile(catchupUrl)
@@ -6462,6 +6326,7 @@ fun generateMissingThumbnails(channelsToGen: List<IptvChannel>) {
      * 切换 video output（gpu / gpu-next / mediacodec_embed）。
      * - 持久化到 UserPrefs（下次启动生效）
      * - 动态切换 mpv vo（立即生效，重新加载当前文件）
+     * - 更新 voFallbackTriggered 状态
      */
     fun setPlayerVo(vo: String) {
         userPrefs.setVo(vo)
@@ -6471,6 +6336,11 @@ fun generateMissingThumbnails(channelsToGen: List<IptvChannel>) {
             // 切换到 mediacodec_embed 时，hwdec 也应为 mediacodec
             userPrefs.setHwdec(hwdec)
             _currentHwdec.value = hwdec
+            // 标记已 fallback（不需要再黑屏检测）
+            userPrefs.setVoFallbackConfirmed(true)
+        } else if (vo == "gpu" || vo == "gpu-next") {
+            // 切换到 gpu / gpu-next 时，清除 fallback 标记，重新启用黑屏检测
+            userPrefs.setVoFallbackConfirmed(false)
         }
         // vo 切换只在 MPV 模式下有意义（其他播放器无 vo 概念）
         val hasFile = (_player.value as? MpvController)?.setVoAndHwdec(vo, hwdec)
@@ -6698,6 +6568,7 @@ showOsd("播放器设置", "日志等级: $levelName")
             // 播放器设置
             put("player_vo", userPrefs.getVo())
             put("player_hwdec", userPrefs.getHwdec())
+            put("player_vo_fallback", userPrefs.isVoFallbackConfirmed())
         }
         return backup.toString(2)
     }
@@ -6729,6 +6600,10 @@ showOsd("播放器设置", "日志等级: $levelName")
             }
             backup.optString("player_vo").takeIf { it.isNotEmpty() }?.let { userPrefs.setVo(it) }
             backup.optString("player_hwdec").takeIf { it.isNotEmpty() }?.let { userPrefs.setHwdec(it) }
+            if (backup.has("player_vo_fallback")) {
+                userPrefs.setVoFallbackConfirmed(backup.optBoolean("player_vo_fallback"))
+            }
+
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "restoreFullBackup failed", e)
