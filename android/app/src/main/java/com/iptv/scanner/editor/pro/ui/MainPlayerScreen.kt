@@ -461,17 +461,39 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             if (portraitSplit) {
 
                 // ---- 竖屏布局 ----
-                // Tab 模式：不渲染播放器（省电，且避免 Surface 重建黑屏）
-                // 播放器模式：渲染播放器在视频区域
+                // 播放器始终在固定位置渲染（16:9 视频区域），不移动。
+                // showHome=true 时首页 UI 覆盖播放器（不透明背景完全遮盖，但 Surface 活跃）。
+                // showHome=false 时播放器正常显示。
+                // 这避免了 movableContentOf 移动 SurfaceView 导致的 surface 销毁/重建，
+                // 彻底解决返回播放页无画面问题。
                 Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
-                    if (showHome) {
-                        // 隐藏播放器：保持 Surface 活跃，后台继续播放
-                        // movableContentOf 会将播放器从视频区域移到此处（1dp 隐藏 Box），
-                        // 而非销毁重建，避免 surfaceDestroyed → stop 导致播放中断。
-                        Box(modifier = Modifier.size(1.dp)) {
+                    // 播放器 + 控制栏（始终在组合树中，Surface 不被销毁）
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        PortraitInfoBarV2(viewModel = viewModel)
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
+                                .background(Color.Black)
+                        ) {
                             primaryPlayer()
                         }
-                        // ---- Tab 模式：播放器已隐藏，显示 Tab UI ----
+                        PortraitMediaInfoBar(viewModel = viewModel)
+                        PortraitControlsV2(viewModel = viewModel)
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .background(MaterialTheme.colorScheme.background)
+                        ) {
+                            PortraitPlayerDynamicContent(viewModel = viewModel)
+                        }
+                    }
+
+                    if (showHome) {
+                        // 首页 UI 覆盖播放器（不透明背景完全遮盖播放器）
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -513,31 +535,6 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
                                 }
                             }
                             PortraitBottomTabBar(viewModel = viewModel)
-                        }
-                    } else {
-                        // ---- 播放器模式：渲染播放器 ----
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            PortraitInfoBarV2(viewModel = viewModel)
-                            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(16f / 9f)
-                                    .background(Color.Black)
-                            ) {
-                                primaryPlayer()
-                            }
-                            PortraitMediaInfoBar(viewModel = viewModel)
-                            PortraitControlsV2(viewModel = viewModel)
-                            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .background(MaterialTheme.colorScheme.background)
-                            ) {
-                                PortraitPlayerDynamicContent(viewModel = viewModel)
-                            }
                         }
                     }
                 }
@@ -2503,10 +2500,11 @@ private fun PortraitListScreen(
         }
     }
 
-    // 分组（含频道数量）
+    // 分组（含频道数量，按 M3U 首次出现顺序排列）
     val groupList = remember(filteredChannels) {
-        val map = filteredChannels.groupingBy { it.group.ifEmpty { "未分组" } }.eachCount()
-        map.entries.sortedBy { it.key }.map { it.key to it.value }
+        val groupOrder = filteredChannels.map { it.group.ifEmpty { "未分组" } }.distinct()
+        val groupCounts = filteredChannels.groupingBy { it.group.ifEmpty { "未分组" } }.eachCount()
+        groupOrder.map { it to (groupCounts[it] ?: 0) }
     }
 
     // 当前分组下的频道

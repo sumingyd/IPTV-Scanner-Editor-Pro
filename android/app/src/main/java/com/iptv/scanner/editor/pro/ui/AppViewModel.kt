@@ -353,20 +353,15 @@ val showHome: StateFlow<Boolean> = _showHome.asStateFlow()
 /** 切换到播放器界面（选择频道/打开文件后调用） */
 fun showPlayerScreen() {
     _showHome.value = false
-    // 播放器 Surface 重新创建后，需要重新加载当前频道
-    val idx = _currentIdx.value
+    // 播放器固定位置后 Surface 不被销毁，通常无需 refreshSurface。
+    // 但作为安全网：若文件已加载则刷新 surface，否则重新加载。
     val url = currentPlaybackUrl
-    if (idx >= 0 && url.isNotEmpty()) {
-        viewModelScope.launch {
-            delay(200)  // 等 Surface 创建完成
-            if (mpv.fileLoaded.value) {
-                // 已在播放，刷新 Surface
-                mpv.refreshSurface()
-            } else {
-                // 重新加载频道
-                mpv.playFile(url)
-            }
-            Log.i(TAG, "showPlayerScreen: restored playback for $url")
+    viewModelScope.launch {
+        delay(200)
+        if (mpv.fileLoaded.value) {
+            mpv.refreshSurface()
+        } else if (url.isNotEmpty()) {
+            mpv.playFile(url)
         }
     }
 }
@@ -2465,6 +2460,8 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         reconnectJob = null
         // 重置连续超时计数器
         consecutiveTimeoutCount = 0
+        // 清除当前播放 URL，防止 mpv.stop() 触发的 onFileError 回调自动重连
+        currentPlaybackUrl = ""
         mpv.stop()
         _playbackState.value = PlaybackState(mode = PlayMode.IDLE)
         _currentIdx.value = -1

@@ -84,6 +84,7 @@ import java.util.Locale
 @Composable
 fun EpgPanel(viewModel: AppViewModel, compact: Boolean = false) {
     val currentChannel by viewModel.currentChannel.collectAsState()
+    val playbackState by viewModel.playbackState.collectAsState()
     val epgTrimmed by viewModel.currentEpg.collectAsState()
     val epg = remember(epgTrimmed, viewModel.epgCacheVersion.value) {
         viewModel.getFullEpgForCurrent()
@@ -210,6 +211,7 @@ fun EpgPanel(viewModel: AppViewModel, compact: Boolean = false) {
                             searchActive = false,
                             hasReminder = { program -> viewModel.isReminderSet(program) },
                             supportsCatchup = currentChannel?.let { CatchupHelper.isCatchupEnabled(it) } ?: false,
+                            catchupProgram = playbackState.catchupProgram?.program,
                             onProgramClick = { program ->
                                 handleProgramClick(program, viewModel)
                             }
@@ -244,6 +246,7 @@ private fun EpgList(
     searchActive: Boolean,
     hasReminder: (IptvEpgProgram) -> Boolean,
     supportsCatchup: Boolean,
+    catchupProgram: IptvEpgProgram? = null,
     onProgramClick: (IptvEpgProgram) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -257,12 +260,18 @@ private fun EpgList(
         }
     }
 
-    // 找当前节目索引
-    val currentProgramIdx = remember(programs, now) {
-        programs.indexOfFirst { p ->
-            val startMs = parseTimeToMs(p.start, p.startTs)
-            val endMs = parseTimeToMs(p.end.ifEmpty { p.stop }, p.stopTs)
-            startMs > 0 && endMs > startMs && now >= startMs && now < endMs
+    // 找高亮节目索引：回看模式下高亮选定的节目，否则高亮当前时间的节目
+    val currentProgramIdx = remember(programs, now, catchupProgram) {
+        if (catchupProgram != null) {
+            // 回看/时移模式：高亮用户选定的节目
+            programs.indexOfFirst { p -> p.start == catchupProgram.start && p.title == catchupProgram.title }
+        } else {
+            // 直播模式：高亮当前时间正在播放的节目
+            programs.indexOfFirst { p ->
+                val startMs = parseTimeToMs(p.start, p.startTs)
+                val endMs = parseTimeToMs(p.end.ifEmpty { p.stop }, p.stopTs)
+                startMs > 0 && endMs > startMs && now >= startMs && now < endMs
+            }
         }
     }
 
