@@ -408,6 +408,14 @@ class MpvController : MPVLib.EventObserver, Player {
                 Log.i(TAG, "playFile: skipped, superseded (pending=$pendingLoadUrl, this=$url)")
                 return@postOnUiThread
             }
+            // 与 PC 端 mpv_player_service.py play_file() 对齐：
+            // 切换频道前显式 stop 当前播放，让 mpv 立即释放旧 demuxer/decoder/VO 资源。
+            //
+            // 根因：不 stop 直接 loadfile 时，mpv 需要先在内部清理旧文件的 VO 渲染状态，
+            // vo=gpu-next 的渲染管线更复杂，清理耗时数秒，期间新的网络连接无法发起，
+            // rtp2httpd 代理上根本看不到连接，直至清理完成才开始连接新流。
+            // 加 stop 后，旧 demuxer/decoder 立即释放，loadfile 可以立即开始连接新流。
+            // keep-open=always 保证 stop 期间画面不黑屏（保留最后一帧）。
             if (needPreStop) {
                 try {
                     MPVLib.command(arrayOf("stop"))
@@ -417,6 +425,14 @@ class MpvController : MPVLib.EventObserver, Player {
                     Log.w(TAG, "playFile: pre-stop failed: ${e.message}")
                 }
                 needPreStop = false
+            } else if (_fileLoaded.value) {
+                // 正常换台：先 stop 释放旧资源，再 loadfile 加载新流
+                try {
+                    MPVLib.command(arrayOf("stop"))
+                    Log.i(TAG, "playFile: pre-stop before loadfile (channel switch, releasing old decoder/VO)")
+                } catch (e: Throwable) {
+                    Log.w(TAG, "playFile: pre-stop failed: ${e.message}")
+                }
             }
             setupProtocolOptions(url)
             try {

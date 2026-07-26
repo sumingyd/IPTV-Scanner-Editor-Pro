@@ -1515,9 +1515,14 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
 
         uiUpdateJob?.cancel()
         uiUpdateJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // FCC 通知必须在 loadfile 之前发送：
+            // rtp2httpd 代理收到 JOIN 后预加入组播组并缓冲流数据，
+            // mpv 连接代理时流已就绪，实现秒开换台。
+            // 如果在 loadfile 之后发送（旧实现），代理不知道新频道，
+            // mpv 连接后代理才开始加入组播，导致数秒延迟。
+            fccService.onChannelChange(channel.url)
             mpv.playFile(channel.url)
             mpv.fileLoaded.first { it }
-            fccService.onChannelChange(channel.url)
 
             if (!silent && !_landscapeSidebarVisible.value) {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {

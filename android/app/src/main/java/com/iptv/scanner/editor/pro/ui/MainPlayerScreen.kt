@@ -4150,10 +4150,9 @@ private fun PortraitControlsV2(viewModel: AppViewModel) {
                     modifier = Modifier.size(24.dp)
                 )
             }
-            // 播放器设置按钮（VO/HWDEC 切换）
-            var showPlayerSettings by remember { mutableStateOf(false) }
+            // 播放器设置按钮：打开完整设置面板（含内核选择/VO/HWDEC/HDR 等）
             IconButton(
-                onClick = { showPlayerSettings = true },
+                onClick = { viewModel.togglePlayerSettings() },
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
@@ -4161,12 +4160,6 @@ private fun PortraitControlsV2(viewModel: AppViewModel) {
                     contentDescription = "播放器设置",
                     tint = oc.iconTint,
                     modifier = Modifier.size(20.dp)
-                )
-            }
-            if (showPlayerSettings) {
-                PlayerSettingsDialog(
-                    viewModel = viewModel,
-                    onDismiss = { showPlayerSettings = false }
                 )
             }
             // 时间标签 - 开始
@@ -4915,82 +4908,4 @@ fun PortraitPanelDialog(
             }
         }
     }
-}
-
-/**
- * 播放器设置对话框（VO/HWDEC 切换）
- */
-@Composable
-private fun PlayerSettingsDialog(
-    viewModel: AppViewModel,
-    onDismiss: () -> Unit
-) {
-    val userPrefs = remember { com.iptv.scanner.editor.pro.data.UserPrefs.getInstance() }
-    var currentVo by remember { mutableStateOf(userPrefs.getVo()) }
-    var currentHwdec by remember { mutableStateOf(userPrefs.getHwdec()) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("播放器设置", fontSize = 16.sp) },
-        text = {
-            Column {
-                Text("视频输出 (VO)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                val voOptions = listOf("gpu", "gpu-next", "mediacodec_embed")
-                voOptions.forEach { vo ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                currentVo = vo
-                                userPrefs.setVo(vo)
-                                viewModel.showOsd("播放器设置", "VO=$vo\n切换中...")
-                                viewModel.applyVoChange(vo)
-                                onDismiss()
-                            }
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = currentVo == vo,
-                            onClick = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(vo, fontSize = 13.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("硬件解码", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                val hwdecOptions = listOf("auto-copy" to "自动（软解输出）", "auto" to "自动（硬解输出）", "no" to "关闭（纯软解）")
-                hwdecOptions.forEach { (value, label) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                currentHwdec = value
-                                userPrefs.setHwdec(value)
-                                viewModel.setHardwareDecode(value != "no")
-                                onDismiss()
-                            }
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = currentHwdec == value,
-                            onClick = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(label, fontSize = 13.sp)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("关闭") }
-        }
-    )
 }

@@ -101,7 +101,11 @@ class MPVView @JvmOverloads constructor(
 
         MPVLib.setOptionString("vo", vo)
         MPVLib.setOptionString("hwdec", hwdec)
-        MPVLib.setOptionString("keep-open", "yes")
+        // keep-open=always：stop 期间也保留最后一帧，避免换台黑屏闪烁。
+        // 与 PC 端不同，Android 端在 loadfile 前会发送 stop（对齐 PC 端 play_file 的逻辑），
+        // 用 always 确保 stop → loadfile 之间画面不消失。
+        // yes 只在 EOF 时保留，stop 会清空画面；always 在 stop 时也保留。
+        MPVLib.setOptionString("keep-open", "always")
         MPVLib.setOptionString("keepaspect", "yes")
         MPVLib.setOptionString("keepaspect-window", "no")
         // FBO 格式：根据 HDR 模式选择。
@@ -433,10 +437,18 @@ class MPVView @JvmOverloads constructor(
             MPVLib.setPropertyBoolean("pause", false)
             filePath = null
         } else {
+            // 文件已在播放时不要重新 loadfile！
+            //
+            // 根因：进入画中画(PiP)时 Surface 被销毁重建，surfaceCreated 会触发。
+            // 如果此时重新 loadfile 同一个 URL，mpv 会先发 END_FILE（旧文件被替换）
+            // 再发 START_FILE（新文件加载），MpvController 的 END_FILE 处理器会
+            // 误判为"频道断流"并触发重连，导致 OSD 提示"频道断流 重新连接"。
+            //
+            // 正确行为：detachSurface/attachSurface 后 VO 模块仍存活，
+            // mpv 会自动在新 Surface 上恢复渲染，无需重新 loadfile。
             val currentPath = try { MPVLib.getPropertyString("path") } catch (_: Exception) { "" }
             if (!currentPath.isNullOrEmpty()) {
-                Log.i(TAG, "surfaceCreated: re-loading current path=$currentPath")
-                MPVLib.command(arrayOf("loadfile", currentPath))
+                Log.i(TAG, "surfaceCreated: file already playing ($currentPath), resuming render on new surface")
                 MPVLib.setPropertyBoolean("pause", false)
             } else {
                 Log.i(TAG, "surfaceCreated: no pending filePath, waiting for external playFile")

@@ -275,7 +275,7 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                             groups = groups,
                             selectedGroup = selectedGroup,
                             onGroupSelected = { viewModel.setSelectedGroup(it) },
-                            modifier = Modifier.width(160.dp)
+                            modifier = Modifier.width(130.dp)
                         )
                     }
 
@@ -298,7 +298,7 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                             }
                         },
                         onFocusedChannelChange = { idx -> focusedChannelIdx = idx },
-                        modifier = Modifier.width(240.dp).focusRequester(channelListFocus)
+                        modifier = Modifier.width(200.dp).focusRequester(channelListFocus)
                     )
 
                     // -----------------------------------------------------------------
@@ -335,7 +335,7 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                         EpgDescColumn(
                             epg = focusedEpg,
                             selectedProgram = selectedProgram,
-                            modifier = Modifier.width(260.dp)
+                            modifier = Modifier.width(220.dp)
                         )
                     }
                 }
