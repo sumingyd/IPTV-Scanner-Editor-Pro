@@ -811,6 +811,21 @@ def delete_channel(idx):
         return _err(str(e))
 
 
+def clear_local_channels():
+    """清空所有本地频道（source 为空的频道）。返回 {cleared} 或 {error}"""
+    try:
+        ctx = _get_ctx()
+        if ctx is None:
+            return _err('not inited')
+        before = len(ctx._channels)
+        ctx._channels = [c for c in ctx._channels if c.get('source', '')]
+        cleared = before - len(ctx._channels)
+        ctx._save_channels_to_cache()
+        return _ok({'cleared': cleared})
+    except Exception as e:
+        return _err(str(e))
+
+
 def import_channels(content, name=''):
     """解析 M3U 内容并追加到频道列表。返回 {imported} 或 {error}"""
     try:

@@ -119,6 +119,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -2592,6 +2593,34 @@ private fun PortraitListScreen(
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
+
+            // 本地模式：清空按钮
+            if (listSourceTab == AppViewModel.ListSourceTab.LOCAL && filteredChannels.isNotEmpty()) {
+                var showClearDialog by remember { mutableStateOf(false) }
+                IconButton(onClick = { showClearDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteSweep,
+                        contentDescription = "清空本地列表",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (showClearDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showClearDialog = false },
+                        title = { Text("清空本地列表") },
+                        text = { Text("确定要清空所有本地频道吗？此操作不可撤销。") },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                viewModel.clearLocalChannels()
+                                showClearDialog = false
+                            }) { Text("清空", color = MaterialTheme.colorScheme.error) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showClearDialog = false }) { Text("取消") }
+                        }
+                    )
+                }
+            }
         }
 
         // 订阅源横向滚动标签（仅订阅模式且多订阅源时显示）
@@ -2725,7 +2754,9 @@ private fun PortraitListScreen(
                         favorites = favorites,
                         epgCacheVersion = epgCacheVersion,
                         thumbnailPaths = thumbnailPaths,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        showDelete = listSourceTab == AppViewModel.ListSourceTab.LOCAL,
+                        onDelete = { idx -> viewModel.deleteChannel(idx) }
                     )
                 } else {
                     ChannelThumbnailPanel(
@@ -2734,7 +2765,9 @@ private fun PortraitListScreen(
                         currentIdx = currentIdx,
                         favorites = favorites,
                         thumbnailPaths = thumbnailPaths,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        showDelete = listSourceTab == AppViewModel.ListSourceTab.LOCAL,
+                        onDelete = { idx -> viewModel.deleteChannel(idx) }
                     )
                 }
             }
@@ -2888,7 +2921,9 @@ private fun ChannelListPanel(
     favorites: Set<Int>,
     epgCacheVersion: Int,
     thumbnailPaths: Map<String, String>,
-    viewModel: AppViewModel
+    viewModel: AppViewModel,
+    showDelete: Boolean = false,
+    onDelete: (Int) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -3009,6 +3044,18 @@ private fun ChannelListPanel(
                             modifier = Modifier.size(14.dp)
                         )
                     }
+                    // 删除按钮（仅本地模式）
+                    if (showDelete && idx >= 0) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "删除",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable { onDelete(idx) }
+                        )
+                    }
                 }
             }
         }
@@ -3024,7 +3071,9 @@ private fun ChannelThumbnailPanel(
     currentIdx: Int,
     favorites: Set<Int>,
     thumbnailPaths: Map<String, String>,
-    viewModel: AppViewModel
+    viewModel: AppViewModel,
+    showDelete: Boolean = false,
+    onDelete: (Int) -> Unit = {}
 ) {
     val thumbnailGenProgress by viewModel.thumbnailGenProgress.collectAsState()
 
@@ -3162,6 +3211,25 @@ private fun ChannelThumbnailPanel(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text("播放中", color = MaterialTheme.colorScheme.onPrimary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    // 删除按钮（仅本地模式）
+                    if (showDelete && idx >= 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(4.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.6f))
+                                .clickable { onDelete(idx) }
+                                .padding(4.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "删除",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                     }
                 }

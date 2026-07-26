@@ -1359,6 +1359,38 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         }
     }
 
+    /** 删除指定索引的频道（本地列表管理） */
+    fun deleteChannel(idx: Int) {
+        viewModelScope.launch {
+            val result = repository.deleteChannel(idx)
+            result.fold(
+                onSuccess = {
+                    showOsd("已删除频道")
+                    loadChannels()
+                },
+                onFailure = { e ->
+                    showOsd("删除失败", e.message ?: "")
+                }
+            )
+        }
+    }
+
+    /** 清空所有本地频道（source 为空的频道） */
+    fun clearLocalChannels() {
+        viewModelScope.launch {
+            val result = repository.clearLocalChannels()
+            result.fold(
+                onSuccess = { count ->
+                    showOsd("已清空", "删除 $count 个本地频道")
+                    loadChannels()
+                },
+                onFailure = { e ->
+                    showOsd("清空失败", e.message ?: "")
+                }
+            )
+        }
+    }
+
     /**
      * 启动时恢复上次播放的频道。
      *

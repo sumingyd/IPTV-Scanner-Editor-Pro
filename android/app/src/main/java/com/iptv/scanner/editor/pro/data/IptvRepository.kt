@@ -205,6 +205,10 @@ class IptvRepository private constructor() {
     suspend fun deleteChannel(idx: Int): Result<Unit> =
         callPyTyped<OkResponse>("delete_channel", idx).map { Unit }
 
+    /** 清空所有本地频道（source 为空的频道），返回清除数量 */
+    suspend fun clearLocalChannels(): Result<Int> =
+        callPyTyped<ClearedResponse>("clear_local_channels").map { it.cleared }
+
     /** 从 M3U 内容导入频道，返回导入数量 */
     suspend fun importChannels(content: String, name: String = ""): Result<Int> {
         val result = callPyTyped<ImportedResponse>("import_channels", content, name)

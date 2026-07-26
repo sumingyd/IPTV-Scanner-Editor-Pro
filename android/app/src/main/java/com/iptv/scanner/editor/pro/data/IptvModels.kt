@@ -359,6 +359,11 @@ data class ImportedResponse(
 )
 
 @Serializable
+data class ClearedResponse(
+    @SerialName("cleared") val cleared: Int = 0,
+)
+
+@Serializable
 data class IdxResponse(
     @SerialName("idx") val idx: Int = 0,
 )
