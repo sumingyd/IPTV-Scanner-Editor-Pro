@@ -680,15 +680,6 @@ val logLevel: StateFlow<String> = _logLevel.asStateFlow()
     private val _hardwareDecode = MutableStateFlow(userPrefs.getHwdec() != "no")
 
     init {
-        // 注册 MPV 黑屏 fallback 回调：当 vo=gpu 渲染黑屏自动 fallback 到 mediacodec_embed 时，
-        // 同步更新 UI 状态（_currentVo / _currentHwdec），使设置面板的选中项正确显示。
-        // 不持久化（仅本次会话），避免误判永久化。
-mpvSingleton.onVoFallback = { vo, hwdec ->
-_currentVo.value = vo
-_currentHwdec.value = hwdec
-Log.i(TAG, "onVoFallback: UI updated vo=$vo, hwdec=$hwdec (session only)")
-}
-
 // 注册文件加载错误回调：当 mpv 报告文件加载失败时换源，
 // 添加短暂延迟避免坏流导致 mpv 核心状态未清理就加载下一个流。
 mpvSingleton.onFileError = {
