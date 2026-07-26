@@ -120,6 +120,9 @@ class MPVTextureView @JvmOverloads constructor(
 
         MPVLib.setOptionString("vo", vo)
         MPVLib.setOptionString("hwdec", hwdec)
+        // user-agent：与 PC 端一致（Chrome UA），避免本地代理服务器因 UA 关闭流
+        MPVLib.setOptionString("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        // keep-open=yes：与 PC 端和 MPVView 保持一致，避免循环暂停。
         MPVLib.setOptionString("keep-open", "yes")
         MPVLib.setOptionString("keepaspect", "yes")
         MPVLib.setOptionString("keepaspect-window", "no")
