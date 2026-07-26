@@ -464,7 +464,13 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
                 // 播放器模式：渲染播放器在视频区域
                 Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                     if (showHome) {
-                        // ---- Tab 模式：不渲染播放器，直接显示 Tab UI ----
+                        // 隐藏播放器：保持 Surface 活跃，后台继续播放
+                        // movableContentOf 会将播放器从视频区域移到此处（1dp 隐藏 Box），
+                        // 而非销毁重建，避免 surfaceDestroyed → stop 导致播放中断。
+                        Box(modifier = Modifier.size(1.dp)) {
+                            primaryPlayer()
+                        }
+                        // ---- Tab 模式：播放器已隐藏，显示 Tab UI ----
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -473,13 +479,16 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
                             // 迷你播放器条
                             val fileLoaded2 by viewModel.mpv.fileLoaded.collectAsState()
                             val currentCh by viewModel.currentChannel.collectAsState()
+                            val displayInfo by viewModel.channelDisplayInfo.collectAsState()
                             val paused2 by viewModel.mpv.paused.collectAsState()
-                            if (fileLoaded2 && currentCh != null) {
+                            // 频道播放：currentCh 不为 null；本地视频：currentCh 为 null 但 displayInfo.name 有值
+                            val hasMini = fileLoaded2 && (currentCh != null || displayInfo.name.isNotEmpty())
+                            if (hasMini) {
                                 MiniPlayerBar(
                                     viewModel = viewModel,
-                                    channelName = currentCh!!.name,
-                                    channelLogo = currentCh!!.logo,
-                                    groupName = currentCh!!.group,
+                                    channelName = currentCh?.name ?: displayInfo.name,
+                                    channelLogo = currentCh?.logo ?: "",
+                                    groupName = currentCh?.group ?: "",
                                     isPaused = paused2,
                                     onClick = { viewModel.showPlayerScreen() },
                                     onPlayPause = { viewModel.mpv.togglePause() }
@@ -1778,6 +1787,7 @@ private fun PortraitHomeScreen(
     val history by viewModel.history.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val currentChannel by viewModel.currentChannel.collectAsState()
+    val displayInfo by viewModel.channelDisplayInfo.collectAsState()
     val fileLoaded by viewModel.mpv.fileLoaded.collectAsState()
     val paused by viewModel.mpv.paused.collectAsState()
 
@@ -1834,13 +1844,13 @@ private fun PortraitHomeScreen(
             }
 
             // 3. 正在播放卡片
-            if (fileLoaded && currentChannel != null) {
+            if (fileLoaded && (currentChannel != null || displayInfo.name.isNotEmpty())) {
                 item {
                     MiniPlayerCard(
                         viewModel = viewModel,
-                        channelName = currentChannel!!.name,
-                        channelLogo = currentChannel!!.logo,
-                        groupName = currentChannel!!.group,
+                        channelName = currentChannel?.name ?: displayInfo.name,
+                        channelLogo = currentChannel?.logo ?: "",
+                        groupName = currentChannel?.group ?: "",
                         isPaused = paused,
                         oc = oc,
                         onClick = { viewModel.showPlayerScreen() },
