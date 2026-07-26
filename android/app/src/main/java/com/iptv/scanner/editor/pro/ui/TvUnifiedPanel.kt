@@ -204,16 +204,21 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
         if (uri != null) viewModel.playLocalVideo(uri.toString())
     }
 
-    /** 关闭统一面板后执行操作（仅用于在统一面板之前渲染的 ChannelsPanel/EpgPanel，避免被统一面板遮挡） */
-    fun closeAndRun(action: () -> Unit) {
-        viewModel.setLandscapeSidebarVisible(false)
-        viewModel.closeTvUnifiedPanel()
-        action()
-    }
-
+    /**
+     * 打开全屏覆盖子面板，同时关闭统一面板。
+     *
+     * 关键：必须关闭统一面板（_landscapeSidebarVisible 和 _tvUnifiedPanelOpen），
+     * 让 TvUnifiedPanel 从 Compose 树中移除。
+     * - 正常 TV 模式：TvUnifiedPanel 由 _landscapeSidebarVisible 控制渲染（在 TvPlayerLayout 的 AnimatedVisibility 内）
+     * - 多画面模式：TvUnifiedPanel 由 _tvUnifiedPanelOpen 控制渲染（在 MainPlayerScreen 顶层）
+     * 两种模式都要关闭，确保子面板的 focusGroup() 不被下层 TvUnifiedPanel 的菜单项干扰
+     * （ModeIconButton 的 autoSelectOnFocus=true 会在获得焦点时自动触发模式切换）。
+     *
+     * 子面板关闭后回到播放界面，用户按 MENU 键可重新打开主菜单。
+     */
     fun openOverlay(action: () -> Unit) {
-        action()
         viewModel.setLandscapeSidebarVisible(false)
+        action()
         viewModel.closeTvUnifiedPanel()
     }
 
@@ -312,7 +317,7 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                                 if (isPast) {
                                     // 过去节目：触发回看（先切换到焦点频道再回看）
                                     viewModel.playChannel(focusedChannelIdx)
-                                    closeAndRun { viewModel.startCatchup(program) }
+                                    openOverlay { viewModel.startCatchup(program) }
                                 } else {
                                     // 当前/未来节目：设置提醒
                                     viewModel.toggleReminder(program, focusedChannel)
@@ -392,9 +397,8 @@ Row(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                             }
                         },
                         onMapping = { openOverlay { viewModel.toggleMappingPanel() } },
-                        // ChannelsPanel/EpgPanel 在统一面板之前渲染，会被统一面板遮挡，必须先关闭统一面板
-                        onChannels = { closeAndRun { viewModel.showChannelsPanel() } },
-                        onEpg = { closeAndRun { viewModel.showEpgPanel() } },
+                        onChannels = { openOverlay { viewModel.showChannelsPanel() } },
+                        onEpg = { openOverlay { viewModel.showEpgPanel() } },
                         onSubtitle = { openOverlay { viewModel.toggleSubtitleSettings() } },
                         onVideo = { openOverlay { viewModel.toggleVideoSettings() } },
                         onAudio = { openOverlay { viewModel.toggleAudioSettings() } },

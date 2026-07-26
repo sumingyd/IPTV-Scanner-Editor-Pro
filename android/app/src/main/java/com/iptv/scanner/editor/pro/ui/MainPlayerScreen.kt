@@ -583,6 +583,17 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             TvUnifiedPanel(viewModel = viewModel)
         }
 
+        // 频道列表面板（菜单 → 频道列表）
+        // 渲染在 TvUnifiedPanel 之后，覆盖在视频之上；自带的 PanelHeader 提供关闭按钮
+        if (channelsPanelOpen) {
+            ChannelsPanel(viewModel = viewModel)
+        }
+
+        // 节目单面板（菜单 → 节目单 EPG）
+        if (epgPanelOpen) {
+            EpgPanel(viewModel = viewModel)
+        }
+
         // 文件浏览器（全屏覆盖，SAF 不可用时的替代方案）
         if (fileBrowserOpen) {
             FileBrowserPanel(viewModel = viewModel)

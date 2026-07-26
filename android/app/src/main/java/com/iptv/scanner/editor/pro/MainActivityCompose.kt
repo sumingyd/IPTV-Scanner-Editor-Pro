@@ -160,10 +160,12 @@ class MainActivityCompose : ComponentActivity() {
                     kc == KeyEvent.KEYCODE_DPAD_LEFT || kc == KeyEvent.KEYCODE_DPAD_RIGHT
             if (event.action == KeyEvent.ACTION_DOWN) {
                 if (isOk) {
+                    // 侧边栏（TvUnifiedPanel）打开时，DPAD_CENTER 必须传给 Compose 焦点系统，
+                    // 让菜单项的 onClick / 频道列表的 onChannelClick 触发。
+                    // 之前这里直接关闭侧边栏并消费事件，导致菜单项点击无效。
+                    // 关闭侧边栏由 openOverlay（菜单项 onClick）或 BACK 键处理。
                     if (viewModel.landscapeSidebarVisible.value) {
-                        viewModel.setLandscapeSidebarVisible(false)
-                        Log.i(TAG, "dispatchKeyEvent: DPAD_CENTER close sidebar")
-                        return true
+                        return super.dispatchKeyEvent(event)
                     }
                     if (!viewModel.anyPanelOpen) {
                         viewModel.setLandscapeSidebarVisible(true)

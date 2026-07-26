@@ -45,7 +45,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.iptv.scanner.editor.pro.data.UserPrefs
 import com.iptv.scanner.editor.pro.player.PlayerType
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 
@@ -460,23 +459,6 @@ private fun PlayerSettingsRightColumn(viewModel: AppViewModel) {
         else -> "未知等级: $logLevel"
     }
     Text(text = logLevelDesc, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 4.dp))
-    Spacer(modifier = Modifier.height(20.dp))
-
-    val fallbackConfirmed = remember(currentVo) { UserPrefs.getInstance().isVoFallbackConfirmed() }
-    if (fallbackConfirmed) {
-        Surface(
-            color = MaterialTheme.colorScheme.primaryContainer,
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "黑屏 fallback 已确认", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Text(text = "该设备曾触发过黑屏检测，下次启动直接用 mediacodec_embed", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                }
-            }
-        }
-    }
     Spacer(modifier = Modifier.height(20.dp))
 
     Surface(
