@@ -3362,6 +3362,8 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             result.fold(
                 onSuccess = { count ->
                     showOsd("导入成功", "已导入 $count 个频道")
+                    // 切换到本地 tab，让用户立即看到导入的频道
+                    setChannelsTab(ChannelTab.LOCAL)
                     loadChannels()
                     _fileBrowserOpen.value = false
                 },
@@ -5865,6 +5867,30 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
      */
     fun playLocalVideo(uri: String) {
         Log.i(TAG, "playLocalVideo: $uri")
+
+        // 检测是否为 M3U/M3U8 播放列表文件：
+        // 用户通过"本地文件"按钮选择 M3U 文件时，应解析为频道列表而非当作视频播放。
+        // 检测方式：MIME 类型包含 mpegurl，或文件名以 .m3u/.m3u8 结尾。
+        val app = getApplication<Application>()
+        val parsedUri = Uri.parse(uri)
+        val isM3u = try {
+            val mime = app.contentResolver.getType(parsedUri)
+            val isM3uMime = mime != null && mime.contains("mpegurl", ignoreCase = true)
+            val fileName = parsedUri.lastPathSegment ?: ""
+            val isM3uExt = fileName.endsWith(".m3u", ignoreCase = true) ||
+                           fileName.endsWith(".m3u8", ignoreCase = true)
+            isM3uMime || isM3uExt
+        } catch (_: Exception) {
+            val fileName = parsedUri.lastPathSegment ?: ""
+            fileName.endsWith(".m3u", ignoreCase = true) ||
+            fileName.endsWith(".m3u8", ignoreCase = true)
+        }
+        if (isM3u) {
+            Log.i(TAG, "playLocalVideo: detected M3U/M3U8 file, redirecting to importPlaylist")
+            importPlaylist(parsedUri)
+            return
+        }
+
         viewModelScope.launch {
             _currentIdx.value = -1
             _channelDisplayInfo.value = ChannelDisplayInfo(
@@ -6039,6 +6065,8 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             result.fold(
                 onSuccess = { count ->
                     showOsd("导入成功", "已导入 $count 个频道")
+                    // 切换到本地 tab，让用户立即看到导入的频道
+                    setChannelsTab(ChannelTab.LOCAL)
                     loadChannels()
                 },
                 onFailure = { e ->
