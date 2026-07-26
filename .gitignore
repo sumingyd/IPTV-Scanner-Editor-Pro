@@ -231,3 +231,27 @@ android/.idea/
 android/build_log*.txt
 android/local.properties
 android/app/build/
+android/apk-output/
+
+# 调试日志和临时文件（根目录）
+tv_*.txt
+tv_*.log
+build_output*.txt
+full_logs*.txt
+.tmp_*.txt
+*.apk.tmp
+
+# 调试日志（android 目录）
+android/tv_*.txt
+android/tv_*.log
+
+# IDE 临时备份文件
+.trae/rules/old_*
+
+# 解压临时目录
+ku9_extracted/
+
+# 其他不需要同步的目录
+.codeartsdoer/
+.opencode/
+.arts/
