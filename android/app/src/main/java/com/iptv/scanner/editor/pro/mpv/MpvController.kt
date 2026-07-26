@@ -57,13 +57,6 @@ class MpvController : MPVLib.EventObserver, Player {
     private var mpvView: MPVViewLike? = null
 
 
-    /**
-     * 黑屏 fallback 标志：vo=gpu 在部分 GPU（如 Mali-G76）上存在 EGL 兼容性问题导致黑屏。
-     * 检测到黑屏后自动切换到 vo=mediacodec_embed（仅 fallback 一次，避免循环）。
-     */
-    @Volatile
-    private var voFallbackTriggered = false
-
     // -----------------------------------------------------------------
     // StateFlow（Compose 可观察状态）— override Player 接口
     // -----------------------------------------------------------------
@@ -105,13 +98,6 @@ class MpvController : MPVLib.EventObserver, Player {
 
     private val _videoHeight = MutableStateFlow(0)
     override val videoHeight: StateFlow<Int> = _videoHeight.asStateFlow()
-
-    /**
-     * VO 自动 fallback 回调（由黑屏检测触发）。
-     * AppViewModel 注册此回调以同步 UI 状态（_currentVo / _currentHwdec）。
-     */
-    @Volatile
-    var onVoFallback: ((String, String) -> Unit)? = null
 
     /**
      * 文件加载出错回调（由 MPV_EVENT_END_FILE with error 触发）。
@@ -159,18 +145,6 @@ class MpvController : MPVLib.EventObserver, Player {
         } catch (e: Throwable) {
             Log.w(TAG, "attach: sync pause state failed: ${e.message}")
         }
-
-        // 播放器设置持久化：如果该设备已确认需要 vo fallback（黑屏检测曾触发过），
-        // 直接设置标志跳过本次黑屏探测。此时 MPVView 已用持久化的 mediacodec_embed 初始化，
-        // 无需再等待 2 秒黑屏。
-        // 用户可通过 resetPlayerSettings() 重置，重新走黑屏检测流程。
-        if (UserPrefs.getInstance().isVoFallbackConfirmed()) {
-            voFallbackTriggered = true
-            Log.i(TAG, "vo fallback already confirmed, skip black screen detection")
-        }
-
-        // 重置 fbo-format 降级标志（新会话/新 Surface 重新探测）
-        fboFormatDowngraded = false
 
         // 应用反交错设置（与 PC 端 _ensure_mpv_initialized 行 420-426 对齐）。
         // deinterlace 是运行时属性，在 attach 阶段设置确保首次播放即生效。
@@ -272,16 +246,7 @@ class MpvController : MPVLib.EventObserver, Player {
                     MPVLib.command(arrayOf("loadfile", path))
                     MPVLib.setPropertyBoolean("pause", false)
                 }
-                // 重置 voFallbackTriggered：
-                // - 切换到 gpu / gpu-next：重新启用黑屏检测，清除持久化的 fallback 标记
-                //   （用户主动切回 gpu/gpu-next，说明设备 GPU 正常，不应再被持久化锁定）
-                // - 切换到 mediacodec_embed：标记已 fallback（不需要再检测）
-                voFallbackTriggered = (vo == "mediacodec_embed")
-                if (vo == "gpu" || vo == "gpu-next") {
-                    UserPrefs.getInstance().setVoFallbackConfirmed(false)
-                    fboFormatDowngraded = false  // 重置降级标志，允许重新探测
-                }
-                Log.i(TAG, "setVoAndHwdec: vo=$vo, hwdec=$hwdec, voFallbackTriggered=$voFallbackTriggered, hasFile=$hasFile")
+                Log.i(TAG, "setVoAndHwdec: vo=$vo, hwdec=$hwdec, hasFile=$hasFile")
                 Log.i(TAG, "diagnostic: ${mpvView?.getDiagnosticInfo()}")
             } catch (e: Throwable) {
                 Log.e(TAG, "setVoAndHwdec failed", e)
@@ -545,6 +510,44 @@ class MpvController : MPVLib.EventObserver, Player {
 
         val isFcc = "?fcc=" in u
         try {
+            // 关键修复：重置 user-agent。
+            // RTSP 分支会将 user-agent 设为 "VLC/3.0.18Libmpv"，该属性是全局持久的。
+            // 如果不重置，从 RTSP 频道切到 HTTP/HLS/TS 频道时，user-agent 仍为 VLC UA，
+            // 服务器（特别是 rt2phttpd 代理）会因 UA 不匹配在几秒后关闭连接，
+            // 导致 mpv 收到 EOF → keep-open=yes 暂停 → 用户看到"播放几秒后自动暂停"。
+            // 非 RTSP 流统一使用 Chrome UA（与 MPVView.initialize 中的 setOptionString 一致）。
+            if (!u.startsWith("rtsp://")) {
+                MPVLib.setPropertyString("user-agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            }
+            // FCC 流超时覆盖：rtp2httpd 代理在收到 JOIN 通知后，先以单播转发流，
+            // 同时发起 IGMP 组播加入请求。组播加入需要 2-10 秒（IGMP 延迟），
+            // 期间可能出现短暂数据间隙。
+            //
+            // 根因分析：MPVView.initialize() 全局设置了 network-timeout=8、
+            // demuxer-read-timeout=5。PC 端这些值全部为 0（不超时），所以 PC 端
+            // 不会在组播切换间隙断开。Android 端的 5-8 秒超时会在组播加入完成前
+            // 断开 HTTP 连接，导致 rtp2httpd "FCC组播已请求→断开" 循环。
+            //
+            // 修复策略：setPropertyString 对 network-timeout 等 init-only 选项可能
+            // 不生效。改用 stream-lavf-o 直接传 rw_timeout 到 ffmpeg 层级（微秒），
+            // 绕过 mpv 的选项系统。同时设置 demuxer-read-timeout=0 禁用 mpv 层超时。
+            if (isFcc) {
+                // rw_timeout=30000000 微秒 = 30 秒，覆盖 ffmpeg 层 I/O 超时
+                // 这是最可靠的方式：直接传递给 libavformat，不依赖 mpv 选项系统
+                MPVLib.setPropertyString("stream-lavf-o", "verify=1,rw_timeout=30000000")
+                // 禁用 mpv 层 demuxer 读取超时（0 = 不超时）
+                MPVLib.setPropertyString("demuxer-read-timeout", "0")
+                MPVLib.setPropertyString("source-timeout", "0")
+                MPVLib.setPropertyString("network-timeout", "0")
+                Log.i(TAG, "FCC stream: stream-lavf-o rw_timeout=30s, demuxer-read-timeout=0, source-timeout=0")
+            } else {
+                // 非 FCC 流恢复默认超时
+                MPVLib.setPropertyString("stream-lavf-o", "verify=1")
+                MPVLib.setPropertyString("demuxer-read-timeout", "5")
+                MPVLib.setPropertyString("source-timeout", "8")
+                MPVLib.setPropertyString("network-timeout", "8")
+            }
             when {
                 // HLS (m3u8)：与 PC 端 _setup_protocol_options 对齐
                 ".m3u8" in u || "format=hls" in u -> {
@@ -1187,45 +1190,22 @@ class MpvController : MPVLib.EventObserver, Player {
                 lastLoadedUrl = try { MPVLib.getPropertyString("path") ?: "" } catch (_: Throwable) { "" }
                 _eofReached.value = false
                 loadingUrl = ""
-                // 硬解降级：hwdec=auto 但 hwdec-current=no（硬解失败回退软解），
-                // 自动降级到 auto-copy（拷贝模式兼容性更好，避免 4K HEVC 软解卡顿）
-                var hwdecDowngraded = false
-                try {
-                    val hwdec = MPVLib.getPropertyString("hwdec") ?: ""
-                    val hwdecCurrent = MPVLib.getPropertyString("hwdec-current") ?: ""
-                    if ((hwdec == "auto" || hwdec == "auto-copy") && (hwdecCurrent == "no" || hwdecCurrent.isEmpty())) {
-                        val newHwdec = if (hwdec == "auto") "auto-copy" else "mediacodec-copy"
-                        Log.w(TAG, "hwdec=$hwdec failed (current=$hwdecCurrent), trying $newHwdec")
-                        MPVLib.setPropertyString("hwdec", newHwdec)
-                        _hwdecCache = newHwdec
-                        val path = MPVLib.getPropertyString("path") ?: ""
-                        if (path.isNotEmpty()) {
-                            MPVLib.command(arrayOf("loadfile", path))
-                            MPVLib.setPropertyBoolean("pause", false)
-                        }
-                        hwdecDowngraded = true
-                    } else if (hwdec == "mediacodec-copy" && (hwdecCurrent == "no" || hwdecCurrent.isEmpty() || hwdecCurrent == "none")) {
-                        Log.w(TAG, "hwdec=mediacodec-copy also failed, falling back to vo=mediacodec_embed")
-                        fallbackToMediacodecEmbed()
-                        hwdecDowngraded = true
-                    }
-                } catch (_: Throwable) {}
-                if (!hwdecDowngraded) {
-                    mpvView?.let { v ->
-                        val pos = v.pendingResumePos
-                        if (pos > 0) {
-                            v.pendingResumePos = -1.0
-                            postOnUiThread {
-                                try {
-                                    MPVLib.command(arrayOf("seek", pos.toString(), "absolute"))
-                                } catch (e: Throwable) {
-                                    Log.w(TAG, "resume seek after surface rebuild failed: ${e.message}")
-                                }
+
+                // 立即处理 pendingResumePos（surface 重建后的进度恢复）
+                mpvView?.let { v ->
+                    val pos = v.pendingResumePos
+                    if (pos > 0) {
+                        v.pendingResumePos = -1.0
+                        postOnUiThread {
+                            try {
+                                MPVLib.command(arrayOf("seek", pos.toString(), "absolute"))
+                            } catch (e: Throwable) {
+                                Log.w(TAG, "resume seek after surface rebuild failed: ${e.message}")
                             }
                         }
                     }
-                    scheduleBlackScreenCheck()
                 }
+
             }
             MPVLib.MpvEvent.MPV_EVENT_START_FILE -> {
                 _fileLoaded.value = false
@@ -1275,148 +1255,6 @@ class MpvController : MPVLib.EventObserver, Player {
                 mpvView?.markInstanceDead()
             }
         }
-    }
-
-    /** 黑屏检测重试计数（避免直播流缓冲期间 videoWidth 暂时为 0 导致误判） */
-    private var blackScreenRetryCount = 0
-
-    /**
-     * 是否已尝试过 fbo-format 降级（rgba16hf → rgba8）。
-     * 仅在 HDR 模式启用时 fbo-format 为 rgba16hf 才有意义。
-     * HDR 关闭时 fbo-format 已默认为 rgba8，跳过降级直接 fallback。
-     */
-    @Volatile
-    private var fboFormatDowngraded = false
-
-    /**
-     * 黑屏检测 Runnable：检查 videoWidth，若解码器没工作则触发 vo fallback。
-     *
-     * 分级 Fallback 策略：
-     * 1. videoWidth==0 + vo=gpu/gpu-next + fbo-format=rgba16hf + 未降级 →
-     *    尝试 fbo-format=rgba8（解决不支持 rgba16hf 的 GPU）
-     * 2. videoWidth==0 + 其他情况（fbo-format 已为 rgba8 或已降级）→
-     *    切换到 mediacodec_embed（绕过 GPU 渲染管线）
-     *
-     * 判断依据（仅 videoWidth==0）：
-     * - videoWidth==0 表示解码器没有输出视频帧，是确定的黑屏
-     * - 不再使用 estimated-vfps：IPTV 直播流（通过 rt2phttpd HTTP 代理）的
-     *   estimated-vfps 可能长时间为 0，即使视频正常渲染，会导致误判
-     *
-     * 防误判机制：
-     * - 首次检测到 videoWidth==0 后 3 秒复查，连续两次确认才 fallback
-     * - 首次检测在文件加载后 6 秒（scheduleBlackScreenCheck），复查在 9 秒
-     *
-     * 不持久化 fallback 结果：
-     * - fallback 仅在本次会话生效，不写 setVoFallbackConfirmed(true)
-     * - 避免误判永久化（曾出现 IPTV 流 estimated-vfps 误判导致用户设备
-     *   被永久锁定为 mediacodec_embed，即使 GPU 正常）
-     * - 用户若需永久切换 vo，可在播放器设置中手动切换
-     */
-    private val blackScreenCheckRunnable: Runnable = Runnable {
-        if (voFallbackTriggered) return@Runnable
-        if (!_fileLoaded.value) return@Runnable
-
-        // 当前 vo：如果已经是 mediacodec_embed（用户手动切换），不需要 fallback
-        val currentVo = try {
-            MPVLib.getPropertyString("vo") ?: ""
-        } catch (e: Throwable) {
-            Log.w(TAG, "getPropertyString(vo) failed", e)
-            ""
-        }
-        if (currentVo == "mediacodec_embed" || currentVo.isEmpty()) return@Runnable
-
-        // 黑屏判断：仅以 videoWidth==0 为准
-        // 注意：不使用 estimated-vfps，因为 IPTV 直播流（通过 rt2phttpd HTTP 代理）的
-        // estimated-vfps 可能长时间为 0，即使视频正常渲染，会导致误判 fallback。
-        val videoWidth = _videoWidth.value
-
-        Log.d(TAG, "blackScreenCheck: vo=$currentVo, videoWidth=$videoWidth, attempt=${blackScreenRetryCount + 1}, fboDowngraded=$fboFormatDowngraded")
-
-        // 黑屏条件：仅以 videoWidth==0 为准
-        // 不使用 estimated-vfps 判断：IPTV 直播流的 estimated-vfps 经常长时间为0，
-        // 即使视频正常渲染也会误判为 GPU 渲染失败，导致从 gpu 错误 fallback 到 gpu-next。
-        val isBlackScreen = videoWidth == 0
-
-        if (isBlackScreen) {
-            blackScreenRetryCount++
-            if (blackScreenRetryCount < 2) {
-                // 首次检测到黑屏：可能是直播流还在缓冲，3 秒后复查
-                Log.w(TAG, "Possible black screen (attempt $blackScreenRetryCount, videoWidth=$videoWidth), retrying in 3s...")
-                mpvView?.asView()?.postDelayed(blackScreenCheckRunnable, 3000)
-                return@Runnable
-            }
-            // 连续两次检测到 videoWidth==0，确认黑屏
-            // 检查当前 fbo-format：仅当为 rgba16hf 时才尝试降级
-            val currentFboFormat = try {
-                MPVLib.getPropertyString("fbo-format") ?: "rgba8"
-            } catch (_: Throwable) { "rgba8" }
-            if (!fboFormatDowngraded && currentFboFormat == "rgba16hf" &&
-                (currentVo == "gpu" || currentVo == "gpu-next")) {
-                // 第一级：fbo-format 降级（rgba16hf → rgba8）
-                // 某些 GPU（如旧 Mali/Adreno）不支持 16-bit 浮点帧缓冲，
-                // EGL 初始化成功但渲染失败导致黑屏。降级到 rgba8 可恢复渲染。
-                Log.w(TAG, "Black screen confirmed (videoWidth=0, vo=$currentVo), trying fbo-format=rgba8 downgrade")
-                fboFormatDowngraded = true
-                blackScreenRetryCount = 0  // 重置计数，给降级后的 VO 第二次检测机会
-                try {
-                    // 尝试运行时修改 fbo-format（mpv gpu VO 支持运行时属性修改）
-                    MPVLib.setPropertyString("fbo-format", "rgba8")
-                    // 重新加载文件触发新 FBO 格式渲染
-                    val path = MPVLib.getPropertyString("path")
-                    if (path != null && path.isNotEmpty()) {
-                        MPVLib.command(arrayOf("loadfile", path))
-                        MPVLib.setPropertyBoolean("pause", false)
-                    }
-                    Log.i(TAG, "fbo-format downgraded to rgba8, reloading...")
-                    // 6 秒后再次检测是否恢复
-                    mpvView?.asView()?.postDelayed(blackScreenCheckRunnable, 6000)
-                } catch (e: Throwable) {
-                    Log.e(TAG, "fbo-format downgrade failed", e)
-                    // 降级失败，直接 fallback 到 mediacodec_embed
-                    fallbackToMediacodecEmbed()
-                }
-            } else {
-                // 第二级：切换到 mediacodec_embed（绕过 GPU 渲染管线）
-                fallbackToMediacodecEmbed()
-            }
-        }
-    }
-
-    /**
-     * Fallback 到 mediacodec_embed VO（绕过 GPU 渲染管线，直接用 MediaCodec 渲染到 Surface）。
-     */
-    private fun fallbackToMediacodecEmbed() {
-        Log.w(TAG, "Falling back to vo=mediacodec_embed")
-        voFallbackTriggered = true
-        try {
-            MPVLib.setPropertyString("hwdec", "mediacodec")
-            mpvView?.reattachSurfaceWithVo("mediacodec_embed")
-            // 重新加载当前文件以触发 mediacodec 渲染
-            val path = MPVLib.getPropertyString("path")
-            if (path != null && path.isNotEmpty()) {
-                MPVLib.command(arrayOf("loadfile", path))
-                MPVLib.setPropertyBoolean("pause", false)
-            }
-            // 不持久化：仅本次会话生效，避免误判永久化
-            Log.i(TAG, "Switched to vo=mediacodec_embed (session only, not persisted)")
-            Log.i(TAG, "diagnostic: ${mpvView?.getDiagnosticInfo()}")
-            // 通知 AppViewModel 更新 UI 状态（_currentVo / _currentHwdec）
-            onVoFallback?.invoke("mediacodec_embed", "mediacodec")
-        } catch (e: Throwable) {
-            Log.e(TAG, "Fallback to mediacodec_embed failed", e)
-        }
-    }
-
-    /**
-     * 安排黑屏检测（在文件加载后 6 秒执行，给直播流足够缓冲时间，避免 videoWidth 误判）。
-     */
-    private fun scheduleBlackScreenCheck() {
-        val view = mpvView ?: return
-        view.asView().removeCallbacks(blackScreenCheckRunnable)
-        blackScreenRetryCount = 0
-        // 记录诊断信息，方便排查黑屏问题
-        Log.i(TAG, "scheduleBlackScreenCheck: diagnostic=${mpvView?.getDiagnosticInfo()}")
-        view.asView().postDelayed(blackScreenCheckRunnable, 6000)
     }
 
     companion object {
