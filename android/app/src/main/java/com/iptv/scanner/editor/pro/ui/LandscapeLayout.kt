@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -204,49 +205,68 @@ private fun LandscapeGestureOverlay(
     Box(modifier = modifier.pointerInput(Unit) {
         val w = size.width
         val third = w / 3f
-        detectVerticalDragGestures(
-            onDragEnd = {},
-            onDragCancel = {}
-        ) { change, dragAmount ->
-            val x = change.position.x
-            when {
-                x < third -> {
-                    if (activity != null) {
-                        val lp = activity.window.attributes
-                        val cur = if (lp.screenBrightness in 0f..1f) lp.screenBrightness else 0.5f
-                        val delta = -dragAmount / size.height * 2f
-                        lp.screenBrightness = (cur + delta).coerceIn(0.05f, 1f)
-                        activity.window.attributes = lp
+
+        while (true) {
+            awaitPointerEventScope {
+                val firstDown = awaitFirstDown()
+                val downX = firstDown.position.x
+                val downY = firstDown.position.y
+                var prevY = downY
+                var isDragging = false
+
+                do {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.first()
+                    val currentY = change.position.y
+                    val dragAmount = currentY - prevY
+                    prevY = currentY
+
+                    if (!isDragging && abs(currentY - downY) > GESTURE_THRESHOLD) {
+                        isDragging = true
                     }
-                }
-                x < third * 2 -> {
-                    if (dragAmount > GESTURE_THRESHOLD) {
-                        viewModel.prevChannel()
-                    } else if (dragAmount < -GESTURE_THRESHOLD) {
-                        viewModel.nextChannel()
-                    }
-                }
-                else -> {
-                    if (am != null) {
-                        val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                        val step = maxOf(1, maxVol / 15)
-                        val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
-                        if (dragAmount < -GESTURE_THRESHOLD / 2) {
-                            am.setStreamVolume(AudioManager.STREAM_MUSIC, (cur + step).coerceAtMost(maxVol), 0)
-                        } else if (dragAmount > GESTURE_THRESHOLD / 2) {
-                            am.setStreamVolume(AudioManager.STREAM_MUSIC, (cur - step).coerceAtLeast(0), 0)
+
+                    if (isDragging && dragAmount != 0f) {
+                        when {
+                            downX < third -> {
+                                if (activity != null) {
+                                    val lp = activity.window.attributes
+                                    val cur = if (lp.screenBrightness in 0f..1f) lp.screenBrightness else 0.5f
+                                    val delta = -dragAmount / size.height * 2f
+                                    lp.screenBrightness = (cur + delta).coerceIn(0.05f, 1f)
+                                    activity.window.attributes = lp
+                                }
+                            }
+                            downX < third * 2 -> {
+                                if (dragAmount > GESTURE_THRESHOLD) {
+                                    viewModel.prevChannel()
+                                } else if (dragAmount < -GESTURE_THRESHOLD) {
+                                    viewModel.nextChannel()
+                                }
+                            }
+                            else -> {
+                                if (am != null) {
+                                    val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                    val step = maxOf(1, maxVol / 15)
+                                    val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                    if (dragAmount < -GESTURE_THRESHOLD / 2) {
+                                        am.setStreamVolume(AudioManager.STREAM_MUSIC, (cur + step).coerceAtMost(maxVol), 0)
+                                    } else if (dragAmount > GESTURE_THRESHOLD / 2) {
+                                        am.setStreamVolume(AudioManager.STREAM_MUSIC, (cur - step).coerceAtLeast(0), 0)
+                                    }
+                                }
+                            }
                         }
                     }
+                } while (!event.changes.first().changedToUp())
+
+                if (!isDragging) {
+                    val controlsVisible = viewModel.controlsVisible.value
+                    if (controlsVisible) {
+                        viewModel.hideControls()
+                    } else {
+                        viewModel.showControlsAutoHide()
+                    }
                 }
-            }
-        }
-    }.pointerInput(Unit) {
-        detectTapGestures {
-            val controlsVisible = viewModel.controlsVisible.value
-            if (controlsVisible) {
-                viewModel.hideControls()
-            } else {
-                viewModel.showControlsAutoHide()
             }
         }
     })
