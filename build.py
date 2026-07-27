@@ -145,7 +145,6 @@ HIDDEN_IMPORTS = [
     "services.logo_cache_service",
     "services.logo_matcher",
     "services.m3u_parser",
-    "services.mpv_bindings",
     "services.mpv_common",
     "services.mpv_gl_widget",
     "services.mpv_player_service",
@@ -165,7 +164,6 @@ HIDDEN_IMPORTS = [
     "ui.dialogs.file_association_dialog",
     "ui.dialogs.mapping_manager_dialog",
     "ui.dialogs.scan_channel_dialog",
-    "ui.dialogs.subscription_settings_dialog",
     "ui.dialogs.reminder_popup",
     "ui.dialogs.reminder_manager_dialog",
     "ui.dialogs.unified_search_dialog",
@@ -420,7 +418,7 @@ def build_macos():
         cmd.extend(["--hidden-import", imp])
     for pkg in COLLECT_ALL:
         cmd.extend(["--collect-all", pkg])
-    cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
+    cmd.append(str(PROJECT_ROOT / "main.py"))
     return cmd
 
 
@@ -443,7 +441,7 @@ def build_windows():
         cmd.extend(["--hidden-import", imp])
     for pkg in COLLECT_ALL:
         cmd.extend(["--collect-all", pkg])
-    cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
+    cmd.append(str(PROJECT_ROOT / "main.py"))
     return cmd
 
 
@@ -504,7 +502,7 @@ def build_linux():
         cmd.extend(["--hidden-import", imp])
     for pkg in COLLECT_ALL:
         cmd.extend(["--collect-all", pkg])
-    cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
+    cmd.append(str(PROJECT_ROOT / "main.py"))
     return cmd
 
 
@@ -542,7 +540,7 @@ def build_android():
         cmd.extend(["--hidden-import", imp])
     for pkg in COLLECT_ALL:
         cmd.extend(["--collect-all", pkg])
-    cmd.append(str(PROJECT_ROOT / "pyqt_player.py"))
+    cmd.append(str(PROJECT_ROOT / "main.py"))
     return cmd
 
 
