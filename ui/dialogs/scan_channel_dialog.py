@@ -1166,6 +1166,7 @@ class ScanChannelDialog(FloatingDialog):
             for r in changed:
                 row = r.get('index', 0)
                 self.model.setData(self.model.index(row, CLM.COL_GROUP), r.get('new_group', ''))
+            self._invalidate_channels_cache()
             dialog.accept()
 
         preview_btn.clicked.connect(do_preview)
@@ -1250,6 +1251,7 @@ class ScanChannelDialog(FloatingDialog):
             for r in preview:
                 row = r.get('index', 0)
                 self.model.setData(self.model.index(row, CLM.COL_NAME), r.get('cleaned', ''))
+            self._invalidate_channels_cache()
             dialog.accept()
 
         preview_btn.clicked.connect(do_preview)
@@ -1274,10 +1276,10 @@ class ScanChannelDialog(FloatingDialog):
         layout = QtWidgets.QVBoxLayout(dialog)
 
         assign_options = [
-            ('name2tvg_id', 'Channel Name -> TVG-ID'),
-            ('tvg_id2name', 'TVG-ID -> Channel Name'),
-            ('tvg_name2name', 'TVG-Name(from tags) -> Channel Name'),
-            ('tvg_id2tvg_chno', 'TVG-ID -> TVG-CHNO'),
+            ('name2tvg_id', tr('assign_name2tvg_id', 'Channel Name -> TVG-ID')),
+            ('tvg_id2name', tr('assign_tvg_id2name', 'TVG-ID -> Channel Name')),
+            ('tvg_name2name', tr('assign_tvg_name2name', 'TVG-Name(from tags) -> Channel Name')),
+            ('tvg_id2tvg_chno', tr('assign_tvg_id2tvg_chno', 'TVG-ID -> TVG-CHNO')),
         ]
 
         radio_group = QtWidgets.QButtonGroup(self)
@@ -1460,7 +1462,7 @@ class ScanChannelDialog(FloatingDialog):
             result_dialog.setMinimumSize(280, 120)
             result_dialog.setStyleSheet(AppStyles.dialog_style())
             r_layout = QtWidgets.QVBoxLayout(result_dialog)
-            r_label = QtWidgets.QLabel(f"{len(updates)} channels matched")
+            r_label = QtWidgets.QLabel(tr("channels_matched", "{n} channels matched").format(n=len(updates)))
             r_layout.addWidget(r_label)
             ok_btn = QtWidgets.QPushButton(tr("ok", "OK"))
             ok_btn.clicked.connect(result_dialog.accept)
@@ -1492,12 +1494,12 @@ class ScanChannelDialog(FloatingDialog):
         target_indices = selected_indices if selected_indices else list(range(len(channels)))
 
         param_defs = [
-            ('tvg_id', CLM.COL_TVG_ID, 'TVG-ID'),
-            ('logo', CLM.COL_LOGO, 'Logo'),
-            ('group', CLM.COL_GROUP, 'Group'),
-            ('catchup', CLM.COL_CATCHUP, 'Catchup'),
-            ('catchup_days', CLM.COL_CATCHUP_DAYS, 'Catchup Days'),
-            ('catchup_source', CLM.COL_CATCHUP_SOURCE, 'Catchup Source'),
+            ('tvg_id', CLM.COL_TVG_ID, tr('tvg_id', 'TVG-ID')),
+            ('logo', CLM.COL_LOGO, tr('logo_address', 'Logo')),
+            ('group', CLM.COL_GROUP, tr('channel_group', 'Group')),
+            ('catchup', CLM.COL_CATCHUP, tr('catchup', 'Catchup')),
+            ('catchup_days', CLM.COL_CATCHUP_DAYS, tr('catchup_days', 'Catchup Days')),
+            ('catchup_source', CLM.COL_CATCHUP_SOURCE, tr('catchup_source', 'Catchup Source')),
         ]
 
         available = []
@@ -1548,6 +1550,7 @@ class ScanChannelDialog(FloatingDialog):
                     if i < len(channels) and channels[i].get(key):
                         self.model.setData(self.model.index(i, col), '')
                         count += 1
+            self._invalidate_channels_cache()
             dialog.accept()
 
         apply_btn.clicked.connect(do_apply)
@@ -1576,6 +1579,7 @@ class ScanChannelDialog(FloatingDialog):
         row_order = [r['index'] for r in sorted_results]
 
         self.model.sort_by_indices(row_order)
+        self._invalidate_channels_cache()
 
     def _setup_channel_edit(self, parent: QtWidgets.QLayout) -> None:
         """配置频道编辑区域（简化版，不含GroupBox）"""
@@ -1876,6 +1880,7 @@ class ScanChannelDialog(FloatingDialog):
         if ok and group_name:
             for row in indices:
                 self.model.setData(self.model.index(row, CLM.COL_GROUP), group_name)
+            self._invalidate_channels_cache()
 
     def _match_selected_logo(self):
         from services.logo_matcher import LogoMatcher
@@ -1896,11 +1901,12 @@ class ScanChannelDialog(FloatingDialog):
             if logo:
                 self.model.setData(self.model.index(row, CLM.COL_LOGO), str(logo))
                 matched += 1
+        self._invalidate_channels_cache()
 
         if matched > 0:
             QtWidgets.QMessageBox.information(
                 self, tr("match_logo", "Match Logo"),
-                f"{matched} channels matched"
+                tr("channels_matched", "{n} channels matched").format(n=matched)
             )
 
     def _delete_selected_channel(self, index):
@@ -1931,7 +1937,7 @@ class ScanChannelDialog(FloatingDialog):
             return
         from utils.error_handler import show_confirm
         title = tr("confirm_delete", "Confirm Delete")
-        message = tr("confirm_delete_selected_message", "确定删除选中的{n}个频道？").format(n=len(indices))
+        message = tr("confirm_delete_selected_message", "Delete selected {n} channels?").format(n=len(indices))
         if show_confirm(title, message, parent=self):
             for row in sorted(indices, reverse=True):
                 self.model.remove_channel(row)

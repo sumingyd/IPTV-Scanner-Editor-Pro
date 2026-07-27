@@ -331,6 +331,56 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             return header_text
         return str(section + 1) if section > 0 else ""  # 序号列不显示行号
 
+    def setData(self, index: QtCore.QModelIndex, value: Any,
+                role: int = QtCore.Qt.ItemDataRole.EditRole) -> bool:
+        """设置单元格数据"""
+        if role != QtCore.Qt.ItemDataRole.EditRole:
+            return False
+        if not index.isValid() or not (0 <= index.row() < len(self.channels)):
+            return False
+
+        channel = self.channels[index.row()]
+        logical_col = index.column()
+        actual_col = self._logical_to_actual_column(logical_col)
+
+        if actual_col == -1:
+            return False
+
+        field = self.COLUMN_FIELD_MAP.get(actual_col)
+        if not field:
+            return False
+
+        old_value = channel.get(field, '')
+        new_value = str(value) if value is not None else ''
+
+        if old_value == new_value:
+            return True
+
+        channel[field] = new_value
+
+        url = channel.get('url', '')
+        if url in self._original_channel_data:
+            self._original_channel_data[url][field] = new_value
+
+        if field == 'name':
+            if old_value:
+                self._name_cache.discard(old_value)
+            self._name_cache.add(new_value)
+        elif field == 'group':
+            if old_value:
+                self._group_cache.discard(old_value)
+            self._group_cache.add(new_value)
+
+        self.dataChanged.emit(
+            self.index(index.row(), 0),
+            self.index(index.row(), self.columnCount() - 1),
+            [QtCore.Qt.ItemDataRole.DisplayRole,
+             QtCore.Qt.ItemDataRole.DecorationRole,
+             QtCore.Qt.ItemDataRole.BackgroundRole,
+             QtCore.Qt.ItemDataRole.ForegroundRole]
+        )
+        return True
+
     def flags(self, index: QtCore.QModelIndex) -> QtCore.Qt.ItemFlag:
         """返回项标志"""
         if not index.isValid():
