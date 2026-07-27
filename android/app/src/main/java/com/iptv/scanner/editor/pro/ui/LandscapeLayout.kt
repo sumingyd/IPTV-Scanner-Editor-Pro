@@ -162,7 +162,7 @@ fun LandscapePlayerLayout(
 
     val showOverlays by derivedStateOf { sidebarVisible || controlsVisible }
     val isIdle = playbackState.mode == PlayMode.IDLE
-    val showBottomBar = showOverlays && !isIdle
+    val showBottomBar = showOverlays
 
     Box(modifier = Modifier.fillMaxSize()) {
         primaryPlayer()
@@ -760,12 +760,16 @@ private fun LandscapeBottomBar(
                         IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
                             Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
                         }
-                        IconButton(onClick = { viewModel.setLandscapeSidebarVisible(true) }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                            Icon(Icons.Default.VideoLibrary, "频道列表", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
-                        }
-                        IconButton(onClick = { viewModel.showMenuPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                            Icon(Icons.Default.Menu, "菜单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
-                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { viewModel.setLandscapeSidebarVisible(true) }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                        Icon(Icons.Default.VideoLibrary, "频道列表", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                    }
+                    IconButton(onClick = { viewModel.showMenuPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                        Icon(Icons.Default.Menu, "菜单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
                     }
                 }
             }
