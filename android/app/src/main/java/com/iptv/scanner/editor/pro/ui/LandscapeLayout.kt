@@ -45,6 +45,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.VolumeDown
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -94,6 +98,14 @@ private val ICON_SIZE = 22.dp
 private val ICON_BTN = 36.dp
 private val GESTURE_THRESHOLD = 30f
 
+private enum class GestureFeedbackType { BRIGHTNESS, VOLUME }
+
+private data class GestureFeedbackState(
+    val type: GestureFeedbackType,
+    val value: Float,
+    val timestamp: Long
+)
+
 @Composable
 fun LandscapePlayerLayout(
     viewModel: AppViewModel,
@@ -140,6 +152,14 @@ fun LandscapePlayerLayout(
         viewModel.setLandscapeSidebarVisible(true)
     }
 
+    var gestureFeedback by remember { mutableStateOf<GestureFeedbackState?>(null) }
+    LaunchedEffect(gestureFeedback?.timestamp) {
+        gestureFeedback?.let {
+            delay(800)
+            gestureFeedback = null
+        }
+    }
+
     val showOverlays by derivedStateOf { sidebarVisible || controlsVisible }
     val isIdle = playbackState.mode == PlayMode.IDLE
     val showBottomBar = showOverlays && !isIdle
@@ -149,6 +169,9 @@ fun LandscapePlayerLayout(
 
         LandscapeGestureOverlay(
             viewModel = viewModel,
+            onFeedbackUpdate = { type, value ->
+                gestureFeedback = GestureFeedbackState(type, value, System.currentTimeMillis())
+            },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -190,12 +213,20 @@ fun LandscapePlayerLayout(
                 )
             }
         }
+
+        gestureFeedback?.let { state ->
+            GestureFeedbackOverlay(
+                state = state,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
     }
 }
 
 @Composable
 private fun LandscapeGestureOverlay(
     viewModel: AppViewModel,
+    onFeedbackUpdate: (GestureFeedbackType, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -230,11 +261,13 @@ private fun LandscapeGestureOverlay(
 
                     if (!change.pressed) {
                         if (!isDragging) {
-                            val controlsVisible = viewModel.controlsVisible.value
-                            if (controlsVisible) {
-                                viewModel.hideControls()
-                            } else {
-                                viewModel.showControlsAutoHide()
+                            // Only center zone tap toggles bottom bar / sidebar
+                            if (downX >= third && downX < third * 2) {
+                                if (viewModel.controlsVisible.value) {
+                                    viewModel.hideControls()
+                                } else {
+                                    viewModel.showControlsAutoHide()
+                                }
                             }
                         }
                         break
@@ -251,15 +284,18 @@ private fun LandscapeGestureOverlay(
                     if (isDragging && dragAmount != 0f) {
                         when {
                             downX < third -> {
+                                // Left zone: screen brightness
                                 if (activity != null) {
                                     val lp = activity.window.attributes
                                     val cur = if (lp.screenBrightness in 0f..1f) lp.screenBrightness else 0.5f
                                     val delta = -dragAmount / size.height * 2f
                                     lp.screenBrightness = (cur + delta).coerceIn(0.05f, 1f)
                                     activity.window.attributes = lp
+                                    onFeedbackUpdate(GestureFeedbackType.BRIGHTNESS, lp.screenBrightness)
                                 }
                             }
                             downX < third * 2 -> {
+                                // Center zone: channel switch
                                 if (dragAmount > GESTURE_THRESHOLD) {
                                     viewModel.prevChannel()
                                 } else if (dragAmount < -GESTURE_THRESHOLD) {
@@ -267,6 +303,7 @@ private fun LandscapeGestureOverlay(
                                 }
                             }
                             else -> {
+                                // Right zone: media volume
                                 if (am != null) {
                                     val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                                     val step = maxOf(1, maxVol / 15)
@@ -276,6 +313,8 @@ private fun LandscapeGestureOverlay(
                                     } else if (dragAmount > GESTURE_THRESHOLD / 2) {
                                         am.setStreamVolume(AudioManager.STREAM_MUSIC, (cur - step).coerceAtLeast(0), 0)
                                     }
+                                    val newVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                    onFeedbackUpdate(GestureFeedbackType.VOLUME, if (maxVol > 0) newVol.toFloat() / maxVol.toFloat() else 0f)
                                 }
                             }
                         }
@@ -284,6 +323,65 @@ private fun LandscapeGestureOverlay(
             }
         }
     })
+}
+
+/**
+ * 手势调节视觉反馈：居中显示图标 + 百分比 + 进度条，800ms 后自动隐藏。
+ */
+@Composable
+private fun GestureFeedbackOverlay(
+    state: GestureFeedbackState,
+    modifier: Modifier = Modifier
+) {
+    val oc = rememberPlayerOverlayColors()
+
+    val icon = when (state.type) {
+        GestureFeedbackType.BRIGHTNESS -> Icons.Default.BrightnessMedium
+        GestureFeedbackType.VOLUME -> when {
+            state.value <= 0f -> Icons.Default.VolumeOff
+            state.value < 0.5f -> Icons.Default.VolumeDown
+            else -> Icons.Default.VolumeUp
+        }
+    }
+    val percent = (state.value * 100).toInt().coerceIn(0, 100)
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(oc.topBarBg.copy(alpha = 0.85f))
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = oc.iconTint,
+            modifier = Modifier.size(32.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "$percent%",
+            color = oc.textPrimary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .width(120.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(oc.trackInactive)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(state.value)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(oc.accent)
+            )
+        }
+    }
 }
 
 @Composable
