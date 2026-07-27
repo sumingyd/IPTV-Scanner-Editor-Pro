@@ -208,15 +208,38 @@ private fun LandscapeGestureOverlay(
 
         while (true) {
             awaitPointerEventScope {
-                val firstDown = awaitFirstDown()
-                val downX = firstDown.position.x
-                val downY = firstDown.position.y
-                var prevY = downY
+                var downX = 0f
+                var downY = 0f
+                var prevY = 0f
                 var isDragging = false
+                var started = false
 
-                do {
+                while (true) {
                     val event = awaitPointerEvent()
                     val change = event.changes.first()
+
+                    if (!started) {
+                        if (change.pressed) {
+                            started = true
+                            downX = change.position.x
+                            downY = change.position.y
+                            prevY = downY
+                        }
+                        continue
+                    }
+
+                    if (!change.pressed) {
+                        if (!isDragging) {
+                            val controlsVisible = viewModel.controlsVisible.value
+                            if (controlsVisible) {
+                                viewModel.hideControls()
+                            } else {
+                                viewModel.showControlsAutoHide()
+                            }
+                        }
+                        break
+                    }
+
                     val currentY = change.position.y
                     val dragAmount = currentY - prevY
                     prevY = currentY
@@ -256,15 +279,6 @@ private fun LandscapeGestureOverlay(
                                 }
                             }
                         }
-                    }
-                } while (!event.changes.first().changedToUp())
-
-                if (!isDragging) {
-                    val controlsVisible = viewModel.controlsVisible.value
-                    if (controlsVisible) {
-                        viewModel.hideControls()
-                    } else {
-                        viewModel.showControlsAutoHide()
                     }
                 }
             }
