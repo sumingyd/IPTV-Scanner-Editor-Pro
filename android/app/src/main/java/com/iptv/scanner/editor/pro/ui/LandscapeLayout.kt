@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
@@ -744,7 +745,6 @@ private fun LandscapeBottomBar(
 
                 if (fileLoaded) {
                     Spacer(modifier = Modifier.height(2.dp))
-
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(text = progressInfo.startLabel, color = oc.textSecondary, fontSize = 10.sp, modifier = Modifier.width(36.dp))
                         Slider(
@@ -754,22 +754,32 @@ private fun LandscapeBottomBar(
                             colors = SliderDefaults.colors(thumbColor = oc.accent, activeTrackColor = oc.accent, inactiveTrackColor = oc.trackInactive)
                         )
                         Text(text = progressInfo.endLabel, color = oc.textSecondary, fontSize = 10.sp, modifier = Modifier.width(36.dp))
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
+                        Spacer(modifier = Modifier.width(6.dp))
                         IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
                             Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
                         }
+                        IconButton(onClick = { viewModel.setLandscapeSidebarVisible(true) }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                            Icon(Icons.Default.VideoLibrary, "频道列表", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                        }
+                        IconButton(onClick = { viewModel.toggleEpgPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                            Icon(Icons.Default.Schedule, "节目单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                        }
+                        IconButton(onClick = { viewModel.showMenuPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                            Icon(Icons.Default.Menu, "菜单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                        }
                     }
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { viewModel.setLandscapeSidebarVisible(true) }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                        Icon(Icons.Default.VideoLibrary, "频道列表", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
-                    }
-                    IconButton(onClick = { viewModel.showMenuPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                        Icon(Icons.Default.Menu, "菜单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                } else {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { viewModel.setLandscapeSidebarVisible(true) }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                            Icon(Icons.Default.VideoLibrary, "频道列表", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                        }
+                        IconButton(onClick = { viewModel.toggleEpgPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                            Icon(Icons.Default.Schedule, "节目单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                        }
+                        IconButton(onClick = { viewModel.showMenuPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                            Icon(Icons.Default.Menu, "菜单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                        }
                     }
                 }
             }
