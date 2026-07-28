@@ -743,9 +743,9 @@ private fun LandscapeBottomBar(
                     Text(text = currentProgram.title, color = oc.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
 
-                if (fileLoaded) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    if (fileLoaded) {
                         Text(text = progressInfo.startLabel, color = oc.textSecondary, fontSize = 10.sp, modifier = Modifier.width(36.dp))
                         Slider(
                             value = progressInfo.percent / 100f,
@@ -758,28 +758,17 @@ private fun LandscapeBottomBar(
                         IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
                             Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
                         }
-                        IconButton(onClick = { viewModel.setLandscapeSidebarVisible(true) }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                            Icon(Icons.Default.VideoLibrary, "频道列表", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
-                        }
-                        IconButton(onClick = { viewModel.toggleEpgPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                            Icon(Icons.Default.Schedule, "节目单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
-                        }
-                        IconButton(onClick = { viewModel.showMenuPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                            Icon(Icons.Default.Menu, "菜单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
-                        }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
-                } else {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { viewModel.setLandscapeSidebarVisible(true) }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                            Icon(Icons.Default.VideoLibrary, "频道列表", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
-                        }
-                        IconButton(onClick = { viewModel.toggleEpgPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                            Icon(Icons.Default.Schedule, "节目单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
-                        }
-                        IconButton(onClick = { viewModel.showMenuPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
-                            Icon(Icons.Default.Menu, "菜单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
-                        }
+                    IconButton(onClick = { viewModel.setLandscapeSidebarVisible(true) }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                        Icon(Icons.Default.VideoLibrary, "频道列表", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                    }
+                    IconButton(onClick = { viewModel.toggleEpgPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                        Icon(Icons.Default.Schedule, "节目单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                    }
+                    IconButton(onClick = { viewModel.showMenuPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                        Icon(Icons.Default.Menu, "菜单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
                     }
                 }
             }
