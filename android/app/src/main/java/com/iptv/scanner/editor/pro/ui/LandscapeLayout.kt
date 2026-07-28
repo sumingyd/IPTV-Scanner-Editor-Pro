@@ -676,7 +676,7 @@ private fun LandscapeBottomBar(
         }
         Surface(
             color = if (isAndroid12Plus) oc.topBarBg.copy(alpha = 0.20f) else oc.topBarBg.copy(alpha = 0.85f),
-            modifier = Modifier.matchParentSize()
+            modifier = Modifier.fillMaxWidth()
         ) {
         Row(
             modifier = Modifier
