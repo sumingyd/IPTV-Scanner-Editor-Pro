@@ -27,7 +27,7 @@ class VideoEqualizerDialog(FloatingDialog):
         self.window = main_window
         tr = main_window.language_manager.tr
         self.setWindowTitle(tr('video_eq_title', '视频图像调整'))
-        self.setMinimumSize(520, 560)
+        self.setMinimumSize(520, 820)
         self._loading = False
         self._setup_ui()
         self._apply_theme()
@@ -148,6 +148,80 @@ class VideoEqualizerDialog(FloatingDialog):
 
         layout.addWidget(transform_group)
 
+        # ===== 运动补偿组 =====
+        mc_group = QGroupBox(tr('video_eq_group_motion_comp', '运动补偿'))
+        mc_form = QFormLayout(mc_group)
+        mc_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+
+        # 运动补偿强度
+        self.mc_combo = QComboBox()
+        self.mc_combo.addItem(tr('mc_off', '关闭'), 'off')
+        self.mc_combo.addItem(tr('mc_low', '轻度（帧混合）'), 'low')
+        self.mc_combo.addItem(tr('mc_medium', '中度（运动补偿）'), 'medium')
+        self.mc_combo.addItem(tr('mc_high', '强力（高级补偿）'), 'high')
+        self.mc_combo.currentIndexChanged.connect(self._on_mc_changed)
+        mc_form.addRow(tr('mc_strength_label', '强度'), self.mc_combo)
+
+        # 目标帧率
+        self.mc_fps_combo = QComboBox()
+        self.mc_fps_combo.addItem('50', 50)
+        self.mc_fps_combo.addItem('60', 60)
+        self.mc_fps_combo.addItem('90', 90)
+        self.mc_fps_combo.addItem('120', 120)
+        self.mc_fps_combo.addItem('144', 144)
+        self.mc_fps_combo.currentIndexChanged.connect(self._on_mc_fps_changed)
+        mc_form.addRow(tr('mc_fps_label', '目标帧率'), self.mc_fps_combo)
+
+        # 说明文字
+        mc_hint = QLabel(tr('mc_hint', '需 copy-back 硬解或软解。高强度会增加 CPU 负载'))
+        mc_hint.setWordWrap(True)
+        mc_hint.setStyleSheet(f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 11px;")
+        mc_form.addRow('', mc_hint)
+
+        layout.addWidget(mc_group)
+
+        # ===== 分辨率提升组 =====
+        sr_group = QGroupBox(tr('video_eq_group_super_res', '分辨率提升'))
+        sr_form = QFormLayout(sr_group)
+        sr_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+
+        # 缩放算法
+        self.sr_combo = QComboBox()
+        self.sr_combo.addItem(tr('sr_off', '关闭'), 'off')
+        self.sr_combo.addItem(tr('sr_bilinear', '双线性'), 'bilinear')
+        self.sr_combo.addItem(tr('sr_bicubic', '双三次'), 'bicubic')
+        self.sr_combo.addItem(tr('sr_lanczos', 'Lanczos'), 'lanczos')
+        self.sr_combo.addItem(tr('sr_spline', '样条'), 'spline')
+        self.sr_combo.addItem(tr('sr_ewa_lanczos', 'EWA Lanczos'), 'ewa_lanczos')
+        self.sr_combo.addItem(tr('sr_ewa_lanczossharp', 'EWA Lanczos Sharp'), 'ewa_lanczossharp')
+        self.sr_combo.currentIndexChanged.connect(self._on_sr_changed)
+        sr_form.addRow(tr('sr_scale_label', '缩放算法'), self.sr_combo)
+
+        # 细节增强滑块
+        self.sr_detail_slider = QSlider(Qt.Orientation.Horizontal)
+        self.sr_detail_slider.setRange(0, 100)
+        self.sr_detail_slider.setSingleStep(5)
+        self.sr_detail_slider.setPageStep(10)
+        self.sr_detail_slider.setValue(0)
+        self.sr_detail_label = QLabel('0')
+        self.sr_detail_label.setMinimumWidth(36)
+        self.sr_detail_slider.valueChanged.connect(
+            lambda v: self._on_sr_detail_changed(v, self.sr_detail_label))
+        sr_detail_row = QHBoxLayout()
+        sr_detail_row.addWidget(self.sr_detail_slider, 1)
+        sr_detail_row.addWidget(self.sr_detail_label)
+        sr_detail_container = QWidget()
+        sr_detail_container.setLayout(sr_detail_row)
+        sr_form.addRow(tr('sr_detail_label', '细节增强'), sr_detail_container)
+
+        # 说明文字
+        sr_hint = QLabel(tr('sr_hint', '缩放算法全局生效；细节增强需 copy-back 硬解或软解'))
+        sr_hint.setWordWrap(True)
+        sr_hint.setStyleSheet(f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 11px;")
+        sr_form.addRow('', sr_hint)
+
+        layout.addWidget(sr_group)
+
         # ===== 操作按钮 =====
         btn_row = QHBoxLayout()
         self.reset_btn = QPushButton(tr('video_eq_reset', '重置全部'))
@@ -218,6 +292,24 @@ class VideoEqualizerDialog(FloatingDialog):
         if idx >= 0:
             self.flip_combo.setCurrentIndex(idx)
         self.reset_on_new_check.setChecked(bool(cfg.get('reset_on_new_file', False)))
+        # 运动补偿
+        mc_strength = cfg.get('motion_comp', 'off') or 'off'
+        idx = self.mc_combo.findData(mc_strength)
+        if idx >= 0:
+            self.mc_combo.setCurrentIndex(idx)
+        mc_fps = int(cfg.get('motion_comp_fps', 60))
+        idx = self.mc_fps_combo.findData(mc_fps)
+        if idx >= 0:
+            self.mc_fps_combo.setCurrentIndex(idx)
+        # 分辨率提升
+        sr_scale = cfg.get('superres_scale', 'off') or 'off'
+        idx = self.sr_combo.findData(sr_scale)
+        if idx >= 0:
+            self.sr_combo.setCurrentIndex(idx)
+        sr_detail = int(cfg.get('superres_detail', 0))
+        sr_detail = max(0, min(100, sr_detail))
+        self.sr_detail_slider.setValue(sr_detail)
+        self.sr_detail_label.setText(str(sr_detail))
 
     def _collect_eq(self) -> dict:
         """从 UI 控件收集所有参数"""
@@ -228,6 +320,12 @@ class VideoEqualizerDialog(FloatingDialog):
         result['video_rotate'] = int(self.rotate_combo.currentData() or 0)
         result['video_flip'] = self.flip_combo.currentData() or ''
         result['reset_on_new_file'] = bool(self.reset_on_new_check.isChecked())
+        # 运动补偿
+        result['motion_comp'] = self.mc_combo.currentData() or 'off'
+        result['motion_comp_fps'] = int(self.mc_fps_combo.currentData() or 60)
+        # 分辨率提升
+        result['superres_scale'] = self.sr_combo.currentData() or 'off'
+        result['superres_detail'] = int(self.sr_detail_slider.value())
         return result
 
     # ---------- 事件处理 ----------
@@ -280,6 +378,42 @@ class VideoEqualizerDialog(FloatingDialog):
         except Exception as e:
             logger.warning(f"保存 reset_on_new_file 失败: {e}")
 
+    def _on_mc_changed(self, idx: int):
+        if self._loading:
+            return
+        strength = self.mc_combo.currentData() or 'off'
+        fps = int(self.mc_fps_combo.currentData() or 60)
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc:
+            mc.set_motion_compensation(strength, fps)
+
+    def _on_mc_fps_changed(self, idx: int):
+        if self._loading:
+            return
+        strength = self.mc_combo.currentData() or 'off'
+        fps = int(self.mc_fps_combo.currentData() or 60)
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc and strength != 'off':
+            mc.set_motion_compensation(strength, fps)
+
+    def _on_sr_changed(self, idx: int):
+        if self._loading:
+            return
+        scale_algo = self.sr_combo.currentData() or 'off'
+        detail = int(self.sr_detail_slider.value())
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc:
+            mc.set_super_resolution(scale_algo, detail)
+
+    def _on_sr_detail_changed(self, value: int, label: QLabel):
+        label.setText(str(value))
+        if self._loading:
+            return
+        scale_algo = self.sr_combo.currentData() or 'off'
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc:
+            mc.set_super_resolution(scale_algo, value)
+
     def _on_autocrop_clicked(self):
         """触发动态裁剪黑边"""
         svc = getattr(self.window, 'autocrop_service', None)
@@ -319,6 +453,16 @@ class VideoEqualizerDialog(FloatingDialog):
         pc = self.window.player_controller
         if pc and pc.is_playing:
             pc.apply_video_eq(eq)
+            # 应用运动补偿
+            mc_strength = eq.get('motion_comp', 'off')
+            mc_fps = int(eq.get('motion_comp_fps', 60))
+            if hasattr(pc, 'set_motion_compensation'):
+                pc.set_motion_compensation(mc_strength, mc_fps)
+            # 应用分辨率提升
+            sr_scale = eq.get('superres_scale', 'off')
+            sr_detail = int(eq.get('superres_detail', 0))
+            if hasattr(pc, 'set_super_resolution'):
+                pc.set_super_resolution(sr_scale, sr_detail)
             if not silent:
                 tr = self.window.language_manager.tr
                 if hasattr(self.window, '_show_osd_feedback'):
@@ -355,6 +499,11 @@ class VideoEqualizerDialog(FloatingDialog):
             pc.set_video_rotate(0)
             pc.set_video_flip('')
             pc.clear_video_crop()
+            # 重置运动补偿和分辨率提升
+            if hasattr(pc, 'clear_motion_compensation'):
+                pc.clear_motion_compensation()
+            if hasattr(pc, 'clear_super_resolution'):
+                pc.clear_super_resolution()
         tr = self.window.language_manager.tr
         if hasattr(self.window, '_show_osd_feedback'):
             self.window._show_osd_feedback(tr('video_eq_reset_done', '图像参数已重置'))

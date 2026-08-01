@@ -653,12 +653,76 @@ class MediaController:
             pc.set_video_rotate(0)
             pc.set_video_flip('')
             pc.clear_video_crop()
+            # 重置运动补偿和分辨率提升
+            if hasattr(pc, 'clear_motion_compensation'):
+                pc.clear_motion_compensation()
+            if hasattr(pc, 'clear_super_resolution'):
+                pc.clear_super_resolution()
             return
         # 应用保存的图像参数
         eq = {k: cfg.get(k, 0) for k in ('brightness', 'contrast', 'saturation', 'hue', 'gamma', 'sharpness')}
         eq['video_rotate'] = cfg.get('video_rotate', 0)
         eq['video_flip'] = cfg.get('video_flip', '')
         pc.apply_video_eq(eq)
+        # 应用运动补偿
+        mc_strength = cfg.get('motion_comp', 'off')
+        mc_fps = int(cfg.get('motion_comp_fps', 60))
+        if mc_strength and mc_strength != 'off' and hasattr(pc, 'set_motion_compensation'):
+            pc.set_motion_compensation(mc_strength, mc_fps)
+        # 应用分辨率提升
+        sr_scale = cfg.get('superres_scale', 'off')
+        sr_detail = int(cfg.get('superres_detail', 0))
+        if (sr_scale and sr_scale != 'off') or sr_detail > 0:
+            if hasattr(pc, 'set_super_resolution'):
+                pc.set_super_resolution(sr_scale if sr_scale else 'off', sr_detail)
+
+    # ---------- 运动补偿 / 分辨率提升 ----------
+    def set_motion_compensation(self, strength: str, target_fps: int = 60):
+        """设置运动补偿"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'set_motion_compensation'):
+            return
+        pc.set_motion_compensation(strength, target_fps)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            strength_labels = {
+                'off': tr('mc_off', '关闭'),
+                'low': tr('mc_low', '轻度'),
+                'medium': tr('mc_medium', '中度'),
+                'high': tr('mc_high', '强力'),
+            }
+            label = strength_labels.get(strength, strength)
+            if strength == 'off':
+                self.window._show_osd_feedback(f"{tr('osd_motion_comp', '运动补偿')}: {label}")
+            else:
+                self.window._show_osd_feedback(f"{tr('osd_motion_comp', '运动补偿')}: {label} {target_fps}fps")
+
+    def set_super_resolution(self, scale_algo: str, detail_enhance: int = 0):
+        """设置分辨率提升"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'set_super_resolution'):
+            return
+        pc.set_super_resolution(scale_algo, detail_enhance)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            scale_labels = {
+                'off': tr('sr_off', '关闭'),
+                'bilinear': tr('sr_bilinear', '双线性'),
+                'bicubic': tr('sr_bicubic', '双三次'),
+                'lanczos': tr('sr_lanczos', 'Lanczos'),
+                'spline': tr('sr_spline', '样条'),
+                'ewa_lanczos': tr('sr_ewa_lanczos', 'EWA Lanczos'),
+                'ewa_lanczossharp': tr('sr_ewa_lanczossharp', 'EWA Lanczos Sharp'),
+            }
+            parts = []
+            if scale_algo and scale_algo != 'off':
+                parts.append(scale_labels.get(scale_algo, scale_algo))
+            if detail_enhance > 0:
+                parts.append(f"{tr('sr_detail', '细节')} {detail_enhance}")
+            if parts:
+                self.window._show_osd_feedback(f"{tr('osd_super_res', '分辨率提升')}: {', '.join(parts)}")
+            else:
+                self.window._show_osd_feedback(f"{tr('osd_super_res', '分辨率提升')}: {tr('sr_off', '关闭')}")
 
     # ---------- 音频系统增强 ----------
     def _show_audio_eq_dialog(self):

@@ -832,6 +832,8 @@ class MpvController : MPVLib.EventObserver, Player {
             MPVLib.command(arrayOf("vf", "remove", "@iptv_flip"))
             MPVLib.command(arrayOf("vf", "remove", "@iptv_crop"))
             MPVLib.command(arrayOf("vf", "remove", "@iptv_360"))
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_mc"))
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_sr"))
         }
     }
 
@@ -870,6 +872,81 @@ class MpvController : MPVLib.EventObserver, Player {
 
     override fun clear360Filter() {
         postOnUiThread { MPVLib.command(arrayOf("vf", "remove", "@iptv_360")) }
+    }
+
+    // -----------------------------------------------------------------
+    // 运动补偿与分辨率提升（与 PC 端 set_motion_compensation / set_super_resolution 对齐）
+    // -----------------------------------------------------------------
+
+    /**
+     * 设置运动补偿插帧。
+     * 使用 FFmpeg minterpolate 滤镜通过 lavfi 集成，滤镜标签 @iptv_mc。
+     * strength: off / low / medium / high
+     * 注意：需 copy-back 硬解（hwdec=auto-copy）或软解。
+     */
+    override fun setMotionCompensation(strength: String, targetFps: Int): Boolean {
+        postOnUiThread {
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_mc"))
+            val preset = when (strength) {
+                "low" -> "mi_mode=blend"
+                "medium" -> "mi_mode=mci:mc_mode=obmc:me_mode=bidir:me=epzs"
+                "high" -> "mi_mode=mci:mc_mode=aobmc:me_mode=bidir:me=epzs:vsbmc=1"
+                else -> null
+            }
+            if (preset != null) {
+                val fps = if (targetFps in listOf(50, 60, 90, 120, 144, 240)) targetFps else 60
+                val filterStr = "@iptv_mc:lavfi=[minterpolate=fps=$fps:$preset]"
+                MPVLib.command(arrayOf("vf", "add", filterStr))
+            }
+        }
+        return true
+    }
+
+    override fun clearMotionCompensation() {
+        postOnUiThread { MPVLib.command(arrayOf("vf", "remove", "@iptv_mc")) }
+    }
+
+    /**
+     * 设置分辨率提升。
+     * 使用 MPV scale/cscale/dscale 属性控制缩放算法 + lavfi unsharp 滤镜进行细节增强。
+     * scaleAlgo: off / bilinear / bicubic / lanczos / spline / ewa_lanczos / ewa_lanczossharp
+     * detailEnhance: 0-100（0=关闭）
+     * 注意：scale 属性不需要 copy-back；unsharp 滤镜需要 copy-back 或软解。
+     */
+    override fun setSuperResolution(scaleAlgo: String, detailEnhance: Int): Boolean {
+        postOnUiThread {
+            // 1. 设置缩放算法
+            val validAlgos = listOf("bilinear", "bicubic", "lanczos", "spline", "ewa_lanczos", "ewa_lanczossharp")
+            if (scaleAlgo in validAlgos) {
+                MPVLib.setPropertyString("scale", scaleAlgo)
+                MPVLib.setPropertyString("cscale", scaleAlgo)
+                val dscale = if (scaleAlgo == "ewa_lanczossharp") "ewa_lanczos" else scaleAlgo
+                MPVLib.setPropertyString("dscale", dscale)
+            } else {
+                // off — 恢复默认
+                MPVLib.setPropertyString("scale", "bilinear")
+                MPVLib.setPropertyString("cscale", "bilinear")
+                MPVLib.setPropertyString("dscale", "bilinear")
+            }
+            // 2. 设置细节增强
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_sr"))
+            val detail = detailEnhance.coerceIn(0, 100)
+            if (detail > 0) {
+                val amount = String.format("%.3f", detail / 100.0 * 1.5)
+                val filterStr = "@iptv_sr:lavfi=[unsharp=5:5:$amount:5:5:0.0]"
+                MPVLib.command(arrayOf("vf", "add", filterStr))
+            }
+        }
+        return true
+    }
+
+    override fun clearSuperResolution() {
+        postOnUiThread {
+            MPVLib.setPropertyString("scale", "bilinear")
+            MPVLib.setPropertyString("cscale", "bilinear")
+            MPVLib.setPropertyString("dscale", "bilinear")
+            MPVLib.command(arrayOf("vf", "remove", "@iptv_sr"))
+        }
     }
 
     // -----------------------------------------------------------------

@@ -1218,6 +1218,12 @@ class ConfigManager(Singleton):
         'video_rotate': 0,
         'video_flip': '',
         'reset_on_new_file': False,
+        # 运动补偿
+        'motion_comp': 'off',       # off / low / medium / high
+        'motion_comp_fps': 60,      # 50 / 60 / 90 / 120 / 144 / 240
+        # 分辨率提升
+        'superres_scale': 'off',    # off / bilinear / bicubic / lanczos / spline / ewa_lanczos / ewa_lanczossharp
+        'superres_detail': 0,       # 0-100
     }
 
     def save_video_eq(self, settings: dict):

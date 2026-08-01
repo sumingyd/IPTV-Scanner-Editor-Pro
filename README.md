@@ -22,7 +22,7 @@
 
 | 功能类别 | 核心功能 |
 |---------|---------|
-| 播放器 | MPV 引擎驱动、FCC 快速换台（秒开优化）、完整播放控制、倍速、画面比例、全屏、硬件解码、HDR 显示（5种模式）、WCG 广色域、画中画、多屏预览(4/9屏)、截图、连拍截图、音轨/字幕切换、3D/360°视频、视频旋转翻转、自动裁剪黑边、视频图像调整、流质量检测 |
+| 播放器 | MPV 引擎驱动、FCC 快速换台（秒开优化）、完整播放控制、倍速、画面比例、全屏、硬件解码、HDR 显示（5种模式）、WCG 广色域、运动补偿（minterpolate插帧）、分辨率提升（高质量缩放+细节增强）、画中画、多屏预览(4/9屏)、截图、连拍截图、音轨/字幕切换、3D/360°视频、视频旋转翻转、自动裁剪黑边、视频图像调整、流质量检测 |
 | 字幕系统 | 字幕样式调整、在线字幕下载（OpenSubtitles/SubHD/SubtitleCat 三源聚合）、IMDB 中转中文搜索、字幕自动同步、字幕延迟/缩放/位置调整 |
 | 音频 | 10段均衡器、声道布局、音调补偿、音频延迟、A/V 同步监控（实时波形图）、音频可视化（7种3D样式）、歌词显示 |
 | 播放增强 | 断点续播、每文件播放设置持久化、跳过片头/片尾、播放队列（循环/AB循环/逐帧）、书签管理、切片导出/GIF制作、网络流增强（Referer/代理/Headers） |
@@ -35,7 +35,7 @@
 | 界面 | 21种主题组合、中英双语、三栏布局、悬浮面板、系统托盘、文件关联、拖放打开、丰富快捷键 |
 | 订阅 | 多源管理、独立缓存、智能更新(增量)、编辑功能、缓存回退、过期策略 |
 | Web 服务器 | 内置 aiohttp 服务器、频道列表和播放接口、频道管理后台（来源区分、订阅只读、本地持久化） |
-| Android 端 | Kotlin Compose 原生 UI、MPV Native 渲染、Chaquopy Python 后端、TV/手机双模式、遥控器适配（焦点高亮+台标显示+自动隐藏）、画中画（PiP 增强）、HDR 模式切换（设备能力检测+target-colorspace-hint）、WCG 广色域、PQ/HLG 差异化处理、3D/360°视频、随机播放、书签管理、EPG 时间轴/日期切换、全局搜索、流质量检测、字幕样式、连拍截图、LAN 管理后台（虚拟遥控器+自动关闭开关）、MPV 软硬解切换、FCC 秒开换台（probesize/analyzeduration 对齐 PC 端）、数据持久化（覆盖安装不丢失）、版本检查更新（GitHub API + 自动提示新版本） |
+| Android 端 | Kotlin Compose 原生 UI、MPV Native 渲染、Chaquopy Python 后端、TV/手机双模式、遥控器适配（焦点高亮+台标显示+自动隐藏）、画中画（PiP 增强）、HDR 模式切换（设备能力检测+target-colorspace-hint）、WCG 广色域、PQ/HLG 差异化处理、运动补偿（minterpolate插帧）、分辨率提升（高质量缩放+细节增强）、3D/360°视频、随机播放、书签管理、EPG 时间轴/日期切换、全局搜索、流质量检测、字幕样式、连拍截图、LAN 管理后台（虚拟遥控器+自动关闭开关）、MPV 软硬解切换、FCC 秒开换台（probesize/analyzeduration 对齐 PC 端）、数据持久化（覆盖安装不丢失）、版本检查更新（GitHub API + 自动提示新版本） |
 
 ## ✨ 核心功能
 
@@ -68,6 +68,14 @@
     - HLG 视频：自动 `target-peak`（不固定 10000）+ `hdr-compute-peak=yes` 自动计算峰值 + `tone-mapping=spline`（gpu-next），避免"阴阳脸"
   - **WCG 广色域处理**：检测到 BT.2020 色域但 SDR 亮度的视频时，自动设置 `target-prim=bt.2020` + `gamut-mapping-mode=relative`，正确显示广色域而不误判为 HDR
 - **视频图像调整**：亮度、对比度、饱和度、色调、Gamma、锐度滑块实时调整，支持切换文件时自动重置
+- **运动补偿**：基于 FFmpeg minterpolate 滤镜的运动补偿插帧，将低帧率视频提升至高帧率（24/30fps → 60/120fps），消除运动抖动和拖影
+  - 3 档强度：轻度（帧混合 mi_mode=blend）、中度（运动补偿 mi_mode=mci+obmc）、强力（高级补偿 mi_mode=mci+aobmc+vsbmc）
+  - 目标帧率可选：50/60/90/120/144 fps
+  - 使用 `@iptv_mc` 命名 lavfi 滤镜，需 copy-back 硬解或软解
+- **分辨率提升**：高质量缩放算法 + 细节增强，提升低分辨率视频画质
+  - 6 种缩放算法：双线性、双三次、Lanczos、样条、EWA Lanczos、EWA Lanczos Sharp
+  - 细节增强滑块（0-100），使用 `@iptv_sr` 命名 unsharp 滤镜恢复边缘细节
+  - 缩放算法通过 mpv scale/cscale/dscale 属性全局生效（不需要 copy-back）；细节增强需 copy-back 硬解或软解
 - **视频旋转翻转**：支持 0/90/180/270 度旋转，水平/垂直/双向镜像翻转（使用 `@iptv_flip` 命名 lavfi 滤镜，需 copy-back 硬解）
 - **自动裁剪黑边**：基于帧分析自动检测并裁剪视频黑边（PIL 灰度 + numpy 边缘分析，`@iptv_autocrop` 命名滤镜），可一键移除
 - **3D / 360° 视频**：支持 3D 立体模式（mono/sbs/sbs2/ab/ab2）和 360° 投影（equirect/cubemap/flat），可调整 yaw/pitch/roll 视角
@@ -571,7 +579,7 @@ IPTV-Scanner-Editor-Pro/
 │   │   ├── subtitle_style_dialog.py # 字幕样式+在线下载对话框
 │   │   ├── unified_search_dialog.py # 统一搜索对话框
 │   │   ├── video_3d_dialog.py # 3D/360°视频对话框
-│   │   ├── video_eq_dialog.py # 视频图像调整对话框（亮度/对比度/旋转/翻转/裁剪）
+│   │   ├── video_eq_dialog.py # 视频图像调整对话框（亮度/对比度/旋转/翻转/裁剪/运动补偿/分辨率提升）
 │   │   └── video_open_dialog.py # 视频文件打开对话框
 │   ├── cache_progress_slider.py # 缓存进度滑块组件
 │   ├── channel_transition_overlay.py # 频道切换遮罩组件

@@ -3003,12 +3003,268 @@ class MpvPlayerController(QObject):
         """清除所有由本程序添加的视频滤镜"""
         if not self.mpv_handle or self._terminated:
             return False
-        for label in ('@iptv_flip', '@iptv_crop', '@iptv_360'):
+        for label in ('@iptv_flip', '@iptv_crop', '@iptv_360', '@iptv_mc', '@iptv_sr'):
             try:
                 self.send_command(['vf', 'remove', label])
             except Exception as _e:
                 global_logger.debug(f"unexpected error: {_e}")
         return True
+
+    # ---------- 运动补偿（vf 滤镜） ----------
+    # 使用 FFmpeg minterpolate 滤镜实现运动补偿插帧
+    # 滤镜标签：@iptv_mc
+    #
+    # 强度级别：
+    #   off    — 关闭（移除滤镜）
+    #   low    — 帧混合模式（mi_mode=blend），最轻量，仅做简单帧间混合
+    #   medium — 运动补偿插帧（mi_mode=mci, mc_mode=obmc），中等 CPU 开销
+    #   high   — 高级运动补偿（mi_mode=mci, mc_mode=aobmc, vsbmc=1），最佳画质但 CPU 开销最大
+    #
+    # 目标帧率：50 / 60 / 120 等（自动匹配显示器时传 0，使用 video-sync=display-resample）
+    #
+    # 注意：minterpolate 需要 copy-back 硬解（hwdec=auto-copy）或软解（hwdec=no）。
+    #       原生硬解（hwdec=auto）下 lavfi 不可用。
+
+    # 运动补偿预设参数
+    _MC_PRESETS = {
+        'off': None,
+        'low': 'mi_mode=blend',
+        'medium': 'mi_mode=mci:mc_mode=obmc:me_mode=bidir:me=epzs',
+        'high': 'mi_mode=mci:mc_mode=aobmc:me_mode=bidir:me=epzs:vsbmc=1',
+    }
+
+    def set_motion_compensation(self, strength: str, target_fps: int = 60) -> bool:
+        """设置运动补偿插帧
+
+        :param strength: 'off' / 'low' / 'medium' / 'high'
+        :param target_fps: 目标帧率（50/60/120），0 表示自动匹配显示器
+        :return: 成功与否
+        """
+        if not self.mpv_handle or self._terminated:
+            return False
+        # 先移除旧滤镜
+        try:
+            self.send_command(['vf', 'remove', '@iptv_mc'])
+        except Exception as _e:
+            global_logger.debug(f"unexpected error: {_e}")
+
+        if strength not in self._MC_PRESETS:
+            strength = 'off'
+        preset = self._MC_PRESETS[strength]
+        if preset is None:
+            self.logger.info("运动补偿已关闭")
+            return True
+
+        # 限制目标帧率到合理范围
+        fps = int(target_fps)
+        if fps not in (50, 60, 90, 120, 144, 240):
+            fps = 60
+
+        filter_str = f'@iptv_mc:lavfi=[minterpolate=fps={fps}:{preset}]'
+        ret = self.send_command(['vf', 'add', filter_str])
+        if ret != 0:
+            cur_hwdec = ''
+            try:
+                cur_hwdec = self._get_mpv_property_string('hwdec') or ''
+            except Exception as _e:
+                global_logger.debug(f"unexpected error: {_e}")
+            self.logger.warning(
+                f"运动补偿滤镜添加失败(ret={ret})，strength='{strength}'，fps={fps}，"
+                f"当前 hwdec='{cur_hwdec}'。"
+                f"若为原生硬解(auto)，请在播放设置中改为 copy-back(auto-copy) 或软解(no)"
+            )
+            return False
+        self.logger.info(f"运动补偿滤镜已添加: strength={strength}, fps={fps}")
+        return True
+
+    def get_motion_compensation(self) -> dict:
+        """读取当前运动补偿设置
+
+        :return: {'strength': str, 'target_fps': int, 'active': bool}
+        """
+        result = {'strength': 'off', 'target_fps': 60, 'active': False}
+        if not self.mpv_handle or self._terminated:
+            return result
+        try:
+            vf = self._get_mpv_property_string('vf')
+            if not vf:
+                return result
+            import json
+            data = json.loads(vf) if isinstance(vf, str) else vf
+            for item in data.get('vf', []):
+                label = item.get('label', '') or ''
+                if label != 'iptv_mc':
+                    continue
+                graph = (item.get('params', {}) or {}).get('graph', '') or ''
+                if 'minterpolate' not in graph:
+                    continue
+                result['active'] = True
+                # 解析 fps
+                import re
+                m = re.search(r'fps=(\d+)', graph)
+                if m:
+                    result['target_fps'] = int(m.group(1))
+                # 解析强度
+                if 'mi_mode=blend' in graph:
+                    result['strength'] = 'low'
+                elif 'vsbmc=1' in graph:
+                    result['strength'] = 'high'
+                elif 'mi_mode=mci' in graph:
+                    result['strength'] = 'medium'
+                break
+        except Exception as _e:
+            global_logger.debug(f"unexpected error: {_e}")
+        return result
+
+    def clear_motion_compensation(self) -> bool:
+        """清除运动补偿滤镜"""
+        if not self.mpv_handle or self._terminated:
+            return False
+        try:
+            self.send_command(['vf', 'remove', '@iptv_mc'])
+            self.logger.info("运动补偿滤镜已移除")
+            return True
+        except Exception:
+            return False
+
+    # ---------- 分辨率提升（mpv scale 属性 + lavfi unsharp 滤镜） ----------
+    # 使用 MPV 内置 scale/cscale/dscale 属性控制缩放算法
+    # 使用 lavfi unsharp 滤镜进行细节增强
+    # 滤镜标签：@iptv_sr
+    #
+    # 缩放算法选项（mpv scale 属性）：
+    #   bilinear        — 双线性（最快，质量一般）
+    #   bicubic         — 双三次（常用，质量较好）
+    #   lanczos         — Lanczos（高质量，锐利）
+    #   spline          — 样条（高质量，平滑）
+    #   ewa_lanczos     — EWA Lanczos（高质量，适合放大）
+    #   ewa_lanczossharp— EWA Lanczos Sharp（最佳质量，最锐利）
+    #
+    # 细节增强：unsharp 滤镜 amount 参数（0-100 映射到 0.0-1.5）
+    #
+    # 注意：scale/cscale 属性不需要 copy-back 硬解，GPU 渲染管线直接处理。
+    #       unsharp lavfi 滤镜需要 copy-back 硬解或软解。
+
+    # 缩放算法选项
+    _SCALE_OPTIONS = ('bilinear', 'bicubic', 'lanczos', 'spline', 'ewa_lanczos', 'ewa_lanczossharp')
+
+    def set_super_resolution(self, scale_algo: str = 'off', detail_enhance: int = 0) -> bool:
+        """设置分辨率提升
+
+        :param scale_algo: 缩放算法
+            'off' / 'bilinear' / 'bicubic' / 'lanczos' / 'spline' / 'ewa_lanczos' / 'ewa_lanczossharp'
+        :param detail_enhance: 细节增强强度（0-100，0=关闭）
+        :return: 成功与否
+        """
+        if not self.mpv_handle or self._terminated:
+            return False
+
+        success = True
+
+        # 1. 设置缩放算法（mpv 属性，不需要 copy-back）
+        if scale_algo in self._SCALE_OPTIONS:
+            ret1 = self._set_mpv_string('scale', scale_algo)
+            ret2 = self._set_mpv_string('cscale', scale_algo)
+            self._set_mpv_string('dscale', scale_algo if scale_algo != 'ewa_lanczossharp' else 'ewa_lanczos')
+            if ret1 < 0 or ret2 < 0:
+                self.logger.warning(f"缩放算法设置失败: scale={scale_algo}")
+                success = False
+            else:
+                self.logger.info(f"缩放算法已设置: {scale_algo}")
+        elif scale_algo == 'off':
+            # 恢复默认
+            self._set_mpv_string('scale', 'bilinear')
+            self._set_mpv_string('cscale', 'bilinear')
+            self._set_mpv_string('dscale', 'bilinear')
+            self.logger.info("缩放算法已恢复默认")
+        else:
+            self.logger.warning(f"未知缩放算法: {scale_algo}")
+            success = False
+
+        # 2. 设置细节增强（unsharp lavfi 滤镜）
+        try:
+            self.send_command(['vf', 'remove', '@iptv_sr'])
+        except Exception as _e:
+            global_logger.debug(f"unexpected error: {_e}")
+
+        detail = max(0, min(100, int(detail_enhance)))
+        if detail > 0:
+            # unsharp=luma_msize=5:luma_amount=X:chroma_msize=5:chroma_amount=0
+            # amount 范围 0.0~1.5，映射 detail 0-100
+            amount = round(detail / 100.0 * 1.5, 3)
+            filter_str = f'@iptv_sr:lavfi=[unsharp=5:5:{amount}:5:5:0.0]'
+            ret = self.send_command(['vf', 'add', filter_str])
+            if ret != 0:
+                cur_hwdec = ''
+                try:
+                    cur_hwdec = self._get_mpv_property_string('hwdec') or ''
+                except Exception as _e:
+                    global_logger.debug(f"unexpected error: {_e}")
+                self.logger.warning(
+                    f"细节增强滤镜添加失败(ret={ret})，detail={detail}，"
+                    f"当前 hwdec='{cur_hwdec}'。"
+                    f"若为原生硬解(auto)，请在播放设置中改为 copy-back(auto-copy) 或软解(no)"
+                )
+                success = False
+            else:
+                self.logger.info(f"细节增强滤镜已添加: detail={detail} (amount={amount})")
+
+        return success
+
+    def get_super_resolution(self) -> dict:
+        """读取当前分辨率提升设置
+
+        :return: {'scale_algo': str, 'detail_enhance': int, 'active': bool}
+        """
+        result = {'scale_algo': 'off', 'detail_enhance': 0, 'active': False}
+        if not self.mpv_handle or self._terminated:
+            return result
+
+        # 读取 scale 属性
+        scale_val = self._get_mpv_property_string('scale') or 'bilinear'
+        if scale_val in self._SCALE_OPTIONS:
+            result['scale_algo'] = scale_val
+            if scale_val != 'bilinear':
+                result['active'] = True
+
+        # 读取 unsharp 滤镜
+        try:
+            vf = self._get_mpv_property_string('vf')
+            if vf:
+                import json
+                data = json.loads(vf) if isinstance(vf, str) else vf
+                for item in data.get('vf', []):
+                    label = item.get('label', '') or ''
+                    if label != 'iptv_sr':
+                        continue
+                    graph = (item.get('params', {}) or {}).get('graph', '') or ''
+                    if 'unsharp' in graph:
+                        import re
+                        m = re.search(r'5:5:([\d.]+)', graph)
+                        if m:
+                            amount = float(m.group(1))
+                            result['detail_enhance'] = int(round(amount / 1.5 * 100))
+                            result['active'] = True
+                    break
+        except Exception as _e:
+            global_logger.debug(f"unexpected error: {_e}")
+        return result
+
+    def clear_super_resolution(self) -> bool:
+        """清除分辨率提升（恢复默认缩放算法 + 移除细节增强滤镜）"""
+        if not self.mpv_handle or self._terminated:
+            return False
+        # 恢复默认缩放
+        self._set_mpv_string('scale', 'bilinear')
+        self._set_mpv_string('cscale', 'bilinear')
+        self._set_mpv_string('dscale', 'bilinear')
+        # 移除滤镜
+        try:
+            self.send_command(['vf', 'remove', '@iptv_sr'])
+            self.logger.info("分辨率提升已清除（缩放恢复默认，细节增强已移除）")
+            return True
+        except Exception:
+            return False
 
     # ---------- 3D 立体模式 / 360° 视角 ----------
     # mpv video-stereo-mode 取值（简化形式，mpv 会自动识别）：

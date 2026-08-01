@@ -375,6 +375,12 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
     var yaw by remember { mutableStateOf(0.0) }
     var pitch by remember { mutableStateOf(0.0) }
     var roll by remember { mutableStateOf(0.0) }
+    // 运动补偿
+    var mcStrength by remember { mutableStateOf("off") }
+    var mcFps by remember { mutableStateOf(60) }
+    // 分辨率提升
+    var srScale by remember { mutableStateOf("off") }
+    var srDetail by remember { mutableStateOf(0) }
 
     PanelScaffold(
         title = "视频设置",
@@ -387,9 +393,11 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                     brightness = 0; contrast = 0; saturation = 0; hue = 0; gamma = 0
                     rotate = 0; flipMode = "none"
                     stereoMode = "mono"; yaw = 0.0; pitch = 0.0; roll = 0.0
+                    mcStrength = "off"; mcFps = 60; srScale = "off"; srDetail = 0
                     mpv.setBrightness(0); mpv.setContrast(0); mpv.setSaturation(0)
                     mpv.setHue(0); mpv.setGamma(0); mpv.setVideoRotate(0); mpv.setVideoFlip("")
                     mpv.setVideoStereoMode("mono"); mpv.clear360Filter()
+                    mpv.clearMotionCompensation(); mpv.clearSuperResolution()
                     viewModel.showOsd("视频设置", "已重置")
                 },
                 modifier = Modifier.tvFocusBorder()
@@ -532,12 +540,92 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
             ) { Text("清除 360°") }
         }
 
+        // -----------------------------------------------------------------
+        // 运动补偿（与 PC 端 set_motion_compensation 对齐）
+        // 使用 FFmpeg minterpolate 滤镜，需 copy-back 硬解或软解
+        // -----------------------------------------------------------------
+        SectionLabel("运动补偿")
+        DescText("需 copy-back 硬解或软解。高强度会增加 CPU 负载")
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                "off" to "关闭", "low" to "轻度",
+                "medium" to "中度", "high" to "强力"
+            ).forEach { (mode, label) ->
+                FilterChip(
+                    selected = mcStrength == mode,
+                    onClick = {
+                        mcStrength = mode
+                        mpv.setMotionCompensation(mode, mcFps)
+                        viewModel.showOsd("运动补偿", if (mode == "off") "已关闭" else "$label ${mcFps}fps")
+                    },
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
+                )
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("目标帧率：", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
+            listOf(50, 60, 90, 120, 144).forEach { fps ->
+                FilterChip(
+                    selected = mcFps == fps,
+                    onClick = {
+                        mcFps = fps
+                        if (mcStrength != "off") {
+                            mpv.setMotionCompensation(mcStrength, fps)
+                            viewModel.showOsd("运动补偿", "${mcFps}fps")
+                        }
+                    },
+                    label = { Text("${fps}") },
+                    modifier = Modifier.tvFocusBorder()
+                )
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // 分辨率提升（与 PC 端 set_super_resolution 对齐）
+        // 缩放算法全局生效；细节增强需 copy-back 硬解或软解
+        // -----------------------------------------------------------------
+        SectionLabel("分辨率提升")
+        DescText("缩放算法全局生效；细节增强需 copy-back 硬解或软解")
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                "off" to "关闭", "bilinear" to "双线性",
+                "bicubic" to "双三次", "lanczos" to "Lanczos",
+                "spline" to "样条", "ewa_lanczos" to "EWA",
+                "ewa_lanczossharp" to "EWA Sharp"
+            ).forEach { (algo, label) ->
+                FilterChip(
+                    selected = srScale == algo,
+                    onClick = {
+                        srScale = algo
+                        mpv.setSuperResolution(algo, srDetail)
+                        viewModel.showOsd("分辨率提升", label)
+                    },
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
+                )
+            }
+        }
+
+        LabeledSlider(
+            label = "细节增强", value = srDetail.toFloat(), range = 0f..100f,
+            valueText = srDetail.toString(),
+            onValueChange = {
+                srDetail = it.toInt()
+                mpv.setSuperResolution(srScale, srDetail)
+            },
+            onReset = {
+                srDetail = 0
+                mpv.setSuperResolution(srScale, 0)
+            }
+        )
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
-
-// -----------------------------------------------------------------
-// 音频设置面板
 // -----------------------------------------------------------------
 
 /** 解析 mpv track-list JSON，提取指定类型的轨道 */

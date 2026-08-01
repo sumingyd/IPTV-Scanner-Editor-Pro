@@ -278,6 +278,30 @@ interface Player {
     fun clear360Filter() {}
 
     // -----------------------------------------------------------------
+    // 运动补偿与分辨率提升（与 PC 端 set_motion_compensation / set_super_resolution 对齐）
+    // -----------------------------------------------------------------
+
+    /**
+     * 设置运动补偿插帧。
+     * @param strength "off"/"low"/"medium"/"high"
+     * @param targetFps 目标帧率（50/60/90/120/144）
+     */
+    fun setMotionCompensation(strength: String, targetFps: Int): Boolean = false
+
+    /** 清除运动补偿滤镜 */
+    fun clearMotionCompensation() {}
+
+    /**
+     * 设置分辨率提升。
+     * @param scaleAlgo "off"/"bilinear"/"bicubic"/"lanczos"/"spline"/"ewa_lanczos"/"ewa_lanczossharp"
+     * @param detailEnhance 细节增强强度（0-100，0=关闭）
+     */
+    fun setSuperResolution(scaleAlgo: String, detailEnhance: Int): Boolean = false
+
+    /** 清除分辨率提升 */
+    fun clearSuperResolution() {}
+
+    // -----------------------------------------------------------------
     // 音频调整（高级功能，默认不支持）
     // -----------------------------------------------------------------
 
