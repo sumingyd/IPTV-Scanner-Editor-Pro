@@ -739,9 +739,14 @@ class MediaController:
         success = pc.set_user_shader(preset)
         tr = self.window.language_manager.tr
         if hasattr(self.window, '_show_osd_feedback'):
-            if preset == 'off' or not success:
+            if preset == 'off':
                 self.window._show_osd_feedback(
                     f"{tr('osd_shader', '着色器')}: {tr('shader_off', '关闭')}"
+                )
+            elif not success:
+                # 着色器文件未找到，区分于主动关闭
+                self.window._show_osd_feedback(
+                    f"{tr('osd_shader', '着色器')}: {tr('shader_not_found', '文件未找到，请放入 shaders/ 目录')}"
                 )
             else:
                 shader_labels = {

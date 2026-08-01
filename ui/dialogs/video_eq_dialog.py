@@ -28,7 +28,7 @@ class VideoEqualizerDialog(FloatingDialog):
         self.window = main_window
         tr = main_window.language_manager.tr
         self.setWindowTitle(tr('video_eq_title', '视频图像调整'))
-        self.setMinimumSize(520, 960)
+        self.setMinimumSize(520, 740)
         self._loading = False
         self._setup_ui()
         self._apply_theme()
@@ -149,10 +149,11 @@ class VideoEqualizerDialog(FloatingDialog):
 
         layout.addWidget(transform_group)
 
-        # ===== 运动补偿组 =====
-        mc_group = QGroupBox(tr('video_eq_group_motion_comp', '运动补偿'))
-        mc_form = QFormLayout(mc_group)
-        mc_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        # ===== 视频增强组（运动补偿 + 分辨率提升 + 着色器合并） =====
+        enhance_group = QGroupBox(tr('video_eq_group_enhance', '视频增强'))
+        enhance_form = QFormLayout(enhance_group)
+        enhance_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        enhance_form.setSpacing(6)
 
         # 运动补偿强度
         self.mc_combo = QComboBox()
@@ -160,8 +161,9 @@ class VideoEqualizerDialog(FloatingDialog):
         self.mc_combo.addItem(tr('mc_low', '轻度（帧混合）'), 'low')
         self.mc_combo.addItem(tr('mc_medium', '中度（运动补偿）'), 'medium')
         self.mc_combo.addItem(tr('mc_high', '强力（高级补偿）'), 'high')
+        self.mc_combo.setToolTip(tr('mc_hint', '需 copy-back 硬解或软解。高强度会增加 CPU 负载'))
         self.mc_combo.currentIndexChanged.connect(self._on_mc_changed)
-        mc_form.addRow(tr('mc_strength_label', '强度'), self.mc_combo)
+        enhance_form.addRow(tr('mc_strength_label', '运动补偿'), self.mc_combo)
 
         # 目标帧率
         self.mc_fps_combo = QComboBox()
@@ -171,20 +173,7 @@ class VideoEqualizerDialog(FloatingDialog):
         self.mc_fps_combo.addItem('120', 120)
         self.mc_fps_combo.addItem('144', 144)
         self.mc_fps_combo.currentIndexChanged.connect(self._on_mc_fps_changed)
-        mc_form.addRow(tr('mc_fps_label', '目标帧率'), self.mc_fps_combo)
-
-        # 说明文字
-        mc_hint = QLabel(tr('mc_hint', '需 copy-back 硬解或软解。高强度会增加 CPU 负载'))
-        mc_hint.setWordWrap(True)
-        mc_hint.setStyleSheet(f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 11px;")
-        mc_form.addRow('', mc_hint)
-
-        layout.addWidget(mc_group)
-
-        # ===== 分辨率提升组 =====
-        sr_group = QGroupBox(tr('video_eq_group_super_res', '分辨率提升'))
-        sr_form = QFormLayout(sr_group)
-        sr_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        enhance_form.addRow(tr('mc_fps_label', '目标帧率'), self.mc_fps_combo)
 
         # 缩放算法
         self.sr_combo = QComboBox()
@@ -195,8 +184,9 @@ class VideoEqualizerDialog(FloatingDialog):
         self.sr_combo.addItem(tr('sr_spline', '样条'), 'spline')
         self.sr_combo.addItem(tr('sr_ewa_lanczos', 'EWA Lanczos'), 'ewa_lanczos')
         self.sr_combo.addItem(tr('sr_ewa_lanczossharp', 'EWA Lanczos Sharp'), 'ewa_lanczossharp')
+        self.sr_combo.setToolTip(tr('sr_hint', '缩放算法全局生效；细节增强需 copy-back 硬解或软解'))
         self.sr_combo.currentIndexChanged.connect(self._on_sr_changed)
-        sr_form.addRow(tr('sr_scale_label', '缩放算法'), self.sr_combo)
+        enhance_form.addRow(tr('sr_scale_label', '缩放算法'), self.sr_combo)
 
         # 细节增强滑块
         self.sr_detail_slider = QSlider(Qt.Orientation.Horizontal)
@@ -213,20 +203,7 @@ class VideoEqualizerDialog(FloatingDialog):
         sr_detail_row.addWidget(self.sr_detail_label)
         sr_detail_container = QWidget()
         sr_detail_container.setLayout(sr_detail_row)
-        sr_form.addRow(tr('sr_detail_label', '细节增强'), sr_detail_container)
-
-        # 说明文字
-        sr_hint = QLabel(tr('sr_hint', '缩放算法全局生效；细节增强需 copy-back 硬解或软解'))
-        sr_hint.setWordWrap(True)
-        sr_hint.setStyleSheet(f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 11px;")
-        sr_form.addRow('', sr_hint)
-
-        layout.addWidget(sr_group)
-
-        # ===== 用户着色器组 =====
-        shader_group = QGroupBox(tr('video_eq_group_shader', 'AI 超分辨率着色器'))
-        shader_form = QFormLayout(shader_group)
-        shader_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        enhance_form.addRow(tr('sr_detail_label', '细节增强'), sr_detail_container)
 
         # 着色器预设选择
         self.shader_combo = QComboBox()
@@ -236,14 +213,20 @@ class VideoEqualizerDialog(FloatingDialog):
         self.shader_combo.addItem(tr('shader_anime4k', 'Anime4K 动画增强'), 'anime4k')
         self.shader_combo.addItem(tr('shader_krig', 'KrigBilateral 色度升频'), 'krig')
         self.shader_combo.addItem(tr('shader_ssim', 'SSim 降频'), 'ssim')
+        self.shader_combo.setToolTip(
+            tr('shader_hint',
+               'GLSL 着色器在 GPU 运行。请将 .glsl/.hook 文件放在 shaders/ 目录')
+        )
         # 动态添加已检测到的着色器文件
         pc = self.window.player_controller
         if pc and hasattr(pc, 'list_available_shaders'):
             try:
                 available = pc.list_available_shaders()
-                existing_presets = {i for i in range(self.shader_combo.count())
-                                    if self.shader_combo.itemData(i)}
-                existing_data = {self.shader_combo.itemData(i) for i in existing_presets}
+                existing_data = {
+                    self.shader_combo.itemData(i)
+                    for i in range(self.shader_combo.count())
+                    if self.shader_combo.itemData(i)
+                }
                 for item in available:
                     if item['preset'] not in existing_data:
                         self.shader_combo.addItem(
@@ -252,51 +235,40 @@ class VideoEqualizerDialog(FloatingDialog):
             except Exception:
                 pass
         self.shader_combo.currentIndexChanged.connect(self._on_shader_changed)
-        shader_form.addRow(tr('shader_preset_label', '着色器预设'), self.shader_combo)
+        enhance_form.addRow(tr('shader_preset_label', 'AI 着色器'), self.shader_combo)
 
-        # 说明文字
-        shader_hint = QLabel(
-            tr('shader_hint',
-               'GLSL 着色器在 GPU 运行，不影响 CPU。'
-               '请将 .glsl/.hook 文件放在 shaders/ 目录')
-        )
-        shader_hint.setWordWrap(True)
-        shader_hint.setStyleSheet(
-            f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 11px;"
-        )
-        shader_form.addRow('', shader_hint)
+        layout.addWidget(enhance_group)
 
-        layout.addWidget(shader_group)
+        # ===== 智能预设 + 硬件信息（合并为一行） =====
+        bottom_row = QHBoxLayout()
 
-        # ===== 智能预设组 =====
-        preset_group = QGroupBox(tr('video_eq_group_smart_preset', '智能预设'))
-        preset_layout = QHBoxLayout(preset_group)
-
+        # 智能预设按钮
+        preset_box = QGroupBox(tr('video_eq_group_smart_preset', '智能预设'))
+        preset_layout = QHBoxLayout(preset_box)
+        preset_layout.setContentsMargins(6, 6, 6, 6)
         self.btn_preset_auto = QPushButton(tr('preset_auto', '智能推荐'))
         self.btn_preset_auto.clicked.connect(lambda: self._apply_smart_preset('auto'))
-        self.btn_preset_perf = QPushButton(tr('preset_performance', '性能优先'))
+        self.btn_preset_perf = QPushButton(tr('preset_performance', '性能'))
         self.btn_preset_perf.clicked.connect(lambda: self._apply_smart_preset('performance'))
-        self.btn_preset_quality = QPushButton(tr('preset_quality', '画质优先'))
+        self.btn_preset_quality = QPushButton(tr('preset_quality', '画质'))
         self.btn_preset_quality.clicked.connect(lambda: self._apply_smart_preset('quality'))
-        self.btn_preset_anime = QPushButton(tr('preset_anime', '动画优化'))
+        self.btn_preset_anime = QPushButton(tr('preset_anime', '动画'))
         self.btn_preset_anime.clicked.connect(lambda: self._apply_smart_preset('anime'))
-        self.btn_preset_sports = QPushButton(tr('preset_sports', '体育直播'))
+        self.btn_preset_sports = QPushButton(tr('preset_sports', '体育'))
         self.btn_preset_sports.clicked.connect(lambda: self._apply_smart_preset('sports'))
+        for btn in (self.btn_preset_auto, self.btn_preset_perf, self.btn_preset_quality,
+                    self.btn_preset_anime, self.btn_preset_sports):
+            preset_layout.addWidget(btn)
+        bottom_row.addWidget(preset_box, 1)
 
-        preset_layout.addWidget(self.btn_preset_auto)
-        preset_layout.addWidget(self.btn_preset_perf)
-        preset_layout.addWidget(self.btn_preset_quality)
-        preset_layout.addWidget(self.btn_preset_anime)
-        preset_layout.addWidget(self.btn_preset_sports)
-        layout.addWidget(preset_group)
-
-        # ===== 硬件信息组 =====
-        hw_group = QGroupBox(tr('video_eq_group_hardware', '硬件信息'))
-        hw_layout = QVBoxLayout(hw_group)
+        # 硬件信息（紧凑标签）
+        hw_box = QGroupBox(tr('video_eq_group_hardware', '硬件'))
+        hw_layout = QVBoxLayout(hw_box)
+        hw_layout.setContentsMargins(6, 6, 6, 6)
         self.hw_label = QLabel('')
         self.hw_label.setWordWrap(True)
         self.hw_label.setStyleSheet(
-            f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 11px;"
+            f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 10px;"
         )
         hw_layout.addWidget(self.hw_label)
         try:
@@ -305,7 +277,8 @@ class VideoEqualizerDialog(FloatingDialog):
             self.hw_label.setText(hw.get_hardware_summary())
         except Exception as e:
             self.hw_label.setText(f'{e}')
-        layout.addWidget(hw_group)
+        bottom_row.addWidget(hw_box, 1)
+        layout.addLayout(bottom_row)
 
         # ===== 操作按钮 =====
         btn_row = QHBoxLayout()
