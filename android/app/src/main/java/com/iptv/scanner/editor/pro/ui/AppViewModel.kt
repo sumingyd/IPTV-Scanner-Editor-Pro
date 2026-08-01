@@ -1220,6 +1220,11 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                 }
                 Log.i(TAG, "initContext OK, start polling status")
 
+                // 1.2 复制内置 GLSL 着色器文件到 filesDir/shaders/
+                withContext(Dispatchers.IO) {
+                    copyBuiltinShaders(app)
+                }
+
                 // 1.5 设置应用版本信息（供 Web 界面使用）
                 val version = getCurrentVersion()
                 val buildDate = getBuildDate()
@@ -7569,6 +7574,31 @@ showOsd("播放器设置", "日志等级: $levelName")
     /** 类似 Kotlin 的 takeIf 但用于 if-else 表达式 */
     private fun <T> T.ifElse(other: T, predicate: () -> Boolean): T =
         if (predicate()) this else other
+
+    /**
+     * 从 assets/shaders/ 复制内置 GLSL 着色器文件到 filesDir/shaders/。
+     * 仅在文件不存在时复制，避免覆盖用户自定义修改。
+     */
+    private fun copyBuiltinShaders(app: Application) {
+        try {
+            val shadersDir = java.io.File(app.filesDir, "shaders")
+            if (!shadersDir.exists()) shadersDir.mkdirs()
+
+            val assetFiles = app.assets.list("shaders") ?: return
+            for (name in assetFiles) {
+                val target = java.io.File(shadersDir, name)
+                if (target.exists()) continue  // 不覆盖已有文件
+                app.assets.open("shaders/$name").use { input ->
+                    java.io.FileOutputStream(target).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+            Log.i("AppViewModel", "内置着色器文件已复制到 ${shadersDir.absolutePath}")
+        } catch (e: Exception) {
+            Log.w("AppViewModel", "复制内置着色器失败: ${e.message}")
+        }
+    }
 
     companion object {
         private const val TAG = "AppViewModel"

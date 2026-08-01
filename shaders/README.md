@@ -1,40 +1,48 @@
 # MPV 用户着色器目录
 
-本目录用于存放 GLSL 着色器文件（`.glsl` 或 `.hook`），供 MPV 播放器加载使用。
+本目录存放 GLSL 着色器文件（`.glsl` / `.hook`），供 MPV 播放器加载使用。
 
-## 支持的着色器预设
+## 内置着色器
 
-应用内置以下预设名称，会自动在此目录中查找匹配的文件：
+以下着色器已内置，开箱即用，无需额外下载：
 
-| 预设名      | 说明                          | 推荐文件名                    |
-|------------|------------------------------|------------------------------|
-| `ravu`     | RAVU 锐利放大                  | `ravu_r3.hook`               |
-| `fsrcnnx`  | FSRCNNX 超分辨率               | `FSRCNNX_x2_8-0-4-1.glsl`   |
-| `anime4k`  | Anime4K 动画增强              | `Anime4K_Clamp_Highlights.hook` |
-| `krig`     | KrigBilateral 色度升频        | `KrigBilateral.hook`         |
-| `ssim`     | SSimDownscaler 高质量降频     | `SSimDownscaler.hook`        |
+| 预设名      | 说明                          | 文件名                         | 大小    | 许可证     |
+|------------|------------------------------|-------------------------------|---------|-----------|
+| `ravu`     | RAVU 锐利放大（r3 版本）      | `ravu_r3.hook`                | 123 KB  | LGPL-2.1+ |
+| `fsrcnnx`  | FSRCNNX 超分辨率（8-0-4-1）   | `FSRCNNX_x2_8-0-4-1.glsl`    | 71 KB   | GPL-2.0+  |
+| `anime4k`  | Anime4K 动画增强（3文件组合）  | `Anime4K_Clamp_Highlights.glsl` | 2.8 KB | MIT       |
+|            |                              | `Anime4K_Restore_CNN_S.glsl`  | 17 KB   | MIT       |
+|            |                              | `Anime4K_Upscale_CNN_x2_S.glsl` | 19 KB | MIT       |
+| `krig`     | KrigBilateral 色度升频        | `KrigBilateral.hook`          | 12 KB   | LGPL-2.1+ |
+| `ssim`     | SSimDownscaler 高质量降频     | `SSimDownscaler.glsl`         | 5.7 KB  | LGPL-2.1+ |
 
-## 文件查找规则
+## 着色器来源
 
-1. 精确匹配：`预设名.glsl` 或 `预设名.hook`
-2. 前缀匹配：以预设名开头的 `.glsl` 或 `.hook` 文件
+- **RAVU** — [bjin/mpv-prescalers](https://github.com/bjin/mpv-prescalers) (LGPL-2.1+)
+- **FSRCNNX** — [igv/FSRCNN-TensorFlow](https://github.com/igv/FSRCNN-TensorFlow) (GPL-2.0+)
+- **Anime4K** — [bloc97/Anime4K](https://github.com/bloc97/Anime4K) (MIT)
+- **KrigBilateral** — [igv gist](https://gist.github.com/igv/a015fc885d5c22e6891820ad89555637) (LGPL-2.1+)
+- **SSimDownscaler** — [igv gist](https://gist.github.com/igv/36508af3ffc84410fe39761d6969be10) (LGPL-2.1+)
 
-例如：`ravu` 预设会依次查找 `ravu.glsl`、`ravu.hook`，然后查找 `ravu_r3.hook` 等。
+## 额外文件
 
-## 去哪里下载着色器
+以下文件也包含在内，但不在预设列表中，可手动使用：
 
-以下是一些常用的着色器下载来源：
+| 文件名                     | 说明                    |
+|---------------------------|------------------------|
+| `ravu_r4.hook`            | RAVU r4 版本（更高质量） |
+| `Anime4K_Restore_CNN_M.glsl` | Anime4K 中等质量恢复   |
+| `adaptive_sharpen.glsl`   | 自适应锐化着色器        |
 
-- **MPV 官方着色器集合**：https://github.com/bloc97/Anime4K
-- **mpv-config 着色器**：https://github.com/mpv-player/mpv/wiki/User-Scripts
-- **glsl-shaders 整合包**：https://github.com/igv/FSRCNN-TensorFlow/releases
-- **KrigBilateral / SSimDownscaler**：https://github.com/igv/Inpaint-OpenGL
+## 添加自定义着色器
 
-下载后将 `.glsl` 或 `.hook` 文件放入本目录即可。
+1. 下载 `.glsl` 或 `.hook` 着色器文件
+2. 放入本目录
+3. 在视频调整对话框的着色器下拉框中选择该文件
 
 ## 注意事项
 
 - 着色器在 GPU 渲染管线运行，不需要 copy-back 硬件解码
-- 多个着色器可以通过 MPV 的 `glsl-shaders` 属性用逗号分隔加载
+- 多个着色器可通过 MPV 的 `glsl-shaders` 属性用逗号分隔加载
 - 着色器性能取决于 GPU，低端 GPU 可能导致帧率下降
-- Android 端着色器目录为 `app filesDir/shaders/`
+- Android 端着色器文件在应用启动时自动从 assets 复制到 `filesDir/shaders/`

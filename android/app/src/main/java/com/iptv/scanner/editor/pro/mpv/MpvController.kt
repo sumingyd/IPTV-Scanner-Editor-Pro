@@ -954,9 +954,24 @@ class MpvController : MPVLib.EventObserver, Player {
     // -----------------------------------------------------------------
 
     /**
+     * 预设对应的着色器文件列表（多文件用逗号分隔加载）
+     */
+    private val shaderPresetFiles = mapOf(
+        "ravu" to listOf("ravu_r3.hook"),
+        "fsrcnnx" to listOf("FSRCNNX_x2_8-0-4-1.glsl"),
+        "anime4k" to listOf(
+            "Anime4K_Clamp_Highlights.glsl",
+            "Anime4K_Restore_CNN_S.glsl",
+            "Anime4K_Upscale_CNN_x2_S.glsl"
+        ),
+        "krig" to listOf("KrigBilateral.hook"),
+        "ssim" to listOf("SSimDownscaler.glsl")
+    )
+
+    /**
      * 设置用户着色器。
      * Android 端着色器文件放在 app 的 filesDir/shaders/ 目录下。
-     * MPV 通过 glsl-shaders 属性加载 GLSL 着色器文件路径。
+     * MPV 通过 glsl-shaders 属性加载 GLSL 着色器文件路径（逗号分隔多文件）。
      */
     override fun setUserShader(preset: String): Boolean {
         if (preset == "off" || preset.isEmpty()) {
@@ -965,14 +980,16 @@ class MpvController : MPVLib.EventObserver, Player {
         }
         postOnUiThread {
             // 判断是预设名还是文件路径
-            var shaderPath = preset
-            if (!java.io.File(preset).isFile) {
-                // 在 shaders/ 目录查找匹配文件
-                shaderPath = findShaderFile(preset)
+            val shaderPaths: List<String>
+            if (java.io.File(preset).isFile) {
+                shaderPaths = listOf(preset)
+            } else {
+                shaderPaths = findShaderFiles(preset)
             }
-            if (shaderPath.isNotEmpty()) {
-                MPVLib.setPropertyString("glsl-shaders", shaderPath)
-                Log.i(TAG, "用户着色器已加载: $preset -> $shaderPath")
+            if (shaderPaths.isNotEmpty()) {
+                val shaderStr = shaderPaths.joinToString(",")
+                MPVLib.setPropertyString("glsl-shaders", shaderStr)
+                Log.i(TAG, "用户着色器已加载: $preset -> $shaderStr")
             } else {
                 Log.w(TAG, "着色器文件未找到: preset=$preset，请在 shaders/ 目录放置对应文件")
             }
@@ -987,27 +1004,37 @@ class MpvController : MPVLib.EventObserver, Player {
     }
 
     /**
-     * 在 shaders/ 目录查找匹配预设名称的着色器文件。
-     * 支持 .glsl 和 .hook 扩展名。
+     * 在 shaders/ 目录查找预设对应的所有着色器文件。
+     * 支持多文件预设（如 Anime4K 需要 3 个文件）。
      */
-    private fun findShaderFile(preset: String): String {
+    private fun findShaderFiles(preset: String): List<String> {
         val shadersDir = java.io.File(context.filesDir, "shaders")
-        if (!shadersDir.isDirectory) return ""
+        if (!shadersDir.isDirectory) return emptyList()
+
+        // 1. 按预设映射表精确查找
+        val fileNames = shaderPresetFiles[preset]
+        if (fileNames != null) {
+            val paths = fileNames.mapNotNull { fname ->
+                val f = java.io.File(shadersDir, fname)
+                if (f.isFile) f.absolutePath else null
+            }
+            if (paths.isNotEmpty()) return paths
+        }
+
+        // 2. 回退：前缀匹配查找单个文件
         val extensions = arrayOf(".glsl", ".hook", ".glsl.hook")
         for (ext in extensions) {
-            // 精确匹配
             val exact = java.io.File(shadersDir, "$preset$ext")
-            if (exact.isFile) return exact.absolutePath
-            // 前缀匹配
+            if (exact.isFile) return listOf(exact.absolutePath)
             val matches = shadersDir.listFiles { f ->
                 f.name.lowercase().startsWith(preset.lowercase()) &&
                 f.name.lowercase().endsWith(ext)
             }
             if (matches != null && matches.isNotEmpty()) {
-                return matches[0].absolutePath
+                return listOf(matches[0].absolutePath)
             }
         }
-        return ""
+        return emptyList()
     }
 
     // -----------------------------------------------------------------

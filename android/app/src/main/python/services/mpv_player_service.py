@@ -3279,7 +3279,7 @@ class MpvPlayerController(QObject):
     # MPV 通过 glsl-shaders 属性（逗号分隔路径）加载，运行时可动态切换
     # 注意：着色器在 GPU 渲染管线运行，不需要 copy-back 硬解
 
-    # 内置着色器预设（文件名 → 描述）
+    # 内置着色器预设（预设名 → 描述）
     _SHADER_PRESETS = {
         'off': '关闭着色器',
         'ravu': 'RAVU 锐利放大',
@@ -3287,6 +3287,19 @@ class MpvPlayerController(QObject):
         'anime4k': 'Anime4K 动画增强',
         'krig': 'KrigBilateral 色度升频',
         'ssim': 'SSim 降频',
+    }
+
+    # 预设对应的着色器文件列表（多文件用逗号分隔加载）
+    _SHADER_PRESET_FILES = {
+        'ravu': ['ravu_r3.hook'],
+        'fsrcnnx': ['FSRCNNX_x2_8-0-4-1.glsl'],
+        'anime4k': [
+            'Anime4K_Clamp_Highlights.glsl',
+            'Anime4K_Restore_CNN_S.glsl',
+            'Anime4K_Upscale_CNN_x2_S.glsl',
+        ],
+        'krig': ['KrigBilateral.hook'],
+        'ssim': ['SSimDownscaler.glsl'],
     }
 
     def _get_shaders_dir(self) -> str:
@@ -3301,29 +3314,39 @@ class MpvPlayerController(QObject):
                 pass
         return shaders_dir
 
-    def _find_shader_file(self, preset: str) -> str:
-        """查找着色器文件路径
+    def _find_shader_files(self, preset: str) -> list:
+        """查找预设对应的所有着色器文件路径
 
-        在 shaders/ 目录下查找匹配预设名称的 .glsl 或 .hook 文件
+        :return: 文件路径列表（可能多个，如 Anime4K 需要 3 个文件）
         """
         if preset == 'off':
-            return ''
+            return []
         shaders_dir = self._get_shaders_dir()
         if not os.path.isdir(shaders_dir):
-            return ''
-        # 支持的扩展名
+            return []
+
+        # 1. 如果预设名在 _SHADER_PRESET_FILES 中，按精确文件名查找
+        if preset in self._SHADER_PRESET_FILES:
+            paths = []
+            for fname in self._SHADER_PRESET_FILES[preset]:
+                path = os.path.join(shaders_dir, fname)
+                if os.path.isfile(path):
+                    paths.append(path)
+            if paths:
+                return paths
+
+        # 2. 回退：前缀匹配查找单个文件
         extensions = ('.glsl', '.hook', '.glsl.hook')
-        # 查找匹配文件
         for ext in extensions:
             # 精确匹配：preset.ext
             path = os.path.join(shaders_dir, f'{preset}{ext}')
             if os.path.isfile(path):
-                return path
+                return [path]
             # 前缀匹配：preset_*.ext
             for fname in os.listdir(shaders_dir):
                 if fname.lower().startswith(preset.lower()) and fname.lower().endswith(ext):
-                    return os.path.join(shaders_dir, fname)
-        return ''
+                    return [os.path.join(shaders_dir, fname)]
+        return []
 
     def list_available_shaders(self) -> list:
         """列出可用的着色器文件
@@ -3364,7 +3387,6 @@ class MpvPlayerController(QObject):
             return False
 
         if preset == 'off' or not preset:
-            # 清除着色器
             ret = self._set_mpv_string('glsl-shaders', '')
             if ret >= 0:
                 self.logger.info("用户着色器已清除")
@@ -3373,23 +3395,24 @@ class MpvPlayerController(QObject):
 
         # 判断是预设名还是文件路径
         if os.path.isfile(preset):
-            shader_path = preset
+            shader_paths = [preset]
         else:
-            shader_path = self._find_shader_file(preset)
+            shader_paths = self._find_shader_files(preset)
 
-        if not shader_path or not os.path.isfile(shader_path):
+        if not shader_paths:
             self.logger.warning(
                 f"着色器文件未找到: preset='{preset}'，"
                 f"请在 shaders/ 目录放置对应文件"
             )
             return False
 
-        # MPV glsl-shaders 属性接受逗号分隔的路径
-        ret = self._set_mpv_string('glsl-shaders', shader_path)
+        # MPV glsl-shaders 属性接受逗号分隔的多个路径
+        shader_str = ','.join(shader_paths)
+        ret = self._set_mpv_string('glsl-shaders', shader_str)
         if ret < 0:
-            self.logger.warning(f"着色器设置失败: path='{shader_path}'")
+            self.logger.warning(f"着色器设置失败: paths='{shader_str}'")
             return False
-        self.logger.info(f"用户着色器已加载: {preset} -> {shader_path}")
+        self.logger.info(f"用户着色器已加载: {preset} -> {shader_str}")
         return True
 
     def get_user_shader(self) -> str:
