@@ -301,6 +301,15 @@ interface Player {
     /** 清除分辨率提升 */
     fun clearSuperResolution() {}
 
+    /**
+     * 设置用户着色器（GLSL Shader，GPU 加速 AI 超分辨率）。
+     * @param preset "off"/"ravu"/"fsrcnnx"/"anime4k"/"krig"/"ssim" 或自定义文件路径
+     */
+    fun setUserShader(preset: String): Boolean = false
+
+    /** 清除用户着色器 */
+    fun clearUserShader() {}
+
     // -----------------------------------------------------------------
     // 音频调整（高级功能，默认不支持）
     // -----------------------------------------------------------------

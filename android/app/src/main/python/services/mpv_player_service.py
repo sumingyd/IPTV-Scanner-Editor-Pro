@@ -3266,6 +3266,148 @@ class MpvPlayerController(QObject):
         except Exception:
             return False
 
+    # ---------- 用户着色器（GLSL Shader，GPU 加速 AI 超分辨率） ----------
+    # 使用 MPV 的 glsl-shaders 属性加载自定义 GLSL 着色器
+    # 常用着色器：
+    #   - RAVU (Rule-based Artificial Vector Upscaling) — 锐利放大
+    #   - FSRCNNX — 快速超分辨率卷积神经网络
+    #   - Anime4K — 动画专用增强
+    #   - KrigBilateral — 色度升频
+    #   - SSimDownscaler — 高质量降频
+    #
+    # 着色器文件放在 shaders/ 目录下，用户可自行下载放置
+    # MPV 通过 glsl-shaders 属性（逗号分隔路径）加载，运行时可动态切换
+    # 注意：着色器在 GPU 渲染管线运行，不需要 copy-back 硬解
+
+    # 内置着色器预设（文件名 → 描述）
+    _SHADER_PRESETS = {
+        'off': '关闭着色器',
+        'ravu': 'RAVU 锐利放大',
+        'fsrcnnx': 'FSRCNNX 超分辨率',
+        'anime4k': 'Anime4K 动画增强',
+        'krig': 'KrigBilateral 色度升频',
+        'ssim': 'SSim 降频',
+    }
+
+    def _get_shaders_dir(self) -> str:
+        """获取着色器目录路径"""
+        # 优先使用程序目录下的 shaders/
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        shaders_dir = os.path.join(base, 'shaders')
+        if not os.path.isdir(shaders_dir):
+            try:
+                os.makedirs(shaders_dir, exist_ok=True)
+            except Exception:
+                pass
+        return shaders_dir
+
+    def _find_shader_file(self, preset: str) -> str:
+        """查找着色器文件路径
+
+        在 shaders/ 目录下查找匹配预设名称的 .glsl 或 .hook 文件
+        """
+        if preset == 'off':
+            return ''
+        shaders_dir = self._get_shaders_dir()
+        if not os.path.isdir(shaders_dir):
+            return ''
+        # 支持的扩展名
+        extensions = ('.glsl', '.hook', '.glsl.hook')
+        # 查找匹配文件
+        for ext in extensions:
+            # 精确匹配：preset.ext
+            path = os.path.join(shaders_dir, f'{preset}{ext}')
+            if os.path.isfile(path):
+                return path
+            # 前缀匹配：preset_*.ext
+            for fname in os.listdir(shaders_dir):
+                if fname.lower().startswith(preset.lower()) and fname.lower().endswith(ext):
+                    return os.path.join(shaders_dir, fname)
+        return ''
+
+    def list_available_shaders(self) -> list:
+        """列出可用的着色器文件
+
+        :return: [{'preset': str, 'path': str, 'filename': str}]
+        """
+        result = []
+        shaders_dir = self._get_shaders_dir()
+        if not os.path.isdir(shaders_dir):
+            return result
+        for fname in sorted(os.listdir(shaders_dir)):
+            if not fname.lower().endswith(('.glsl', '.hook')):
+                continue
+            path = os.path.join(shaders_dir, fname)
+            if not os.path.isfile(path):
+                continue
+            # 从文件名提取预设名
+            name_base = fname
+            for ext in ('.glsl.hook', '.glsl', '.hook'):
+                if name_base.lower().endswith(ext):
+                    name_base = name_base[:-len(ext)]
+                    break
+            result.append({
+                'preset': name_base,
+                'path': path,
+                'filename': fname,
+            })
+        return result
+
+    def set_user_shader(self, preset: str) -> bool:
+        """设置用户着色器
+
+        :param preset: 预设名（'off'/'ravu'/'fsrcnnx'/'anime4k'/'krig'/'ssim'）
+                       或自定义文件路径
+        :return: 成功与否
+        """
+        if not self.mpv_handle or self._terminated:
+            return False
+
+        if preset == 'off' or not preset:
+            # 清除着色器
+            ret = self._set_mpv_string('glsl-shaders', '')
+            if ret >= 0:
+                self.logger.info("用户着色器已清除")
+                return True
+            return False
+
+        # 判断是预设名还是文件路径
+        if os.path.isfile(preset):
+            shader_path = preset
+        else:
+            shader_path = self._find_shader_file(preset)
+
+        if not shader_path or not os.path.isfile(shader_path):
+            self.logger.warning(
+                f"着色器文件未找到: preset='{preset}'，"
+                f"请在 shaders/ 目录放置对应文件"
+            )
+            return False
+
+        # MPV glsl-shaders 属性接受逗号分隔的路径
+        ret = self._set_mpv_string('glsl-shaders', shader_path)
+        if ret < 0:
+            self.logger.warning(f"着色器设置失败: path='{shader_path}'")
+            return False
+        self.logger.info(f"用户着色器已加载: {preset} -> {shader_path}")
+        return True
+
+    def get_user_shader(self) -> str:
+        """读取当前着色器路径"""
+        if not self.mpv_handle or self._terminated:
+            return ''
+        return self._get_mpv_property_string('glsl-shaders') or ''
+
+    def clear_user_shader(self) -> bool:
+        """清除用户着色器"""
+        if not self.mpv_handle or self._terminated:
+            return False
+        ret = self._set_mpv_string('glsl-shaders', '')
+        if ret >= 0:
+            self.logger.info("用户着色器已清除")
+            return True
+        return False
+
     # ---------- 3D 立体模式 / 360° 视角 ----------
     # mpv video-stereo-mode 取值（简化形式，mpv 会自动识别）：
     #   mono / sbs / sbs2 / ab / ab2

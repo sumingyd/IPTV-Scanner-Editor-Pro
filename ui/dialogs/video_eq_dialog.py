@@ -1,4 +1,5 @@
 """视频图像调整对话框 - 亮度/对比度/饱和度/色调/Gamma/锐度 + 旋转/镜像"""
+import os
 from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QPushButton,
     QSlider, QCheckBox, QComboBox, QGroupBox, QWidget,
@@ -27,7 +28,7 @@ class VideoEqualizerDialog(FloatingDialog):
         self.window = main_window
         tr = main_window.language_manager.tr
         self.setWindowTitle(tr('video_eq_title', '视频图像调整'))
-        self.setMinimumSize(520, 820)
+        self.setMinimumSize(520, 960)
         self._loading = False
         self._setup_ui()
         self._apply_theme()
@@ -222,6 +223,90 @@ class VideoEqualizerDialog(FloatingDialog):
 
         layout.addWidget(sr_group)
 
+        # ===== 用户着色器组 =====
+        shader_group = QGroupBox(tr('video_eq_group_shader', 'AI 超分辨率着色器'))
+        shader_form = QFormLayout(shader_group)
+        shader_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+
+        # 着色器预设选择
+        self.shader_combo = QComboBox()
+        self.shader_combo.addItem(tr('shader_off', '关闭'), 'off')
+        self.shader_combo.addItem(tr('shader_ravu', 'RAVU 锐利放大'), 'ravu')
+        self.shader_combo.addItem(tr('shader_fsrcnnx', 'FSRCNNX 超分辨率'), 'fsrcnnx')
+        self.shader_combo.addItem(tr('shader_anime4k', 'Anime4K 动画增强'), 'anime4k')
+        self.shader_combo.addItem(tr('shader_krig', 'KrigBilateral 色度升频'), 'krig')
+        self.shader_combo.addItem(tr('shader_ssim', 'SSim 降频'), 'ssim')
+        # 动态添加已检测到的着色器文件
+        pc = self.window.player_controller
+        if pc and hasattr(pc, 'list_available_shaders'):
+            try:
+                available = pc.list_available_shaders()
+                existing_presets = {i for i in range(self.shader_combo.count())
+                                    if self.shader_combo.itemData(i)}
+                existing_data = {self.shader_combo.itemData(i) for i in existing_presets}
+                for item in available:
+                    if item['preset'] not in existing_data:
+                        self.shader_combo.addItem(
+                            item['filename'], item['path']
+                        )
+            except Exception:
+                pass
+        self.shader_combo.currentIndexChanged.connect(self._on_shader_changed)
+        shader_form.addRow(tr('shader_preset_label', '着色器预设'), self.shader_combo)
+
+        # 说明文字
+        shader_hint = QLabel(
+            tr('shader_hint',
+               'GLSL 着色器在 GPU 运行，不影响 CPU。'
+               '请将 .glsl/.hook 文件放在 shaders/ 目录')
+        )
+        shader_hint.setWordWrap(True)
+        shader_hint.setStyleSheet(
+            f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 11px;"
+        )
+        shader_form.addRow('', shader_hint)
+
+        layout.addWidget(shader_group)
+
+        # ===== 智能预设组 =====
+        preset_group = QGroupBox(tr('video_eq_group_smart_preset', '智能预设'))
+        preset_layout = QHBoxLayout(preset_group)
+
+        self.btn_preset_auto = QPushButton(tr('preset_auto', '智能推荐'))
+        self.btn_preset_auto.clicked.connect(lambda: self._apply_smart_preset('auto'))
+        self.btn_preset_perf = QPushButton(tr('preset_performance', '性能优先'))
+        self.btn_preset_perf.clicked.connect(lambda: self._apply_smart_preset('performance'))
+        self.btn_preset_quality = QPushButton(tr('preset_quality', '画质优先'))
+        self.btn_preset_quality.clicked.connect(lambda: self._apply_smart_preset('quality'))
+        self.btn_preset_anime = QPushButton(tr('preset_anime', '动画优化'))
+        self.btn_preset_anime.clicked.connect(lambda: self._apply_smart_preset('anime'))
+        self.btn_preset_sports = QPushButton(tr('preset_sports', '体育直播'))
+        self.btn_preset_sports.clicked.connect(lambda: self._apply_smart_preset('sports'))
+
+        preset_layout.addWidget(self.btn_preset_auto)
+        preset_layout.addWidget(self.btn_preset_perf)
+        preset_layout.addWidget(self.btn_preset_quality)
+        preset_layout.addWidget(self.btn_preset_anime)
+        preset_layout.addWidget(self.btn_preset_sports)
+        layout.addWidget(preset_group)
+
+        # ===== 硬件信息组 =====
+        hw_group = QGroupBox(tr('video_eq_group_hardware', '硬件信息'))
+        hw_layout = QVBoxLayout(hw_group)
+        self.hw_label = QLabel('')
+        self.hw_label.setWordWrap(True)
+        self.hw_label.setStyleSheet(
+            f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 11px;"
+        )
+        hw_layout.addWidget(self.hw_label)
+        try:
+            from services.hardware_detect_service import get_hardware_detect_service
+            hw = get_hardware_detect_service()
+            self.hw_label.setText(hw.get_hardware_summary())
+        except Exception as e:
+            self.hw_label.setText(f'{e}')
+        layout.addWidget(hw_group)
+
         # ===== 操作按钮 =====
         btn_row = QHBoxLayout()
         self.reset_btn = QPushButton(tr('video_eq_reset', '重置全部'))
@@ -310,6 +395,14 @@ class VideoEqualizerDialog(FloatingDialog):
         sr_detail = max(0, min(100, sr_detail))
         self.sr_detail_slider.setValue(sr_detail)
         self.sr_detail_label.setText(str(sr_detail))
+        # 用户着色器
+        shader_preset = cfg.get('shader_preset', 'off') or 'off'
+        idx = self.shader_combo.findData(shader_preset)
+        if idx < 0:
+            # 可能是自定义路径
+            idx = self.shader_combo.findData('off')
+        if idx >= 0:
+            self.shader_combo.setCurrentIndex(idx)
 
     def _collect_eq(self) -> dict:
         """从 UI 控件收集所有参数"""
@@ -326,6 +419,13 @@ class VideoEqualizerDialog(FloatingDialog):
         # 分辨率提升
         result['superres_scale'] = self.sr_combo.currentData() or 'off'
         result['superres_detail'] = int(self.sr_detail_slider.value())
+        # 用户着色器
+        shader_data = self.shader_combo.currentData() or 'off'
+        # 如果是文件路径则保存路径，否则保存预设名
+        if isinstance(shader_data, str) and os.path.isfile(shader_data):
+            result['shader_preset'] = shader_data
+        else:
+            result['shader_preset'] = shader_data
         return result
 
     # ---------- 事件处理 ----------
@@ -414,6 +514,83 @@ class VideoEqualizerDialog(FloatingDialog):
         if mc:
             mc.set_super_resolution(scale_algo, value)
 
+    def _on_shader_changed(self, idx: int):
+        if self._loading:
+            return
+        shader_data = self.shader_combo.currentData() or 'off'
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc and hasattr(mc, 'set_user_shader'):
+            mc.set_user_shader(shader_data)
+
+    def _apply_smart_preset(self, preset_name: str):
+        """应用智能预设"""
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc and hasattr(mc, 'apply_smart_preset'):
+            mc.apply_smart_preset(preset_name)
+            # 同步 UI
+            if preset_name == 'auto':
+                try:
+                    from services.hardware_detect_service import (
+                        get_hardware_detect_service
+                    )
+                    hw = get_hardware_detect_service()
+                    settings = hw.get_recommended_settings()
+                except Exception:
+                    settings = {}
+            elif preset_name == 'performance':
+                settings = {
+                    'motion_comp': 'off', 'motion_comp_fps': 60,
+                    'superres_scale': 'bilinear', 'superres_detail': 0,
+                    'shader_preset': 'off',
+                }
+            elif preset_name == 'quality':
+                settings = {
+                    'motion_comp': 'medium', 'motion_comp_fps': 60,
+                    'superres_scale': 'ewa_lanczossharp', 'superres_detail': 40,
+                    'shader_preset': 'off',
+                }
+            elif preset_name == 'anime':
+                settings = {
+                    'motion_comp': 'low', 'motion_comp_fps': 60,
+                    'superres_scale': 'ewa_lanczos', 'superres_detail': 20,
+                    'shader_preset': 'anime4k',
+                }
+            elif preset_name == 'sports':
+                settings = {
+                    'motion_comp': 'high', 'motion_comp_fps': 60,
+                    'superres_scale': 'lanczos', 'superres_detail': 30,
+                    'shader_preset': 'off',
+                }
+            else:
+                settings = {}
+            # 回填 UI
+            self._loading = True
+            try:
+                if settings:
+                    mc_s = settings.get('motion_comp', 'off')
+                    idx = self.mc_combo.findData(mc_s)
+                    if idx >= 0:
+                        self.mc_combo.setCurrentIndex(idx)
+                    mc_fps = int(settings.get('motion_comp_fps', 60))
+                    idx = self.mc_fps_combo.findData(mc_fps)
+                    if idx >= 0:
+                        self.mc_fps_combo.setCurrentIndex(idx)
+                    sr_s = settings.get('superres_scale', 'off')
+                    idx = self.sr_combo.findData(sr_s)
+                    if idx >= 0:
+                        self.sr_combo.setCurrentIndex(idx)
+                    sr_d = int(settings.get('superres_detail', 0))
+                    self.sr_detail_slider.setValue(sr_d)
+                    self.sr_detail_label.setText(str(sr_d))
+                    sp = settings.get('shader_preset', 'off')
+                    idx = self.shader_combo.findData(sp)
+                    if idx < 0:
+                        idx = self.shader_combo.findData('off')
+                    if idx >= 0:
+                        self.shader_combo.setCurrentIndex(idx)
+            finally:
+                self._loading = False
+
     def _on_autocrop_clicked(self):
         """触发动态裁剪黑边"""
         svc = getattr(self.window, 'autocrop_service', None)
@@ -427,6 +604,7 @@ class VideoEqualizerDialog(FloatingDialog):
         def _on_done(success, crop, message):
             # 子线程回调，切回主线程
             from PySide6.QtCore import QTimer
+
             def _ui_update():
                 self.autocrop_btn.setEnabled(True)
                 self._show_osd(message)
@@ -463,6 +641,10 @@ class VideoEqualizerDialog(FloatingDialog):
             sr_detail = int(eq.get('superres_detail', 0))
             if hasattr(pc, 'set_super_resolution'):
                 pc.set_super_resolution(sr_scale, sr_detail)
+            # 应用用户着色器
+            shader_preset = eq.get('shader_preset', 'off')
+            if hasattr(pc, 'set_user_shader'):
+                pc.set_user_shader(shader_preset)
             if not silent:
                 tr = self.window.language_manager.tr
                 if hasattr(self.window, '_show_osd_feedback'):
@@ -504,6 +686,8 @@ class VideoEqualizerDialog(FloatingDialog):
                 pc.clear_motion_compensation()
             if hasattr(pc, 'clear_super_resolution'):
                 pc.clear_super_resolution()
+            if hasattr(pc, 'clear_user_shader'):
+                pc.clear_user_shader()
         tr = self.window.language_manager.tr
         if hasattr(self.window, '_show_osd_feedback'):
             self.window._show_osd_feedback(tr('video_eq_reset_done', '图像参数已重置'))

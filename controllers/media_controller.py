@@ -675,8 +675,12 @@ class MediaController:
         if (sr_scale and sr_scale != 'off') or sr_detail > 0:
             if hasattr(pc, 'set_super_resolution'):
                 pc.set_super_resolution(sr_scale if sr_scale else 'off', sr_detail)
+        # 应用用户着色器
+        shader_preset = cfg.get('shader_preset', 'off')
+        if shader_preset and shader_preset != 'off' and hasattr(pc, 'set_user_shader'):
+            pc.set_user_shader(shader_preset)
 
-    # ---------- 运动补偿 / 分辨率提升 ----------
+    # ---------- 运动补偿 / 分辨率提升 / 用户着色器 ----------
     def set_motion_compensation(self, strength: str, target_fps: int = 60):
         """设置运动补偿"""
         pc = self.window.player_controller
@@ -723,6 +727,105 @@ class MediaController:
                 self.window._show_osd_feedback(f"{tr('osd_super_res', '分辨率提升')}: {', '.join(parts)}")
             else:
                 self.window._show_osd_feedback(f"{tr('osd_super_res', '分辨率提升')}: {tr('sr_off', '关闭')}")
+
+    def set_user_shader(self, preset: str):
+        """设置用户着色器
+
+        :param preset: 'off' / 'ravu' / 'fsrcnnx' / 'anime4k' / 'krig' / 'ssim' / 自定义路径
+        """
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'set_user_shader'):
+            return
+        success = pc.set_user_shader(preset)
+        tr = self.window.language_manager.tr
+        if hasattr(self.window, '_show_osd_feedback'):
+            if preset == 'off' or not success:
+                self.window._show_osd_feedback(
+                    f"{tr('osd_shader', '着色器')}: {tr('shader_off', '关闭')}"
+                )
+            else:
+                shader_labels = {
+                    'ravu': 'RAVU', 'fsrcnnx': 'FSRCNNX',
+                    'anime4k': 'Anime4K', 'krig': 'KrigBilateral',
+                    'ssim': 'SSim',
+                }
+                label = shader_labels.get(preset, preset)
+                self.window._show_osd_feedback(
+                    f"{tr('osd_shader', '着色器')}: {label}"
+                )
+
+    def apply_smart_preset(self, preset_name: str):
+        """应用智能预设
+
+        :param preset_name: 'auto' / 'performance' / 'quality' / 'anime' / 'sports'
+        """
+        try:
+            from services.hardware_detect_service import get_hardware_detect_service
+            hw = get_hardware_detect_service()
+            if preset_name == 'auto':
+                settings = hw.get_recommended_settings()
+            elif preset_name == 'performance':
+                settings = {
+                    'motion_comp': 'off', 'motion_comp_fps': 60,
+                    'superres_scale': 'bilinear', 'superres_detail': 0,
+                    'shader_preset': 'off',
+                }
+            elif preset_name == 'quality':
+                settings = {
+                    'motion_comp': 'medium', 'motion_comp_fps': 60,
+                    'superres_scale': 'ewa_lanczossharp', 'superres_detail': 40,
+                    'shader_preset': 'auto',
+                }
+            elif preset_name == 'anime':
+                settings = {
+                    'motion_comp': 'low', 'motion_comp_fps': 60,
+                    'superres_scale': 'ewa_lanczos', 'superres_detail': 20,
+                    'shader_preset': 'anime4k',
+                }
+            elif preset_name == 'sports':
+                settings = {
+                    'motion_comp': 'high', 'motion_comp_fps': 60,
+                    'superres_scale': 'lanczos', 'superres_detail': 30,
+                    'shader_preset': 'off',
+                }
+            else:
+                return
+            # 应用各项设置
+            self.set_motion_compensation(
+                settings['motion_comp'], settings['motion_comp_fps']
+            )
+            self.set_super_resolution(
+                settings['superres_scale'], settings['superres_detail']
+            )
+            shader = settings.get('shader_preset', 'off')
+            if shader == 'auto':
+                # auto 模式：检查是否有可用着色器
+                pc = self.window.player_controller
+                if pc and hasattr(pc, 'list_available_shaders'):
+                    available = pc.list_available_shaders()
+                    if available:
+                        shader = available[0]['preset']
+                    else:
+                        shader = 'off'
+                else:
+                    shader = 'off'
+            self.set_user_shader(shader)
+            # 保存到配置
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                preset_labels = {
+                    'auto': tr('preset_auto', '智能推荐'),
+                    'performance': tr('preset_performance', '性能优先'),
+                    'quality': tr('preset_quality', '画质优先'),
+                    'anime': tr('preset_anime', '动画优化'),
+                    'sports': tr('preset_sports', '体育直播'),
+                }
+                label = preset_labels.get(preset_name, preset_name)
+                self.window._show_osd_feedback(
+                    f"{tr('osd_smart_preset', '智能预设')}: {label}"
+                )
+        except Exception as e:
+            logger.error(f"应用智能预设失败: {e}")
 
     # ---------- 音频系统增强 ----------
     def _show_audio_eq_dialog(self):

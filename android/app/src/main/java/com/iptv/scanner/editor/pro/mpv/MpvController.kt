@@ -950,6 +950,67 @@ class MpvController : MPVLib.EventObserver, Player {
     }
 
     // -----------------------------------------------------------------
+    // 用户着色器（GLSL Shader）
+    // -----------------------------------------------------------------
+
+    /**
+     * 设置用户着色器。
+     * Android 端着色器文件放在 app 的 filesDir/shaders/ 目录下。
+     * MPV 通过 glsl-shaders 属性加载 GLSL 着色器文件路径。
+     */
+    override fun setUserShader(preset: String): Boolean {
+        if (preset == "off" || preset.isEmpty()) {
+            clearUserShader()
+            return true
+        }
+        postOnUiThread {
+            // 判断是预设名还是文件路径
+            var shaderPath = preset
+            if (!java.io.File(preset).isFile) {
+                // 在 shaders/ 目录查找匹配文件
+                shaderPath = findShaderFile(preset)
+            }
+            if (shaderPath.isNotEmpty()) {
+                MPVLib.setPropertyString("glsl-shaders", shaderPath)
+                Log.i(TAG, "用户着色器已加载: $preset -> $shaderPath")
+            } else {
+                Log.w(TAG, "着色器文件未找到: preset=$preset，请在 shaders/ 目录放置对应文件")
+            }
+        }
+        return true
+    }
+
+    override fun clearUserShader() {
+        postOnUiThread {
+            MPVLib.setPropertyString("glsl-shaders", "")
+        }
+    }
+
+    /**
+     * 在 shaders/ 目录查找匹配预设名称的着色器文件。
+     * 支持 .glsl 和 .hook 扩展名。
+     */
+    private fun findShaderFile(preset: String): String {
+        val shadersDir = java.io.File(context.filesDir, "shaders")
+        if (!shadersDir.isDirectory) return ""
+        val extensions = arrayOf(".glsl", ".hook", ".glsl.hook")
+        for (ext in extensions) {
+            // 精确匹配
+            val exact = java.io.File(shadersDir, "$preset$ext")
+            if (exact.isFile) return exact.absolutePath
+            // 前缀匹配
+            val matches = shadersDir.listFiles { f ->
+                f.name.lowercase().startsWith(preset.lowercase()) &&
+                f.name.lowercase().endsWith(ext)
+            }
+            if (matches != null && matches.isNotEmpty()) {
+                return matches[0].absolutePath
+            }
+        }
+        return ""
+    }
+
+    // -----------------------------------------------------------------
     // 音频调整
     // -----------------------------------------------------------------
     override fun setAudioDelay(delaySec: Double): Boolean {

@@ -381,6 +381,8 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
     // 分辨率提升
     var srScale by remember { mutableStateOf("off") }
     var srDetail by remember { mutableStateOf(0) }
+    // 用户着色器
+    var shaderPreset by remember { mutableStateOf("off") }
 
     PanelScaffold(
         title = "视频设置",
@@ -393,11 +395,11 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                     brightness = 0; contrast = 0; saturation = 0; hue = 0; gamma = 0
                     rotate = 0; flipMode = "none"
                     stereoMode = "mono"; yaw = 0.0; pitch = 0.0; roll = 0.0
-                    mcStrength = "off"; mcFps = 60; srScale = "off"; srDetail = 0
+                    mcStrength = "off"; mcFps = 60; srScale = "off"; srDetail = 0; shaderPreset = "off"
                     mpv.setBrightness(0); mpv.setContrast(0); mpv.setSaturation(0)
                     mpv.setHue(0); mpv.setGamma(0); mpv.setVideoRotate(0); mpv.setVideoFlip("")
                     mpv.setVideoStereoMode("mono"); mpv.clear360Filter()
-                    mpv.clearMotionCompensation(); mpv.clearSuperResolution()
+                    mpv.clearMotionCompensation(); mpv.clearSuperResolution(); mpv.clearUserShader()
                     viewModel.showOsd("视频设置", "已重置")
                 },
                 modifier = Modifier.tvFocusBorder()
@@ -622,6 +624,119 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                 mpv.setSuperResolution(srScale, 0)
             }
         )
+
+        // -----------------------------------------------------------------
+        // AI 超分辨率着色器（GLSL Shader，GPU 加速）
+        // 着色器文件放在 app filesDir/shaders/ 目录下
+        // -----------------------------------------------------------------
+        SectionLabel("AI 超分辨率着色器")
+        DescText("GLSL 着色器在 GPU 运行，不影响 CPU。请将 .glsl/.hook 文件放在 shaders/ 目录")
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                "off" to "关闭",
+                "ravu" to "RAVU",
+                "fsrcnnx" to "FSRCNNX",
+                "anime4k" to "Anime4K",
+                "krig" to "KrigBilateral",
+                "ssim" to "SSim"
+            ).forEach { (preset, label) ->
+                FilterChip(
+                    selected = shaderPreset == preset,
+                    onClick = {
+                        shaderPreset = preset
+                        mpv.setUserShader(preset)
+                        viewModel.showOsd("着色器", label)
+                    },
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
+                )
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // 智能预设（一键优化）
+        // -----------------------------------------------------------------
+        SectionLabel("智能预设")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                "auto" to "智能推荐",
+                "performance" to "性能优先",
+                "quality" to "画质优先",
+                "anime" to "动画优化",
+                "sports" to "体育直播"
+            ).forEach { (preset, label) ->
+                FilterChip(
+                    selected = false,
+                    onClick = {
+                        when (preset) {
+                            "auto" -> {
+                                // 根据硬件自动选择
+                                val cores = Runtime.getRuntime().availableProcessors()
+                                val maxMem = Runtime.getRuntime().maxMemory()
+                                if (cores >= 8 && maxMem > 512L * 1024 * 1024) {
+                                    mcStrength = "medium"; mcFps = 60
+                                    srScale = "ewa_lanczossharp"; srDetail = 40
+                                    shaderPreset = "off"
+                                    mpv.setMotionCompensation("medium", 60)
+                                    mpv.setSuperResolution("ewa_lanczossharp", 40)
+                                    mpv.clearUserShader()
+                                } else if (cores >= 4) {
+                                    mcStrength = "low"; mcFps = 60
+                                    srScale = "lanczos"; srDetail = 20
+                                    shaderPreset = "off"
+                                    mpv.setMotionCompensation("low", 60)
+                                    mpv.setSuperResolution("lanczos", 20)
+                                    mpv.clearUserShader()
+                                } else {
+                                    mcStrength = "off"; mcFps = 60
+                                    srScale = "bilinear"; srDetail = 0
+                                    shaderPreset = "off"
+                                    mpv.clearMotionCompensation()
+                                    mpv.setSuperResolution("bilinear", 0)
+                                    mpv.clearUserShader()
+                                }
+                            }
+                            "performance" -> {
+                                mcStrength = "off"; mcFps = 60
+                                srScale = "bilinear"; srDetail = 0
+                                shaderPreset = "off"
+                                mpv.clearMotionCompensation()
+                                mpv.setSuperResolution("bilinear", 0)
+                                mpv.clearUserShader()
+                            }
+                            "quality" -> {
+                                mcStrength = "medium"; mcFps = 60
+                                srScale = "ewa_lanczossharp"; srDetail = 40
+                                shaderPreset = "off"
+                                mpv.setMotionCompensation("medium", 60)
+                                mpv.setSuperResolution("ewa_lanczossharp", 40)
+                                mpv.clearUserShader()
+                            }
+                            "anime" -> {
+                                mcStrength = "low"; mcFps = 60
+                                srScale = "ewa_lanczos"; srDetail = 20
+                                shaderPreset = "anime4k"
+                                mpv.setMotionCompensation("low", 60)
+                                mpv.setSuperResolution("ewa_lanczos", 20)
+                                mpv.setUserShader("anime4k")
+                            }
+                            "sports" -> {
+                                mcStrength = "high"; mcFps = 60
+                                srScale = "lanczos"; srDetail = 30
+                                shaderPreset = "off"
+                                mpv.setMotionCompensation("high", 60)
+                                mpv.setSuperResolution("lanczos", 30)
+                                mpv.clearUserShader()
+                            }
+                        }
+                        viewModel.showOsd("智能预设", label)
+                    },
+                    label = { Text(label) },
+                    modifier = Modifier.tvFocusBorder()
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
     }

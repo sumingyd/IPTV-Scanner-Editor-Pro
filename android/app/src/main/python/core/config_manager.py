@@ -1224,6 +1224,8 @@ class ConfigManager(Singleton):
         # 分辨率提升
         'superres_scale': 'off',    # off / bilinear / bicubic / lanczos / spline / ewa_lanczos / ewa_lanczossharp
         'superres_detail': 0,       # 0-100
+        # 用户着色器
+        'shader_preset': 'off',     # off / ravu / fsrcnnx / anime4k / krig / ssim / 自定义路径
     }
 
     def save_video_eq(self, settings: dict):
