@@ -731,7 +731,7 @@ class MediaController:
     def set_user_shader(self, preset: str):
         """设置用户着色器
 
-        :param preset: 'off' / 'ravu' / 'fsrcnnx' / 'anime4k' / 'krig' / 'ssim' / 自定义路径
+        :param preset: 'off' / 'ravu' / 'fsrcnnx' / 'anime4k' / 'krig' / 'ssim' / 'esrgan' / 'adaptive_sharpen' / 自定义路径
         """
         pc = self.window.player_controller
         if not pc or not pc.is_playing or not hasattr(pc, 'set_user_shader'):
@@ -752,7 +752,8 @@ class MediaController:
                 shader_labels = {
                     'ravu': 'RAVU', 'fsrcnnx': 'FSRCNNX',
                     'anime4k': 'Anime4K', 'krig': 'KrigBilateral',
-                    'ssim': 'SSim',
+                    'ssim': 'SSim', 'esrgan': 'ESRGAN',
+                    'adaptive_sharpen': 'Adaptive Sharpen',
                 }
                 label = shader_labels.get(preset, preset)
                 self.window._show_osd_feedback(
@@ -832,6 +833,194 @@ class MediaController:
         except Exception as e:
             logger.error(f"应用智能预设失败: {e}")
 
+    # ---------- 第三阶段：智能场景检测 ----------
+
+    def toggle_scene_detect(self, enabled: bool) -> bool:
+        """开关智能场景检测"""
+        try:
+            from services.scene_detect_service import get_scene_detect_service
+            svc = get_scene_detect_service()
+            if enabled:
+                pc = self.window.player_controller
+                if not pc or not pc.is_playing:
+                    return False
+                svc.start(pc, callback=self._on_scene_changed)
+                tr = self.window.language_manager.tr
+                if hasattr(self.window, '_show_osd_feedback'):
+                    self.window._show_osd_feedback(
+                        tr('scene_detect_on', '智能场景检测已启用')
+                    )
+                return True
+            else:
+                svc.stop()
+                tr = self.window.language_manager.tr
+                if hasattr(self.window, '_show_osd_feedback'):
+                    self.window._show_osd_feedback(
+                        tr('scene_detect_off', '智能场景检测已关闭')
+                    )
+                return True
+        except Exception as e:
+            logger.error(f"切换场景检测失败: {e}")
+            return False
+
+    def _on_scene_changed(self, params: dict, scene_type: str):
+        """场景检测回调：在主线程应用参数"""
+        try:
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(0, lambda: self._apply_scene_params(params, scene_type))
+        except Exception as e:
+            logger.debug(f"场景检测回调调度失败: {e}")
+
+    def _apply_scene_params(self, params: dict, scene_type: str):
+        """应用场景检测推荐的参数"""
+        try:
+            mc_strength = params.get('motion_comp', 'off')
+            mc_fps = int(params.get('motion_comp_fps', 60))
+            sr_scale = params.get('superres_scale', 'off')
+            sr_detail = int(params.get('superres_detail', 0))
+            shader = params.get('shader_preset', 'off')
+            scene_label = params.get('scene_label', scene_type)
+            self.set_motion_compensation(mc_strength, mc_fps)
+            self.set_super_resolution(sr_scale, sr_detail)
+            self.set_user_shader(shader)
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(
+                    f"{tr('scene_detect_label', '场景检测')}: {scene_label}"
+                )
+        except Exception as e:
+            logger.error(f"应用场景参数失败: {e}")
+
+    def get_scene_detect_status(self) -> dict:
+        """获取场景检测状态"""
+        try:
+            from services.scene_detect_service import get_scene_detect_service
+            svc = get_scene_detect_service()
+            return {
+                'enabled': svc.enabled,
+                'scene_type': svc.last_scene_type,
+                'params': svc.last_params,
+            }
+        except Exception:
+            return {'enabled': False, 'scene_type': 'unknown', 'params': {}}
+
+    # ---------- 第三阶段：预设管理 ----------
+
+    def list_custom_presets(self) -> list:
+        """列出所有预设"""
+        try:
+            from services.preset_manager_service import get_preset_manager
+            pm = get_preset_manager()
+            return pm.list_presets(include_builtin=True)
+        except Exception as e:
+            logger.error(f"列出预设失败: {e}")
+            return []
+
+    def save_custom_preset(self, name: str, settings: dict,
+                           description: str = '') -> bool:
+        """保存自定义预设"""
+        try:
+            from services.preset_manager_service import get_preset_manager
+            pm = get_preset_manager()
+            return pm.save_preset(name, settings, description)
+        except Exception as e:
+            logger.error(f"保存预设失败: {e}")
+            return False
+
+    def delete_custom_preset(self, name: str) -> bool:
+        """删除自定义预设"""
+        try:
+            from services.preset_manager_service import get_preset_manager
+            pm = get_preset_manager()
+            return pm.delete_preset(name)
+        except Exception as e:
+            logger.error(f"删除预设失败: {e}")
+            return False
+
+    def apply_custom_preset(self, name: str):
+        """应用指定预设"""
+        try:
+            from services.preset_manager_service import get_preset_manager
+            pm = get_preset_manager()
+            settings = pm.get_preset(name)
+            if not settings:
+                logger.warning(f"预设 '{name}' 不存在")
+                return
+            pc = self.window.player_controller
+            if pc and pc.is_playing:
+                # 应用图像参数
+                eq_keys = ('brightness', 'contrast', 'saturation', 'hue',
+                           'gamma', 'sharpness', 'video_rotate', 'video_flip')
+                eq = {k: settings[k] for k in eq_keys if k in settings}
+                if eq:
+                    pc.apply_video_eq(eq)
+                # 应用运动补偿
+                mc_strength = settings.get('motion_comp', 'off')
+                mc_fps = int(settings.get('motion_comp_fps', 60))
+                if hasattr(pc, 'set_motion_compensation'):
+                    pc.set_motion_compensation(mc_strength, mc_fps)
+                # 应用分辨率提升
+                sr_scale = settings.get('superres_scale', 'off')
+                sr_detail = int(settings.get('superres_detail', 0))
+                if hasattr(pc, 'set_super_resolution'):
+                    pc.set_super_resolution(sr_scale, sr_detail)
+                # 应用着色器
+                shader = settings.get('shader_preset', 'off')
+                if hasattr(pc, 'set_user_shader'):
+                    pc.set_user_shader(shader)
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback'):
+                self.window._show_osd_feedback(
+                    f"{tr('preset_applied', '预设已应用')}: {name}"
+                )
+        except Exception as e:
+            logger.error(f"应用预设失败: {e}")
+
+    def bind_channel_preset(self, channel_name: str, preset_name: str) -> bool:
+        """绑定频道到预设"""
+        try:
+            from services.preset_manager_service import get_preset_manager
+            pm = get_preset_manager()
+            return pm.bind_channel_preset(channel_name, preset_name)
+        except Exception as e:
+            logger.error(f"绑定频道预设失败: {e}")
+            return False
+
+    def get_channel_preset(self, channel_name: str):
+        """获取频道绑定的预设名"""
+        try:
+            from services.preset_manager_service import get_preset_manager
+            pm = get_preset_manager()
+            return pm.get_channel_preset(channel_name)
+        except Exception:
+            return None
+
+    def export_presets(self, file_path: str) -> bool:
+        """导出预设到文件"""
+        try:
+            from services.preset_manager_service import get_preset_manager
+            pm = get_preset_manager()
+            return pm.export_presets(file_path)
+        except Exception as e:
+            logger.error(f"导出预设失败: {e}")
+            return False
+
+    def import_presets(self, file_path: str, overwrite: bool = False) -> int:
+        """从文件导入预设"""
+        try:
+            from services.preset_manager_service import get_preset_manager
+            pm = get_preset_manager()
+            count = pm.import_presets(file_path, overwrite)
+            tr = self.window.language_manager.tr
+            if hasattr(self.window, '_show_osd_feedback') and count > 0:
+                self.window._show_osd_feedback(
+                    f"{tr('presets_imported', '已导入')} {count} {tr('presets_count', '个预设')}"
+                )
+            return count
+        except Exception as e:
+            logger.error(f"导入预设失败: {e}")
+            return 0
+
     # ---------- 音频系统增强 ----------
     def _show_audio_eq_dialog(self):
         """打开音频调整对话框"""
@@ -864,6 +1053,41 @@ class MediaController:
         tr = self.window.language_manager.tr
         if hasattr(self.window, '_show_osd_feedback'):
             self.window._show_osd_feedback(f"{tr('osd_audio_pitch', 'Pitch')}: {new_v:.2f}")
+
+    def set_channel_volumes(self, volumes: dict):
+        """设置逐声道音量"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'set_channel_volumes'):
+            return
+        pc.set_channel_volumes(volumes)
+
+    def get_audio_channel_info(self) -> dict:
+        """获取当前音频声道信息"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'get_audio_channel_info'):
+            return {}
+        return pc.get_audio_channel_info()
+
+    def start_channel_monitor(self):
+        """启动声道活动状态监控"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'start_channel_monitor'):
+            return
+        pc.start_channel_monitor()
+
+    def stop_channel_monitor(self):
+        """停止声道活动状态监控"""
+        pc = self.window.player_controller
+        if not pc or not hasattr(pc, 'stop_channel_monitor'):
+            return
+        pc.stop_channel_monitor()
+
+    def get_channel_levels(self) -> dict:
+        """获取各声道 RMS 电平"""
+        pc = self.window.player_controller
+        if not pc or not pc.is_playing or not hasattr(pc, 'get_channel_levels'):
+            return {}
+        return pc.get_channel_levels()
 
     def apply_audio_eq_on_load(self):
         """在文件加载时应用已保存的音频 EQ 配置"""

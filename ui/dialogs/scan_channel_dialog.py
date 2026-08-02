@@ -1064,13 +1064,37 @@ class ScanChannelDialog(FloatingDialog):
         """数据变更时清除频道缓存"""
         self._channels_cache = None
 
+    def _is_proxy_active(self) -> bool:
+        """判断视图当前是否使用代理模型"""
+        return (
+            hasattr(self, '_filter_proxy')
+            and self._filter_proxy
+            and self.channel_list.model() is self._filter_proxy
+        )
+
+    def _map_to_source_row(self, index) -> int:
+        """将视图索引安全映射到源模型行号
+
+        自动判断视图当前使用的是代理模型还是源模型，
+        避免在扫描期间（直连源模型）误调 mapToSource 导致
+        'index from wrong model' 警告。
+        """
+        if not index.isValid():
+            return -1
+        if self._is_proxy_active():
+            return self._filter_proxy.mapToSource(index).row()
+        return index.row()
+
+    def _get_view_model(self):
+        """获取视图当前实际使用的模型"""
+        if self._is_proxy_active():
+            return self._filter_proxy
+        return self.model
+
     def _get_selected_indices(self) -> list:
         indices = []
         for index in self.channel_list.selectionModel().selectedRows():
-            if hasattr(self, '_filter_proxy'):
-                source_row = self._filter_proxy.mapToSource(index).row()
-            else:
-                source_row = index.row()
+            source_row = self._map_to_source_row(index)
             indices.append(source_row)
         return sorted(indices)
 
@@ -1683,11 +1707,7 @@ class ScanChannelDialog(FloatingDialog):
         if not indexes:
             return
 
-        # 通过代理模型映射到源模型行号
-        if hasattr(self, '_filter_proxy'):
-            source_row = self._filter_proxy.mapToSource(indexes[0]).row()
-        else:
-            source_row = indexes[0].row()
+        source_row = self._map_to_source_row(indexes[0])
 
         selected_rows = self.channel_list.selectionModel().selectedRows()
         if len(selected_rows) > 1:
@@ -1730,11 +1750,7 @@ class ScanChannelDialog(FloatingDialog):
         if not indexes:
             return
 
-        if hasattr(self, '_filter_proxy'):
-            source_index = self._filter_proxy.mapToSource(indexes[0])
-            row = source_index.row()
-        else:
-            row = indexes[0].row()
+        row = self._map_to_source_row(indexes[0])
         channel_info = {
             'name': self.edit_name.text(),
             'group': self.edit_group.text(),
@@ -1760,11 +1776,7 @@ class ScanChannelDialog(FloatingDialog):
         menu.setStyleSheet(AppStyles.common_menu_style())
 
         from models.channel_model import ChannelListModel as CLM  # noqa: F401,E402
-        if hasattr(self, '_filter_proxy'):
-            source_index = self._filter_proxy.mapToSource(index)
-            source_row = source_index.row()
-        else:
-            source_row = index.row()
+        source_row = self._map_to_source_row(index)
 
         url = self.model.data(self.model.index(source_row, CLM.COL_URL))
         name = self.model.data(self.model.index(source_row, CLM.COL_NAME))
@@ -1920,10 +1932,7 @@ class ScanChannelDialog(FloatingDialog):
             or "Are you sure you want to delete the selected channel?"
         )
         if show_confirm(title, message, parent=self):
-            if hasattr(self, '_filter_proxy'):
-                source_row = self._filter_proxy.mapToSource(index).row()
-            else:
-                source_row = index.row()
+            source_row = self._map_to_source_row(index)
             self.model.remove_channel(source_row)
 
     def _delete_selected_channels(self):
@@ -1951,7 +1960,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _invert_selection(self):
         """反选频道"""
-        model = self._filter_proxy if hasattr(self, '_filter_proxy') else self.model
+        model = self._get_view_model()
         selection_model = self.channel_list.selectionModel()
         for row in range(model.rowCount()):
             index = model.index(row, 0)
@@ -1971,12 +1980,12 @@ class ScanChannelDialog(FloatingDialog):
     def _select_by_validity(self, select_valid: bool):
         """按有效性选择频道"""
         from models.channel_model import ChannelListModel as CLM  # noqa: F401,E402
-        model = self._filter_proxy if hasattr(self, '_filter_proxy') else self.model
+        model = self._get_view_model()
         selection_model = self.channel_list.selectionModel()
         selection_model.clearSelection()
         source_model = self.model
         for row in range(model.rowCount()):
-            if hasattr(self, '_filter_proxy'):
+            if self._is_proxy_active():
                 source_row = self._filter_proxy.mapToSource(model.index(row, 0)).row()
             else:
                 source_row = row
@@ -2025,10 +2034,7 @@ class ScanChannelDialog(FloatingDialog):
         """双击频道列表项预览播放"""
         if not index.isValid():
             return
-        if hasattr(self, '_filter_proxy'):
-            source_row = self._filter_proxy.mapToSource(index).row()
-        else:
-            source_row = index.row()
+        source_row = self._map_to_source_row(index)
         channel = self.model.get_channel(source_row)
         if not channel or not channel.get('url'):
             return
@@ -2338,7 +2344,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _on_search_filter_changed(self, text):
         """搜索过滤：按频道名/URL/分组实时过滤"""
-        if hasattr(self, '_filter_proxy'):
+        if self._is_proxy_active():
             self._filter_proxy.setFilterFixedString(text.strip())
 
     def _stop_scan_async(self):

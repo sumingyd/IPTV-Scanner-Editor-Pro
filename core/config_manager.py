@@ -1225,7 +1225,11 @@ class ConfigManager(Singleton):
         'superres_scale': 'off',    # off / bilinear / bicubic / lanczos / spline / ewa_lanczos / ewa_lanczossharp
         'superres_detail': 0,       # 0-100
         # 用户着色器
-        'shader_preset': 'off',     # off / ravu / fsrcnnx / anime4k / krig / ssim / 自定义路径
+        'shader_preset': 'off',     # off / ravu / fsrcnnx / anime4k / krig / ssim / esrgan / adaptive_sharpen / 自定义路径
+        # 第三阶段：智能场景检测
+        'scene_detect_enabled': False,  # 是否启用自动场景检测
+        # 第三阶段：GPU API 选择
+        'gpu_api': 'auto',          # auto / d3d11 / vulkan
     }
 
     def save_video_eq(self, settings: dict):
@@ -1275,18 +1279,26 @@ class ConfigManager(Singleton):
         'audio_pitch': 1.0,
         'audio_device': '',
         'eq': [0.0] * 10,
+        'channel_volumes': {},  # {'FL': 1.0, 'FR': 0.8, ...}
         'reset_on_new_file': False,
     }
 
     def save_audio_eq(self, settings: dict):
         """保存音频参数到 AudioEQ 节
         eq 字段为长度 10 的列表，存储为逗号分隔字符串
+        channel_volumes 为 dict，存储为 JSON 字符串
         """
+        import json as _json
         for key, value in settings.items():
             if key == 'eq':
                 if isinstance(value, list):
                     s = ','.join(f"{float(v):.1f}" for v in value)
                     self.set_value('AudioEQ', key, s)
+                else:
+                    self.set_value('AudioEQ', key, str(value))
+            elif key == 'channel_volumes':
+                if isinstance(value, dict):
+                    self.set_value('AudioEQ', key, _json.dumps(value))
                 else:
                     self.set_value('AudioEQ', key, str(value))
             elif isinstance(value, bool):
@@ -1323,6 +1335,26 @@ class ConfigManager(Singleton):
                         need_save = True
                 except (ValueError, TypeError):
                     result[key] = list(default)
+                    need_save = True
+            elif key == 'channel_volumes':
+                # dict 类型，存储为 JSON 字符串
+                import json as _json
+                try:
+                    if isinstance(raw, str) and raw:
+                        parsed = _json.loads(raw)
+                        if isinstance(parsed, dict):
+                            result[key] = {
+                                k: max(0.0, min(2.0, float(v)))
+                                for k, v in parsed.items()
+                            }
+                        else:
+                            result[key] = dict(default)
+                            need_save = True
+                    else:
+                        result[key] = dict(default)
+                        need_save = True
+                except (ValueError, TypeError):
+                    result[key] = dict(default)
                     need_save = True
             elif isinstance(default, bool):
                 result[key] = self._parse_bool(raw)

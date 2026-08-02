@@ -329,6 +329,21 @@ interface Player {
     /** 设置音频音调（0.0~2.0，1.0=正常，变调不变速），与 PC 端 set_audio_pitch 对齐 */
     fun setAudioPitch(pitch: Double): Boolean = false
 
+    /** 设置逐声道音量（volumes: 声道名→倍率，如 mapOf("FL" to 1.0, "FR" to 0.8)） */
+    fun setChannelVolumes(volumes: Map<String, Float>): Boolean = false
+
+    /** 获取当前音频声道信息（布局名、声道列表、声道数） */
+    fun getAudioChannelInfo(): Map<String, Any> = emptyMap()
+
+    /** 启动声道活动状态监控（astats 滤镜） */
+    fun startChannelMonitor(): Boolean = false
+
+    /** 停止声道活动状态监控 */
+    fun stopChannelMonitor() {}
+
+    /** 获取各声道 RMS 电平（返回 {声道序号: 电平dB}） */
+    fun getChannelLevels(): Map<Int, Float> = emptyMap()
+
     // -----------------------------------------------------------------
     // 截图（高级功能，默认不支持）
     // -----------------------------------------------------------------

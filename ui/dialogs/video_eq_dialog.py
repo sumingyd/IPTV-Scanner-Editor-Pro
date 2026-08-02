@@ -28,7 +28,7 @@ class VideoEqualizerDialog(FloatingDialog):
         self.window = main_window
         tr = main_window.language_manager.tr
         self.setWindowTitle(tr('video_eq_title', '视频图像调整'))
-        self.setMinimumSize(520, 740)
+        self.setMinimumSize(760, 520)
         self._loading = False
         self._setup_ui()
         self._apply_theme()
@@ -70,13 +70,19 @@ class VideoEqualizerDialog(FloatingDialog):
     def _setup_ui(self):
         tr = self.window.language_manager.tr
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
 
-        # ===== 图像参数组 =====
+        # ===== 上半部分：三列水平排列 =====
+        top_row = QHBoxLayout()
+        top_row.setSpacing(6)
+
+        # ---- 左列：图像参数 ----
         image_group = QGroupBox(tr('video_eq_group_image', '图像参数'))
         form = QFormLayout(image_group)
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        form.setSpacing(4)
+        form.setContentsMargins(6, 8, 6, 6)
 
         # 亮度/对比度/饱和度/色调/Gamma：-100 ~ 100
         self._int_sliders = {}
@@ -95,7 +101,7 @@ class VideoEqualizerDialog(FloatingDialog):
         sharp_slider.setPageStep(20)
         sharp_slider.setValue(0)
         sharp_label = QLabel('0.00')
-        sharp_label.setMinimumWidth(48)
+        sharp_label.setMinimumWidth(40)
         sharp_row = QHBoxLayout()
         sharp_row.addWidget(sharp_slider, 1)
         sharp_row.addWidget(sharp_label)
@@ -106,12 +112,14 @@ class VideoEqualizerDialog(FloatingDialog):
         self._sharpness_slider = sharp_slider
         self._sharpness_label = sharp_label
 
-        layout.addWidget(image_group)
+        top_row.addWidget(image_group, 1)
 
-        # ===== 画面变换组 =====
+        # ---- 中列：画面变换 ----
         transform_group = QGroupBox(tr('video_eq_group_transform', '画面变换'))
         tform = QFormLayout(transform_group)
         tform.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        tform.setSpacing(4)
+        tform.setContentsMargins(6, 8, 6, 6)
 
         # 旋转
         self.rotate_combo = QComboBox()
@@ -147,13 +155,14 @@ class VideoEqualizerDialog(FloatingDialog):
         crop_row.addStretch()
         tform.addRow('', crop_row)
 
-        layout.addWidget(transform_group)
+        top_row.addWidget(transform_group, 1)
 
-        # ===== 视频增强组（运动补偿 + 分辨率提升 + 着色器合并） =====
+        # ---- 右列：视频增强 ----
         enhance_group = QGroupBox(tr('video_eq_group_enhance', '视频增强'))
         enhance_form = QFormLayout(enhance_group)
         enhance_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        enhance_form.setSpacing(6)
+        enhance_form.setSpacing(4)
+        enhance_form.setContentsMargins(6, 8, 6, 6)
 
         # 运动补偿强度
         self.mc_combo = QComboBox()
@@ -161,7 +170,7 @@ class VideoEqualizerDialog(FloatingDialog):
         self.mc_combo.addItem(tr('mc_low', '轻度（帧混合）'), 'low')
         self.mc_combo.addItem(tr('mc_medium', '中度（运动补偿）'), 'medium')
         self.mc_combo.addItem(tr('mc_high', '强力（高级补偿）'), 'high')
-        self.mc_combo.setToolTip(tr('mc_hint', '需 copy-back 硬解或软解。高强度会增加 CPU 负载'))
+        self.mc_combo.setToolTip(tr('mc_hint', '需 copy-back 硬解或软解。中度以上会明显增加 CPU 负载'))
         self.mc_combo.currentIndexChanged.connect(self._on_mc_changed)
         enhance_form.addRow(tr('mc_strength_label', '运动补偿'), self.mc_combo)
 
@@ -195,7 +204,7 @@ class VideoEqualizerDialog(FloatingDialog):
         self.sr_detail_slider.setPageStep(10)
         self.sr_detail_slider.setValue(0)
         self.sr_detail_label = QLabel('0')
-        self.sr_detail_label.setMinimumWidth(36)
+        self.sr_detail_label.setMinimumWidth(30)
         self.sr_detail_slider.valueChanged.connect(
             lambda v: self._on_sr_detail_changed(v, self.sr_detail_label))
         sr_detail_row = QHBoxLayout()
@@ -213,6 +222,8 @@ class VideoEqualizerDialog(FloatingDialog):
         self.shader_combo.addItem(tr('shader_anime4k', 'Anime4K 动画增强'), 'anime4k')
         self.shader_combo.addItem(tr('shader_krig', 'KrigBilateral 色度升频'), 'krig')
         self.shader_combo.addItem(tr('shader_ssim', 'SSim 降频'), 'ssim')
+        self.shader_combo.addItem(tr('shader_esrgan', 'ESRGAN 高质量超分'), 'esrgan')
+        self.shader_combo.addItem(tr('shader_adaptive_sharpen', '自适应锐化'), 'adaptive_sharpen')
         self.shader_combo.setToolTip(
             tr('shader_hint',
                'GLSL 着色器在 GPU 运行。请将 .glsl/.hook 文件放在 shaders/ 目录')
@@ -237,7 +248,66 @@ class VideoEqualizerDialog(FloatingDialog):
         self.shader_combo.currentIndexChanged.connect(self._on_shader_changed)
         enhance_form.addRow(tr('shader_preset_label', 'AI 着色器'), self.shader_combo)
 
-        layout.addWidget(enhance_group)
+        top_row.addWidget(enhance_group, 1)
+        layout.addLayout(top_row)
+
+        # ===== 第三阶段：智能场景检测 + 预设管理 =====
+        phase3_row = QHBoxLayout()
+
+        # 智能场景检测
+        scene_box = QGroupBox(tr('group_scene_detect', '智能场景检测'))
+        scene_layout = QHBoxLayout(scene_box)
+        scene_layout.setContentsMargins(6, 6, 6, 6)
+        self.scene_detect_check = QCheckBox(tr('scene_detect_enable', '自动检测内容类型'))
+        self.scene_detect_check.setToolTip(
+            tr('scene_detect_hint',
+               '根据视频分辨率、帧率、码率自动判断内容类型（动画/体育/电影），\n动态调整运动补偿和缩放参数')
+        )
+        self.scene_detect_check.toggled.connect(self._on_scene_detect_toggled)
+        scene_layout.addWidget(self.scene_detect_check)
+        self.scene_label = QLabel('')
+        self.scene_label.setStyleSheet(
+            f"color: {AppStyles._get_colors().get('accent', '#3a9')}; font-size: 11px;"
+        )
+        scene_layout.addWidget(self.scene_label)
+        scene_layout.addStretch()
+        phase3_row.addWidget(scene_box, 1)
+
+        # 预设管理
+        preset_mgr_box = QGroupBox(tr('group_preset_manage', '预设管理'))
+        preset_mgr_layout = QHBoxLayout(preset_mgr_box)
+        preset_mgr_layout.setContentsMargins(6, 6, 6, 6)
+        self.preset_mgr_combo = QComboBox()
+        self.preset_mgr_combo.setMinimumWidth(120)
+        self._refresh_preset_list()
+        preset_mgr_layout.addWidget(self.preset_mgr_combo)
+        self.btn_apply_preset = QPushButton(tr('btn_apply_preset', '应用'))
+        self.btn_apply_preset.clicked.connect(self._on_apply_custom_preset)
+        preset_mgr_layout.addWidget(self.btn_apply_preset)
+        self.btn_save_preset = QPushButton(tr('btn_save_preset', '保存为...'))
+        self.btn_save_preset.clicked.connect(self._on_save_custom_preset)
+        preset_mgr_layout.addWidget(self.btn_save_preset)
+        self.btn_delete_preset = QPushButton(tr('btn_delete_preset', '删除'))
+        self.btn_delete_preset.clicked.connect(self._on_delete_custom_preset)
+        preset_mgr_layout.addWidget(self.btn_delete_preset)
+        phase3_row.addWidget(preset_mgr_box, 2)
+        layout.addLayout(phase3_row)
+
+        # ===== GPU API 选择 =====
+        gpu_row = QHBoxLayout()
+        gpu_label = QLabel(tr('gpu_api_label', 'GPU 渲染后端:'))
+        gpu_row.addWidget(gpu_label)
+        self.gpu_api_combo = QComboBox()
+        self.gpu_api_combo.addItem(tr('gpu_api_auto', '自动 (D3D11)'), 'auto')
+        self.gpu_api_combo.addItem(tr('gpu_api_d3d11', 'D3D11 (默认)'), 'd3d11')
+        self.gpu_api_combo.addItem(tr('gpu_api_vulkan', 'Vulkan (实验性)'), 'vulkan')
+        self.gpu_api_combo.setToolTip(
+            tr('gpu_api_hint',
+               'Vulkan 可能在部分 GPU 上获得更好性能，需重启播放器生效')
+        )
+        gpu_row.addWidget(self.gpu_api_combo)
+        gpu_row.addStretch()
+        layout.addLayout(gpu_row)
 
         # ===== 智能预设 + 硬件信息（合并为一行） =====
         bottom_row = QHBoxLayout()
@@ -376,6 +446,15 @@ class VideoEqualizerDialog(FloatingDialog):
             idx = self.shader_combo.findData('off')
         if idx >= 0:
             self.shader_combo.setCurrentIndex(idx)
+        # 智能场景检测
+        self.scene_detect_check.setChecked(
+            bool(cfg.get('scene_detect_enabled', False))
+        )
+        # GPU API
+        gpu_api = cfg.get('gpu_api', 'auto') or 'auto'
+        idx = self.gpu_api_combo.findData(gpu_api)
+        if idx >= 0:
+            self.gpu_api_combo.setCurrentIndex(idx)
 
     def _collect_eq(self) -> dict:
         """从 UI 控件收集所有参数"""
@@ -399,6 +478,10 @@ class VideoEqualizerDialog(FloatingDialog):
             result['shader_preset'] = shader_data
         else:
             result['shader_preset'] = shader_data
+        # 智能场景检测
+        result['scene_detect_enabled'] = bool(self.scene_detect_check.isChecked())
+        # GPU API
+        result['gpu_api'] = self.gpu_api_combo.currentData() or 'auto'
         return result
 
     # ---------- 事件处理 ----------
@@ -494,6 +577,113 @@ class VideoEqualizerDialog(FloatingDialog):
         mc = getattr(self.window, 'media_ctrl', None)
         if mc and hasattr(mc, 'set_user_shader'):
             mc.set_user_shader(shader_data)
+
+    def _on_scene_detect_toggled(self, checked: bool):
+        """开关智能场景检测"""
+        if self._loading:
+            return
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc and hasattr(mc, 'toggle_scene_detect'):
+            mc.toggle_scene_detect(checked)
+        if checked:
+            self.scene_label.setText(
+                self.window.language_manager.tr('scene_detect_starting', '检测中...')
+            )
+        else:
+            self.scene_label.setText('')
+
+    def _refresh_preset_list(self):
+        """刷新预设下拉列表"""
+        self.preset_mgr_combo.clear()
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc and hasattr(mc, 'list_custom_presets'):
+            presets = mc.list_custom_presets()
+            for p in presets:
+                label = p['name']
+                if p.get('builtin'):
+                    label += f" ({self.window.language_manager.tr('builtin', '内置')})"
+                self.preset_mgr_combo.addItem(label, p['name'])
+
+    def _on_apply_custom_preset(self):
+        """应用选中的预设"""
+        name = self.preset_mgr_combo.currentData()
+        if not name:
+            return
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc and hasattr(mc, 'apply_custom_preset'):
+            mc.apply_custom_preset(name)
+            # 同步 UI
+            from services.preset_manager_service import get_preset_manager
+            pm = get_preset_manager()
+            settings = pm.get_preset(name)
+            if settings:
+                self._loading = True
+                try:
+                    mc_s = settings.get('motion_comp', 'off')
+                    idx = self.mc_combo.findData(mc_s)
+                    if idx >= 0:
+                        self.mc_combo.setCurrentIndex(idx)
+                    sr_s = settings.get('superres_scale', 'off')
+                    idx = self.sr_combo.findData(sr_s)
+                    if idx >= 0:
+                        self.sr_combo.setCurrentIndex(idx)
+                    sr_d = int(settings.get('superres_detail', 0))
+                    self.sr_detail_slider.setValue(sr_d)
+                    sp = settings.get('shader_preset', 'off')
+                    idx = self.shader_combo.findData(sp)
+                    if idx < 0:
+                        idx = self.shader_combo.findData('off')
+                    if idx >= 0:
+                        self.shader_combo.setCurrentIndex(idx)
+                    # 图像参数
+                    for key in self._INT_KEYS:
+                        if key in settings:
+                            v = max(-100, min(100, int(settings[key])))
+                            self._int_sliders[key].setValue(v)
+                            self._int_labels[key].setText(str(v))
+                    if 'sharpness' in settings:
+                        sharp = max(-1.0, min(1.0, float(settings['sharpness'])))
+                        self._sharpness_slider.setValue(int(round(sharp * 100)))
+                        self._sharpness_label.setText(f"{sharp:.2f}")
+                finally:
+                    self._loading = False
+
+    def _on_save_custom_preset(self):
+        """保存当前设置为自定义预设"""
+        from PySide6.QtWidgets import QInputDialog
+        tr = self.window.language_manager.tr
+        name, ok = QInputDialog.getText(
+            self, tr('save_preset_title', '保存预设'),
+            tr('save_preset_prompt', '预设名称:'),
+            text=tr('my_preset', '我的预设')
+        )
+        if not ok or not name.strip():
+            return
+        settings = self._collect_eq()
+        mc = getattr(self.window, 'media_ctrl', None)
+        if mc and hasattr(mc, 'save_custom_preset'):
+            if mc.save_custom_preset(name.strip(), settings):
+                self._refresh_preset_list()
+                # 选中新保存的预设
+                idx = self.preset_mgr_combo.findData(name.strip())
+                if idx >= 0:
+                    self.preset_mgr_combo.setCurrentIndex(idx)
+
+    def _on_delete_custom_preset(self):
+        """删除选中的自定义预设"""
+        name = self.preset_mgr_combo.currentData()
+        if not name:
+            return
+        tr = self.window.language_manager.tr
+        from utils.error_handler import show_confirm
+        if show_confirm(tr('confirm_delete', '确认删除'),
+                        tr('confirm_delete_preset',
+                           '确定删除预设 "{name}" 吗？').format(name=name),
+                        parent=self):
+            mc = getattr(self.window, 'media_ctrl', None)
+            if mc and hasattr(mc, 'delete_custom_preset'):
+                if mc.delete_custom_preset(name):
+                    self._refresh_preset_list()
 
     def _apply_smart_preset(self, preset_name: str):
         """应用智能预设"""

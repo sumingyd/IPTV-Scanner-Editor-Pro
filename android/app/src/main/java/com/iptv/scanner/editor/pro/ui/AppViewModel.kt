@@ -5662,13 +5662,6 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         }
 
         try {
-            // disable 模式：直接重置 SDR 参数
-            if (mode == HdrMode.DISABLE) {
-                resetHdrParams(mpv)
-                Log.i(TAG, "HDR 配置：disable → 重置 SDR 默认值")
-                return
-            }
-
             // 检测视频是否 HDR（与 PC 端统一逻辑）
             val gamma = (mpv.getPropertyString("video-params/gamma") ?: "").lowercase()
             val prim = (mpv.getPropertyString("video-params/primaries") ?: "").lowercase()
@@ -5689,6 +5682,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             Log.i(TAG, "HDR 检测：gamma=$gamma, primaries=$prim, sig_peak=$peak, " +
                 "isHdr=$isHdr, isWcg=$isWcg, isPq=$isPq, isHlg=$isHlg, hasDovi=$hasDovi")
 
+            // WCG 视频无论 hdr_mode 如何都必须保持 bt.2020 色域
             if (isWcg) {
                 // WCG 视频（宽色域 SDR）：保持 bt.2020 色域（与 PC 端 _apply_wcg_config 对齐）
                 applyWcgConfig(mpv)
@@ -5703,8 +5697,18 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                 return
             }
 
+            // hdr10-opt 设置
+            safeSetProperty(mpv, "hdr10-opt", if (isPq) "yes" else "no")
+
+            // disable 模式：HDR 视频仍需 tonemap 到 SDR（保持 bt.2020 色域）
+            if (mode == HdrMode.DISABLE) {
+                applyTonemapConfig(mpv, isPq, isHlg)
+                Log.i(TAG, "HDR 配置：disable → HDR 视频 tonemap 到 SDR (bt.2020)")
+                return
+            }
+
             when (mode) {
-                HdrMode.TONEMAP -> applyTonemapConfig(mpv, isPq)
+                HdrMode.TONEMAP -> applyTonemapConfig(mpv, isPq, isHlg)
                 HdrMode.PASSTHROUGH -> applyPassthroughConfig(mpv, isPq)
                 HdrMode.AUTO -> {
                     // AUTO 模式：检测设备 HDR 能力
@@ -5712,7 +5716,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
                         applyPassthroughConfig(mpv, isPq)
                         Log.i(TAG, "HDR 配置：AUTO → 设备支持 HDR，使用直通")
                     } else {
-                        applyTonemapConfig(mpv, isPq)
+                        applyTonemapConfig(mpv, isPq, isHlg)
                         Log.i(TAG, "HDR 配置：AUTO → 设备不支持 HDR，使用色调映射")
                     }
                 }
@@ -5798,10 +5802,11 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
      */
     private fun applyWcgConfig(mpv: Player) {
         // WCG 视频（宽色域 SDR）：保持 bt.2020 色域，SDR 亮度（与 PC 端 _apply_wcg_config 对齐）
-        safeSetProperty(mpv, "tone-mapping", "")
-        safeSetProperty(mpv, "tone-mapping-mode", "")
-        safeSetProperty(mpv, "tone-mapping-desat", "")
-        safeSetProperty(mpv, "hdr-compute-peak", "")
+        // 显式设置所有参数（不用空字符串重置，避免残留 HDR 参数）
+        safeSetProperty(mpv, "tone-mapping", "clip")
+        safeSetProperty(mpv, "tone-mapping-mode", "auto")
+        safeSetProperty(mpv, "tone-mapping-desat", "0")
+        safeSetProperty(mpv, "hdr-compute-peak", "no")
         safeSetProperty(mpv, "hdr10-opt", "no")
         safeSetProperty(mpv, "target-prim", "bt.2020")
         safeSetProperty(mpv, "target-trc", "bt.1886")
@@ -5810,15 +5815,17 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         safeSetProperty(mpv, "gamut-mapping-mode", "relative")
     }
 
-    private fun applyTonemapConfig(mpv: Player, isPq: Boolean) {
+    private fun applyTonemapConfig(mpv: Player, isPq: Boolean, isHlg: Boolean = false) {
         // HDR→SDR 色调映射（与 PC 端 _apply_tonemap_config 统一）
         // target-prim=bt.2020 保留广色域（WCG），在支持广色域的设备上显示更丰富色彩
         // target-trc=bt.1886 SDR 伽马，确保 SDR 显示正确
         // hdr10-opt=yes(仅PQ) 传递 HDR10+ 动态元数据
         // gamut-mapping-mode=perceptual 感知映射，减少色域裁剪损失
+        // HLG 视频去饱和度降为 0，避免整体发灰
+        val desat = if (isHlg) "0" else "0.5"
         safeSetProperty(mpv, "tone-mapping", "auto")
         safeSetProperty(mpv, "tone-mapping-mode", "auto")
-        safeSetProperty(mpv, "tone-mapping-desat", "0.5")
+        safeSetProperty(mpv, "tone-mapping-desat", desat)
         safeSetProperty(mpv, "hdr-compute-peak", "no")
         safeSetProperty(mpv, "hdr10-opt", if (isPq) "yes" else "no")
         safeSetProperty(mpv, "target-prim", "bt.2020")

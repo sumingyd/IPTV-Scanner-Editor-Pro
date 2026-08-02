@@ -33,6 +33,7 @@ from services.mpv_common import (
     set_option_string as _mpv_set_option_string,
     send_command as _mpv_send_command,
     observe_property as _mpv_observe_property,
+    get_property_node as _mpv_get_property_node,
 )
 
 from services.mpv_common import _ensure_env_initialized
@@ -102,6 +103,7 @@ def _load_playback_settings():
         'http_proxy': '',
         # 高级播放器参数（与安卓端 PlayerSettingsPanel 对齐）
         'vo': 'auto',
+        'gpu_api': 'auto',
         'video_sync': 'audio',
         'framedrop': 'vo',
         'cache_secs_override': 0,
@@ -275,9 +277,16 @@ class MpvPlayerController(QObject):
 
             # gpu-api和gpu-context必须在vo之前设置
             # 否则mpv内部锁定渲染后端后，gpu-context设置会被拒绝(错误码-7)
+            # 第三阶段：支持 Vulkan GPU API，可在某些 GPU 上获得更好的性能
+            gpu_api = str(self._playback_settings.get('gpu_api', 'auto')).lower()
             if is_windows():
-                _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'd3d11')
-                _mpv_set_option_string(self.mpv_handle, 'd3d11-sync-interval', '1')
+                if gpu_api == 'vulkan':
+                    _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'vulkan')
+                    _mpv_set_option_string(self.mpv_handle, 'gpu-context', 'win')
+                    self.logger.info("使用 Vulkan GPU API（用户配置）")
+                else:
+                    _mpv_set_option_string(self.mpv_handle, 'gpu-api', 'd3d11')
+                    _mpv_set_option_string(self.mpv_handle, 'd3d11-sync-interval', '1')
                 # d3d11-output-csp 控制 swapchain 的初始色彩空间和底层 DXGI 格式：
                 # - srgb → R8G8B8A8_UNORM（仅支持 sRGB，运行时无法切换到 PQ）
                 # - pq   → R10G10B10A2_UNORM（支持 PQ 和 sRGB 之间动态切换）
@@ -559,7 +568,7 @@ class MpvPlayerController(QObject):
             global_logger.debug(f"unexpected error: {_e}")
         return 'bt.1886'
 
-    def _apply_tonemap_config(self):
+    def _apply_tonemap_config(self, is_hlg=False):
         # HDR→SDR 色调映射（与 Android 端 applyTonemapConfig 统一策略）：
         # 显式指定目标色域和 gamma，避免 mpv 自动推断失败
         # 统一策略：target-prim=bt.2020 保留广色域（WCG），在支持广色域的显示器上显示更丰富色彩
@@ -572,14 +581,20 @@ class MpvPlayerController(QObject):
         sdr_trc = self._get_sdr_target_trc()
         self._set_mpv_string('tone-mapping', 'auto')
         self._set_mpv_string('tone-mapping-mode', 'auto')
-        self._set_mpv_string('tone-mapping-desat', '0.5')
+        # HLG 视频去饱和度降为 0，避免整体发灰
+        # PQ 视频保留 0.5 的去饱和度，防止高光过饱和
+        desat = '0' if is_hlg else '0.5'
+        self._set_mpv_string('tone-mapping-desat', desat)
         self._set_mpv_string('hdr-compute-peak', 'no')
         self._set_mpv_string('target-prim', 'bt.2020')
         self._set_mpv_string('target-trc', sdr_trc)
         # target-peak=100：显式 SDR 电平，确保 swapchain 切换到 sRGB 色彩空间
         self._set_mpv_string('target-peak', '100')
         self._set_mpv_string('gamut-mapping-mode', 'perceptual')
-        self.logger.info(f"HDR配置: tonemap → SDR (bt.2020/{sdr_trc}, target-peak=100, gamut=perceptual)")
+        self.logger.info(
+            f"HDR配置: tonemap → SDR (bt.2020/{sdr_trc}, target-peak=100, "
+            f"gamut=perceptual, desat={desat}{' [HLG]' if is_hlg else ''})"
+        )
 
     def _apply_passthrough_config(self, is_pq=True):
         # d3d11-output-csp=pq + target-colorspace-hint=yes 已在初始化时设置
@@ -644,12 +659,16 @@ class MpvPlayerController(QObject):
         WCG 视频是 BT.2020 色域但 SDR 亮度（gamma=srgb/bt.1886），
         需要保持 bt.2020 色域，避免被压缩到 bt.709 导致偏色。
         使用 gamut-mapping-mode=relative 让显示器/Windows 合成器处理色域映射。
+
+        关键：必须显式重置所有 tone-mapping 参数，避免从 HDR10 passthrough
+        切换时残留 target-peak=10000 / tone-mapping=clip 等参数导致画面发灰。
         """
         sdr_trc = self._get_sdr_target_trc()
-        self._set_mpv_string('tone-mapping', '')
-        self._set_mpv_string('tone-mapping-mode', '')
-        self._set_mpv_string('tone-mapping-desat', '')
-        self._set_mpv_string('hdr-compute-peak', '')
+        # 显式设置所有参数（不用空字符串重置，避免 mpv 默认值不确定性）
+        self._set_mpv_string('tone-mapping', 'clip')
+        self._set_mpv_string('tone-mapping-mode', 'auto')
+        self._set_mpv_string('tone-mapping-desat', '0')
+        self._set_mpv_string('hdr-compute-peak', 'no')
         self._set_mpv_string('hdr10-opt', 'no')
         self._set_mpv_string('target-prim', 'bt.2020')
         self._set_mpv_string('target-trc', sdr_trc)
@@ -869,10 +888,6 @@ class MpvPlayerController(QObject):
                 return
             hdr_mode = self._playback_settings.get('hdr_output_mode', 'disable')
 
-            if hdr_mode == 'disable':
-                self._reset_hdr_params()
-                return
-
             vp_prim = (self._get_mpv_property_string('video-params/primaries') or '').lower()
             vp_gamma = (self._get_mpv_property_string('video-params/gamma') or '').lower()
             vp_peak = self._get_mpv_property_double('video-params/sig-peak') or 0
@@ -897,6 +912,7 @@ class MpvPlayerController(QObject):
 
             # WCG 视频（宽色域 SDR）：BT.2020 色域但 SDR 亮度（gamma=srgb/bt.1886）
             # 这类视频需要保持 bt.2020 色域，避免被压缩到 bt.709 导致偏色
+            # 无论 hdr_mode 是什么，WCG 都必须保持 bt.2020 色域
             is_wcg_video = (not is_hdr_video and is_bt2020)
 
             if is_wcg_video:
@@ -940,8 +956,14 @@ class MpvPlayerController(QObject):
                     global_logger.debug(f"unexpected error: {_e}")
                 return False
 
+            # hdr_mode == 'disable' 时，HDR 视频仍需 tonemap 到 SDR
+            # 但要保持 bt.2020 色域（而非压到 bt.709）
+            if hdr_mode == 'disable':
+                self._apply_tonemap_config(is_hlg=is_hlg)
+                return
+
             if hdr_mode == 'tonemap':
-                self._apply_tonemap_config()
+                self._apply_tonemap_config(is_hlg=is_hlg)
                 return
 
             if hdr_mode == 'passthrough':
@@ -950,7 +972,7 @@ class MpvPlayerController(QObject):
                 if fallback:
                     if not system_hdr:
                         self.logger.warning("运行时检测系统未启用HDR，passthrough模式回退到tonemap")
-                    self._apply_tonemap_config()
+                    self._apply_tonemap_config(is_hlg=is_hlg)
                 else:
                     self._apply_passthrough_config(is_pq)
                 return
@@ -961,7 +983,7 @@ class MpvPlayerController(QObject):
                 if fallback:
                     if not system_hdr:
                         self.logger.warning("运行时检测系统未启用HDR，scrgb模式回退到tonemap")
-                    self._apply_tonemap_config()
+                    self._apply_tonemap_config(is_hlg=is_hlg)
                 else:
                     self._apply_scrgb_config(is_pq)
                 return
@@ -971,7 +993,7 @@ class MpvPlayerController(QObject):
                 if system_hdr_enabled:
                     self._apply_scrgb_config(is_pq)
                 else:
-                    self._apply_tonemap_config()
+                    self._apply_tonemap_config(is_hlg=is_hlg)
                 return
 
         except Exception as e:
@@ -1446,6 +1468,23 @@ class MpvPlayerController(QObject):
             # 切换频道前显式停止当前播放，让 mpv 释放 hwdec/D3D11 解码器资源
             # 避免 keep-open=yes + idle=yes 导致旧解码器未释放，新文件 hwdec 初始化失败（黑屏）
             if (self.is_playing or self.is_paused) and not self._user_stopped:
+                # 保存本地视频播放位置（stop 触发的 END_FILE reason=STOP 不会保存位置）
+                old_url = self.current_url or ''
+                if old_url and not self._is_network_url(old_url):
+                    try:
+                        pos_sec = self._get_mpv_property_double('time-pos') or 0.0
+                        dur_sec = self._get_mpv_property_double('duration') or 0.0
+                        if old_url and pos_sec > 0:
+                            self._safe_emit(
+                                self.local_file_position_to_save,
+                                old_url, float(pos_sec), float(dur_sec)
+                            )
+                            self.logger.debug(
+                                f"切换前保存本地视频断点: {old_url[:60]} "
+                                f"pos={pos_sec:.1f}s"
+                            )
+                    except Exception as e:
+                        self.logger.debug(f"切换前保存播放位置失败: {e}")
                 try:
                     with self._lock:
                         if self.mpv_handle and not self._terminated:
@@ -3017,8 +3056,11 @@ class MpvPlayerController(QObject):
     # 强度级别：
     #   off    — 关闭（移除滤镜）
     #   low    — 帧混合模式（mi_mode=blend），最轻量，仅做简单帧间混合
-    #   medium — 运动补偿插帧（mi_mode=mci, mc_mode=obmc），中等 CPU 开销
-    #   high   — 高级运动补偿（mi_mode=mci, mc_mode=aobmc, vsbmc=1），最佳画质但 CPU 开销最大
+    #   medium — 运动补偿插帧（mi_mode=mci, mc_mode=obmc, me=dsr），中等 CPU 开销
+    #   high   — 运动补偿插帧（mi_mode=mci, mc_mode=aobmc, me=hexbs），较重 CPU 开销
+    #
+    # me 搜索算法：dsr(菱形搜索,最快) > hexbs(六边形,中等) > epzs(穷举,最慢)
+    # me_mode: uni(单向) 远快于 bidir(双向)
     #
     # 目标帧率：50 / 60 / 120 等（自动匹配显示器时传 0，使用 video-sync=display-resample）
     #
@@ -3029,9 +3071,23 @@ class MpvPlayerController(QObject):
     _MC_PRESETS = {
         'off': None,
         'low': 'mi_mode=blend',
-        'medium': 'mi_mode=mci:mc_mode=obmc:me_mode=bidir:me=epzs',
-        'high': 'mi_mode=mci:mc_mode=aobmc:me_mode=bidir:me=epzs:vsbmc=1',
+        'medium': 'mi_mode=mci:mc_mode=obmc:me=dsr',
+        'high': 'mi_mode=mci:mc_mode=aobmc:me=hexbs',
     }
+
+    def _get_video_resolution(self):
+        """获取当前视频分辨率，返回 (width, height)"""
+        try:
+            w = self._get_mpv_property_int('width') or 0
+            h = self._get_mpv_property_int('height') or 0
+            return w, h
+        except Exception:
+            return 0, 0
+
+    def _is_4k_or_above(self) -> bool:
+        """检测当前视频是否为 4K 及以上分辨率"""
+        w, h = self._get_video_resolution()
+        return w >= 3840 or h >= 2160
 
     def set_motion_compensation(self, strength: str, target_fps: int = 60) -> bool:
         """设置运动补偿插帧
@@ -3060,7 +3116,20 @@ class MpvPlayerController(QObject):
         if fps not in (50, 60, 90, 120, 144, 240):
             fps = 60
 
-        filter_str = f'@iptv_mc:lavfi=[minterpolate=fps={fps}:{preset}]'
+        # 4K 及以上：先降采样到 1080p 再做运动补偿，避免 CPU 瓶颈
+        # minterpolate 是 CPU 端滤镜，4K 像素量是 1080p 的 4 倍，直接处理会严重卡顿
+        if self._is_4k_or_above():
+            filter_str = (
+                f'@iptv_mc:lavfi=['
+                f'scale=1920:1080:flags=fast_bilinear,'
+                f'minterpolate=fps={fps}:{preset}'
+                f']'
+            )
+            self.logger.info(
+                "检测到 4K+ 视频，运动补偿已自动降采样到 1080p 处理"
+            )
+        else:
+            filter_str = f'@iptv_mc:lavfi=[minterpolate=fps={fps}:{preset}]'
         ret = self.send_command(['vf', 'add', filter_str])
         if ret != 0:
             cur_hwdec = ''
@@ -3107,7 +3176,7 @@ class MpvPlayerController(QObject):
                 # 解析强度
                 if 'mi_mode=blend' in graph:
                     result['strength'] = 'low'
-                elif 'vsbmc=1' in graph:
+                elif 'me=hexbs' in graph:
                     result['strength'] = 'high'
                 elif 'mi_mode=mci' in graph:
                     result['strength'] = 'medium'
@@ -3163,6 +3232,12 @@ class MpvPlayerController(QObject):
 
         # 1. 设置缩放算法（mpv 属性，不需要 copy-back）
         if scale_algo in self._SCALE_OPTIONS:
+            # 4K+ 视频下 EWA Lanczos 系列对 GPU 压力极大，自动降级为 lanczos
+            if self._is_4k_or_above() and scale_algo in ('ewa_lanczos', 'ewa_lanczossharp'):
+                self.logger.info(
+                    f"4K+ 视频检测到 {scale_algo}，自动降级为 lanczos 以保证流畅度"
+                )
+                scale_algo = 'lanczos'
             ret1 = self._set_mpv_string('scale', scale_algo)
             ret2 = self._set_mpv_string('cscale', scale_algo)
             self._set_mpv_string('dscale', scale_algo if scale_algo != 'ewa_lanczossharp' else 'ewa_lanczos')
@@ -3192,7 +3267,19 @@ class MpvPlayerController(QObject):
             # unsharp=luma_msize=5:luma_amount=X:chroma_msize=5:chroma_amount=0
             # amount 范围 0.0~1.5，映射 detail 0-100
             amount = round(detail / 100.0 * 1.5, 3)
-            filter_str = f'@iptv_sr:lavfi=[unsharp=5:5:{amount}:5:5:0.0]'
+            # 4K+ 视频下 unsharp 是 CPU 端滤镜，先降采样再处理
+            if self._is_4k_or_above():
+                filter_str = (
+                    f'@iptv_sr:lavfi=['
+                    f'scale=1920:1080:flags=fast_bilinear,'
+                    f'unsharp=5:5:{amount}:5:5:0.0'
+                    f']'
+                )
+                self.logger.info(
+                    f"4K+ 视频检测到，细节增强已降采样到 1080p 处理: detail={detail}"
+                )
+            else:
+                filter_str = f'@iptv_sr:lavfi=[unsharp=5:5:{amount}:5:5:0.0]'
             ret = self.send_command(['vf', 'add', filter_str])
             if ret != 0:
                 cur_hwdec = ''
@@ -3300,6 +3387,14 @@ class MpvPlayerController(QObject):
         ],
         'krig': ['KrigBilateral.hook'],
         'ssim': ['SSimDownscaler.glsl'],
+        # 第三阶段：ESRGAN 高质量模式（组合多个着色器实现高质量超分）
+        # ESRGAN 本身需要神经网络推理，此处使用高质量 GLSL 着色器组合模拟
+        'esrgan': [
+            'ravu_r4.hook',
+            'FSRCNNX_x2_8-0-4-1.glsl',
+            'adaptive_sharpen.glsl',
+        ],
+        'adaptive_sharpen': ['adaptive_sharpen.glsl'],
     }
 
     def _get_shaders_dir(self) -> str:
@@ -3600,6 +3695,142 @@ class MpvPlayerController(QObject):
 
     def get_audio_channels(self) -> str:
         return self._get_mpv_property_string('audio-channels') or 'auto'
+
+    # ---------- 声道信息检测 + 声道活动状态监控（astats 滤镜） ----------
+    # FFmpeg 标准声道布局 → 声道名称列表
+    CHANNEL_LAYOUT_MAP = {
+        'mono':   ['FC'],
+        '1.0':    ['FC'],
+        'stereo': ['FL', 'FR'],
+        '2.0':    ['FL', 'FR'],
+        '2.1':    ['FL', 'FR', 'LFE'],
+        '3.0':    ['FL', 'FR', 'FC'],
+        '4.0':    ['FL', 'FR', 'FC', 'BC'],
+        'quad':   ['FL', 'FR', 'BL', 'BR'],
+        '5.0':    ['FL', 'FR', 'FC', 'BL', 'BR'],
+        '5.1':    ['FL', 'FR', 'FC', 'LFE', 'BL', 'BR'],
+        '6.0':    ['FL', 'FR', 'FC', 'BC', 'SL', 'SR'],
+        '6.1':    ['FL', 'FR', 'FC', 'LFE', 'BC', 'SL', 'SR'],
+        '7.0':    ['FL', 'FR', 'FC', 'BL', 'BR', 'SL', 'SR'],
+        '7.1':    ['FL', 'FR', 'FC', 'LFE', 'BL', 'BR', 'SL', 'SR'],
+    }
+
+    CHANNEL_DISPLAY = {
+        'FL':  '左前',
+        'FR':  '右前',
+        'FC':  '中置',
+        'LFE': '低音炮',
+        'BL':  '左环绕',
+        'BR':  '右环绕',
+        'BC':  '后中置',
+        'SL':  '左侧',
+        'SR':  '右侧',
+    }
+
+    def get_audio_channel_info(self) -> dict:
+        """获取当前音频声道信息
+        返回: {'layout': '5.1', 'channels': ['FL','FR','FC','LFE','BL','BR'], 'count': 6}
+        """
+        layout = self._get_mpv_property_string('audio-params/channel-layout') or ''
+        count = self._get_mpv_property_double('audio-params/channel-count') or 0
+        # 规范化布局字符串
+        layout_lower = layout.lower().strip()
+        channels = self.CHANNEL_LAYOUT_MAP.get(layout_lower, [])
+        if not channels and count > 0:
+            # 未知布局但有声道数，尝试按数量推断
+            if count == 1:
+                channels = ['FC']
+                layout_lower = 'mono'
+            elif count == 2:
+                channels = ['FL', 'FR']
+                layout_lower = 'stereo'
+            elif count >= 6:
+                channels = ['FL', 'FR', 'FC', 'LFE', 'BL', 'BR']
+                layout_lower = '5.1'
+            elif count >= 3:
+                channels = ['FL', 'FR', 'FC']
+                layout_lower = '3.0'
+        return {
+            'layout': layout_lower or 'stereo',
+            'channels': channels,
+            'count': len(channels) if channels else int(count),
+        }
+
+    def start_channel_monitor(self) -> bool:
+        """启动声道活动监控（添加 astats 滤镜）
+        astats 滤镜将各声道 RMS 电平写入 metadata，通过 af-metadata 读取。
+        reset=1 使每帧重置统计，输出瞬时 RMS 电平（VU 表所需）。
+        """
+        if not self.mpv_handle or self._terminated:
+            return False
+        # 先移除旧的 astats 滤镜
+        try:
+            self.send_command(['af', 'remove', '@iptv_stats'])
+        except Exception as _e:
+            global_logger.debug(f"unexpected error: {_e}")
+        return self.send_command(
+            ['af', 'add', '@iptv_stats:lavfi=[astats=metadata=1:reset=1]']
+        ) == 0
+
+    def stop_channel_monitor(self):
+        """停止声道活动监控（移除 astats 滤镜）"""
+        if not self.mpv_handle or self._terminated:
+            return
+        try:
+            self.send_command(['af', 'remove', '@iptv_stats'])
+        except Exception as _e:
+            global_logger.debug(f"unexpected error: {_e}")
+
+    def get_channel_levels(self) -> dict:
+        """获取各声道 RMS 电平
+        返回: {声道序号(1-based): 电平dB}
+        电平为 -inf 或极低值表示该声道无声。
+        """
+        if not self.mpv_handle or self._terminated:
+            return {}
+        try:
+            # 尝试直接读取带标签的 metadata
+            data = _mpv_get_property_node(
+                self.mpv_handle, 'af-metadata/@iptv_stats'
+            )
+            # 如果带 @ 的路径失败，尝试不带 @
+            if not data or not isinstance(data, dict):
+                data = _mpv_get_property_node(
+                    self.mpv_handle, 'af-metadata/iptv_stats'
+                )
+            # 如果仍然失败，读取全部 af-metadata 再查找
+            if not data or not isinstance(data, dict):
+                all_meta = _mpv_get_property_node(
+                    self.mpv_handle, 'af-metadata'
+                )
+                if all_meta and isinstance(all_meta, dict):
+                    data = all_meta.get('iptv_stats') or all_meta.get('@iptv_stats') or {}
+                if not data and all_meta is not None:
+                    global_logger.debug(
+                        f"af-metadata full: {all_meta}"
+                    )
+            if not data or not isinstance(data, dict):
+                return {}
+            result = {}
+            for key, val in data.items():
+                # 格式: lavfi.astats.1.RMS_level
+                if key.startswith('lavfi.astats.') and key.endswith('.RMS_level'):
+                    parts = key.split('.')
+                    if len(parts) == 4 and parts[2].isdigit():
+                        ch_idx = int(parts[2])
+                        try:
+                            level = float(val)
+                            result[ch_idx] = level
+                        except (ValueError, TypeError):
+                            pass
+            if not result:
+                global_logger.debug(
+                    f"af-metadata keys: {list(data.keys()) if data else 'empty'}"
+                )
+            return result
+        except Exception as _e:
+            global_logger.debug(f"unexpected error: {_e}")
+            return {}
 
     def set_audio_pitch(self, v: float) -> bool:
         """设置音调补偿。

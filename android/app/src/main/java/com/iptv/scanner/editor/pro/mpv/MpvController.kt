@@ -889,13 +889,21 @@ class MpvController : MPVLib.EventObserver, Player {
             MPVLib.command(arrayOf("vf", "remove", "@iptv_mc"))
             val preset = when (strength) {
                 "low" -> "mi_mode=blend"
-                "medium" -> "mi_mode=mci:mc_mode=obmc:me_mode=bidir:me=epzs"
-                "high" -> "mi_mode=mci:mc_mode=aobmc:me_mode=bidir:me=epzs:vsbmc=1"
+                "medium" -> "mi_mode=mci:mc_mode=obmc:me=dsr"
+                "high" -> "mi_mode=mci:mc_mode=aobmc:me=hexbs"
                 else -> null
             }
             if (preset != null) {
                 val fps = if (targetFps in listOf(50, 60, 90, 120, 144, 240)) targetFps else 60
-                val filterStr = "@iptv_mc:lavfi=[minterpolate=fps=$fps:$preset]"
+                // 4K+ 视频先降采样到 1080p 再做运动补偿，避免 CPU 瓶颈
+                val w = try { MPVLib.getPropertyInt("width") ?: 0 } catch (_: Throwable) { 0 }
+                val h = try { MPVLib.getPropertyInt("height") ?: 0 } catch (_: Throwable) { 0 }
+                val is4k = w >= 3840 || h >= 2160
+                val filterStr = if (is4k) {
+                    "@iptv_mc:lavfi=[scale=1920:1080:flags=fast_bilinear,minterpolate=fps=$fps:$preset]"
+                } else {
+                    "@iptv_mc:lavfi=[minterpolate=fps=$fps:$preset]"
+                }
                 MPVLib.command(arrayOf("vf", "add", filterStr))
             }
         }
@@ -917,10 +925,19 @@ class MpvController : MPVLib.EventObserver, Player {
         postOnUiThread {
             // 1. 设置缩放算法
             val validAlgos = listOf("bilinear", "bicubic", "lanczos", "spline", "ewa_lanczos", "ewa_lanczossharp")
-            if (scaleAlgo in validAlgos) {
-                MPVLib.setPropertyString("scale", scaleAlgo)
-                MPVLib.setPropertyString("cscale", scaleAlgo)
-                val dscale = if (scaleAlgo == "ewa_lanczossharp") "ewa_lanczos" else scaleAlgo
+            // 检测 4K+
+            val w = try { MPVLib.getPropertyInt("width") ?: 0 } catch (_: Throwable) { 0 }
+            val h = try { MPVLib.getPropertyInt("height") ?: 0 } catch (_: Throwable) { 0 }
+            val is4k = w >= 3840 || h >= 2160
+            // 4K+ 下 EWA Lanczos 系列自动降级为 lanczos
+            var algo = scaleAlgo
+            if (is4k && algo in listOf("ewa_lanczos", "ewa_lanczossharp")) {
+                algo = "lanczos"
+            }
+            if (algo in validAlgos) {
+                MPVLib.setPropertyString("scale", algo)
+                MPVLib.setPropertyString("cscale", algo)
+                val dscale = if (algo == "ewa_lanczossharp") "ewa_lanczos" else algo
                 MPVLib.setPropertyString("dscale", dscale)
             } else {
                 // off — 恢复默认
@@ -933,7 +950,12 @@ class MpvController : MPVLib.EventObserver, Player {
             val detail = detailEnhance.coerceIn(0, 100)
             if (detail > 0) {
                 val amount = String.format("%.3f", detail / 100.0 * 1.5)
-                val filterStr = "@iptv_sr:lavfi=[unsharp=5:5:$amount:5:5:0.0]"
+                // 4K+ 下先降采样再处理 unsharp
+                val filterStr = if (is4k) {
+                    "@iptv_sr:lavfi=[scale=1920:1080:flags=fast_bilinear,unsharp=5:5:$amount:5:5:0.0]"
+                } else {
+                    "@iptv_sr:lavfi=[unsharp=5:5:$amount:5:5:0.0]"
+                }
                 MPVLib.command(arrayOf("vf", "add", filterStr))
             }
         }
@@ -965,7 +987,14 @@ class MpvController : MPVLib.EventObserver, Player {
             "Anime4K_Upscale_CNN_x2_S.glsl"
         ),
         "krig" to listOf("KrigBilateral.hook"),
-        "ssim" to listOf("SSimDownscaler.glsl")
+        "ssim" to listOf("SSimDownscaler.glsl"),
+        // Phase 3: ESRGAN high quality mode (combined shaders)
+        "esrgan" to listOf(
+            "ravu_r4.hook",
+            "FSRCNNX_x2_8-0-4-1.glsl",
+            "adaptive_sharpen.glsl"
+        ),
+        "adaptive_sharpen" to listOf("adaptive_sharpen.glsl")
     )
 
     /**
@@ -1081,6 +1110,72 @@ class MpvController : MPVLib.EventObserver, Player {
         val flagVal = if (pitch >= 0.5) "yes" else "no"
         postOnUiThread { MPVLib.setPropertyString("audio-pitch-correction", flagVal) }
         return true
+    }
+
+    // -----------------------------------------------------------------
+    // 声道信息检测 + 声道活动状态监控（astats 滤镜）
+    // -----------------------------------------------------------------
+    override fun getAudioChannelInfo(): Map<String, Any> {
+        val layout = MPVLib.getPropertyString("audio-params/channel-layout") ?: ""
+        val count = MPVLib.getPropertyInt("audio-params/channel-count") ?: 0
+        val layoutLower = layout.lowercase().trim()
+        var channels = CHANNEL_LAYOUT_MAP[layoutLower] ?: emptyList()
+        var resolvedLayout = layoutLower
+        if (channels.isEmpty() && count > 0) {
+            channels = when {
+                count == 1 -> { resolvedLayout = "mono"; listOf("FC") }
+                count == 2 -> { resolvedLayout = "stereo"; listOf("FL", "FR") }
+                count >= 6 -> { resolvedLayout = "5.1"; listOf("FL", "FR", "FC", "LFE", "BL", "BR") }
+                count >= 3 -> { resolvedLayout = "3.0"; listOf("FL", "FR", "FC") }
+                else -> emptyList()
+            }
+        }
+        return mapOf(
+            "layout" to resolvedLayout,
+            "channels" to channels,
+            "count" to channels.size,
+        )
+    }
+
+    override fun startChannelMonitor(): Boolean {
+        postOnUiThread {
+            MPVLib.command(arrayOf("af", "remove", "@iptv_stats"))
+            MPVLib.command(arrayOf("af", "add", "@iptv_stats:lavfi=[astats=metadata=1:reset=1]"))
+        }
+        return true
+    }
+
+    override fun stopChannelMonitor() {
+        postOnUiThread { MPVLib.command(arrayOf("af", "remove", "@iptv_stats")) }
+    }
+
+    override fun getChannelLevels(): Map<Int, Float> {
+        val raw = MPVLib.getPropertyString("af-metadata/@iptv_stats") ?: return emptyMap()
+        // 解析 JSON metadata
+        val result = mutableMapOf<Int, Float>()
+        try {
+            val data = org.json.JSONObject(raw)
+            val keys = data.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                // 格式: lavfi.astats.1.RMS_level
+                if (key.startsWith("lavfi.astats.") && key.endsWith(".RMS_level")) {
+                    val parts = key.split(".")
+                    if (parts.size == 4) {
+                        val chIdx = parts[2].toIntOrNull()
+                        if (chIdx != null) {
+                            val level = data.getString(key)
+                            if (level != "-inf" && level != "nan") {
+                                result[chIdx] = level.toFloat()
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // 忽略解析错误
+        }
+        return result
     }
 
     // -----------------------------------------------------------------
@@ -1448,5 +1543,29 @@ class MpvController : MPVLib.EventObserver, Player {
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: MpvController().also { INSTANCE = it }
             }
+
+        // FFmpeg 标准声道布局 → 声道名称列表
+        val CHANNEL_LAYOUT_MAP = mapOf(
+            "mono" to listOf("FC"),
+            "1.0" to listOf("FC"),
+            "stereo" to listOf("FL", "FR"),
+            "2.0" to listOf("FL", "FR"),
+            "2.1" to listOf("FL", "FR", "LFE"),
+            "3.0" to listOf("FL", "FR", "FC"),
+            "4.0" to listOf("FL", "FR", "FC", "BC"),
+            "quad" to listOf("FL", "FR", "BL", "BR"),
+            "5.0" to listOf("FL", "FR", "FC", "BL", "BR"),
+            "5.1" to listOf("FL", "FR", "FC", "LFE", "BL", "BR"),
+            "6.0" to listOf("FL", "FR", "FC", "BC", "SL", "SR"),
+            "6.1" to listOf("FL", "FR", "FC", "LFE", "BC", "SL", "SR"),
+            "7.0" to listOf("FL", "FR", "FC", "BL", "BR", "SL", "SR"),
+            "7.1" to listOf("FL", "FR", "FC", "LFE", "BL", "BR", "SL", "SR"),
+        )
+
+        val CHANNEL_DISPLAY = mapOf(
+            "FL" to "左前", "FR" to "右前", "FC" to "中置",
+            "LFE" to "低音炮", "BL" to "左环绕", "BR" to "右环绕",
+            "BC" to "后中置", "SL" to "左侧", "SR" to "右侧",
+        )
     }
 }

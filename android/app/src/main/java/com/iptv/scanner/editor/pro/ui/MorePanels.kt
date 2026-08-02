@@ -639,7 +639,9 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                 "fsrcnnx" to "FSRCNNX",
                 "anime4k" to "Anime4K",
                 "krig" to "KrigBilateral",
-                "ssim" to "SSim"
+                "ssim" to "SSim",
+                "esrgan" to "ESRGAN",
+                "adaptive_sharpen" to "锐化"
             ).forEach { (preset, label) ->
                 FilterChip(
                     selected = shaderPreset == preset,
@@ -664,7 +666,8 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                 "performance" to "性能优先",
                 "quality" to "画质优先",
                 "anime" to "动画优化",
-                "sports" to "体育直播"
+                "sports" to "体育直播",
+                "movie" to "电影模式"
             ).forEach { (preset, label) ->
                 FilterChip(
                     selected = false,
@@ -727,6 +730,14 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                                 shaderPreset = "off"
                                 mpv.setMotionCompensation("high", 60)
                                 mpv.setSuperResolution("lanczos", 30)
+                                mpv.clearUserShader()
+                            }
+                            "movie" -> {
+                                mcStrength = "medium"; mcFps = 60
+                                srScale = "ewa_lanczossharp"; srDetail = 40
+                                shaderPreset = "off"
+                                mpv.setMotionCompensation("medium", 60)
+                                mpv.setSuperResolution("ewa_lanczossharp", 40)
                                 mpv.clearUserShader()
                             }
                         }

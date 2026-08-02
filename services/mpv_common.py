@@ -229,6 +229,9 @@ def _ensure_libmpv_loaded():
             libmpv.mpv_request_log_messages.restype = ctypes.c_int
             libmpv.mpv_request_log_messages.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
+            libmpv.mpv_free_node_contents.restype = None
+            libmpv.mpv_free_node_contents.argtypes = [ctypes.c_void_p]
+
             # 加载成功：更新 libmpv_path 和环境变量，确保后续使用正确的路径
             libmpv_path = path
             os.environ['MPV_LIBRARY'] = path
@@ -372,6 +375,8 @@ MPV_FORMAT_FLAG = 3
 MPV_FORMAT_INT64 = 4
 MPV_FORMAT_DOUBLE = 5
 MPV_FORMAT_NODE = 6
+MPV_FORMAT_NODE_ARRAY = 7
+MPV_FORMAT_NODE_MAP = 8
 
 MPV_END_FILE_REASON_EOF = 0
 MPV_END_FILE_REASON_STOP = 2
@@ -417,6 +422,88 @@ def get_property_double(handle, name):
             return None
         return value.value
     except Exception:
+        return None
+
+
+# ---------- mpv_node 结构体定义（用于读取 node 类型属性如 af-metadata） ----------
+
+class _mpv_node_list(ctypes.Structure):
+    pass
+
+
+class _mpv_node_union(ctypes.Union):
+    _fields_ = [
+        ('flag', ctypes.c_int64),
+        ('double_', ctypes.c_double),
+        ('int64', ctypes.c_int64),
+        ('string', ctypes.c_char_p),
+        ('list', ctypes.POINTER(_mpv_node_list)),
+    ]
+
+
+class _mpv_node(ctypes.Structure):
+    _anonymous_ = ('u',)
+    _fields_ = [
+        ('u', _mpv_node_union),
+        ('format', ctypes.c_int),
+    ]
+
+
+_mpv_node_list._fields_ = [
+    ('num', ctypes.c_int),
+    ('values', ctypes.POINTER(_mpv_node)),
+    ('keys', ctypes.POINTER(ctypes.c_char_p)),
+]
+
+
+def _parse_mpv_node(node):
+    """递归解析 mpv_node 为 Python 对象"""
+    fmt = node.format
+    if fmt == MPV_FORMAT_STRING:
+        return node.string.decode('utf-8') if node.string else None
+    elif fmt == MPV_FORMAT_FLAG:
+        return bool(node.flag)
+    elif fmt == MPV_FORMAT_INT64:
+        return node.int64
+    elif fmt == MPV_FORMAT_DOUBLE:
+        return node.double_
+    elif fmt in (MPV_FORMAT_NODE_MAP, MPV_FORMAT_NODE_ARRAY, MPV_FORMAT_NODE):
+        if not node.list:
+            return {}
+        lst = node.list.contents
+        result = {}
+        for i in range(lst.num):
+            val = _parse_mpv_node(lst.values[i])
+            if lst.keys and lst.keys[i]:
+                key = lst.keys[i].decode('utf-8')
+                result[key] = val
+            else:
+                result[i] = val
+        return result
+    return None
+
+
+def get_property_node(handle, name):
+    """读取 node 类型属性（如 af-metadata），返回 Python dict 或 None"""
+    if not handle or not libmpv:
+        return None
+    try:
+        node = _mpv_node()
+        result = libmpv.mpv_get_property(
+            handle, name.encode('utf-8'),
+            MPV_FORMAT_NODE, ctypes.byref(node),
+        )
+        if result < 0:
+            logger.debug(f"get_property_node('{name}') failed: error={result}")
+            return None
+        value = _parse_mpv_node(node)
+        try:
+            libmpv.mpv_free_node_contents(ctypes.byref(node))
+        except Exception:
+            pass
+        return value
+    except Exception as e:
+        logger.debug(f"get_property_node error: {e}")
         return None
 
 

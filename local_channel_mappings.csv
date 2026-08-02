@@ -169,8 +169,8 @@ CGTN阿拉伯语,239.21.2.34:5002,https://raw.githubusercontent.com/sumingyd/IPT
 威海生活,239.21.2.156:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/威海生活.png,🏙️ 市级频道,威海生活,635,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00000275/index.m3u8?startTime=${(b)10}&endTime=${(e)10},720x576
 德州综合,239.21.1.75:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/德州综合.png,🏙️ 市级频道,德州综合,636,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00000206/index.m3u8?startTime=${(b)10}&endTime=${(e)10},1920x1080
 德州生活,239.21.1.76:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/德州生活.png,🏙️ 市级频道,德州生活,637,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00000207/index.m3u8?startTime=${(b)10}&endTime=${(e)10},1920x1080
-东营综合,239.21.1.81:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/东营综合.png,🏙️ 市级频道,东营综合,638,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00000226/index.m3u8?startTime=${(b)10}&endTime=${(e)10},720x576
-东营公共,239.21.1.82:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/东营公共.png,🏙️ 市级频道,东营公共,639,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00000227/index.m3u8?startTime=${(b)10}&endTime=${(e)10},720x576
+东营综合,239.21.1.82:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/东营综合.png,🏙️ 市级频道,东营综合,638,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00000226/index.m3u8?startTime=${(b)10}&endTime=${(e)10},720x576
+东营公共,239.21.1.81:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/东营公共.png,🏙️ 市级频道,东营公共,639,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00000227/index.m3u8?startTime=${(b)10}&endTime=${(e)10},720x576
 日照综合,239.21.1.79:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/日照综合.png,🏙️ 市级频道,日照综合,640,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00000262/index.m3u8?startTime=${(b)10}&endTime=${(e)10},720x576
 日照公共,239.21.2.81:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/日照公共.png,🏙️ 市级频道,日照公共,641,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00001100/index.m3u8?startTime=${(b)10}&endTime=${(e)10},720x576
 日照科教,239.21.1.80:5002,https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/日照科教.png,🏙️ 市级频道,日照科教,642,0,default,7,http://150.138.8.143/00/SNM/CHANNEL00000263/index.m3u8?startTime=${(b)10}&endTime=${(e)10},720x576
@@ -756,7 +756,6 @@ CETV4HD,239.49.0.125:8000,,📺 央视频道,,,,,,,
 连云港生活,239.49.0.229:8000,,📺 市级频道,,,,,,,
 北京卫视4KHDR,239.49.0.253:8000,,💎 4K超高清,,,,,,,
 央广购物HD,239.49.0.39:8000,,📺 特色频道,,,,,,,
-开机直播专用,239.49.0.1:8000,,📺 特色频道,,,,,,,
 CCTV164KSDR,239.49.0.109:8000,,💎 4K超高清,,,,,,,
 睛彩广场舞HD（限免）,239.49.8.64:8000,,📺 体育频道,,,,,,,
 睛彩篮球HD（限免）,239.49.8.42:8000,,📺 体育频道,,,,,,,
