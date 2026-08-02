@@ -579,13 +579,25 @@ class MpvPlayerController(QObject):
         # 否则 mpv 认为显示器能显示 10000 nits，不会做 HDR→SDR tone mapping，画面会过曝。
         # 注意：hdr10-opt 由 _apply_hdr_on_file_loaded 根据视频类型统一设置，这里不再设置。
         sdr_trc = self._get_sdr_target_trc()
-        self._set_mpv_string('tone-mapping', 'auto')
-        self._set_mpv_string('tone-mapping-mode', 'auto')
         # HLG 视频去饱和度降为 0，避免整体发灰
         # PQ 视频保留 0.5 的去饱和度，防止高光过饱和
         desat = '0' if is_hlg else '0.5'
+        if is_hlg:
+            # HLG 是相对编码，不像 PQ/HDR10 携带绝对亮度元数据（maxCLL/maxFALL）。
+            # hdr-compute-peak=no 时 mpv 用 HLG 信号峰值（1.0≈参考白 1000 nits），
+            # 对 target-peak=100 做 10:1 压缩，导致画面偏暗。
+            # hdr-compute-peak=yes 让 mpv 从实际帧内容动态计算场景峰值，
+            # 典型 HLG 广播实际峰值远低于 1000 nits（通常 200-500 nits），
+            # 压缩比更小、画面更亮更自然。
+            # tone-mapping=bt.2390：ITU-R BT.2390 专为 HLG/HDR10 设计的色调映射标准，
+            # 软膝滚降保留更多中间调亮度，比 auto/spline 更适合 HLG。
+            self._set_mpv_string('tone-mapping', 'bt.2390')
+            self._set_mpv_string('hdr-compute-peak', 'yes')
+        else:
+            self._set_mpv_string('tone-mapping', 'auto')
+            self._set_mpv_string('hdr-compute-peak', 'no')
+        self._set_mpv_string('tone-mapping-mode', 'auto')
         self._set_mpv_string('tone-mapping-desat', desat)
-        self._set_mpv_string('hdr-compute-peak', 'no')
         self._set_mpv_string('target-prim', 'bt.2020')
         self._set_mpv_string('target-trc', sdr_trc)
         # target-peak=100：显式 SDR 电平，确保 swapchain 切换到 sRGB 色彩空间

@@ -5823,10 +5823,19 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         // gamut-mapping-mode=perceptual 感知映射，减少色域裁剪损失
         // HLG 视频去饱和度降为 0，避免整体发灰
         val desat = if (isHlg) "0" else "0.5"
-        safeSetProperty(mpv, "tone-mapping", "auto")
+        if (isHlg) {
+            // HLG 是相对编码，无嵌入峰值元数据（不像 HDR10 有 maxCLL/maxFALL）。
+            // hdr-compute-peak=yes 让 mpv 从实际帧内容动态计算场景峰值，
+            // 避免用 HLG 参考白 1000 nits 做 10:1 过度压缩导致画面偏暗。
+            // tone-mapping=bt.2390：ITU-R HLG 色调映射标准，保留更多中间调亮度。
+            safeSetProperty(mpv, "tone-mapping", "bt.2390")
+            safeSetProperty(mpv, "hdr-compute-peak", "yes")
+        } else {
+            safeSetProperty(mpv, "tone-mapping", "auto")
+            safeSetProperty(mpv, "hdr-compute-peak", "no")
+        }
         safeSetProperty(mpv, "tone-mapping-mode", "auto")
         safeSetProperty(mpv, "tone-mapping-desat", desat)
-        safeSetProperty(mpv, "hdr-compute-peak", "no")
         safeSetProperty(mpv, "hdr10-opt", if (isPq) "yes" else "no")
         safeSetProperty(mpv, "target-prim", "bt.2020")
         safeSetProperty(mpv, "target-trc", "bt.1886")
