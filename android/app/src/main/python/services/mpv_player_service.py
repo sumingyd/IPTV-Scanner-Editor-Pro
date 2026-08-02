@@ -312,6 +312,12 @@ class MpvPlayerController(QObject):
                 else:
                     _mpv_set_option_string(self.mpv_handle, 'd3d11-output-csp', 'srgb')
                 _mpv_set_option_string(self.mpv_handle, 'target-colorspace-hint', 'yes')
+                # 预设 SDR 默认值，避免 mpv auto 检测到 bt.1886（gamma≈2.4）
+                # 而 _apply_wcg_config/_reset_hdr_params 设置 srgb（gamma≈2.2）时
+                # 产生 gamma 跳变（首次播放 WCG 色彩偏暗）
+                sdr_trc_init = self._get_sdr_target_trc()
+                _mpv_set_option_string(self.mpv_handle, 'target-trc', sdr_trc_init)
+                _mpv_set_option_string(self.mpv_handle, 'target-peak', '100')
             elif is_macos():
                 # macOS上mpv v0.41+的gpu-context选项不再支持wid嵌入
                 # 使用vo=libmpv + render API渲染到QOpenGLWidget（IINA等播放器的标准方案）
@@ -682,7 +688,9 @@ class MpvPlayerController(QObject):
         """
         sdr_trc = self._get_sdr_target_trc()
         # 显式设置所有参数（不用空字符串重置，避免 mpv 默认值不确定性）
-        self._set_mpv_string('tone-mapping', 'clip')
+        # tone-mapping=auto：与 SDR(_reset_hdr_params) 和 HLG passthrough 统一，
+        # 避免 clip 触发不同的渲染管线路径（SDR→WCG 切换时 clip 可能导致色彩异常）
+        self._set_mpv_string('tone-mapping', 'auto')
         self._set_mpv_string('tone-mapping-mode', 'auto')
         self._set_mpv_string('tone-mapping-desat', '0')
         self._set_mpv_string('hdr-compute-peak', 'no')

@@ -5803,7 +5803,7 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     private fun applyWcgConfig(mpv: Player) {
         // WCG 视频（宽色域 SDR）：保持 bt.2020 色域，SDR 亮度（与 PC 端 _apply_wcg_config 对齐）
         // 显式设置所有参数（不用空字符串重置，避免残留 HDR 参数）
-        safeSetProperty(mpv, "tone-mapping", "clip")
+        safeSetProperty(mpv, "tone-mapping", "auto")  // 与 SDR/HLG 统一, 避免 clip 触发不同渲染路径
         safeSetProperty(mpv, "tone-mapping-mode", "auto")
         safeSetProperty(mpv, "tone-mapping-desat", "0")
         safeSetProperty(mpv, "hdr-compute-peak", "no")
