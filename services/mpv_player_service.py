@@ -638,6 +638,12 @@ class MpvPlayerController(QObject):
         self._set_mpv_string('target-prim', 'bt.2020')
         self._set_mpv_string('target-trc', 'pq')
         self._set_mpv_string('gamut-mapping-mode', 'relative')
+        # 显式设置 tone-mapping 参数，避免从 WCG/SDR 切换时残留
+        # tone-mapping-desat=0：不做去饱和度（mpv 默认 0.5 会对高光做 50% 去饱和度，
+        #   导致 HLG 画面偏灰；从 SDR 切换时 desat='' → mpv 默认 0.5，从 WCG 切换时
+        #   desat='0'，同一切换路径效果不一致）
+        self._set_mpv_string('tone-mapping-mode', 'auto')
+        self._set_mpv_string('tone-mapping-desat', '0')
         if is_pq:
             self._set_mpv_string('tone-mapping', 'clip')
             self._set_mpv_string('hdr-compute-peak', 'no')
