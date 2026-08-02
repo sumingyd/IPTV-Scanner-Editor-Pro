@@ -5824,11 +5824,10 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
         // HLG 视频去饱和度降为 0，避免整体发灰
         val desat = if (isHlg) "0" else "0.5"
         if (isHlg) {
-            // HLG 是相对编码，无嵌入峰值元数据（不像 HDR10 有 maxCLL/maxFALL）。
-            // hdr-compute-peak=yes 让 mpv 从实际帧内容动态计算场景峰值，
-            // 避免用 HLG 参考白 1000 nits 做 10:1 过度压缩导致画面偏暗。
-            // tone-mapping=bt.2390：ITU-R HLG 色调映射标准，保留更多中间调亮度。
-            safeSetProperty(mpv, "tone-mapping", "bt.2390")
+            // HLG tonemap: auto (gpu-next 选 spline, 感知均匀, 保留中间调亮度)
+            // hdr-compute-peak=yes: HLG 无嵌入 maxCLL, 需动态计算场景峰值
+            // 避免用 bt.2390 (线性扩展段压缩中间调, 比 spline 更暗)
+            safeSetProperty(mpv, "tone-mapping", "auto")
             safeSetProperty(mpv, "hdr-compute-peak", "yes")
         } else {
             safeSetProperty(mpv, "tone-mapping", "auto")
@@ -5848,14 +5847,14 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
      * - 清空 target-prim/target-trc，让 mpv 直通视频原生色彩空间（不转换）
      * - 启用 target-colorspace-hint=yes，让 Android 系统自动切换 HDR 显示模式
      * - PQ: tone-mapping=clip + hdr-compute-peak=no（直接直通）
-     * - HLG: tone-mapping=auto + hdr-compute-peak=yes（让 mpv 平滑处理 HLG→PQ）
+     * - HLG: tone-mapping=auto + hdr-compute-peak=no（使用信号峰值, 避免动态计算峰值导致画面变暗）
      * - hdr10-opt=yes(仅PQ) 保留 HDR10+ 动态元数据
      */
     private fun applyPassthroughConfig(mpv: Player, isPq: Boolean) {
         safeSetProperty(mpv, "tone-mapping", if (isPq) "clip" else "auto")
         safeSetProperty(mpv, "tone-mapping-mode", "")
         safeSetProperty(mpv, "tone-mapping-desat", "0")
-        safeSetProperty(mpv, "hdr-compute-peak", if (isPq) "no" else "yes")
+        safeSetProperty(mpv, "hdr-compute-peak", "no")  // PQ 用 maxCLL, HLG 用 sig_peak
         safeSetProperty(mpv, "hdr10-opt", if (isPq) "yes" else "no")
         // 清空 target 参数，让 mpv 直通视频原生色彩空间（PQ/HLG 不转换）
         safeSetProperty(mpv, "target-prim", "")

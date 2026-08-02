@@ -583,15 +583,10 @@ class MpvPlayerController(QObject):
         # PQ 视频保留 0.5 的去饱和度，防止高光过饱和
         desat = '0' if is_hlg else '0.5'
         if is_hlg:
-            # HLG 是相对编码，不像 PQ/HDR10 携带绝对亮度元数据（maxCLL/maxFALL）。
-            # hdr-compute-peak=no 时 mpv 用 HLG 信号峰值（1.0≈参考白 1000 nits），
-            # 对 target-peak=100 做 10:1 压缩，导致画面偏暗。
-            # hdr-compute-peak=yes 让 mpv 从实际帧内容动态计算场景峰值，
-            # 典型 HLG 广播实际峰值远低于 1000 nits（通常 200-500 nits），
-            # 压缩比更小、画面更亮更自然。
-            # tone-mapping=bt.2390：ITU-R BT.2390 专为 HLG/HDR10 设计的色调映射标准，
-            # 软膝滚降保留更多中间调亮度，比 auto/spline 更适合 HLG。
-            self._set_mpv_string('tone-mapping', 'bt.2390')
+            # HLG tonemap 到 SDR：使用 auto（gpu-next 选 spline，感知均匀，保留中间调亮度）
+            # hdr-compute-peak=yes：HLG 无嵌入 maxCLL 元数据，需动态计算场景峰值
+            # 避免用 bt.2390（线性扩展段压缩中间调，比 spline 更暗）
+            self._set_mpv_string('tone-mapping', 'auto')
             self._set_mpv_string('hdr-compute-peak', 'yes')
         else:
             self._set_mpv_string('tone-mapping', 'auto')
@@ -630,7 +625,11 @@ class MpvPlayerController(QObject):
         #   不切换 swapchain，HLG→PQ 输出在 sRGB swapchain 上显示为极暗画面
         #   （用户反馈的"HLG黑乎乎"）。1000 是 HLG 标准参考白电平（1000 nits），
         #   不会导致 target-peak=10000 的过曝/阴阳脸问题。
-        #   hdr-compute-peak=yes 仍保留用于动态计算场景峰值。
+        #   hdr-compute-peak=no：使用 HLG 信号嵌入峰值（sig_peak），
+        #   不动态计算场景峰值。HLG 广播中高光元素（天空/反光）会将 compute-peak
+        #   推高到 2000+ nits，导致 mpv 对 2000→1000 做 2:1 压缩，画面变暗。
+        #   使用 sig_peak（通常 400-500 nits）避免不必要的 tonemapping，
+        #   PQ 输出峰值更低，Windows DWM 压缩比也更小。
         #   tone-mapping=auto（gpu-next 中选 spline）让 mpv 平滑处理 HLG→PQ 转换。
         #
         # gamut-mapping-mode=relative：相对色域映射，保持色彩准确性，
@@ -648,11 +647,11 @@ class MpvPlayerController(QObject):
             # HLG 视频：让 mpv 自动处理 HLG→PQ 转换
             # target-peak=1000：HLG 参考白电平，触发 PQ swapchain 切换（修复首次播放黑屏）
             self._set_mpv_string('tone-mapping', 'auto')
-            self._set_mpv_string('hdr-compute-peak', 'yes')
+            self._set_mpv_string('hdr-compute-peak', 'no')
             self._set_mpv_string('target-peak', '1000')
             self.logger.info(
                 "HDR配置: passthrough → HLG自动转换 "
-                "(bt.2020/pq, target-peak=1000, compute-peak=yes, gamut=relative)"
+                "(bt.2020/pq, target-peak=1000, compute-peak=no, gamut=relative)"
             )
 
     def _apply_scrgb_config(self, is_pq=True):
