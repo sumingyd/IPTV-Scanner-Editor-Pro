@@ -1037,7 +1037,8 @@ class MpvController : MPVLib.EventObserver, Player {
      * 支持多文件预设（如 Anime4K 需要 3 个文件）。
      */
     private fun findShaderFiles(preset: String): List<String> {
-        val shadersDir = java.io.File(context.filesDir, "shaders")
+        val ctx = mpvView?.asView()?.context ?: return emptyList()
+        val shadersDir = java.io.File(ctx.filesDir, "shaders")
         if (!shadersDir.isDirectory) return emptyList()
 
         // 1. 按预设映射表精确查找
