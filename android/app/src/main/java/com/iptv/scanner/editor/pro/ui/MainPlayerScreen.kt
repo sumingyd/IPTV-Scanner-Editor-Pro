@@ -79,6 +79,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
@@ -335,6 +336,9 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             // 黑色背景由 Activity window background + SurfaceView 自身提供
     ) {
         val playerType by viewModel.playerType.collectAsState()
+        // rememberUpdatedState：确保 movableContentOf 内部的 lambda 始终引用最新的 playerType
+        // （movableContentOf 被 remember 缓存后，内部 lambda 不会随外层 recompose 自动更新）
+        val playerTypeUpdated = rememberUpdatedState(playerType)
 
         // -----------------------------------------------------------------
         // 1. 底层：播放器 View 容器
@@ -353,7 +357,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         val updatePlayerView: (android.view.View) -> Unit = view@ { container ->
             if (container !is android.widget.FrameLayout) return@view
             val ctx = container.context
-            val pType = playerType
+            val pType = playerTypeUpdated.value
             val player = viewModel.mpv
 
             // 检查当前容器中的子 View 是否已匹配 playerType
@@ -440,7 +444,15 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             Log.i("MainPlayerScreen", "onRelease: container destroyed")
         }
 
-        val primaryPlayer = remember(portraitSplit) {
+        // 关键：不使用 remember(portraitSplit)！
+        // portraitSplit 变化（竖屏→横屏旋转）时会创建新的 movableContentOf，
+        // 导致旧的 AndroidView 被 dispose（onRelease → MPVView.destroy() → stop + playlist-clear），
+        // 新的 AndroidView 创建新 MPVView 但文件已被 stop，surfaceCreated 时 path 为空 → 黑屏。
+        //
+        // 使用 remember（无 key）让同一个 movableContentOf 在竖屏/横屏布局之间移动，
+        // SurfaceView 被 reparent 时只触发 surfaceDestroyed → surfaceCreated 生命周期，
+        // MPVView 在 surfaceCreated 中检测到 path 非空会自动恢复渲染，无需重新 loadfile。
+        val primaryPlayer = remember {
             movableContentOf {
                 AndroidView(
                     factory = createPlayerView,
