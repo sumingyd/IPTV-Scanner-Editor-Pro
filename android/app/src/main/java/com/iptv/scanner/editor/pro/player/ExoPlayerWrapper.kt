@@ -129,14 +129,8 @@ class ExoPlayerWrapper(
         playerView = view
         ensurePlayer()
         view.player = player
-        // SYSTEM 模式：禁用硬件解码器，只允许软件解码
-        if (type == PlayerType.SYSTEM) {
-            player?.let { p ->
-                p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
-                    .build()
-            }
-            setHardwareDecode(false)
-        }
+        // 不再在 attachView 中调 setHardwareDecode：
+        // 渲染器模式在 ensurePlayer() 中根据 type 直接设置，避免无效的 rebuild。
         Log.i(TAG, "attachView: PlayerView attached, type=$type, hwdec=$hardwareDecodeEnabled")
     }
 
@@ -173,11 +167,23 @@ class ExoPlayerWrapper(
             val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
             val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
 
-            // 渲染器配置：EXO 和 SYSTEM 都用相同的渲染器
-            // SYSTEM 模式通过禁用硬件解码器来实现纯软解（见 attachView 后的 setHardwareDecode）
+            // 渲染器配置：根据播放器类型选择不同的解码器模式
+            // - EXO（硬解）：EXTENSION_RENDERER_MODE_OFF → 只用 MediaCodec（硬件解码）
+            // - SYSTEM（软解）：EXTENSION_RENDERER_MODE_PREFER → 优先用 FFmpeg 扩展（软件解码），
+            //   fallback 到 MediaCodec（仅当 FFmpeg 扩展未安装或解码器不支持该编码时）
+            //
+            // DefaultRenderersFactory 扩展渲染器模式说明：
+            // - OFF：不加载扩展渲染器，只用内置 MediaCodec 渲染器（纯硬解）
+            // - ON：加载扩展渲染器但优先级低于 MediaCodec（硬解优先，软解 fallback）
+            // - PREFER：加载扩展渲染器且优先级高于 MediaCodec（软解优先，硬解 fallback）
+            val extensionMode = if (type == PlayerType.SYSTEM) {
+                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+            } else {
+                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
+            }
             val renderersFactory = DefaultRenderersFactory(context)
                 .setEnableDecoderFallback(true)
-                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                .setExtensionRendererMode(extensionMode)
             player = ExoPlayer.Builder(context, renderersFactory)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .setUseLazyPreparation(true)
@@ -472,16 +478,16 @@ class ExoPlayerWrapper(
     // -----------------------------------------------------------------
 
     @Volatile
-    private var hardwareDecodeEnabled = true
+    private var hardwareDecodeEnabled = (type != PlayerType.SYSTEM)
 
     override fun setHardwareDecode(enabled: Boolean): Boolean {
-        if (hardwareDecodeEnabled == enabled) return true
-        hardwareDecodeEnabled = enabled
-        Log.i(TAG, "setHardwareDecode: $enabled")
+        val target = if (type == PlayerType.SYSTEM) false else enabled
+        if (hardwareDecodeEnabled == target) return true
+        hardwareDecodeEnabled = target
+        Log.i(TAG, "setHardwareDecode: $target (type=$type)")
         try {
             val p = player ?: return true
             // 重建播放器以应用新的 RenderersFactory 配置
-            //（EXTENSION_RENDERER_MODE_ON=硬解优先 / PREFER=软解优先）
             val currentUrl = this.currentUrl
             if (currentUrl.isNotEmpty()) {
                 val currentPosition = p.currentPosition
