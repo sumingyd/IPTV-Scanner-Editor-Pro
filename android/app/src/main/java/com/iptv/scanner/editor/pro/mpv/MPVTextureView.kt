@@ -39,6 +39,9 @@ class MPVTextureView @JvmOverloads constructor(
 
     override var onInstanceRecreated: (() -> Unit)? = null
 
+    /** Surface 重建回调（surfaceCreated 后触发） */
+    override var onSurfaceRebuilt: (() -> Unit)? = null
+
     override fun asView(): View = this
 
     /** 当前 Surface（从 SurfaceTexture 创建） */
@@ -138,8 +141,8 @@ class MPVTextureView @JvmOverloads constructor(
         MPVLib.setOptionString("video-sync", "audio")
         MPVLib.setOptionString("cache-pause-initial", "no")
 
-        MPVLib.setOptionString("demuxer-max-bytes", "32MiB")
-        MPVLib.setOptionString("demuxer-max-back-bytes", "8MiB")
+        MPVLib.setOptionString("demuxer-max-bytes", "48MiB")
+        MPVLib.setOptionString("demuxer-max-back-bytes", "12MiB")
         MPVLib.setOptionString("demuxer-readahead-secs", "10")
         MPVLib.setOptionString("demuxer-seekable-cache", "yes")
         MPVLib.setOptionString("force-seekable", "yes")
@@ -154,8 +157,9 @@ class MPVTextureView @JvmOverloads constructor(
         MPVLib.setOptionString("tls-verify", "yes")
 
         val cpuCount = Runtime.getRuntime().availableProcessors()
-        val threads = maxOf(2, cpuCount / 2)
+        val threads = maxOf(2, (cpuCount * 3 + 2) / 4)
         MPVLib.setOptionString("vd-lavc-threads", threads.toString())
+        MPVLib.setOptionString("vd-lavc-skiploopfilter", "nonref")
 
         MPVLib.setOptionString("force-window", "no")
         MPVLib.setOptionString("idle", "yes")
@@ -339,6 +343,8 @@ class MPVTextureView @JvmOverloads constructor(
             reattachSurfaceWithVo(voInUse)
             MPVLib.setPropertyString("force-window", "yes")
             Log.i(TAG, "attachSurface OK (TextureView), vo=$voInUse")
+            // 通知 Controller 表面已重建（取消待处理的错误检查）
+            onSurfaceRebuilt?.invoke()
         } catch (e: Throwable) {
             Log.e(TAG, "attachSurface FAILED", e)
         }
