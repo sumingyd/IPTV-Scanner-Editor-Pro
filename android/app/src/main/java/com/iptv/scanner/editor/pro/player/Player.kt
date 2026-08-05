@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
  * - [MPV]：mpv (libmpv)，通过 JNI 调用，功能最完整（EQ/AB循环/逐帧/章节/截图/HDR等）
  *   硬解：hwdec=auto-copy/auto，软解：hwdec=no
  * - [EXO]：ExoPlayer，Google Media3 引擎，HLS/DASH/RTSP 兼容性好
- *   硬解：MediaCodec（EXTENSION_RENDERER_MODE_OFF），软解：FFmpeg 扩展（EXTENSION_RENDERER_MODE_PREFER）
+ *   硬解：MediaCodec 硬件编解码器（GPU 加速），软解：MediaCodec 软件编解码器（如 OMX.google.*）
  */
 enum class PlayerType(val displayName: String, val description: String) {
     MPV("mpv", "功能最完整（EQ/AB循环/逐帧/截图/HDR）"),

@@ -311,7 +311,7 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
     if (currentPlayerType == PlayerType.EXO) {
         SectionTitle("解码模式")
         Spacer(modifier = Modifier.height(4.dp))
-        SectionDesc("硬解使用 GPU MediaCodec 加速，软解使用 FFmpeg 扩展解码器。软解兼容性更好但更耗电")
+        SectionDesc("硬解使用 GPU MediaCodec 加速，软解使用 CPU 软件编解码器。软解兼容性更好但更耗电")
         Spacer(modifier = Modifier.height(8.dp))
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -323,7 +323,7 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
         }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = if (hardwareDecode) "硬件解码：使用 Android MediaCodec 硬件加速解码。功耗低、速度快，但部分 4K/HDR 流可能不兼容。遇到花屏/卡顿时可尝试软解" else "软件解码：使用 FFmpeg 扩展解码器（软解）。兼容性最好，支持更多编码格式，但 CPU 负载高、可能发热。适合硬解不兼容的 4K/HDR 流",
+            text = if (hardwareDecode) "硬件解码：使用 Android MediaCodec 硬件加速解码。功耗低、速度快，但部分 4K/HDR 流可能不兼容。遇到花屏/卡顿时可尝试软解" else "软件解码：使用 Android 系统自带的软件编解码器（如 OMX.google.*）。兼容性更好，不依赖 GPU，但 CPU 负载高、可能发热。适合硬解不兼容的流",
             color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 4.dp)
         )
         Spacer(modifier = Modifier.height(20.dp))

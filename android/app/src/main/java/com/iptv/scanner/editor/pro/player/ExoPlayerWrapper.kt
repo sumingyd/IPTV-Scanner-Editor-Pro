@@ -12,6 +12,8 @@ import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -25,13 +27,16 @@ import kotlinx.coroutines.flow.asStateFlow
  * 基于 ExoPlayer 的播放器适配器，实现 [Player] 接口。
  *
  * 用于 [PlayerType.EXO] 模式，支持硬解和软解两种模式：
- * - 硬解：EXTENSION_RENDERER_MODE_OFF，只用 MediaCodec 硬件解码器
- * - 软解：EXTENSION_RENDERER_MODE_PREFER，优先 FFmpeg 软解码器，fallback 到 MediaCodec
+ * - 硬解：使用硬件 MediaCodec 编解码器（GPU 加速）
+ * - 软解：使用软件 MediaCodec 编解码器（如 OMX.google.*，不依赖 GPU）
+ *
+ * 软解通过自定义 [MediaCodecSelector] 过滤掉硬件编解码器实现，
+ * 不依赖 FFmpeg 扩展（Google 不发布预编译 AAR）。
  *
  * 与 [MpvController] 的区别：
  * - MPV 功能最完整（EQ/AB循环/逐帧/截图/HDR），但某些设备 GPU 兼容性差
  * - ExoPlayer 兼容性好（Google 官方维护），HLS/DASH/RTSP 协议支持完善
- * - 软解模式（FFmpeg 扩展）作为 fallback，不依赖 GPU
+ * - 软解模式（软件编解码器）作为 fallback，不依赖 GPU
  *
  * MPV 专属的高级功能（EQ/截图/AB循环/逐帧/章节等）在此实现中返回 false 或 no-op，
  * UI 层通过 [capabilities] 自动隐藏不支持的功能面板。
@@ -45,6 +50,15 @@ class ExoPlayerWrapper(
     companion object {
         private const val TAG = "ExoPlayerWrapper"
         private const val USER_AGENT = "VLC/3.0.18Libmpv"
+
+        /**
+         * 软解专用 MediaCodecSelector：只返回软件编解码器（hardwareAccelerated=false）。
+         * 过滤掉 GPU 硬件编解码器，强制使用 CPU 软件解码（如 OMX.google.*）。
+         */
+        private val SOFTWARE_ONLY_SELECTOR = MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+            MediaCodecUtil.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+                .filter { !it.hardwareAccelerated }
+        }
     }
 
     private var player: ExoPlayer? = null
@@ -167,23 +181,23 @@ class ExoPlayerWrapper(
             val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
             val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
 
-            // 渲染器配置：根据 hardwareDecodeEnabled 选择解码器模式
-            // - 硬解：EXTENSION_RENDERER_MODE_OFF → 只用 MediaCodec（硬件解码）
-            // - 软解：EXTENSION_RENDERER_MODE_PREFER → 优先用 FFmpeg 扩展（软件解码），
-            //   fallback 到 MediaCodec（仅当 FFmpeg 扩展未安装或解码器不支持该编码时）
+            // 渲染器配置：根据 hardwareDecodeEnabled 选择解码器
+            // - 硬解：使用默认 MediaCodecSelector，优先硬件编解码器（GPU 加速）
+            // - 软解：使用自定义 MediaCodecSelector，只返回软件编解码器（如 OMX.google.*）
+            //
+            // 不依赖 FFmpeg 扩展（Google 不发布预编译的 media3-decoder-ffmpeg AAR），
+            // 而是通过 MediaCodecSelector 过滤 Android 系统自带的软件编解码器实现软解。
             //
             // DefaultRenderersFactory 扩展渲染器模式说明：
-            // - OFF：不加载扩展渲染器，只用内置 MediaCodec 渲染器（纯硬解）
-            // - ON：加载扩展渲染器但优先级低于 MediaCodec（硬解优先，软解 fallback）
-            // - PREFER：加载扩展渲染器且优先级高于 MediaCodec（软解优先，硬解 fallback）
-            val extensionMode = if (hardwareDecodeEnabled) {
-                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
-            } else {
-                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-            }
+            // - OFF：不加载扩展渲染器（无 FFmpeg 扩展时等于默认行为）
+            // - setEnableDecoderFallback(true)：允许解码器 fallback，提升兼容性
             val renderersFactory = DefaultRenderersFactory(context)
                 .setEnableDecoderFallback(true)
-                .setExtensionRendererMode(extensionMode)
+                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+                .setMediaCodecSelector(
+                    if (hardwareDecodeEnabled) MediaCodecSelector.DEFAULT
+                    else SOFTWARE_ONLY_SELECTOR
+                )
             player = ExoPlayer.Builder(context, renderersFactory)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .setUseLazyPreparation(true)
@@ -602,7 +616,7 @@ class ExoPlayerWrapper(
                 "bitrate" to videoBitrate,
                 "audioBitrate" to audioBitrate,
                 "containerFormat" to p.currentMediaItem?.localConfiguration?.mimeType,
-                "hwdec" to if (hardwareDecodeEnabled) "mediacodec" else "ffmpeg",
+                "hwdec" to if (hardwareDecodeEnabled) "mediacodec" else "software",
                 "vo" to "exo",
                 "videoPrimaries" to primaries,
                 "videoGamma" to gamma,
