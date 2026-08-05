@@ -419,16 +419,24 @@ class MPVView @JvmOverloads constructor(
     override fun surfaceCreated(holder: SurfaceHolder) {
         Log.i(TAG, "surfaceCreated: attaching surface (vo=$voInUse)")
         try {
+            // 先 vo=null 销毁旧 VO 模块（释放旧 EGLSurface），
+            // 再 attachSurface + vo=voInUse 创建新 VO（使用新 Surface 创建 EGLSurface）。
+            //
+            // 根因：Surface 重建后（屏幕旋转/返回后台），vo=gpu 的 EGLSurface 被销毁。
+            // 仅 attachSurface + vo=voInUse（vo 未变化时是 no-op）不会触发 EGLSurface 重建 → 黑屏。
+            // vo=null → vo=voInUse 的完整切换强制 VO 模块销毁并重建，新 VO 会创建新 EGLSurface。
+            //
+            // vo=null 不会影响文件的加载状态（path 仍非空，解码器仍运行），
+            // 新 VO 创建后会自动从解码器接收帧并渲染 → 无需重新 loadfile。
+            MPVLib.setPropertyString("vo", "null")
             MPVLib.attachSurface(holder.surface)
             // force-window 在 init() 之后只能用 setPropertyString（运行时属性），
             // setOptionString 在 init() 后静默失败，曾导致 force-window 从未设为 yes。
             MPVLib.setPropertyString("force-window", "yes")
-            // 关键：surfaceCreated 必须总是把 vo 切回有效值。
-            // destroy() 中会设置 vo=null 释放 vo 模块，这里恢复。
             MPVLib.setPropertyString("vo", voInUse)
-            Log.i(TAG, "attachSurface OK (SurfaceView), vo=$voInUse")
+            Log.i(TAG, "surfaceCreated: attachSurface OK, vo=$voInUse (forced VO reinit)")
         } catch (e: Throwable) {
-            Log.e(TAG, "attachSurface FAILED", e)
+            Log.e(TAG, "surfaceCreated: attachSurface FAILED", e)
         }
 
         if (filePath != null) {
@@ -439,16 +447,13 @@ class MPVView @JvmOverloads constructor(
         } else {
             // 文件已在播放时不要重新 loadfile！
             //
-            // 根因：进入画中画(PiP)时 Surface 被销毁重建，surfaceCreated 会触发。
-            // 如果此时重新 loadfile 同一个 URL，mpv 会先发 END_FILE（旧文件被替换）
-            // 再发 START_FILE（新文件加载），MpvController 的 END_FILE 处理器会
-            // 误判为"频道断流"并触发重连，导致 OSD 提示"频道断流 重新连接"。
+            // vo=null → vo=voInUse 的 VO 重建会让 mpv 自动在新 Surface 上恢复渲染，
+            // 无需重新 loadfile。重新 loadfile 会导致 END_FILE → onFileError 误触发。
             //
-            // 正确行为：detachSurface/attachSurface 后 VO 模块仍存活，
-            // mpv 会自动在新 Surface 上恢复渲染，无需重新 loadfile。
+            // （PiP 场景同理：detachSurface/attachSurface 后 VO 重建即恢复渲染）
             val currentPath = try { MPVLib.getPropertyString("path") } catch (_: Exception) { "" }
             if (!currentPath.isNullOrEmpty()) {
-                Log.i(TAG, "surfaceCreated: file already playing ($currentPath), resuming render on new surface")
+                Log.i(TAG, "surfaceCreated: file already playing ($currentPath), VO reinit should restore render")
                 MPVLib.setPropertyBoolean("pause", false)
             } else {
                 Log.i(TAG, "surfaceCreated: no pending filePath, waiting for external playFile")
@@ -467,7 +472,12 @@ class MPVView @JvmOverloads constructor(
         }
         Log.i(TAG, "surfaceDestroyed: detaching surface")
         try {
-            MPVLib.setPropertyString("force-window", "no")
+            // 不设置 force-window=no 和 vo=null：保持 VO 模块活跃，只解除 Surface 引用。
+            // surfaceCreated 时会先 vo=null 再 vo=voInUse 强制 VO 完全重建。
+            //
+            // 如果这里设 vo=null，surfaceCreated 时 vo 已经是 null，再设 vo=null 是 no-op，
+            // 无法触发 VO 重建（mpv 认为 vo 没有变化）→ EGLSurface 不重建 → 黑屏。
+            // 保持 vo=voInUse，让 surfaceCreated 的 vo=null → vo=voInUse 是有效切换。
             MPVLib.detachSurface()
         } catch (e: Throwable) {
             Log.w(TAG, "surfaceDestroyed: detachSurface failed: ${e.message}")
