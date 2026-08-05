@@ -158,7 +158,7 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
 
     SectionTitle("播放器内核")
     Spacer(modifier = Modifier.height(4.dp))
-    SectionDesc("切换播放器内核。MPV 功能最完整，ExoPlayer 兼容性好，系统解码为 fallback")
+    SectionDesc("切换播放器内核。MPV 功能最完整，ExoPlayer 兼容性好。两者都支持硬解/软解切换")
     Spacer(modifier = Modifier.height(8.dp))
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
@@ -176,13 +176,6 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
             selected = currentPlayerType == PlayerType.EXO,
             onClick = { viewModel.switchPlayerType(PlayerType.EXO) },
             label = { Text("ExoPlayer") },
-            modifier = Modifier.tvFocusBorder(),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.50f))
-        )
-        FilterChip(
-            selected = currentPlayerType == PlayerType.SYSTEM,
-            onClick = { viewModel.switchPlayerType(PlayerType.SYSTEM) },
-            label = { Text("系统解码") },
             modifier = Modifier.tvFocusBorder(),
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.50f))
         )
@@ -315,7 +308,7 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
         Spacer(modifier = Modifier.height(20.dp))
     }
 
-    if (currentPlayerType == PlayerType.EXO || currentPlayerType == PlayerType.SYSTEM) {
+    if (currentPlayerType == PlayerType.EXO) {
         SectionTitle("解码模式")
         Spacer(modifier = Modifier.height(4.dp))
         SectionDesc("硬解使用 GPU MediaCodec 加速，软解使用 FFmpeg 扩展解码器。软解兼容性更好但更耗电")

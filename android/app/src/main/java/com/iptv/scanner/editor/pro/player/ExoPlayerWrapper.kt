@@ -24,22 +24,22 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * 基于 ExoPlayer 的播放器适配器，实现 [Player] 接口。
  *
- * 用于 [PlayerType.EXO]（硬解）和 [PlayerType.SYSTEM]（软解）两种模式。
+ * 用于 [PlayerType.EXO] 模式，支持硬解和软解两种模式：
+ * - 硬解：EXTENSION_RENDERER_MODE_OFF，只用 MediaCodec 硬件解码器
+ * - 软解：EXTENSION_RENDERER_MODE_PREFER，优先 FFmpeg 软解码器，fallback 到 MediaCodec
  *
  * 与 [MpvController] 的区别：
  * - MPV 功能最完整（EQ/AB循环/逐帧/截图/HDR），但某些设备 GPU 兼容性差
  * - ExoPlayer 兼容性好（Google 官方维护），HLS/DASH/RTSP 协议支持完善
- * - 系统解码（软解）作为最终 fallback，不依赖 GPU
+ * - 软解模式（FFmpeg 扩展）作为 fallback，不依赖 GPU
  *
  * MPV 专属的高级功能（EQ/截图/AB循环/逐帧/章节等）在此实现中返回 false 或 no-op，
  * UI 层通过 [capabilities] 自动隐藏不支持的功能面板。
  *
  * @param context 应用上下文
- * @param type [PlayerType.EXO] 或 [PlayerType.SYSTEM]
  */
 class ExoPlayerWrapper(
-    private val context: Context,
-    private val type: PlayerType
+    private val context: Context
 ) : Player {
 
     companion object {
@@ -111,7 +111,7 @@ class ExoPlayerWrapper(
         supportsHardwareDecodeSwitch = true
     )
 
-    override val playerType: PlayerType = type
+    override val playerType: PlayerType = PlayerType.EXO
 
     // -----------------------------------------------------------------
     // 生命周期
@@ -130,8 +130,8 @@ class ExoPlayerWrapper(
         ensurePlayer()
         view.player = player
         // 不再在 attachView 中调 setHardwareDecode：
-        // 渲染器模式在 ensurePlayer() 中根据 type 直接设置，避免无效的 rebuild。
-        Log.i(TAG, "attachView: PlayerView attached, type=$type, hwdec=$hardwareDecodeEnabled")
+        // 渲染器模式在 ensurePlayer() 中根据 hardwareDecodeEnabled 直接设置，避免无效的 rebuild。
+        Log.i(TAG, "attachView: PlayerView attached, hwdec=$hardwareDecodeEnabled")
     }
 
     /** 解绑 View，释放 ExoPlayer 资源 */
@@ -167,19 +167,19 @@ class ExoPlayerWrapper(
             val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
             val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
 
-            // 渲染器配置：根据播放器类型选择不同的解码器模式
-            // - EXO（硬解）：EXTENSION_RENDERER_MODE_OFF → 只用 MediaCodec（硬件解码）
-            // - SYSTEM（软解）：EXTENSION_RENDERER_MODE_PREFER → 优先用 FFmpeg 扩展（软件解码），
+            // 渲染器配置：根据 hardwareDecodeEnabled 选择解码器模式
+            // - 硬解：EXTENSION_RENDERER_MODE_OFF → 只用 MediaCodec（硬件解码）
+            // - 软解：EXTENSION_RENDERER_MODE_PREFER → 优先用 FFmpeg 扩展（软件解码），
             //   fallback 到 MediaCodec（仅当 FFmpeg 扩展未安装或解码器不支持该编码时）
             //
             // DefaultRenderersFactory 扩展渲染器模式说明：
             // - OFF：不加载扩展渲染器，只用内置 MediaCodec 渲染器（纯硬解）
             // - ON：加载扩展渲染器但优先级低于 MediaCodec（硬解优先，软解 fallback）
             // - PREFER：加载扩展渲染器且优先级高于 MediaCodec（软解优先，硬解 fallback）
-            val extensionMode = if (type == PlayerType.SYSTEM) {
-                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-            } else {
+            val extensionMode = if (hardwareDecodeEnabled) {
                 DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
+            } else {
+                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
             }
             val renderersFactory = DefaultRenderersFactory(context)
                 .setEnableDecoderFallback(true)
@@ -232,7 +232,7 @@ class ExoPlayerWrapper(
                         }
                     })
                 }
-            Log.i(TAG, "ExoPlayer initialized, type=$type")
+            Log.i(TAG, "ExoPlayer initialized, hwdec=$hardwareDecodeEnabled")
         } catch (e: Exception) {
             Log.e(TAG, "ensurePlayer failed", e)
         }
@@ -478,13 +478,12 @@ class ExoPlayerWrapper(
     // -----------------------------------------------------------------
 
     @Volatile
-    private var hardwareDecodeEnabled = (type != PlayerType.SYSTEM)
+    private var hardwareDecodeEnabled = true
 
     override fun setHardwareDecode(enabled: Boolean): Boolean {
-        val target = if (type == PlayerType.SYSTEM) false else enabled
-        if (hardwareDecodeEnabled == target) return true
-        hardwareDecodeEnabled = target
-        Log.i(TAG, "setHardwareDecode: $target (type=$type)")
+        if (hardwareDecodeEnabled == enabled) return true
+        hardwareDecodeEnabled = enabled
+        Log.i(TAG, "setHardwareDecode: $enabled")
         try {
             val p = player ?: return true
             // 重建播放器以应用新的 RenderersFactory 配置
@@ -603,7 +602,7 @@ class ExoPlayerWrapper(
                 "bitrate" to videoBitrate,
                 "audioBitrate" to audioBitrate,
                 "containerFormat" to p.currentMediaItem?.localConfiguration?.mimeType,
-                "hwdec" to if (type == PlayerType.EXO) "mediacodec" else "soft",
+                "hwdec" to if (hardwareDecodeEnabled) "mediacodec" else "ffmpeg",
                 "vo" to "exo",
                 "videoPrimaries" to primaries,
                 "videoGamma" to gamma,

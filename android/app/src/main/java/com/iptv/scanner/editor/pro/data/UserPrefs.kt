@@ -232,15 +232,14 @@ class UserPrefs private constructor() {
     }
 
     // -----------------------------------------------------------------
-    // 播放器类型（仅 MPV，与 PC 端统一）
-    //
-    // 保留持久化字段以兼容旧版配置，实际仅支持 MPV。
+    // 播放器类型（MPV / ExoPlayer 两内核可切换，每种都支持硬解/软解）
     // -----------------------------------------------------------------
 
     /**
      * 获取持久化的播放器类型名称。
      * - "MPV"：mpv 内核（默认，功能最完整）
-     * - "SYSTEM"：系统解码（ExoPlayer，兼容性 fallback）
+     * - "EXO"：ExoPlayer 内核（HLS/DASH/RTSP 兼容性好）
+     * - "SYSTEM"：旧版兼容映射，自动转为 "EXO"
      */
     fun getPlayerType(): String = prefs.getString(KEY_PLAYER_TYPE, DEFAULT_PLAYER_TYPE) ?: DEFAULT_PLAYER_TYPE
 

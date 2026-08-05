@@ -5,19 +5,22 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * 播放器类型枚举。
  *
- * 三种播放器内核可切换（与酷9多解码器架构对齐）：
+ * 两种播放器内核可切换，每种内核都支持硬解/软解：
  * - [MPV]：mpv (libmpv)，通过 JNI 调用，功能最完整（EQ/AB循环/逐帧/章节/截图/HDR等）
- * - [EXO]：ExoPlayer 硬解，Google Media3 引擎，HLS/DASH/RTSP 兼容性好
- * - [SYSTEM]：系统解码（ExoPlayer 软解），兼容性 fallback
+ *   硬解：hwdec=auto-copy/auto，软解：hwdec=no
+ * - [EXO]：ExoPlayer，Google Media3 引擎，HLS/DASH/RTSP 兼容性好
+ *   硬解：MediaCodec（EXTENSION_RENDERER_MODE_OFF），软解：FFmpeg 扩展（EXTENSION_RENDERER_MODE_PREFER）
  */
 enum class PlayerType(val displayName: String, val description: String) {
     MPV("mpv", "功能最完整（EQ/AB循环/逐帧/截图/HDR）"),
-    EXO("ExoPlayer", "Google ExoPlayer 硬解（HLS/DASH/RTSP 兼容性好）"),
-    SYSTEM("系统解码", "系统解码软解（兼容性 fallback）");
+    EXO("ExoPlayer", "Google ExoPlayer（HLS/DASH/RTSP 兼容性好）");
 
     companion object {
-        fun fromName(name: String?): PlayerType =
-            entries.firstOrNull { it.name == name } ?: MPV
+        fun fromName(name: String?): PlayerType {
+            // 兼容旧版：SYSTEM 映射为 EXO（软解通过 setHardwareDecode 控制）
+            if (name == "SYSTEM") return EXO
+            return entries.firstOrNull { it.name == name } ?: MPV
+        }
     }
 }
 

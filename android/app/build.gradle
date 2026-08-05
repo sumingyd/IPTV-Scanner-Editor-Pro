@@ -230,11 +230,11 @@ dependencies {
     implementation 'androidx.media3:media3-exoplayer-hls:1.4.1'
     implementation 'androidx.media3:media3-exoplayer-dash:1.4.1'
     implementation 'androidx.media3:media3-exoplayer-rtsp:1.4.1'
-    /* Media3 FFmpeg 扩展 - 用于系统解码（SYSTEM）模式的纯软解
-     * 提供 FFmpegVideoRenderer/FFmpegAudioRenderer，不依赖 GPU MediaCodec。
-     * SYSTEM 模式通过 EXTENSION_RENDERER_MODE_PREFER 优先使用 FFmpeg 软解码器，
-     * 硬解不可用或兼容性差时自动 fallback 到 MediaCodec。
-     * AAR 包含预编译的 native 库（arm64-v8a/armeabi-v7a/x86/x86_64）。 */
+/* Media3 FFmpeg 扩展 - 用于 ExoPlayer 软解模式
+* 提供 FFmpegVideoRenderer/FFmpegAudioRenderer，不依赖 GPU MediaCodec。
+* 软解模式通过 EXTENSION_RENDERER_MODE_PREFER 优先使用 FFmpeg 软解码器，
+* 硬解不可用或兼容性差时自动 fallback 到 MediaCodec。
+* AAR 包含预编译的 native 库（arm64-v8a/armeabi-v7a/x86/x86_64）。 */
     implementation 'androidx.media3:media3-decoder-ffmpeg:1.4.1'
 
     debugImplementation 'androidx.compose.ui:ui-tooling'

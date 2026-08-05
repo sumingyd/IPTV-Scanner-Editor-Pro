@@ -115,21 +115,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     internal val mappingHelper = MappingHelper(repository, viewModelScope)
     internal val updateHelper = UpdateHelper(app, repository, viewModelScope)
 
-    // -----------------------------------------------------------------
-    // 播放器架构：MPV / ExoPlayer / 系统解码 三内核可切换
-    //
-    // - mpvSingleton：MpvController 单例（MPVLib.create 只能调一次，需复用）
-    // - exoWrapper：ExoPlayerWrapper 实例（EXO 硬解 / SYSTEM 软解）
-    // - mpv：公共字段（类型为 Player 接口），当前活跃的播放器实例
-    // - playerType：当前播放器类型（MPV / EXO / SYSTEM）
-    // - playerCapabilities：当前播放器能力（UI 据此决定哪些功能面板可用）
-    //
-    // 切换播放器类型时：
-    // 1. 停止当前播放器并 detach View
-    // 2. 切换 _player 到新播放器实例
-    // 3. MainPlayerScreen 根据 playerType 创建对应的 View（MPVView / PlayerView）
-    // 4. 新 View 的 factory 中调用 player.attachView(view) 绑定
-    // -----------------------------------------------------------------
+// -----------------------------------------------------------------
+// 播放器架构：MPV / ExoPlayer 两内核可切换，每种内核都支持硬解/软解
+//
+// - mpvSingleton：MpvController 单例（MPVLib.create 只能调一次，需复用）
+// - exoWrapper：ExoPlayerWrapper 实例（通过 setHardwareDecode 切换硬解/软解）
+// - mpv：公共字段（类型为 Player 接口），当前活跃的播放器实例
+// - playerType：当前播放器类型（MPV / EXO）
+// - playerCapabilities：当前播放器能力（UI 据此决定哪些功能面板可用）
+//
+// 切换播放器类型时：
+// 1. 停止当前播放器并 detach View
+// 2. 切换 _player 到新播放器实例
+// 3. MainPlayerScreen 根据 playerType 创建对应的 View（MPVView / PlayerView）
+// 4. 新 View 的 factory 中调用 player.attachView(view) 绑定
+// -----------------------------------------------------------------
     private val mpvSingleton: MpvController = MpvController.getInstance()
     private var exoWrapper: ExoPlayerWrapper? = null
 
@@ -145,23 +145,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _pendingSwitchPlayUrl = MutableStateFlow("")
     val pendingSwitchPlayUrl: StateFlow<String> = _pendingSwitchPlayUrl.asStateFlow()
 
-    /**
-     * 当前活跃的 Player 实例。
-     *
-     * 关键修复：根据持久化的 playerType 初始化正确的播放器实例。
-     * 之前硬编码为 mpvSingleton，导致启动时若上次保存的是 EXO/SYSTEM 模式，
-     * _player 仍指向 MpvController（无 View），所有 playFile 命令被跳过。
-     */
-    private val _player = MutableStateFlow<Player>(
-        when (_playerType.value) {
-            PlayerType.MPV -> mpvSingleton
-            PlayerType.EXO, PlayerType.SYSTEM -> {
-                ExoPlayerWrapper(getApplication(), _playerType.value).also {
-                    exoWrapper = it
-                }
-            }
-        }
-    )
+/**
+* 当前活跃的 Player 实例。
+*
+* 关键修复：根据持久化的 playerType 初始化正确的播放器实例。
+* 之前硬编码为 mpvSingleton，导致启动时若上次保存的是 EXO 模式，
+* _player 仍指向 MpvController（无 View），所有 playFile 命令被跳过。
+*/
+private val _player = MutableStateFlow<Player>(
+when (_playerType.value) {
+PlayerType.MPV -> mpvSingleton
+PlayerType.EXO -> {
+ExoPlayerWrapper(getApplication()).also {
+exoWrapper = it
+}
+}
+}
+)
 
     /** 当前播放器实例（Player 接口类型，UI 用 mpv.xxx 调用 Player 接口方法） */
     val mpv: Player get() = _player.value
@@ -170,20 +170,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _player.map { it.capabilities }
             .stateIn(viewModelScope, SharingStarted.Eagerly, mpvSingleton.capabilities)
 
-    /**
-     * 切换播放器类型（MPV / EXO / SYSTEM）。
-     *
-     * 切换流程：
-     * 1. 保存当前播放 URL（用于切换后恢复播放）
-     * 2. 停止并 detach 当前播放器
-     * 3. 创建/复用目标播放器实例
-     * 4. 更新 _playerType 和 _player
-     * 5. 持久化设置
-     * 6. 恢复播放（如果有当前频道）
-     */
-    fun switchPlayerType(newType: PlayerType) {
-        if (_playerType.value == newType) return
-        Log.i(TAG, "switchPlayerType: ${_playerType.value} -> $newType")
+/**
+* 切换播放器类型（MPV / EXO）。
+*
+* 切换流程：
+* 1. 保存当前播放 URL（用于切换后恢复播放）
+* 2. 停止并 detach 当前播放器
+* 3. 创建/复用目标播放器实例
+* 4. 更新 _playerType 和 _player
+* 5. 持久化设置
+* 6. 恢复播放（如果有当前频道）
+*/
+fun switchPlayerType(newType: PlayerType) {
+if (_playerType.value == newType) return
+Log.i(TAG, "switchPlayerType: ${_playerType.value} -> $newType")
 
         // 保存当前播放状态
         val savedUrl = currentPlaybackUrl
@@ -212,14 +212,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // MPV 单例已被 detach，attachView 时会重新绑定
                 mpvSingleton
             }
-            PlayerType.EXO, PlayerType.SYSTEM -> {
-                // 每次都重建 ExoPlayer wrapper，确保渲染器配置正确
-                exoWrapper?.detach()
-                exoWrapper = ExoPlayerWrapper(getApplication(), newType).also {
-                    it.setHardwareDecode(newType == PlayerType.EXO)
-                }
-                exoWrapper!!
-            }
+PlayerType.EXO -> {
+// 每次都重建 ExoPlayer wrapper，确保渲染器配置正确
+exoWrapper?.detach()
+exoWrapper = ExoPlayerWrapper(getApplication()).also {
+// 继承当前的硬解/软解设置
+it.setHardwareDecode(_hardwareDecode.value)
+}
+exoWrapper!!
+}
         }
         _player.value = newPlayer
         userPrefs.setPlayerType(newType.name)

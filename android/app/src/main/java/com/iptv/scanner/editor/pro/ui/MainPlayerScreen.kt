@@ -364,7 +364,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             val currentChild = container.getChildAt(0)
             val childMatches = when {
                 currentChild is MPVViewLike -> pType == PlayerType.MPV
-                currentChild is PlayerView -> pType == PlayerType.EXO || pType == PlayerType.SYSTEM
+                currentChild is PlayerView -> pType == PlayerType.EXO
                 else -> false
             }
             if (childMatches) return@view  // 已匹配，无需切换
@@ -407,7 +407,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
                         }
                     }
                 }
-                PlayerType.EXO, PlayerType.SYSTEM -> {
+                PlayerType.EXO -> {
                     val exoView = android.view.LayoutInflater.from(ctx)
                         .inflate(com.iptv.scanner.editor.pro.R.layout.exo_player_texture_view, null) as PlayerView
                     player.attachView(exoView)
