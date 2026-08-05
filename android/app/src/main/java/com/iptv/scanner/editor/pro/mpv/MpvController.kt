@@ -107,6 +107,14 @@ class MpvController : MPVLib.EventObserver, Player {
     @Volatile
     var onFileError: (() -> Unit)? = null
 
+    /**
+     * Surface 重建抑制标志：屏幕旋转时 surfaceDestroyed→surfaceCreated 过程中
+     * 可能触发 END_FILE 事件，设置此标志可跳过 onFileError 回调，
+     * 避免"频道断流，重新连接"误报。
+     */
+    @Volatile
+    private var suppressFileErrorFlag = false
+
     private val _speed = MutableStateFlow(1.0)
     override val speed: StateFlow<Double> = _speed.asStateFlow()
 
@@ -168,6 +176,11 @@ class MpvController : MPVLib.EventObserver, Player {
             }
             // 重新应用反交错设置
             setDeinterlace(UserPrefs.getInstance().getDeinterlace())
+        }
+
+        // Surface 重建回调：surfaceCreated 后取消 pendingEndFileError，防止旋转后误报断流
+        view.onSurfaceRebuilt = {
+            cancelPendingFileError()
         }
 
         Log.i(TAG, "MpvController attached to MPVView")
@@ -468,12 +481,43 @@ class MpvController : MPVLib.EventObserver, Player {
         postOnUiThread {
             try {
                 val vo = _voCache
+                // 先取消待执行的 END_FILE 错误检查，防止旋转后误触发 onFileError
+                cancelPendingFileError()
                 mpvView?.reattachSurfaceWithVo(vo)
                 Log.i(TAG, "refreshSurface: reattached surface with vo=$vo")
             } catch (e: Exception) {
                 Log.w(TAG, "refreshSurface failed: ${e.message}")
             }
         }
+    }
+
+    /**
+     * 取消待执行的 END_FILE 错误检查（pendingEndFileError）。
+     * 在 surfaceCreated / refreshSurface 中调用，防止旋转后误触发 onFileError。
+     */
+    fun cancelPendingFileError() {
+        pendingEndFileError?.let { mpvView?.asView()?.removeCallbacks(it) }
+        pendingEndFileError = null
+    }
+
+    /**
+     * 设置文件错误抑制标志（旋转/VO 重建期间使用）。
+     * 设置后 END_FILE 事件不会触发 onFileError 回调。
+     */
+    fun suppressFileError() {
+        suppressFileErrorFlag = true
+        cancelPendingFileError()
+        Log.i(TAG, "suppressFileError: enabled")
+    }
+
+    /**
+     * 清除文件错误抑制标志（延迟清除，确保旋转期间的 END_FILE 被跳过）。
+     */
+    fun clearSuppressFileError(delayMs: Long = 800) {
+        mpvView?.asView()?.postDelayed({
+            suppressFileErrorFlag = false
+            Log.i(TAG, "clearSuppressFileError: disabled after ${delayMs}ms")
+        }, delayMs)
     }
 
     /**
@@ -1505,7 +1549,9 @@ class MpvController : MPVLib.EventObserver, Player {
                 pendingEndFileError?.let { mpvView?.asView()?.removeCallbacks(it) }
                 pendingEndFileError = null
 
-                if (!wasPlaying && !replacedByNew) {
+                if (suppressFileErrorFlag) {
+                    Log.i(TAG, "MPV_EVENT_END_FILE: suppressed (surface rebuilding), wasLoaded=$wasLoaded")
+                } else if (!wasPlaying && !replacedByNew) {
                     Log.w(TAG, "MPV_EVENT_END_FILE: file '$endedUrl' failed to load, notifying error")
                     postOnUiThread { onFileError?.invoke() }
                 } else if (wasPlaying && !_eofReached.value) {

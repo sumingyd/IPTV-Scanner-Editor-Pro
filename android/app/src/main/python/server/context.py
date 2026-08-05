@@ -6,7 +6,7 @@ import logging
 from typing import Optional, List, Dict
 
 from core.config_manager import ConfigManager
-from services.m3u_parser import load_m3u_from_url_data, parse_m3u_content
+from services.m3u_parser import load_m3u_from_url_data, parse_m3u_content, extract_tvg_url_from_header
 
 logger = logging.getLogger('server.context')
 
@@ -577,11 +577,31 @@ class StandaloneScanner:
                     import requests
                     resp = requests.get(src_url, timeout=15, headers={'User-Agent': 'IPTV-Scanner/1.0'})
                     content = load_m3u_from_url_data(resp.content)
-                    channels, _ = parse_m3u_content(content)
+                    channels, header_attrs = parse_m3u_content(content)
                     if channels:
                         all_channels.extend(channels)
                         with self._lock:
                             self.stats['valid'] += len(channels)
+                    # 提取 M3U 头部的 x-tvg-url EPG 地址，自动添加为 EPG 源
+                    epg_url = ''
+                    if header_attrs and header_attrs.get('epg_url'):
+                        epg_url = header_attrs['epg_url']
+                    else:
+                        for line in content.splitlines()[:5]:
+                            if line.startswith('#EXTM3U'):
+                                epg_url = extract_tvg_url_from_header(line) or ''
+                                break
+                    if epg_url:
+                        try:
+                            config = self._ctx.get_config()
+                            if config:
+                                epg_sources = config.load_epg_sources() or []
+                                if not any(s.get('url') == epg_url for s in epg_sources):
+                                    epg_sources.append({'url': epg_url, 'name': 'M3U 内嵌 EPG', 'enabled': True})
+                                    config.save_epg_sources(epg_sources)
+                                    logger.info(f'自动添加 M3U 内嵌 EPG 源: {epg_url}')
+                        except Exception as e:
+                            logger.warning(f'自动添加 EPG 源失败: {e}')
                     self.last_message = f'已加载 {src_url[:40]}: {len(channels)} 个频道'
                 except Exception as e:
                     logger.warning(f"扫描源 {src_url} 失败: {e}")

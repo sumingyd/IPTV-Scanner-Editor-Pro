@@ -53,6 +53,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -92,6 +94,11 @@ fun EpgPanel(viewModel: AppViewModel, compact: Boolean = false) {
     val loading by viewModel.epgLoading.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
 
+    // 自动检测横屏模式：横屏时使用更窄的侧边栏布局
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val effectiveCompact = compact || isLandscape
+
 
     // EPG 日期切换（±7 天，0=今天）
     var epgDateOffset by remember { mutableStateOf(0) }
@@ -103,11 +110,12 @@ fun EpgPanel(viewModel: AppViewModel, compact: Boolean = false) {
         kotlin.runCatching { closeFocusRequester.requestFocus() }
     }
 
-    val surfaceModifier = if (compact) {
-        // compact 模式：横屏抽屉，宽度 1/4
+    val surfaceModifier = if (effectiveCompact) {
+        // compact/横屏模式：侧边栏布局，宽度 35%，最大 420dp
         Modifier
             .fillMaxHeight()
-            .fillMaxWidth(0.25f)
+            .fillMaxWidth(0.35f)
+            .widthIn(max = 420.dp)
     } else {
         Modifier
             .fillMaxHeight()
@@ -119,7 +127,7 @@ fun EpgPanel(viewModel: AppViewModel, compact: Boolean = false) {
         color = MaterialTheme.colorScheme.surface,
         modifier = surfaceModifier
     ) {
-        Column(modifier = Modifier.fillMaxSize().then(if (compact) Modifier else Modifier.systemBarsPadding())) {
+        Column(modifier = Modifier.fillMaxSize().then(if (effectiveCompact) Modifier else Modifier.systemBarsPadding())) {
             // 标题栏已移除（活动区域内显示不需要标题）
 
             // -----------------------------------------------------------------

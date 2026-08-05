@@ -827,13 +827,27 @@ def clear_local_channels():
 
 
 def import_channels(content, name=''):
-    """解析 M3U 内容并追加到频道列表。返回 {imported} 或 {error}"""
+    """解析 M3U 内容并追加到频道列表。返回 {imported, epg_url} 或 {error}
+
+    如果 M3U 头部包含 x-tvg-url 属性，会提取 EPG URL 并返回，
+    调用方可据此自动添加 EPG 订阅源。
+    """
     try:
         ctx = _get_ctx()
         if ctx is None:
             return _err('not inited')
-        from services.m3u_parser import parse_m3u_content
-        channels, _ = parse_m3u_content(content)
+        from services.m3u_parser import parse_m3u_content, extract_tvg_url_from_header
+        channels, header_attrs = parse_m3u_content(content)
+        # 提取 M3U 头部的 x-tvg-url EPG 地址
+        epg_url = ''
+        if header_attrs and header_attrs.get('epg_url'):
+            epg_url = header_attrs['epg_url']
+        else:
+            # fallback: 直接从第一行提取
+            for line in content.splitlines()[:5]:
+                if line.startswith('#EXTM3U'):
+                    epg_url = extract_tvg_url_from_header(line) or ''
+                    break
         if channels:
             # 给新频道 id 和 source 标记
             # source='' 表示手动导入的频道（非订阅源），在 Android 端 LOCAL tab 显示
@@ -844,44 +858,13 @@ def import_channels(content, name=''):
             ctx._channels.extend(channels)
             # 持久化：导入的频道重启后不丢失
             ctx._save_channels_to_cache()
-        return _ok({'imported': len(channels)})
+            result = {'imported': len(channels)}
+            if epg_url:
+                result['epg_url'] = epg_url
+            return _ok(result)
+        return _ok({'imported': 0})
     except Exception as e:
         return _err(str(e))
-
-
-def get_m3u_text(group='', valid_only=False, search=''):
-    """生成 M3U 播放列表文本（用于导出/分享）"""
-    try:
-        ctx = _get_ctx()
-        if ctx is None:
-            return _err('not inited')
-        channels = ctx.get_all_channels() or []
-        if group:
-            channels = [c for c in channels if c.get('group', '') == group]
-        if valid_only:
-            channels = [c for c in channels if c.get('valid') is True]
-        if search:
-            s = search.lower()
-            channels = [c for c in channels if s in c.get('name', '').lower()]
-        lines = ['#EXTM3U']
-        for c in channels:
-            attrs = []
-            if c.get('tvg_id'):
-                attrs.append(f'tvg-id="{c["tvg_id"]}"')
-            if c.get('tvg_name'):
-                attrs.append(f'tvg-name="{c["tvg_name"]}"')
-            if c.get('tvg_logo') or c.get('logo'):
-                attrs.append(f'tvg-logo="{c.get("tvg_logo") or c.get("logo", "")}"')
-            if c.get('group'):
-                attrs.append(f'group-title="{c["group"]}"')
-            attr_str = ' '.join(attrs)
-            lines.append(f'#EXTINF:-1 {attr_str},{c.get("name", "")}')
-            lines.append(c.get('url', ''))
-        return _ok({'text': '\n'.join(lines), 'count': len(channels)})
-    except Exception as e:
-        return _err(str(e))
-
-
 # -------------------------------------------------------------------
 # 订阅源管理
 # -------------------------------------------------------------------

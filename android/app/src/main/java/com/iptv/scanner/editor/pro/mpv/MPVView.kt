@@ -46,6 +46,9 @@ class MPVView @JvmOverloads constructor(
      */
     override var onInstanceRecreated: (() -> Unit)? = null
 
+    /** Surface 重建回调（surfaceCreated 后触发） */
+    override var onSurfaceRebuilt: (() -> Unit)? = null
+
     override fun asView(): View = this
 
     override fun initialize(
@@ -128,9 +131,10 @@ class MPVView @JvmOverloads constructor(
 
         // 缓存大小：Android TV 内存有限（通常 1-2GB），过大的 demuxer 缓存在播放坏流时
         // 会导致 native 内存耗尽 → malloc 返回 null → SIGABRT 崩溃。
-        // 32MiB 前向 + 8MiB 后向足够流畅播放，同时将 OOM 风险降到最低。
-        MPVLib.setOptionString("demuxer-max-bytes", "32MiB")
-        MPVLib.setOptionString("demuxer-max-back-bytes", "8MiB")
+        // 48MiB 前向 + 12MiB 后向：比原来略大，4K 高码率流需要更多缓冲，
+        // 同时不会在低内存设备上导致 OOM。
+        MPVLib.setOptionString("demuxer-max-bytes", "48MiB")
+        MPVLib.setOptionString("demuxer-max-back-bytes", "12MiB")
         MPVLib.setOptionString("demuxer-readahead-secs", "10")
         MPVLib.setOptionString("demuxer-seekable-cache", "yes")
         MPVLib.setOptionString("force-seekable", "yes")
@@ -152,9 +156,15 @@ class MPVView @JvmOverloads constructor(
         MPVLib.setOptionString("stream-lavf-o", "verify=1")
         MPVLib.setOptionString("tls-verify", "yes")
 
+        // vd-lavc-threads：4K 内容需要更多解码线程。
+        // 使用 CPU 核心数的 3/4（而非 1/2），确保 4K 高分辨率内容有足够解码能力。
         val cpuCount = Runtime.getRuntime().availableProcessors()
-        val threads = maxOf(2, cpuCount / 2)
+        val threads = maxOf(2, (cpuCount * 3 + 2) / 4)
         MPVLib.setOptionString("vd-lavc-threads", threads.toString())
+        // 4K 高分辨率安全选项：
+        // - skiploopfilter=nonref：跳过非参考帧的去块滤波，降低 CPU/GPU 负载
+        // - fastdecode：启用快速解码路径（牺牲质量换取稳定性）
+        MPVLib.setOptionString("vd-lavc-skiploopfilter", "nonref")
 
         // force-window 和 idle 必须在 init() 之前设置！
         // libmpv 的 mpv_set_option_string() 只在 mpv_initialize() 之前有效，
@@ -459,6 +469,9 @@ class MPVView @JvmOverloads constructor(
                 Log.i(TAG, "surfaceCreated: no pending filePath, waiting for external playFile")
             }
         }
+
+        // 通知 MpvController 取消 pendingEndFileError，防止旋转后误报断流
+        onSurfaceRebuilt?.invoke()
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {

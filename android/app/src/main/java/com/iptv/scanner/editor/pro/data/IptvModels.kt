@@ -356,6 +356,7 @@ data class CountResponse(
 @Serializable
 data class ImportedResponse(
     @SerialName("imported") val imported: Int = 0,
+    @SerialName("epg_url") val epgUrl: String = "",
 )
 
 @Serializable

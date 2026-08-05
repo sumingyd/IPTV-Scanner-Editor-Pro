@@ -369,10 +369,21 @@ fun showPlayerScreen() {
 
 /** 切换回首页（播放器界面的返回按钮调用，视频继续播放） */
 fun showHomeScreen() {
-    _showHome.value = true
-    // 播放器被移除渲染，需要暂停播放（避免后台播放占用资源）
-    // 如果需要后台继续播放音频，注释掉这行
-    // mpv.setPause(true)
+_showHome.value = true
+// 播放器被移除渲染，需要暂停播放（避免后台播放占用资源）
+// 如果需要后台继续播放音频，注释掉这行
+// mpv.setPause(true)
+}
+
+// MPV 旋转修复代理方法（供 MainPlayerScreen 的 LaunchedEffect 调用）
+fun mpvSuppressFileError() {
+if (mpvSingleton == _player.value) mpvSingleton.suppressFileError()
+}
+fun mpvClearSuppressFileError(delayMs: Long = 800) {
+if (mpvSingleton == _player.value) mpvSingleton.clearSuppressFileError(delayMs)
+}
+fun mpvRefreshSurface() {
+if (mpvSingleton == _player.value) mpvSingleton.refreshSurface()
 }
 
 /** 切换列表视图模式 */
@@ -990,10 +1001,15 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
     private val _resumeList = MutableStateFlow<List<ResumeItem>>(emptyList())
     val resumeList: StateFlow<List<ResumeItem>> = _resumeList.asStateFlow()
     private var resumeSaveJob: Job? = null
-    /** 当前正在播放的 URL（用于自动保存） */
-    private var currentPlaybackUrl: String = ""
-    private var currentPlaybackName: String = ""
-    private var currentIsLocalFile: Boolean = false
+/** 当前正在播放的 URL（用于自动保存） */
+private var currentPlaybackUrl: String = ""
+private var currentPlaybackName: String = ""
+/** 当前播放是否为本地视频文件（UI 据此显示暂停按钮等） */
+private val _isLocalVideoPlaying = MutableStateFlow(false)
+val isLocalVideoPlaying: StateFlow<Boolean> = _isLocalVideoPlaying.asStateFlow()
+private var currentIsLocalFile: Boolean
+    get() = _isLocalVideoPlaying.value
+    set(value) { _isLocalVideoPlaying.value = value }
 
     /** 跳过下次自动恢复（队列/书签切换时设置） */
     private var skipNextResumeFlag: Boolean = false
@@ -3371,36 +3387,38 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
      * 用于 TV 端文件浏览器选择文件后的导入。
      */
     fun importPlaylistFromFile(path: String) {
-        viewModelScope.launch {
-            showOsd("正在导入播放列表...")
-            val content = withContext(Dispatchers.IO) {
-                try {
-                    File(path).readText(charset = Charsets.UTF_8)
-                } catch (e: Exception) {
-                    Log.e(TAG, "importPlaylistFromFile read failed: $path", e)
-                    null
-                }
-            } ?: run {
-                showOsd("导入失败", "无法读取文件")
-                return@launch
-            }
-            val result = repository.importChannels(content)
-            result.fold(
-                onSuccess = { count ->
-                    showOsd("导入成功", "已导入 $count 个频道")
-                    // 切换到本地 tab，让用户立即看到导入的频道
-                    setChannelsTab(ChannelTab.LOCAL)
-                    loadChannels()
-                    _fileBrowserOpen.value = false
-                },
-                onFailure = { e ->
-                    showOsd("导入失败", e.message ?: "")
-                }
-            )
-        }
-    }
+viewModelScope.launch {
+showOsd("正在导入播放列表...")
+val content = withContext(Dispatchers.IO) {
+try {
+File(path).readText(charset = Charsets.UTF_8)
+} catch (e: Exception) {
+Log.e(TAG, "importPlaylistFromFile read failed: $path", e)
+null
+}
+} ?: run {
+showOsd("导入失败", "无法读取文件")
+return@launch
+}
+val result = repository.importChannels(content)
+result.fold(
+onSuccess = { (count, epgUrl) ->
+showOsd("导入成功", "已导入 $count 个频道")
+setChannelsTab(ChannelTab.LOCAL)
+loadChannels()
+// 自动添加 M3U 中定义的 EPG 源
+if (epgUrl.isNotEmpty()) {
+addEpgSourceFromM3u(epgUrl)
+}
+},
+onFailure = { e ->
+showOsd("导入失败", e.message ?: "")
+}
+)
+}
+}
 
-    fun hideControls() {
+fun hideControls() {
         _controlsVisible.value = false
         _controlsPinned.value = false
         tvControlsAutoHideJob?.cancel()
@@ -6104,11 +6122,14 @@ private var _channelInputJob: kotlinx.coroutines.Job? = null
             }
             val result = repository.importChannels(content)
             result.fold(
-                onSuccess = { count ->
+                onSuccess = { (count, epgUrl) ->
                     showOsd("导入成功", "已导入 $count 个频道")
-                    // 切换到本地 tab，让用户立即看到导入的频道
                     setChannelsTab(ChannelTab.LOCAL)
                     loadChannels()
+                    // 自动添加 M3U 中定义的 EPG 源
+                    if (epgUrl.isNotEmpty()) {
+                        addEpgSourceFromM3u(epgUrl)
+                    }
                 },
                 onFailure = { e ->
                     showOsd("导入失败", e.message ?: "")
@@ -6773,6 +6794,32 @@ showOsd("播放器设置", "日志等级: $levelName")
         }
     }
 
+    /**
+     * 从 M3U 头部的 x-tvg-url 自动添加 EPG 订阅源。
+     * 检查是否已存在相同 URL 的 EPG 源，避免重复添加。
+     */
+    private fun addEpgSourceFromM3u(epgUrl: String) {
+        if (epgUrl.isBlank()) return
+        viewModelScope.launch {
+            // 检查是否已存在相同 URL 的 EPG 源
+            val existing = _epgSources.value
+            if (existing.any { it.url == epgUrl }) {
+                Log.i(TAG, "addEpgSourceFromM3u: EPG source already exists: $epgUrl")
+                return@launch
+            }
+            val name = "M3U 内嵌 EPG"
+            Log.i(TAG, "addEpgSourceFromM3u: adding EPG source from M3U header: $epgUrl")
+            val result = withContext(Dispatchers.IO) { repository.addEpgSource(epgUrl, name) }
+            result.onSuccess {
+                showOsd("EPG 源已自动添加", "来源：M3U 内嵌 x-tvg-url")
+                loadEpgSources()
+                reloadEpgSources()
+            }.onFailure { e ->
+                Log.w(TAG, "addEpgSourceFromM3u failed: ${e.message}")
+            }
+        }
+    }
+
     fun deleteSource(idx: Int) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { repository.deleteSource(idx) }
@@ -6850,11 +6897,15 @@ showOsd("播放器设置", "日志等级: $levelName")
                 result.onSuccess { status ->
                     _sourceLoading.value = status.loading
                     _sourceMessage.value = status.message
-                    if (!status.loading) {
-                        showOsd("订阅源加载完成", "频道数: ${status.channelsTotal}")
-                        loadChannels()
-                        return@launch
-                    }
+if (!status.loading) {
+showOsd("订阅源加载完成", "频道数: ${status.channelsTotal}")
+loadChannels()
+// 订阅源可能包含 M3U 内嵌的 x-tvg-url EPG 源，
+// 加载完成后刷新 EPG 源列表并自动重载
+loadEpgSources()
+reloadEpgSources()
+return@launch
+}
                 }
                 delay(1000L)
             }

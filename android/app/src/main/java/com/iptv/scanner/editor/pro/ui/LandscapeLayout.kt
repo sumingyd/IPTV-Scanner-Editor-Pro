@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.stickyHeader
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,11 +42,15 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeOff
@@ -99,7 +104,7 @@ private val ICON_SIZE = 22.dp
 private val ICON_BTN = 36.dp
 private val GESTURE_THRESHOLD = 30f
 
-private enum class GestureFeedbackType { BRIGHTNESS, VOLUME }
+private enum class GestureFeedbackType { BRIGHTNESS, VOLUME, SEEK }
 
 private data class GestureFeedbackState(
     val type: GestureFeedbackType,
@@ -126,6 +131,7 @@ fun LandscapePlayerLayout(
     val currentEpg by viewModel.currentEpg.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
+    val isLocalVideo by viewModel.isLocalVideoPlaying.collectAsState()
 
     val currentProgram = remember(currentEpg) {
         ProgressHelper.findCurrentProgram(currentEpg, System.currentTimeMillis())
@@ -210,7 +216,8 @@ fun LandscapePlayerLayout(
                     showExitCatchup = showExitCatchup,
                     playbackMode = playbackState.mode,
                     currentProgram = currentProgram,
-                    isFav = currentIdx in favorites
+                    isFav = currentIdx in favorites,
+                    isLocalVideo = isLocalVideo
                 )
             }
         }
@@ -233,18 +240,23 @@ private fun LandscapeGestureOverlay(
     val context = LocalContext.current
     val activity = context as? Activity
     val am = remember { context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager }
+    val isLocalVideo by viewModel.isLocalVideoPlaying.collectAsState()
 
     Box(modifier = modifier.pointerInput(Unit) {
         val w = size.width
         val third = w / 3f
+        val SEEK_STEP_SEC = 10.0
 
         while (true) {
             awaitPointerEventScope {
                 var downX = 0f
                 var downY = 0f
                 var prevY = 0f
+                var prevX = 0f
                 var isDragging = false
                 var started = false
+                var gestureDirection: String? = null  // "v" or "h"
+                var seekAccumulator = 0f
 
                 while (true) {
                     val event = awaitPointerEvent()
@@ -256,18 +268,31 @@ private fun LandscapeGestureOverlay(
                             downX = change.position.x
                             downY = change.position.y
                             prevY = downY
+                            prevX = downX
+                            gestureDirection = null
+                            seekAccumulator = 0f
                         }
                         continue
                     }
 
                     if (!change.pressed) {
                         if (!isDragging) {
-                            // Only center zone tap toggles bottom bar / sidebar
-                            if (downX >= third && downX < third * 2) {
-                                if (viewModel.controlsVisible.value) {
-                                    viewModel.hideControls()
-                                } else {
-                                    viewModel.showControlsAutoHide()
+                            // Tap handling:
+                            // - Left/right zone tap → toggle channel list (sidebar)
+                            // - Center zone tap → toggle controls
+                            when {
+                                downX < third -> {
+                                    viewModel.setLandscapeSidebarVisible(!viewModel.landscapeSidebarVisible.value)
+                                }
+                                downX >= third * 2 -> {
+                                    viewModel.setLandscapeSidebarVisible(!viewModel.landscapeSidebarVisible.value)
+                                }
+                                else -> {
+                                    if (viewModel.controlsVisible.value) {
+                                        viewModel.hideControls()
+                                    } else {
+                                        viewModel.showControlsAutoHide()
+                                    }
                                 }
                             }
                         }
@@ -275,47 +300,70 @@ private fun LandscapeGestureOverlay(
                     }
 
                     val currentY = change.position.y
-                    val dragAmount = currentY - prevY
-                    prevY = currentY
+                    val currentX = change.position.x
+                    val dragAmountY = currentY - prevY
+                    val dragAmountX = currentX - prevX
+                    val totalDeltaY = abs(currentY - downY)
+                    val totalDeltaX = abs(currentX - downX)
 
-                    if (!isDragging && abs(currentY - downY) > GESTURE_THRESHOLD) {
+                    // Determine gesture direction on first significant movement
+                    if (!isDragging && (totalDeltaY > GESTURE_THRESHOLD || totalDeltaX > GESTURE_THRESHOLD)) {
                         isDragging = true
+                        gestureDirection = if (totalDeltaX > totalDeltaY) "h" else "v"
                     }
 
-                    if (isDragging && dragAmount != 0f) {
-                        when {
-                            downX < third -> {
-                                // Left zone: screen brightness
-                                if (activity != null) {
-                                    val lp = activity.window.attributes
-                                    val cur = if (lp.screenBrightness in 0f..1f) lp.screenBrightness else 0.5f
-                                    val delta = -dragAmount / size.height * 2f
-                                    lp.screenBrightness = (cur + delta).coerceIn(0.05f, 1f)
-                                    activity.window.attributes = lp
-                                    onFeedbackUpdate(GestureFeedbackType.BRIGHTNESS, lp.screenBrightness)
-                                }
+                    if (isDragging) {
+                        if (gestureDirection == "h") {
+                            // Horizontal swipe: seek forward/backward (all zones)
+                            seekAccumulator += dragAmountX
+                            if (abs(seekAccumulator) > GESTURE_THRESHOLD * 2) {
+                                val seekSec = if (seekAccumulator > 0) SEEK_STEP_SEC else -SEEK_STEP_SEC
+                                viewModel.mpv.seekRelative(seekSec)
+                                onFeedbackUpdate(GestureFeedbackType.SEEK, seekAccumulator / w)
+                                seekAccumulator = 0f
                             }
-                            downX < third * 2 -> {
-                                // Center zone: channel switch
-                                if (dragAmount > GESTURE_THRESHOLD) {
-                                    viewModel.prevChannel()
-                                } else if (dragAmount < -GESTURE_THRESHOLD) {
-                                    viewModel.nextChannel()
-                                }
-                            }
-                            else -> {
-                                // Right zone: media volume
-                                if (am != null) {
-                                    val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                    val step = maxOf(1, maxVol / 15)
-                                    val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                    if (dragAmount < -GESTURE_THRESHOLD / 2) {
-                                        am.setStreamVolume(AudioManager.STREAM_MUSIC, (cur + step).coerceAtMost(maxVol), 0)
-                                    } else if (dragAmount > GESTURE_THRESHOLD / 2) {
-                                        am.setStreamVolume(AudioManager.STREAM_MUSIC, (cur - step).coerceAtLeast(0), 0)
+                            prevX = currentX
+                            prevY = currentY
+                        } else {
+                            // Vertical drag (existing behavior)
+                            prevY = currentY
+                            prevX = currentX
+                            if (dragAmountY != 0f) {
+                                when {
+                                    downX < third -> {
+                                        // Left zone: screen brightness
+                                        if (activity != null) {
+                                            val lp = activity.window.attributes
+                                            val cur = if (lp.screenBrightness in 0f..1f) lp.screenBrightness else 0.5f
+                                            val delta = -dragAmountY / size.height * 2f
+                                            lp.screenBrightness = (cur + delta).coerceIn(0.05f, 1f)
+                                            activity.window.attributes = lp
+                                            onFeedbackUpdate(GestureFeedbackType.BRIGHTNESS, lp.screenBrightness)
+                                        }
                                     }
-                                    val newVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                    onFeedbackUpdate(GestureFeedbackType.VOLUME, if (maxVol > 0) newVol.toFloat() / maxVol.toFloat() else 0f)
+                                    downX < third * 2 -> {
+                                        // Center zone: channel switch
+                                        if (dragAmountY > GESTURE_THRESHOLD) {
+                                            viewModel.prevChannel()
+                                        } else if (dragAmountY < -GESTURE_THRESHOLD) {
+                                            viewModel.nextChannel()
+                                        }
+                                    }
+                                    else -> {
+                                        // Right zone: media volume
+                                        if (am != null) {
+                                            val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                            val step = maxOf(1, maxVol / 15)
+                                            val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                            if (dragAmountY < -GESTURE_THRESHOLD / 2) {
+                                                am.setStreamVolume(AudioManager.STREAM_MUSIC, (cur + step).coerceAtMost(maxVol), 0)
+                                            } else if (dragAmountY > GESTURE_THRESHOLD / 2) {
+                                                am.setStreamVolume(AudioManager.STREAM_MUSIC, (cur - step).coerceAtLeast(0), 0)
+                                            }
+                                            val newVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                            onFeedbackUpdate(GestureFeedbackType.VOLUME, if (maxVol > 0) newVol.toFloat() / maxVol.toFloat() else 0f)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -343,8 +391,13 @@ private fun GestureFeedbackOverlay(
             state.value < 0.5f -> Icons.Default.VolumeDown
             else -> Icons.Default.VolumeUp
         }
+        GestureFeedbackType.SEEK -> if (state.value > 0) Icons.Default.SkipNext else Icons.Default.SkipPrevious
     }
     val percent = (state.value * 100).toInt().coerceIn(0, 100)
+    val displayText = when (state.type) {
+        GestureFeedbackType.SEEK -> if (state.value > 0) "快进 10s" else "快退 10s"
+        else -> "$percent%"
+    }
 
     Column(
         modifier = modifier
@@ -361,7 +414,7 @@ private fun GestureFeedbackOverlay(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "$percent%",
+            text = displayText,
             color = oc.textPrimary,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium
@@ -496,8 +549,31 @@ private fun LandscapeChannelColumn(viewModel: AppViewModel, modifier: Modifier =
             )
         }
 
+        // 按分组显示频道（有分组时显示分组头，无分组时直接列表）
+        val groupedDisplay = remember(displayed) {
+            if (searchQuery.isBlank()) {
+                displayed.groupBy { it.first.group.ifEmpty { "未分组" } }
+            } else {
+                mapOf("" to displayed)
+            }
+        }
+
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 2.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
-            itemsIndexed(displayed, key = { _, pair -> pair.second }) { _, (ch, idx) ->
+            groupedDisplay.forEach { (groupName, channels) ->
+                if (groupName.isNotEmpty()) {
+                    stickyHeader {
+                        Surface(color = oc.topBarBg.copy(alpha = 0.95f)) {
+                            Text(
+                                text = "$groupName (${channels.size})",
+                                color = oc.accent,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                }
+                items(items = channels, key = { pair -> pair.second }) { (ch, idx) ->
                 val isCurrent = idx == currentIdx
                 val isFav = idx in favorites
                 val canCatchup = ch.catchup.isNotEmpty() && ch.catchup != "none"
@@ -539,6 +615,7 @@ private fun LandscapeChannelColumn(viewModel: AppViewModel, modifier: Modifier =
                     if (isFav) {
                         Icon(Icons.Default.Favorite, contentDescription = null, tint = oc.accent, modifier = Modifier.size(12.dp))
                     }
+                }
                 }
             }
         }
@@ -657,7 +734,8 @@ private fun LandscapeBottomBar(
     showExitCatchup: Boolean,
     playbackMode: PlayMode,
     currentProgram: IptvEpgProgram?,
-    isFav: Boolean
+    isFav: Boolean,
+    isLocalVideo: Boolean
 ) {
     val oc = rememberPlayerOverlayColors()
 
@@ -763,6 +841,17 @@ private fun LandscapeBottomBar(
                     }
                     IconButton(onClick = { viewModel.setLandscapeSidebarVisible(true) }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
                         Icon(Icons.Default.VideoLibrary, "频道列表", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))
+                    }
+                    // 本地视频显示暂停/播放按钮
+                    if (isLocalVideo && fileLoaded) {
+                        IconButton(onClick = { viewModel.mpv.togglePause() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
+                            Icon(
+                                if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                if (paused) "播放" else "暂停",
+                                tint = oc.accent,
+                                modifier = Modifier.size(ICON_SIZE)
+                            )
+                        }
                     }
                     IconButton(onClick = { viewModel.toggleEpgPanel() }, modifier = Modifier.size(ICON_BTN).tvFocusBorder()) {
                         Icon(Icons.Default.Schedule, "节目单", tint = oc.iconTint, modifier = Modifier.size(ICON_SIZE))

@@ -209,10 +209,10 @@ class IptvRepository private constructor() {
     suspend fun clearLocalChannels(): Result<Int> =
         callPyTyped<ClearedResponse>("clear_local_channels").map { it.cleared }
 
-    /** 从 M3U 内容导入频道，返回导入数量 */
-    suspend fun importChannels(content: String, name: String = ""): Result<Int> {
+    /** 从 M3U 内容导入频道，返回导入数量和可选的 EPG URL（从 M3U 头部 x-tvg-url 提取） */
+    suspend fun importChannels(content: String, name: String = ""): Result<Pair<Int, String>> {
         val result = callPyTyped<ImportedResponse>("import_channels", content, name)
-        return result.map { it.imported }
+        return result.map { it.imported to it.epgUrl }
     }
 
     /** 生成 M3U 文本（用于导出/分享）。返回 M3U 文本和频道数量 */
