@@ -39,8 +39,11 @@ class MPVTextureView @JvmOverloads constructor(
 
     override var onInstanceRecreated: (() -> Unit)? = null
 
-    /** Surface 重建回调（surfaceCreated 后触发） */
-    override var onSurfaceRebuilt: (() -> Unit)? = null
+/** Surface 重建回调（surfaceCreated 后触发） */
+override var onSurfaceRebuilt: (() -> Unit)? = null
+
+/** Surface 即将销毁回调（surfaceDestroyed 前触发） */
+override var onSurfaceAboutToDestroy: (() -> Unit)? = null
 
     override fun asView(): View = this
 
@@ -87,6 +90,13 @@ class MPVTextureView @JvmOverloads constructor(
                 Log.w(TAG, "initialize: reuse setPropertyString failed: ${e.message}")
             }
             filePath = null
+            // 恢复旋转前的播放路径
+            val savedPath = MPVView.savedPlaybackPath
+            if (savedPath != null) {
+                filePath = savedPath
+                MPVView.savedPlaybackPath = null
+                Log.i(TAG, "initialize: restored saved playback path=$savedPath")
+            }
             MPVView.nativeInstanceAlive = true
             surfaceTextureListener = this
             // 关键：SurfaceTexture 可能已经可用（TextureView 在 initialize 之前已布局），
@@ -133,6 +143,7 @@ class MPVTextureView @JvmOverloads constructor(
         val hdrMode = UserPrefs.getInstance().getHdrMode()
         val fboFormat = if (hdrMode == "disable") "rgba8" else "rgba16hf"
         MPVLib.setOptionString("fbo-format", fboFormat)
+        MPVLib.setOptionString("dither-depth", "8")
         if (hdrMode != "disable") {
             MPVLib.setOptionString("target-colorspace-hint", "yes")
         }
@@ -196,6 +207,12 @@ class MPVTextureView @JvmOverloads constructor(
         if (myGeneration != MPVView.activeGeneration) {
             Log.i(TAG, "destroy: skipped (myGen=$myGeneration, activeGen=${MPVView.activeGeneration})")
             return
+        }
+        // 保存当前播放路径，供新 MPVTextureView 恢复播放
+        val currentPath = try { MPVLib.getPropertyString("path") } catch (_: Exception) { null }
+        if (!currentPath.isNullOrEmpty()) {
+            MPVView.savedPlaybackPath = currentPath
+            Log.i(TAG, "destroy: saved playback path=$currentPath")
         }
         if (MPVView.nativeInstanceAlive) {
             try {
@@ -377,6 +394,8 @@ class MPVTextureView @JvmOverloads constructor(
             surface = null
             return true
         }
+        // 通知 MpvController 提前设置 suppressFileErrorFlag
+        onSurfaceAboutToDestroy?.invoke()
         Log.i(TAG, "onSurfaceTextureDestroyed: detaching surface")
         try {
             MPVLib.setPropertyString("force-window", "no")

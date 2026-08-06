@@ -328,27 +328,47 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     // 横屏 PHONE 模式：使用 compact 抽屉
     val landscapeCompact = uiMode.isPhone && !isPortrait
 
-    // -----------------------------------------------------------------
-    // 屏幕旋转修复：检测方向变化，刷新 Surface 并抑制误报
-    //
-    // 根因：movableContentOf 移动 SurfaceView 时触发 surfaceDestroyed→surfaceCreated，
-    // 可能导致 VO 模块未正确重建（黑屏），且 END_FILE 事件触发 onFileError（误报断流）。
-    //
-    // 修复：
-    // 1. 方向变化时设置 suppressFileError 标志（跳过 END_FILE 的 onFileError 回调）
-    // 2. 延迟 300ms 后调用 refreshSurface() 强制重建 VO（等 SurfaceView 稳定后）
-    // 3. 延迟 800ms 后清除 suppressFileError 标志（确保旋转期间的 END_FILE 都被跳过）
-    // -----------------------------------------------------------------
-    LaunchedEffect(isPortrait) {
-        if (viewModel.playerType.value == PlayerType.MPV && viewModel.mpv.fileLoaded.value) {
-            Log.i("MainPlayerScreen", "Rotation detected: isPortrait=$isPortrait, refreshing surface")
-            viewModel.mpvSuppressFileError()
-            kotlinx.coroutines.delay(300)
-            viewModel.mpvRefreshSurface()
-            kotlinx.coroutines.delay(500)
-            viewModel.mpvClearSuppressFileError()
-        }
-    }
+// -----------------------------------------------------------------
+// 屏幕旋转修复：检测方向变化，恢复播放
+//
+// 根因：movableContentOf 在竖屏→横屏切换时可能销毁旧 AndroidView（onRelease→destroy），
+// destroy() 中 stop + playlist-clear 清除了播放状态。虽然 MPVView.destroy() 会保存
+// savedPlaybackPath 供新 MPVView 恢复，但如果不触发 AndroidView 重建（movableContentOf
+// 保留了 View），则只有 surfaceDestroyed→surfaceCreated。
+//
+// surfaceCreated 现在会重新 loadfile 恢复渲染（与 TextureView 行为对齐）。
+// suppressFileErrorFlag 由 onSurfaceAboutToDestroy 设置，onSurfaceRebuilt 延迟清除。
+//
+// 本 LaunchedEffect 作为兜底：延迟检查视频是否恢复，未恢复则重新加载文件。
+// -----------------------------------------------------------------
+LaunchedEffect(isPortrait) {
+if (viewModel.playerType.value == PlayerType.MPV && viewModel.mpv.fileLoaded.value) {
+Log.i("MainPlayerScreen", "Rotation detected: isPortrait=$isPortrait")
+// 等待 surfaceCreated 完成 VO 重建 + loadfile
+kotlinx.coroutines.delay(800)
+// 兜底检查：如果视频仍未恢复，尝试重新加载
+val path = viewModel.mpvGetPath()
+val w = viewModel.mpv.videoWidth.value
+val h = viewModel.mpv.videoHeight.value
+Log.i("MainPlayerScreen", "After rotation: path=$path, ${w}x${h}")
+if (path.isNotEmpty() && (w == 0 || h == 0)) {
+Log.i("MainPlayerScreen", "Video not restored after rotation, reloading: $path")
+viewModel.mpvSuppressFileError()
+viewModel.mpv.playFile(path)
+kotlinx.coroutines.delay(500)
+viewModel.mpvClearSuppressFileError()
+} else if (path.isEmpty()) {
+val savedPath = com.iptv.scanner.editor.pro.mpv.MPVView.savedPlaybackPath
+if (savedPath != null) {
+Log.i("MainPlayerScreen", "Path empty after rotation, restoring from saved: $savedPath")
+viewModel.mpvSuppressFileError()
+viewModel.mpv.playFile(savedPath)
+kotlinx.coroutines.delay(500)
+viewModel.mpvClearSuppressFileError()
+}
+}
+}
+}
 
     Box(
         modifier = Modifier

@@ -386,6 +386,11 @@ fun mpvRefreshSurface() {
 if (mpvSingleton == _player.value) mpvSingleton.refreshSurface()
 }
 
+/** 获取当前播放路径（供旋转后检查播放状态使用） */
+fun mpvGetPath(): String {
+return if (mpvSingleton == _player.value) mpvSingleton.getPath() else ""
+}
+
 /** 切换列表视图模式 */
 fun setListViewMode(mode: ListViewMode) {
     _listViewMode.value = mode

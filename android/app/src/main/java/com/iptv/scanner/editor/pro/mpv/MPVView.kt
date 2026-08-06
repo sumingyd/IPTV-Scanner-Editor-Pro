@@ -46,8 +46,11 @@ class MPVView @JvmOverloads constructor(
      */
     override var onInstanceRecreated: (() -> Unit)? = null
 
-    /** Surface 重建回调（surfaceCreated 后触发） */
-    override var onSurfaceRebuilt: (() -> Unit)? = null
+/** Surface 重建回调（surfaceCreated 后触发） */
+override var onSurfaceRebuilt: (() -> Unit)? = null
+
+/** Surface 即将销毁回调（surfaceDestroyed 前触发） */
+override var onSurfaceAboutToDestroy: (() -> Unit)? = null
 
     override fun asView(): View = this
 
@@ -77,6 +80,14 @@ class MPVView @JvmOverloads constructor(
             }
             // 清除 filePath，防止 surfaceCreated 走 filePath 分支加载旧路径
             filePath = null
+            // 恢复旋转前的播放路径：destroy() 时保存了 path，
+            // 新 MPVView 创建后 surfaceCreated 时自动恢复播放
+            val savedPath = savedPlaybackPath
+            if (savedPath != null) {
+                filePath = savedPath
+                savedPlaybackPath = null
+                Log.i(TAG, "initialize: restored saved playback path=$savedPath, will play on surfaceCreated")
+            }
             // 标记实例为活跃（surfaceDestroyed/destroy 会设为 false）
             nativeInstanceAlive = true
             holder.setFormat(PixelFormat.RGBA_8888)
@@ -119,6 +130,10 @@ class MPVView @JvmOverloads constructor(
         val hdrMode = UserPrefs.getInstance().getHdrMode()
         val fboFormat = if (hdrMode == "disable") "rgba8" else "rgba16hf"
         MPVLib.setOptionString("fbo-format", fboFormat)
+        // 4K 安全选项：降低 GPU 渲染负担
+        // - dither-depth：限制抖动深度为 8-bit，避免 4K 时 GPU 过载
+        // - gpu-texture-resolution：限制 GPU 纹理分辨率（0=自动, 1=最高, 2=高, 3=中）
+        MPVLib.setOptionString("dither-depth", "8")
         // target-colorspace-hint：仅 HDR 模式启用。
         // 部分设备显示控制器无法处理 colorspace 切换信号，会导致黑屏。
         if (hdrMode != "disable") {
@@ -216,6 +231,12 @@ class MPVView @JvmOverloads constructor(
         if (myGeneration != activeGeneration) {
             Log.i(TAG, "destroy: skipped (myGen=$myGeneration, activeGen=$activeGeneration)")
             return
+        }
+        // 保存当前播放路径，供新 MPVView 恢复播放（旋转时 AndroidView 可能被销毁重建）
+        val currentPath = try { MPVLib.getPropertyString("path") } catch (_: Exception) { null }
+        if (!currentPath.isNullOrEmpty()) {
+            savedPlaybackPath = currentPath
+            Log.i(TAG, "destroy: saved playback path=$currentPath")
         }
         // keep-alive：不调用 MPVLib.destroy()，只做状态重置
         if (nativeInstanceAlive) {
@@ -455,15 +476,20 @@ class MPVView @JvmOverloads constructor(
             MPVLib.setPropertyBoolean("pause", false)
             filePath = null
         } else {
-            // 文件已在播放时不要重新 loadfile！
+            // 文件已在播放时也需要重新 loadfile！
             //
-            // vo=null → vo=voInUse 的 VO 重建会让 mpv 自动在新 Surface 上恢复渲染，
-            // 无需重新 loadfile。重新 loadfile 会导致 END_FILE → onFileError 误触发。
+            // 根因：vo=null → vo=voInUse 的 VO 重建在部分设备上不会自动恢复渲染（黑屏）。
+            // 重新 loadfile 会触发完整的解码器→VO 管线重建，确保视频帧正确输出到新 Surface。
             //
-            // （PiP 场景同理：detachSurface/attachSurface 后 VO 重建即恢复渲染）
+            // END_FILE 误报问题：重新 loadfile 会触发 END_FILE 事件，
+            // 但 MpvController 的 suppressFileErrorFlag（由 LaunchedEffect 设置）
+            // 和 pendingEndFileError（300ms 延迟 + onSurfaceRebuilt 取消）会处理误报。
+            //
+            // 与 MPVTextureView.onSurfaceTextureAvailable 的行为对齐（也重新 loadfile）。
             val currentPath = try { MPVLib.getPropertyString("path") } catch (_: Exception) { "" }
             if (!currentPath.isNullOrEmpty()) {
-                Log.i(TAG, "surfaceCreated: file already playing ($currentPath), VO reinit should restore render")
+                Log.i(TAG, "surfaceCreated: re-loading current path=$currentPath to restore render")
+                MPVLib.command(arrayOf("loadfile", currentPath))
                 MPVLib.setPropertyBoolean("pause", false)
             } else {
                 Log.i(TAG, "surfaceCreated: no pending filePath, waiting for external playFile")
@@ -483,6 +509,9 @@ class MPVView @JvmOverloads constructor(
             Log.i(TAG, "surfaceDestroyed: native instance not active, skipping")
             return
         }
+        // 通知 MpvController 提前设置 suppressFileErrorFlag，
+        // 防止 surfaceCreated 重新 loadfile 触发的 END_FILE 事件误报断流
+        onSurfaceAboutToDestroy?.invoke()
         Log.i(TAG, "surfaceDestroyed: detaching surface")
         try {
             // 不设置 force-window=no 和 vo=null：保持 VO 模块活跃，只解除 Surface 引用。
@@ -551,6 +580,16 @@ class MPVView @JvmOverloads constructor(
          */
         @Volatile
         internal var forceRecreatePending = false
+
+        /**
+         * 旋转时保存的播放路径：destroy() 时保存，新 MPVView initialize() 时恢复。
+         *
+         * 根因：movableContentOf 在竖屏→横屏切换时可能销毁旧 AndroidView（onRelease→destroy），
+         * destroy() 中 stop + playlist-clear 清除了播放状态，新 MPVView 创建后不知道之前在播放什么。
+         * 此变量在 destroy() 时保存 path，新 MPVView 的 initialize() 中检查并恢复。
+         */
+        @Volatile
+        internal var savedPlaybackPath: String? = null
     }
 
     /**

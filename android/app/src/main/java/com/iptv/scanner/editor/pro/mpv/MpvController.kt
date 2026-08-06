@@ -178,10 +178,19 @@ class MpvController : MPVLib.EventObserver, Player {
             setDeinterlace(UserPrefs.getInstance().getDeinterlace())
         }
 
-        // Surface 重建回调：surfaceCreated 后取消 pendingEndFileError，防止旋转后误报断流
-        view.onSurfaceRebuilt = {
-            cancelPendingFileError()
-        }
+// Surface 重建回调：surfaceCreated 后取消 pendingEndFileError，防止旋转后误报断流
+// 同时延迟清除 suppressFileErrorFlag，确保 surfaceCreated 中 loadfile 触发的 END_FILE 被跳过
+view.onSurfaceRebuilt = {
+cancelPendingFileError()
+clearSuppressFileError(delayMs = 1000)
+}
+
+// Surface 即将销毁回调：surfaceDestroyed 前设置 suppressFileErrorFlag，
+// 防止 surfaceCreated 重新 loadfile 触发的 END_FILE 事件误报断流
+view.onSurfaceAboutToDestroy = {
+suppressFileError()
+Log.i(TAG, "onSurfaceAboutToDestroy: suppressFileError enabled")
+}
 
         Log.i(TAG, "MpvController attached to MPVView")
     }
