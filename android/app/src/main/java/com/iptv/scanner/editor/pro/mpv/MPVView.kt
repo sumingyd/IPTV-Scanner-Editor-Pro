@@ -41,6 +41,15 @@ class MPVView @JvmOverloads constructor(
     private var savedHwdec: String = DEFAULT_HWDEC
 
     /**
+     * Surface 是否当前已 attach 到 mpv。
+     * 防止 double detachSurface 导致 native 崩溃：
+     * surfaceDestroyed 和 destroy() 都会调用 detachSurface()，
+     * 用此标志确保只 detach 一次。
+     */
+    @Volatile
+    private var surfaceAttached = false
+
+    /**
      * mpv 核心重建回调。当 ensureInstanceAlive() 重新创建 mpv 实例后调用，
      * 让外部（MpvController）能重新注册 observeProperty 和同步状态。
      */
@@ -242,13 +251,14 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         if (nativeInstanceAlive) {
             try {
                 MPVLib.command(arrayOf("stop"))
-                // playlist-clear 清除 mpv 内部播放列表，防止下次复用时旧 path 残留
                 MPVLib.command(arrayOf("playlist-clear"))
                 MPVLib.setPropertyString("force-window", "no")
-                // 设置 vo=null 释放 vo 模块资源（GPU/EGL 上下文），
-                // surfaceCreated 时会重新设置 vo=voInUse 恢复渲染
                 MPVLib.setPropertyString("vo", "null")
-                MPVLib.detachSurface()
+                // 只 detach 一次：surfaceDestroyed 可能已经 detach 过
+                if (surfaceAttached) {
+                    MPVLib.detachSurface()
+                    surfaceAttached = false
+                }
             } catch (e: Throwable) {
                 Log.w(TAG, "destroy: reset failed: ${e.message}")
             }
@@ -304,14 +314,17 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             // Step 1: 释放当前 VO 模块
             MPVLib.setPropertyString("force-window", "no")
             MPVLib.setPropertyString("vo", "null")
-            MPVLib.detachSurface()
+            if (surfaceAttached) {
+                MPVLib.detachSurface()
+                surfaceAttached = false
+            }
             Log.i(TAG, "reattachSurfaceWithVo: detached old VO")
 
             // Step 2: 重新 attach surface 并设置新 VO
             val s = holder.surface
             if (s != null && s.isValid) {
                 MPVLib.attachSurface(s)
-                // setPropertyString（非 setOptionString）：init() 之后只能用属性方式设置
+                surfaceAttached = true
                 MPVLib.setPropertyString("force-window", "yes")
                 MPVLib.setPropertyString("vo", vo)
                 Log.i(TAG, "reattachSurfaceWithVo: attached surface with vo=$vo")
@@ -448,21 +461,15 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
     // ---- SurfaceHolder.Callback ----
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        if (!nativeInstanceCreated || !nativeInstanceAlive) {
+            Log.w(TAG, "surfaceCreated: skipped, nativeInstanceCreated=$nativeInstanceCreated, nativeInstanceAlive=$nativeInstanceAlive")
+            return
+        }
         Log.i(TAG, "surfaceCreated: attaching surface (vo=$voInUse)")
         try {
-            // 先 vo=null 销毁旧 VO 模块（释放旧 EGLSurface），
-            // 再 attachSurface + vo=voInUse 创建新 VO（使用新 Surface 创建 EGLSurface）。
-            //
-            // 根因：Surface 重建后（屏幕旋转/返回后台），vo=gpu 的 EGLSurface 被销毁。
-            // 仅 attachSurface + vo=voInUse（vo 未变化时是 no-op）不会触发 EGLSurface 重建 → 黑屏。
-            // vo=null → vo=voInUse 的完整切换强制 VO 模块销毁并重建，新 VO 会创建新 EGLSurface。
-            //
-            // vo=null 不会影响文件的加载状态（path 仍非空，解码器仍运行），
-            // 新 VO 创建后会自动从解码器接收帧并渲染 → 无需重新 loadfile。
             MPVLib.setPropertyString("vo", "null")
             MPVLib.attachSurface(holder.surface)
-            // force-window 在 init() 之后只能用 setPropertyString（运行时属性），
-            // setOptionString 在 init() 后静默失败，曾导致 force-window 从未设为 yes。
+            surfaceAttached = true
             MPVLib.setPropertyString("force-window", "yes")
             MPVLib.setPropertyString("vo", voInUse)
             Log.i(TAG, "surfaceCreated: attachSurface OK, vo=$voInUse (forced VO reinit)")
@@ -514,13 +521,10 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         onSurfaceAboutToDestroy?.invoke()
         Log.i(TAG, "surfaceDestroyed: detaching surface")
         try {
-            // 不设置 force-window=no 和 vo=null：保持 VO 模块活跃，只解除 Surface 引用。
-            // surfaceCreated 时会先 vo=null 再 vo=voInUse 强制 VO 完全重建。
-            //
-            // 如果这里设 vo=null，surfaceCreated 时 vo 已经是 null，再设 vo=null 是 no-op，
-            // 无法触发 VO 重建（mpv 认为 vo 没有变化）→ EGLSurface 不重建 → 黑屏。
-            // 保持 vo=voInUse，让 surfaceCreated 的 vo=null → vo=voInUse 是有效切换。
-            MPVLib.detachSurface()
+            if (surfaceAttached) {
+                MPVLib.detachSurface()
+                surfaceAttached = false
+            }
         } catch (e: Throwable) {
             Log.w(TAG, "surfaceDestroyed: detachSurface failed: ${e.message}")
         }

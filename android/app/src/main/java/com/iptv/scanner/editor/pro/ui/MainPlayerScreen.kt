@@ -125,6 +125,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.detectVerticalDragGestures
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asComposeRenderEffect
@@ -532,6 +533,42 @@ viewModel.mpvClearSuppressFileError()
                                 .background(Color.Black)
                         ) {
                             primaryPlayer()
+                            // 竖屏快速换台：向上滑动=上一频道，向下滑动=下一频道
+                            if (!showHome && !anyPanelOpen) {
+                                val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .pointerInput(Unit) {
+                                            var totalY = 0f
+                                            var triggered = false
+                                            detectVerticalDragGestures(
+                                                onDragStart = {
+                                                    totalY = 0f
+                                                    triggered = false
+                                                },
+                                                onDragEnd = {
+                                                    totalY = 0f
+                                                    triggered = false
+                                                },
+                                                onVerticalDrag = { change, dragAmount ->
+                                                    change.consume()
+                                                    totalY += dragAmount
+                                                    val threshold = 80f
+                                                    if (!triggered && kotlin.math.abs(totalY) > threshold) {
+                                                        triggered = true
+                                                        if (totalY < 0) {
+                                                            viewModel.prevChannel()
+                                                        } else {
+                                                            viewModel.nextChannel()
+                                                        }
+                                                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                                    }
+                                                }
+                                            )
+                                        }
+                                )
+                            }
                         }
                         PortraitMediaInfoBar(viewModel = viewModel)
                         PortraitControlsV2(viewModel = viewModel)

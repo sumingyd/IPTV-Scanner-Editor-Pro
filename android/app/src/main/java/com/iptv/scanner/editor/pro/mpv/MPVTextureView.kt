@@ -51,6 +51,10 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
     @Volatile
     private var surface: Surface? = null
 
+    /** Surface 是否当前已 attach 到 mpv（防止 double detach 导致 native 崩溃） */
+    @Volatile
+    private var surfaceAttached = false
+
     @Volatile
     override var pendingResumePos: Double = -1.0
 
@@ -220,7 +224,10 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
                 MPVLib.command(arrayOf("playlist-clear"))
                 MPVLib.setPropertyString("force-window", "no")
                 MPVLib.setPropertyString("vo", "null")
-                MPVLib.detachSurface()
+                if (surfaceAttached) {
+                    MPVLib.detachSurface()
+                    surfaceAttached = false
+                }
             } catch (e: Throwable) {
                 Log.w(TAG, "destroy: reset failed: ${e.message}")
             }
@@ -250,11 +257,15 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         try {
             MPVLib.setPropertyString("force-window", "no")
             MPVLib.setPropertyString("vo", "null")
-            MPVLib.detachSurface()
+            if (surfaceAttached) {
+                MPVLib.detachSurface()
+                surfaceAttached = false
+            }
 
             val s = surface
             if (s != null && s.isValid) {
                 MPVLib.attachSurface(s)
+                surfaceAttached = true
                 MPVLib.setPropertyString("force-window", "yes")
                 MPVLib.setPropertyString("vo", vo)
                 Log.i(TAG, "reattachSurfaceWithVo: attached surface with vo=$vo")
@@ -350,6 +361,10 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
     // ---- TextureView.SurfaceTextureListener ----
 
     override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
+        if (!MPVView.nativeInstanceCreated || !MPVView.nativeInstanceAlive) {
+            Log.w(TAG, "onSurfaceTextureAvailable: skipped, nativeInstanceCreated=${MPVView.nativeInstanceCreated}, nativeInstanceAlive=${MPVView.nativeInstanceAlive}")
+            return
+        }
         Log.i(TAG, "onSurfaceTextureAvailable: attaching surface (vo=$voInUse, ${width}x${height})")
         try {
             surface?.release()
@@ -399,7 +414,10 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         Log.i(TAG, "onSurfaceTextureDestroyed: detaching surface")
         try {
             MPVLib.setPropertyString("force-window", "no")
-            MPVLib.detachSurface()
+            if (surfaceAttached) {
+                MPVLib.detachSurface()
+                surfaceAttached = false
+            }
         } catch (e: Throwable) {
             Log.w(TAG, "onSurfaceTextureDestroyed: detachSurface failed: ${e.message}")
         }
