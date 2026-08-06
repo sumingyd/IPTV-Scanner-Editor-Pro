@@ -138,6 +138,7 @@ import android.net.Uri
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material.icons.filled.Radar
@@ -3328,7 +3329,7 @@ private fun ChannelThumbnailPanel(
 }
 
 /**
- * 播放器模式动态内容：订阅频道显示节目单，本地文件显示文件信息
+ * 播放器模式动态内容：多 Tab 布局（频道列表 / 节目单 / 播放信息）
  */
 @Composable
 private fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
@@ -3336,10 +3337,7 @@ private fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
     val currentChannel by viewModel.currentChannel.collectAsState()
     val player = viewModel.mpv
     val fileLoaded by player.fileLoaded.collectAsState()
-    val videoWidth by player.videoWidth.collectAsState()
-    val videoHeight by player.videoHeight.collectAsState()
-    val duration by player.duration.collectAsState()
-    val timePos by player.timePos.collectAsState()
+    val oc = rememberPlayerOverlayColors()
 
     // 判断是订阅频道还是本地文件
     val isLocalFile = currentChannel == null || currentIdx < 0
@@ -3358,18 +3356,91 @@ private fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
         return
     }
 
-    if (isLocalFile) {
-        // 本地文件：显示文件信息 + 播放进度 + 最近文件
-        PortraitLocalFileInfo(
-            viewModel = viewModel,
-            duration = duration,
-            timePos = timePos,
-            videoWidth = videoWidth,
-            videoHeight = videoHeight
-        )
+    // Tab 状态：订阅频道 = [频道列表, 节目单, 播放信息]，本地文件 = [播放信息, 最近文件]
+    var selectedTab by remember { mutableStateOf(0) }
+
+    val tabs = if (isLocalFile) {
+        listOf("播放信息", "最近文件")
     } else {
-        // 订阅频道：显示节目单（EPG）
-        PortraitEpgContent(viewModel = viewModel)
+        listOf("频道列表", "节目单", "播放信息")
+    }
+
+    // 如果 selectedTab 超出范围（切换模式时），重置为 0
+    LaunchedEffect(tabs.size) {
+        if (selectedTab >= tabs.size) selectedTab = 0
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Tab 栏
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(oc.infoBarBg)
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            tabs.forEachIndexed { index, label ->
+                val isSelected = index == selectedTab
+                Surface(
+                    color = if (isSelected) oc.accent.copy(alpha = 0.15f) else Color.Transparent,
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedTab = index }
+                ) {
+                    Text(
+                        text = label,
+                        color = if (isSelected) oc.accent else oc.textSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        modifier = Modifier.padding(vertical = 6.dp)
+                    )
+                }
+            }
+        }
+        // 分隔线
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
+        // Tab 内容
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (isLocalFile) {
+                when (selectedTab) {
+                    0 -> {
+                        val duration by player.duration.collectAsState()
+                        val timePos by player.timePos.collectAsState()
+                        val videoWidth by player.videoWidth.collectAsState()
+                        val videoHeight by player.videoHeight.collectAsState()
+                        PortraitLocalFileInfo(
+                            viewModel = viewModel,
+                            duration = duration,
+                            timePos = timePos,
+                            videoWidth = videoWidth,
+                            videoHeight = videoHeight
+                        )
+                    }
+                    1 -> PortraitRecentLocalFiles(viewModel = viewModel)
+                }
+            } else {
+                when (selectedTab) {
+                    0 -> PortraitChannelList(viewModel = viewModel, showFavoritesOnly = false)
+                    1 -> PortraitEpgContent(viewModel = viewModel)
+                    2 -> {
+                        val duration by player.duration.collectAsState()
+                        val timePos by player.timePos.collectAsState()
+                        val videoWidth by player.videoWidth.collectAsState()
+                        val videoHeight by player.videoHeight.collectAsState()
+                        PortraitPlayerInfoPanel(
+                            viewModel = viewModel,
+                            duration = duration,
+                            timePos = timePos,
+                            videoWidth = videoWidth,
+                            videoHeight = videoHeight
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -3642,29 +3713,7 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 标题栏
-        Surface(color = oc.infoBarBg, modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "节目单",
-                    color = oc.textPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = currentChannel?.name ?: "未选择频道",
-                    color = oc.textSecondary,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        // 内容
+        // 内容（标题栏由父级 Tab 提供）
         when {
             loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -3796,6 +3845,131 @@ private fun portraitIsCurrentProgram(program: com.iptv.scanner.editor.pro.data.I
 private fun portraitIsPastProgram(program: com.iptv.scanner.editor.pro.data.IptvEpgProgram, nowMs: Long): Boolean {
     val endMs = portraitParseTimeMs(program.end.ifEmpty { program.stop }, program.stopTs)
     return endMs > 0 && nowMs >= endMs
+}
+
+// -----------------------------------------------------------------
+// 最近本地文件（竖屏播放页 Tab）
+// -----------------------------------------------------------------
+
+@Composable
+private fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
+    val channels by viewModel.channels.collectAsState()
+    val history by viewModel.history.collectAsState()
+    val oc = rememberPlayerOverlayColors()
+
+    val recentLocal = remember(history, channels) {
+        history.mapNotNull { idx -> channels.getOrNull(idx) }
+            .filter { it.source.isEmpty() || ProgressHelper.isLocalFile(it.url) }
+            .take(20)
+    }
+
+    if (recentLocal.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("暂无最近播放的本地文件", color = oc.textSecondary, fontSize = 13.sp)
+        }
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(recentLocal) { channel ->
+                val idx = channels.indexOfFirst { it.url == channel.url }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { if (idx >= 0) viewModel.playChannel(idx) }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.PlayCircle,
+                        contentDescription = null,
+                        tint = oc.iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = channel.name,
+                            color = oc.textPrimary,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = channel.url.substringAfterLast("/"),
+                            color = oc.textSecondary,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------
+// 播放信息面板（竖屏播放页 Tab）
+// -----------------------------------------------------------------
+
+@Composable
+private fun PortraitPlayerInfoPanel(
+    viewModel: AppViewModel,
+    duration: Double,
+    timePos: Double,
+    videoWidth: Int,
+    videoHeight: Int
+) {
+    val player = viewModel.mpv
+    val oc = rememberPlayerOverlayColors()
+
+    // 获取媒体信息
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            tick = System.currentTimeMillis()
+            delay(2000L)
+        }
+    }
+    val mediaInfo = remember(tick) { player.getMediaInfo() }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        item {
+            Text(
+                text = "播放信息",
+                color = oc.textPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        }
+        item { InfoRow(label = "分辨率", value = if (videoWidth > 0) "${videoWidth}x${videoHeight}" else "未知") }
+        item { InfoRow(label = "时长", value = formatTime(duration)) }
+        item { InfoRow(label = "当前位置", value = formatTime(timePos)) }
+        item {
+            val progress = if (duration > 0) (timePos / duration * 100).toInt() else 0
+            InfoRow(label = "进度", value = "$progress%")
+        }
+        item { Box(modifier = Modifier.height(4.dp)) }
+        item {
+            Text(
+                text = "媒体信息",
+                color = oc.textPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        }
+        mediaInfo.forEach { (key, value) ->
+            item { InfoRow(label = key, value = value) }
+        }
+    }
 }
 
 // -----------------------------------------------------------------
