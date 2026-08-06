@@ -1576,7 +1576,7 @@ private var currentIsLocalFile: Boolean
             }
             if (!silent) {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    if (uiMode.value.isTV) showControlsAutoHide() else showOsd(channel.name, channel.group)
+                    if (uiMode.value.isTV) showControlsAutoHide()
                 }
             }
 
