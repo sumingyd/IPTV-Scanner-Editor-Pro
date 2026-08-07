@@ -114,6 +114,7 @@ import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -3018,7 +3019,18 @@ private fun ChannelListPanel(
     showDelete: Boolean = false,
     onDelete: (Int) -> Unit = {}
 ) {
+    val listState = rememberLazyListState()
+    // 自动滚动到当前频道
+    LaunchedEffect(displayChannels, currentIdx) {
+        if (currentIdx >= 0) {
+            val scrollTarget = displayChannels.indexOfFirst { it == channels.getOrNull(currentIdx) }
+            if (scrollTarget >= 0) {
+                listState.scrollToItem(scrollTarget)
+            }
+        }
+    }
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 72.dp, top = 4.dp)
     ) {
@@ -3704,6 +3716,7 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
     val epg by viewModel.currentEpg.collectAsState()
     val loading by viewModel.epgLoading.collectAsState()
     val currentChannel by viewModel.currentChannel.collectAsState()
+    val playbackState by viewModel.playbackState.collectAsState()
     val oc = rememberPlayerOverlayColors()
 
     // 每秒刷新当前时间（用于高亮当前节目）
@@ -3712,6 +3725,24 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
         while (true) {
             now = System.currentTimeMillis()
             delay(1000L)
+        }
+    }
+
+    // 回看模式下高亮选定的节目，否则高亮当前时间的节目
+    val catchupProgram = playbackState.catchupProgram?.program
+    val currentProgramIdx = remember(epg, now, catchupProgram) {
+        if (catchupProgram != null) {
+            epg.indexOfFirst { p -> p.start == catchupProgram.start && p.title == catchupProgram.title }
+        } else {
+            epg.indexOfFirst { p -> portraitIsCurrentProgram(p, now) }
+        }
+    }
+
+    val epgListState = rememberLazyListState()
+    // 自动滚动到当前/回看节目
+    LaunchedEffect(currentProgramIdx, epg) {
+        if (currentProgramIdx >= 0) {
+            epgListState.scrollToItem(currentProgramIdx.coerceAtMost(epg.size - 1))
         }
     }
 
@@ -3729,9 +3760,13 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
                 }
             }
             else -> {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = epgListState,
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     items(epg) { program ->
-                        val isCurrent = portraitIsCurrentProgram(program, now)
+                        val programIdx = epg.indexOf(program)
+                        val isCurrent = programIdx == currentProgramIdx
                         val isPast = portraitIsPastProgram(program, now)
                         PortraitEpgItem(
                             program = program,
@@ -4708,7 +4743,18 @@ private fun PortraitChannelList(
                         .background(oc.trackInactive)
                 )
                 // 右列：频道列表
+                val groupChannelListState = rememberLazyListState()
+                // 自动滚动到当前频道
+                LaunchedEffect(filteredChannels, currentIdx) {
+                    if (currentIdx >= 0) {
+                        val scrollTarget = filteredChannels.indexOfFirst { (_, idx) -> idx == currentIdx }
+                        if (scrollTarget >= 0) {
+                            groupChannelListState.scrollToItem(scrollTarget)
+                        }
+                    }
+                }
                 LazyColumn(
+                    state = groupChannelListState,
                     modifier = Modifier.weight(0.65f).fillMaxHeight(),
                     contentPadding = PaddingValues(vertical = 4.dp)
                 ) {
@@ -4730,7 +4776,18 @@ private fun PortraitChannelList(
                 }
             }
         } else {
+            val noGroupChannelListState = rememberLazyListState()
+            // 自动滚动到当前频道
+            LaunchedEffect(filteredChannels, currentIdx) {
+                if (currentIdx >= 0) {
+                    val scrollTarget = filteredChannels.indexOfFirst { (_, idx) -> idx == currentIdx }
+                    if (scrollTarget >= 0) {
+                        noGroupChannelListState.scrollToItem(scrollTarget)
+                    }
+                }
+            }
             LazyColumn(
+                state = noGroupChannelListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 4.dp)
             ) {
