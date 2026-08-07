@@ -3,4 +3,136 @@
     <string name="server_starting">Starting server…</string>
     <string name="server_failed">Server startup failed</string>
     <string name="permission_network">Network access required for streaming</string>
+
+    <!-- Portrait Player Dynamic Content Tabs -->
+    <string name="not_playing">Not playing</string>
+    <string name="tab_playback_info">Playback Info</string>
+    <string name="tab_recent_files">Recent Files</string>
+    <string name="tab_channel_list">Channels</string>
+    <string name="tab_epg_guide">Guide</string>
+
+    <!-- Portrait Player Info Panel -->
+    <string name="info_playback">Playback Info</string>
+    <string name="info_resolution">Resolution</string>
+    <string name="info_unknown">Unknown</string>
+    <string name="info_duration">Duration</string>
+    <string name="info_current_position">Position</string>
+    <string name="info_progress">Progress</string>
+    <string name="info_media_info">Media Info</string>
+
+    <!-- Portrait Local File Info -->
+    <string name="info_file_info">File Info</string>
+    <string name="info_playback_progress">Playback Progress</string>
+    <string name="info_container_format">Container</string>
+    <string name="info_bitrate">Bitrate</string>
+    <string name="info_audio_subtitle">Audio &amp; Subtitles</string>
+    <string name="info_audio_settings">Audio Track</string>
+    <string name="info_subtitle_settings">Subtitles</string>
+    <string name="info_playback_speed">Playback Speed</string>
+    <string name="info_bookmark_manager">Bookmarks</string>
+    <string name="info_recent_played">Recently Played</string>
+    <string name="cd_play">Play</string>
+
+    <!-- Portrait EPG Content -->
+    <string name="epg_loading">Loading…</string>
+    <string name="epg_no_info">No program info</string>
+    <string name="epg_now_playing">Now Playing</string>
+
+    <!-- Portrait Recent Local Files -->
+    <string name="no_recent_local_files">No recent local files</string>
+
+    <!-- Portrait Tools Content -->
+    <string name="tools_file">File</string>
+    <string name="tools_open_local_file">Open Local File</string>
+    <string name="tools_open_local_file_desc">Play video/audio on device</string>
+    <string name="tools_open_playlist">Open Playlist</string>
+    <string name="tools_open_playlist_desc">Import M3U/M3U8 file</string>
+    <string name="tools_open_network_stream">Open Network Stream</string>
+    <string name="tools_open_network_stream_desc">Enter URL to play</string>
+    <string name="tools_recent">Recent</string>
+    <string name="tools_recent_desc">Recently played files</string>
+    <string name="tools_tools">Tools</string>
+    <string name="tools_screenshot">Screenshot</string>
+    <string name="tools_screenshot_desc">Capture current frame</string>
+    <string name="tools_clip_export">Clip Export</string>
+    <string name="tools_clip_export_desc">Export video segments</string>
+    <string name="tools_audio_visualizer">Audio Visualizer</string>
+    <string name="tools_audio_visualizer_desc">Spectrum waveform</string>
+    <string name="tools_lyrics">Lyrics</string>
+    <string name="tools_lyrics_desc">Load/display lyrics</string>
+    <string name="tools_lock_controls">Lock Controls</string>
+    <string name="tools_lock_controls_desc">Prevent accidental touch</string>
+    <string name="tools_refresh">Refresh</string>
+    <string name="tools_refresh_desc">Reload channels/EPG</string>
+    <string name="tools_save_as_m3u">Save as M3U</string>
+    <string name="tools_save_as_m3u_desc">Export channel list to downloads</string>
+    <string name="tools_advanced">Advanced</string>
+    <string name="tools_epg_timeline">EPG Timeline</string>
+    <string name="tools_epg_timeline_desc">Multi-channel program timeline</string>
+    <string name="tools_global_search">Global Search</string>
+    <string name="tools_global_search_desc">Search channels/programs</string>
+    <string name="tools_stream_quality">Stream Quality</string>
+    <string name="tools_stream_quality_desc">Detect stream quality</string>
+    <string name="tools_url_scan">URL Range Scan</string>
+    <string name="tools_url_scan_desc">Scan and organize URLs</string>
+    <string name="tools_reminder">Reminders</string>
+    <string name="tools_reminder_desc">Manage reminders</string>
+    <string name="tools_resume">Resume Position</string>
+    <string name="tools_resume_desc">Manage resume points</string>
+    <string name="tools_bookmark">Bookmarks</string>
+    <string name="tools_bookmark_desc">Manage bookmarks</string>
+    <string name="tools_av_sync">A/V Sync Monitor</string>
+    <string name="tools_av_sync_desc">Audio-video synchronization</string>
+
+    <!-- Portrait Settings Content -->
+    <string name="settings_playback">Playback</string>
+    <string name="settings_player">Player Settings</string>
+    <string name="settings_player_desc">%1$s Config%2$s</string>
+    <string name="settings_mpv_config_extra"> (Decode/HW Accel/HDR)</string>
+    <string name="settings_video">Video Settings</string>
+    <string name="settings_video_desc">Aspect/Ratio</string>
+    <string name="settings_audio">Audio Settings</string>
+    <string name="settings_audio_desc_mpv">Track/Volume/Equalizer</string>
+    <string name="settings_audio_desc_exo">Track/Volume</string>
+    <string name="settings_subtitle">Subtitle Settings</string>
+    <string name="settings_subtitle_desc">Subtitles/External subs</string>
+    <string name="settings_playback_settings">Playback Settings</string>
+    <string name="settings_playback_desc">Speed/Loop/Resume</string>
+    <string name="settings_screenshot">Screenshot Settings</string>
+    <string name="settings_screenshot_desc">Format/Path</string>
+    <string name="settings_view">View Settings</string>
+    <string name="settings_view_desc">UI/Zoom/Rotation</string>
+    <string name="settings_channels">Channels &amp; Sources</string>
+    <string name="settings_source_manager">Source Manager</string>
+    <string name="settings_source_manager_desc">Add/remove sources</string>
+    <string name="settings_mapping">Channel Mapping</string>
+    <string name="settings_mapping_desc">Channel number mapping</string>
+    <string name="settings_network">Network</string>
+    <string name="settings_network_desc">Cache/Reconnect/Proxy</string>
+    <string name="settings_general">General</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_auto_resume">Auto Resume</string>
+    <string name="settings_enabled">Enabled</string>
+    <string name="settings_disabled">Disabled</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_desc">Version/Update info</string>
+    <string name="settings_current">Current: %1$s</string>
+
+    <!-- Portrait Bottom Tab Bar -->
+    <string name="tab_home">Home</string>
+    <string name="tab_list">List</string>
+    <string name="tab_tools">Tools</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Channel List Panel -->
+    <string name="channel_list">Channel List</string>
+    <string name="cd_channel_list">Channel list</string>
+    <string name="cd_epg_guide">EPG guide</string>
+    <string name="cd_program_guide">Program guide</string>
+    <string name="hint_long_press_favorite">Long press a channel to add to favorites</string>
+    <string name="quick_channel_list">Channel List</string>
+    <string name="quick_channel_list_desc">Browse all channels</string>
 </resources>

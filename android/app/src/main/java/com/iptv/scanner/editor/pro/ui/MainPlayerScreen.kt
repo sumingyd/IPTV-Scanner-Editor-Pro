@@ -90,9 +90,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import com.iptv.scanner.editor.pro.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -971,14 +973,14 @@ private fun TopBar(
                     IconButton(onClick = onChannelsClick) {
                         Icon(
                             Icons.Default.VideoLibrary,
-                            contentDescription = "频道列表",
+                            contentDescription = stringResource(R.string.cd_channel_list),
                             tint = oc.iconTint
                         )
                     }
                     IconButton(onClick = onEpgClick) {
                         Icon(
                             Icons.Default.CalendarMonth,
-                            contentDescription = "EPG 节目单",
+                            contentDescription = stringResource(R.string.cd_epg_guide),
                             tint = oc.iconTint
                         )
                     }
@@ -2023,7 +2025,7 @@ private fun PortraitHomeScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "在频道列表中长按频道可添加收藏",
+                                text = stringResource(R.string.hint_long_press_favorite),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                 fontSize = 10.sp
                             )
@@ -2077,7 +2079,7 @@ private fun QuickActionGrid(
 ) {
     val oc = rememberPlayerOverlayColors()
     val actions = listOf(
-        QuickAction(Icons.Default.VideoLibrary, "频道列表", "浏览所有频道") {
+        QuickAction(Icons.Default.VideoLibrary, stringResource(R.string.quick_channel_list), stringResource(R.string.quick_channel_list_desc)) {
             viewModel.setPortraitTab(AppViewModel.PortraitTab.LIST)
         },
         QuickAction(Icons.Default.Movie, "本地文件", "播放视频/音频") {
@@ -2641,7 +2643,7 @@ private fun PortraitListScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "频道列表",
+                    text = stringResource(R.string.channel_list),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold
@@ -3349,7 +3351,7 @@ private fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "未播放",
+                text = stringResource(R.string.not_playing),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp
             )
@@ -3361,9 +3363,9 @@ private fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
     var selectedTab by remember { mutableStateOf(0) }
 
     val tabs = if (isLocalFile) {
-        listOf("播放信息", "最近文件")
+        listOf(stringResource(R.string.tab_playback_info), stringResource(R.string.tab_recent_files))
     } else {
-        listOf("频道列表", "节目单", "播放信息")
+        listOf(stringResource(R.string.tab_channel_list), stringResource(R.string.tab_epg_guide), stringResource(R.string.tab_playback_info))
     }
 
     // 如果 selectedTab 超出范围（切换模式时），重置为 0
@@ -3488,7 +3490,7 @@ private fun PortraitLocalFileInfo(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "文件信息",
+                        text = stringResource(R.string.info_file_info),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
@@ -3528,7 +3530,7 @@ private fun PortraitLocalFileInfo(
                     if (duration > 0) {
                         val progress = (timePos / duration * 100).coerceIn(0.0, 100.0)
                         Text(
-                            text = "播放进度",
+                            text = stringResource(R.string.info_playback_progress),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp
                         )
@@ -3561,11 +3563,11 @@ private fun PortraitLocalFileInfo(
 
                     // 文件路径
                     mediaInfo["fileFormat"]?.takeIf { it.isNotEmpty() && it != "null" }?.let { fmt ->
-                        InfoRow("容器格式", fmt.uppercase())
+                        InfoRow(stringResource(R.string.info_container_format), fmt.uppercase())
                     }
                     mediaInfo["bitrate"]?.takeIf { it.isNotEmpty() && it != "null" && it != "0" }?.let { br ->
                         val brVal = br.toLongOrNull() ?: 0L
-                        InfoRow("比特率", if (brVal > 1000000) "${brVal / 1000000} Mbps" else "${brVal / 1000} kbps")
+                        InfoRow(stringResource(R.string.info_bitrate), if (brVal > 1000000) "${brVal / 1000000} Mbps" else "${brVal / 1000} kbps")
                     }
                 }
             }
@@ -3581,7 +3583,7 @@ private fun PortraitLocalFileInfo(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "音轨与字幕",
+                        text = stringResource(R.string.info_audio_subtitle),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
@@ -3594,11 +3596,11 @@ private fun PortraitLocalFileInfo(
                         TextButton(
                             onClick = { viewModel.toggleAudioSettings() },
                             modifier = Modifier.weight(1f)
-                        ) { Text("音轨设置") }
+                        ) { Text(stringResource(R.string.info_audio_settings)) }
                         TextButton(
                             onClick = { viewModel.toggleSubtitleSettings() },
                             modifier = Modifier.weight(1f)
-                        ) { Text("字幕设置") }
+                        ) { Text(stringResource(R.string.info_subtitle_settings)) }
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -3607,11 +3609,11 @@ private fun PortraitLocalFileInfo(
                         TextButton(
                             onClick = { viewModel.togglePlaybackPanel() },
                             modifier = Modifier.weight(1f)
-                        ) { Text("播放速度") }
+                        ) { Text(stringResource(R.string.info_playback_speed)) }
                         TextButton(
                             onClick = { viewModel.toggleBookmarkPanel() },
                             modifier = Modifier.weight(1f)
-                        ) { Text("书签管理") }
+                        ) { Text(stringResource(R.string.info_bookmark_manager)) }
                     }
                 }
             }
@@ -3622,7 +3624,7 @@ private fun PortraitLocalFileInfo(
             item {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "最近播放",
+                    text = stringResource(R.string.info_recent_played),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold
@@ -3660,7 +3662,7 @@ private fun PortraitLocalFileInfo(
                         )
                         Icon(
                             Icons.Default.PlayArrow,
-                            contentDescription = "播放",
+                            contentDescription = stringResource(R.string.cd_play),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
@@ -3718,12 +3720,12 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
         when {
             loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("加载中...", color = oc.textSecondary, fontSize = 13.sp)
+                    Text(stringResource(R.string.epg_loading), color = oc.textSecondary, fontSize = 13.sp)
                 }
             }
             epg.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("暂无节目信息", color = oc.textSecondary, fontSize = 13.sp)
+                    Text(stringResource(R.string.epg_no_info), color = oc.textSecondary, fontSize = 13.sp)
                 }
             }
             else -> {
@@ -3799,7 +3801,7 @@ private fun PortraitEpgItem(
                     modifier = Modifier.padding(top = 2.dp)
                 ) {
                     Text(
-                        text = "正在播出",
+                        text = stringResource(R.string.epg_now_playing),
                         color = oc.accent,
                         fontSize = 9.sp,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
@@ -3869,7 +3871,7 @@ private fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("暂无最近播放的本地文件", color = oc.textSecondary, fontSize = 13.sp)
+            Text(stringResource(R.string.no_recent_local_files), color = oc.textSecondary, fontSize = 13.sp)
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -3943,24 +3945,24 @@ private fun PortraitPlayerInfoPanel(
     ) {
         item {
             Text(
-                text = "播放信息",
+                text = stringResource(R.string.info_playback),
                 color = oc.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
         }
-        item { InfoRow(label = "分辨率", value = if (videoWidth > 0) "${videoWidth}x${videoHeight}" else "未知") }
-        item { InfoRow(label = "时长", value = formatTime(duration)) }
-        item { InfoRow(label = "当前位置", value = formatTime(timePos)) }
+        item { InfoRow(label = stringResource(R.string.info_resolution), value = if (videoWidth > 0) "${videoWidth}x${videoHeight}" else stringResource(R.string.info_unknown)) }
+        item { InfoRow(label = stringResource(R.string.info_duration), value = formatTime(duration)) }
+        item { InfoRow(label = stringResource(R.string.info_current_position), value = formatTime(timePos)) }
         item {
             val progress = if (duration > 0) (timePos / duration * 100).toInt() else 0
-            InfoRow(label = "进度", value = "$progress%")
+            InfoRow(label = stringResource(R.string.info_progress), value = "$progress%")
         }
         item { Box(modifier = Modifier.height(4.dp)) }
         item {
             Text(
-                text = "媒体信息",
+                text = stringResource(R.string.info_media_info),
                 color = oc.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
@@ -4002,9 +4004,9 @@ private fun PortraitToolsContent(viewModel: AppViewModel) {
     }
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        item { PortraitSectionHeader("文件", oc) }
+        item { PortraitSectionHeader(stringResource(R.string.tools_file), oc) }
         item {
-            PortraitListRow("打开本地文件", "播放设备上的视频/音频文件", oc) {
+            PortraitListRow(stringResource(R.string.tools_open_local_file), stringResource(R.string.tools_open_local_file_desc), oc) {
                 if (!viewModel.isSafAvailable()) {
                     viewModel.showMediaFileBrowser()
                 } else {
@@ -4013,7 +4015,7 @@ private fun PortraitToolsContent(viewModel: AppViewModel) {
             }
         }
         item {
-            PortraitListRow("打开播放列表", "导入 M3U/M3U8 文件", oc) {
+            PortraitListRow(stringResource(R.string.tools_open_playlist), stringResource(R.string.tools_open_playlist_desc), oc) {
                 if (!viewModel.isSafAvailable()) {
                     viewModel.showFileBrowser()
                 } else {
@@ -4026,59 +4028,59 @@ private fun PortraitToolsContent(viewModel: AppViewModel) {
             }
         }
         item {
-            PortraitListRow("打开网络流", "输入 URL 播放", oc) {
+            PortraitListRow(stringResource(R.string.tools_open_network_stream), stringResource(R.string.tools_open_network_stream_desc), oc) {
                 viewModel.toggleOpenUrlDialog()
             }
         }
         item {
-            PortraitListRow("最近打开", "最近播放的文件", oc) { viewModel.toggleRecentPanel() }
+            PortraitListRow(stringResource(R.string.tools_recent), stringResource(R.string.tools_recent_desc), oc) { viewModel.toggleRecentPanel() }
         }
-        item { PortraitSectionHeader("工具", oc) }
+        item { PortraitSectionHeader(stringResource(R.string.tools_tools), oc) }
         item {
-            PortraitListRow("截图", "截取当前画面", oc, disabled = !isMpv) { viewModel.takeScreenshot("video") }
-        }
-        item {
-            PortraitListRow("切片导出", "导出视频片段", oc, disabled = !isMpv) { viewModel.toggleClipExportPanel() }
+            PortraitListRow(stringResource(R.string.tools_screenshot), stringResource(R.string.tools_screenshot_desc), oc, disabled = !isMpv) { viewModel.takeScreenshot("video") }
         }
         item {
-            PortraitListRow("音频可视化", "频谱波形显示", oc, active = audioVisualizerOpen) { viewModel.toggleAudioVisualizer() }
+            PortraitListRow(stringResource(R.string.tools_clip_export), stringResource(R.string.tools_clip_export_desc), oc, disabled = !isMpv) { viewModel.toggleClipExportPanel() }
         }
         item {
-            PortraitListRow("歌词", "加载/显示歌词", oc, active = lyricsOpen, disabled = !isMpv) { viewModel.toggleLyricsPanel() }
+            PortraitListRow(stringResource(R.string.tools_audio_visualizer), stringResource(R.string.tools_audio_visualizer_desc), oc, active = audioVisualizerOpen) { viewModel.toggleAudioVisualizer() }
         }
         item {
-            PortraitListRow("锁定控制层", "防止误触", oc, active = controlsPinned) { viewModel.toggleControlsPinned() }
+            PortraitListRow(stringResource(R.string.tools_lyrics), stringResource(R.string.tools_lyrics_desc), oc, active = lyricsOpen, disabled = !isMpv) { viewModel.toggleLyricsPanel() }
         }
         item {
-            PortraitListRow("刷新", "重新加载频道/EPG", oc) { viewModel.refreshUi() }
+            PortraitListRow(stringResource(R.string.tools_lock_controls), stringResource(R.string.tools_lock_controls_desc), oc, active = controlsPinned) { viewModel.toggleControlsPinned() }
         }
         item {
-            PortraitListRow("另存为 M3U", "导出频道列表到下载目录", oc) { viewModel.saveAsM3u() }
-        }
-        item { PortraitSectionHeader("高级工具", oc) }
-        item {
-            PortraitListRow("EPG 时间线", "多频道节目时间线", oc) { viewModel.toggleEpgTimelinePanel() }
+            PortraitListRow(stringResource(R.string.tools_refresh), stringResource(R.string.tools_refresh_desc), oc) { viewModel.refreshUi() }
         }
         item {
-            PortraitListRow("全局搜索", "搜索频道/节目", oc) { viewModel.toggleSearchPanel() }
+            PortraitListRow(stringResource(R.string.tools_save_as_m3u), stringResource(R.string.tools_save_as_m3u_desc), oc) { viewModel.saveAsM3u() }
+        }
+        item { PortraitSectionHeader(stringResource(R.string.tools_advanced), oc) }
+        item {
+            PortraitListRow(stringResource(R.string.tools_epg_timeline), stringResource(R.string.tools_epg_timeline_desc), oc) { viewModel.toggleEpgTimelinePanel() }
         }
         item {
-            PortraitListRow("流质量检测", "检测流质量", oc, disabled = !isMpv) { viewModel.toggleStreamQualityPanel() }
+            PortraitListRow(stringResource(R.string.tools_global_search), stringResource(R.string.tools_global_search_desc), oc) { viewModel.toggleSearchPanel() }
         }
         item {
-            PortraitListRow("URL 范围扫描", "扫描整理 URL", oc) { viewModel.toggleScanPanel() }
+            PortraitListRow(stringResource(R.string.tools_stream_quality), stringResource(R.string.tools_stream_quality_desc), oc, disabled = !isMpv) { viewModel.toggleStreamQualityPanel() }
         }
         item {
-            PortraitListRow("节目提醒", "管理提醒", oc) { viewModel.toggleReminderPanel() }
+            PortraitListRow(stringResource(R.string.tools_url_scan), stringResource(R.string.tools_url_scan_desc), oc) { viewModel.toggleScanPanel() }
         }
         item {
-            PortraitListRow("续播位置", "管理续播", oc) { viewModel.toggleResumePanel() }
+            PortraitListRow(stringResource(R.string.tools_reminder), stringResource(R.string.tools_reminder_desc), oc) { viewModel.toggleReminderPanel() }
         }
         item {
-            PortraitListRow("书签管理", "管理书签", oc, disabled = !isMpv) { viewModel.toggleBookmarkPanel() }
+            PortraitListRow(stringResource(R.string.tools_resume), stringResource(R.string.tools_resume_desc), oc) { viewModel.toggleResumePanel() }
         }
         item {
-            PortraitListRow("A/V 同步监控", "音视频同步", oc, disabled = !isMpv) { viewModel.toggleAvSyncPanel() }
+            PortraitListRow(stringResource(R.string.tools_bookmark), stringResource(R.string.tools_bookmark_desc), oc, disabled = !isMpv) { viewModel.toggleBookmarkPanel() }
+        }
+        item {
+            PortraitListRow(stringResource(R.string.tools_av_sync), stringResource(R.string.tools_av_sync_desc), oc, disabled = !isMpv) { viewModel.toggleAvSyncPanel() }
         }
     }
 }
@@ -4096,34 +4098,41 @@ private fun PortraitSettingsContent(viewModel: AppViewModel) {
     val isMpv = playerType == PlayerType.MPV
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        item { PortraitSectionHeader("播放", oc) }
-        item { PortraitListRow("播放器设置", "${playerType.displayName} 配置${if (isMpv) "（解码/硬件加速/HDR）" else ""}", oc) { viewModel.togglePlayerSettings() } }
-        item { PortraitListRow("视频设置", "画面/比例", oc) { viewModel.toggleVideoSettings() } }
-        item { PortraitListRow("音频设置", "音轨/音量${if (isMpv) "/均衡器" else ""}", oc) { viewModel.toggleAudioSettings() } }
-        item { PortraitListRow("字幕设置", "字幕/外挂字幕", oc, disabled = !isMpv) { viewModel.toggleSubtitleSettings() } }
-        item { PortraitListRow("播放设置", "速度/循环/续播", oc) { viewModel.togglePlaybackPanel() } }
-        item { PortraitListRow("截图设置", "截图格式/路径", oc, disabled = !isMpv) { viewModel.toggleScreenshotPanel() } }
-        item { PortraitListRow("视图设置", "界面/缩放/旋转", oc) { viewModel.toggleViewSettings() } }
-
-        item { PortraitSectionHeader("频道与源", oc) }
-        item { PortraitListRow("订阅源管理", "添加/删除订阅源", oc) { viewModel.toggleSourceManager() } }
-        item { PortraitListRow("频道映射", "频道号映射", oc) { viewModel.toggleMappingPanel() } }
-        item { PortraitListRow("网络增强", "缓存/重连/代理", oc) { viewModel.toggleNetworkPanel() } }
-
-        item { PortraitSectionHeader("通用", oc) }
+        item { PortraitSectionHeader(stringResource(R.string.settings_playback), oc) }
         item {
-            val themeLabel = when (themeMode) { "light" -> "浅色"; "system" -> "跟随系统"; else -> "深色" }
-            PortraitListRow("主题模式", "当前: $themeLabel", oc) {
+            val mpvExtra = if (isMpv) stringResource(R.string.settings_mpv_config_extra) else ""
+            PortraitListRow(stringResource(R.string.settings_player), stringResource(R.string.settings_player_desc, playerType.displayName, mpvExtra), oc) { viewModel.togglePlayerSettings() }
+        }
+        item { PortraitListRow(stringResource(R.string.settings_video), stringResource(R.string.settings_video_desc), oc) { viewModel.toggleVideoSettings() } }
+        item {
+            val audioDesc = if (isMpv) stringResource(R.string.settings_audio_desc_mpv) else stringResource(R.string.settings_audio_desc_exo)
+            PortraitListRow(stringResource(R.string.settings_audio), audioDesc, oc) { viewModel.toggleAudioSettings() }
+        }
+        item { PortraitListRow(stringResource(R.string.settings_subtitle), stringResource(R.string.settings_subtitle_desc), oc, disabled = !isMpv) { viewModel.toggleSubtitleSettings() } }
+        item { PortraitListRow(stringResource(R.string.settings_playback_settings), stringResource(R.string.settings_playback_desc), oc) { viewModel.togglePlaybackPanel() } }
+        item { PortraitListRow(stringResource(R.string.settings_screenshot), stringResource(R.string.settings_screenshot_desc), oc, disabled = !isMpv) { viewModel.toggleScreenshotPanel() } }
+        item { PortraitListRow(stringResource(R.string.settings_view), stringResource(R.string.settings_view_desc), oc) { viewModel.toggleViewSettings() } }
+
+        item { PortraitSectionHeader(stringResource(R.string.settings_channels), oc) }
+        item { PortraitListRow(stringResource(R.string.settings_source_manager), stringResource(R.string.settings_source_manager_desc), oc) { viewModel.toggleSourceManager() } }
+        item { PortraitListRow(stringResource(R.string.settings_mapping), stringResource(R.string.settings_mapping_desc), oc) { viewModel.toggleMappingPanel() } }
+        item { PortraitListRow(stringResource(R.string.settings_network), stringResource(R.string.settings_network_desc), oc) { viewModel.toggleNetworkPanel() } }
+
+        item { PortraitSectionHeader(stringResource(R.string.settings_general), oc) }
+        item {
+            val themeLabel = when (themeMode) { "light" -> stringResource(R.string.settings_theme_light); "system" -> stringResource(R.string.settings_theme_system); else -> stringResource(R.string.settings_theme_dark) }
+            PortraitListRow(stringResource(R.string.settings_theme), stringResource(R.string.settings_current, themeLabel), oc) {
                 val next = when (themeMode) { "dark" -> "light"; "light" -> "system"; else -> "dark" }
                 viewModel.setThemeMode(next)
             }
         }
         item {
-            PortraitListRow("启动自动续播", if (autoResume) "已开启" else "已关闭", oc, active = autoResume) {
+            val resumeLabel = if (autoResume) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled)
+            PortraitListRow(stringResource(R.string.settings_auto_resume), resumeLabel, oc, active = autoResume) {
                 viewModel.setAutoResume(!autoResume)
             }
         }
-        item { PortraitListRow("关于", "版本/更新信息", oc) { viewModel.toggleAboutPanel() } }
+        item { PortraitListRow(stringResource(R.string.settings_about), stringResource(R.string.settings_about_desc), oc) { viewModel.toggleAboutPanel() } }
     }
 }
 
@@ -4143,10 +4152,10 @@ private fun PortraitBottomTabBar(
     val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
 
     val tabItems = listOf(
-        Triple(Icons.Default.Home, "首页", AppViewModel.PortraitTab.HOME),
-        Triple(Icons.Default.VideoLibrary, "列表", AppViewModel.PortraitTab.LIST),
-        Triple(Icons.Default.Build, "工具", AppViewModel.PortraitTab.TOOLS),
-        Triple(Icons.Default.Settings, "设置", AppViewModel.PortraitTab.SETTINGS)
+        Triple(Icons.Default.Home, stringResource(R.string.tab_home), AppViewModel.PortraitTab.HOME),
+        Triple(Icons.Default.VideoLibrary, stringResource(R.string.tab_list), AppViewModel.PortraitTab.LIST),
+        Triple(Icons.Default.Build, stringResource(R.string.tab_tools), AppViewModel.PortraitTab.TOOLS),
+        Triple(Icons.Default.Settings, stringResource(R.string.tab_settings), AppViewModel.PortraitTab.SETTINGS)
     )
 
     val tabContent: @Composable RowScope.() -> Unit = {
@@ -4912,7 +4921,7 @@ private fun PortraitChannelListItem(
         ) {
             Icon(
                 Icons.Default.CalendarMonth,
-                contentDescription = "节目单",
+                    contentDescription = stringResource(R.string.cd_program_guide),
                 tint = oc.iconTint,
                 modifier = Modifier.size(18.dp)
             )

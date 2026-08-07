@@ -1,0 +1,138 @@
+<resources>
+    <string name="app_name">ISEP</string>
+    <string name="server_starting">正在启动服务器…</string>
+    <string name="server_failed">服务器启动失败</string>
+    <string name="permission_network">播放需要网络访问权限</string>
+
+    <!-- Portrait Player Dynamic Content Tabs -->
+    <string name="not_playing">未播放</string>
+    <string name="tab_playback_info">播放信息</string>
+    <string name="tab_recent_files">最近文件</string>
+    <string name="tab_channel_list">频道列表</string>
+    <string name="tab_epg_guide">节目单</string>
+
+    <!-- Portrait Player Info Panel -->
+    <string name="info_playback">播放信息</string>
+    <string name="info_resolution">分辨率</string>
+    <string name="info_unknown">未知</string>
+    <string name="info_duration">时长</string>
+    <string name="info_current_position">当前位置</string>
+    <string name="info_progress">进度</string>
+    <string name="info_media_info">媒体信息</string>
+
+    <!-- Portrait Local File Info -->
+    <string name="info_file_info">文件信息</string>
+    <string name="info_playback_progress">播放进度</string>
+    <string name="info_container_format">容器格式</string>
+    <string name="info_bitrate">比特率</string>
+    <string name="info_audio_subtitle">音轨与字幕</string>
+    <string name="info_audio_settings">音轨设置</string>
+    <string name="info_subtitle_settings">字幕设置</string>
+    <string name="info_playback_speed">播放速度</string>
+    <string name="info_bookmark_manager">书签管理</string>
+    <string name="info_recent_played">最近播放</string>
+    <string name="cd_play">播放</string>
+
+    <!-- Portrait EPG Content -->
+    <string name="epg_loading">加载中…</string>
+    <string name="epg_no_info">暂无节目信息</string>
+    <string name="epg_now_playing">正在播出</string>
+
+    <!-- Portrait Recent Local Files -->
+    <string name="no_recent_local_files">暂无最近播放的本地文件</string>
+
+    <!-- Portrait Tools Content -->
+    <string name="tools_file">文件</string>
+    <string name="tools_open_local_file">打开本地文件</string>
+    <string name="tools_open_local_file_desc">播放设备上的视频/音频文件</string>
+    <string name="tools_open_playlist">打开播放列表</string>
+    <string name="tools_open_playlist_desc">导入 M3U/M3U8 文件</string>
+    <string name="tools_open_network_stream">打开网络流</string>
+    <string name="tools_open_network_stream_desc">输入 URL 播放</string>
+    <string name="tools_recent">最近打开</string>
+    <string name="tools_recent_desc">最近播放的文件</string>
+    <string name="tools_tools">工具</string>
+    <string name="tools_screenshot">截图</string>
+    <string name="tools_screenshot_desc">截取当前画面</string>
+    <string name="tools_clip_export">切片导出</string>
+    <string name="tools_clip_export_desc">导出视频片段</string>
+    <string name="tools_audio_visualizer">音频可视化</string>
+    <string name="tools_audio_visualizer_desc">频谱波形显示</string>
+    <string name="tools_lyrics">歌词</string>
+    <string name="tools_lyrics_desc">加载/显示歌词</string>
+    <string name="tools_lock_controls">锁定控制层</string>
+    <string name="tools_lock_controls_desc">防止误触</string>
+    <string name="tools_refresh">刷新</string>
+    <string name="tools_refresh_desc">重新加载频道/EPG</string>
+    <string name="tools_save_as_m3u">另存为 M3U</string>
+    <string name="tools_save_as_m3u_desc">导出频道列表到下载目录</string>
+    <string name="tools_advanced">高级工具</string>
+    <string name="tools_epg_timeline">EPG 时间线</string>
+    <string name="tools_epg_timeline_desc">多频道节目时间线</string>
+    <string name="tools_global_search">全局搜索</string>
+    <string name="tools_global_search_desc">搜索频道/节目</string>
+    <string name="tools_stream_quality">流质量检测</string>
+    <string name="tools_stream_quality_desc">检测流质量</string>
+    <string name="tools_url_scan">URL 范围扫描</string>
+    <string name="tools_url_scan_desc">扫描整理 URL</string>
+    <string name="tools_reminder">节目提醒</string>
+    <string name="tools_reminder_desc">管理提醒</string>
+    <string name="tools_resume">续播位置</string>
+    <string name="tools_resume_desc">管理续播</string>
+    <string name="tools_bookmark">书签管理</string>
+    <string name="tools_bookmark_desc">管理书签</string>
+    <string name="tools_av_sync">A/V 同步监控</string>
+    <string name="tools_av_sync_desc">音视频同步</string>
+
+    <!-- Portrait Settings Content -->
+    <string name="settings_playback">播放</string>
+    <string name="settings_player">播放器设置</string>
+    <string name="settings_player_desc">%1$s 配置%2$s</string>
+    <string name="settings_mpv_config_extra">（解码/硬件加速/HDR）</string>
+    <string name="settings_video">视频设置</string>
+    <string name="settings_video_desc">画面/比例</string>
+    <string name="settings_audio">音频设置</string>
+    <string name="settings_audio_desc_mpv">音轨/音量/均衡器</string>
+    <string name="settings_audio_desc_exo">音轨/音量</string>
+    <string name="settings_subtitle">字幕设置</string>
+    <string name="settings_subtitle_desc">字幕/外挂字幕</string>
+    <string name="settings_playback_settings">播放设置</string>
+    <string name="settings_playback_desc">速度/循环/续播</string>
+    <string name="settings_screenshot">截图设置</string>
+    <string name="settings_screenshot_desc">截图格式/路径</string>
+    <string name="settings_view">视图设置</string>
+    <string name="settings_view_desc">界面/缩放/旋转</string>
+    <string name="settings_channels">频道与源</string>
+    <string name="settings_source_manager">订阅源管理</string>
+    <string name="settings_source_manager_desc">添加/删除订阅源</string>
+    <string name="settings_mapping">频道映射</string>
+    <string name="settings_mapping_desc">频道号映射</string>
+    <string name="settings_network">网络增强</string>
+    <string name="settings_network_desc">缓存/重连/代理</string>
+    <string name="settings_general">通用</string>
+    <string name="settings_theme">主题模式</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_auto_resume">启动自动续播</string>
+    <string name="settings_enabled">已开启</string>
+    <string name="settings_disabled">已关闭</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_about_desc">版本/更新信息</string>
+    <string name="settings_current">当前: %1$s</string>
+
+    <!-- Portrait Bottom Tab Bar -->
+    <string name="tab_home">首页</string>
+    <string name="tab_list">列表</string>
+    <string name="tab_tools">工具</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- Channel List Panel -->
+    <string name="channel_list">频道列表</string>
+    <string name="cd_channel_list">频道列表</string>
+    <string name="cd_epg_guide">EPG 节目单</string>
+    <string name="cd_program_guide">节目单</string>
+    <string name="hint_long_press_favorite">在频道列表中长按频道可添加收藏</string>
+    <string name="quick_channel_list">频道列表</string>
+    <string name="quick_channel_list_desc">浏览所有频道</string>
+</resources>
