@@ -179,7 +179,7 @@ fun TvScreensaver(
                 .clickable {
                     showScreensaver = false
                     lastActivityTime = System.currentTimeMillis()
-                    viewModel.setControlsVisible(true)
+                    viewModel.showControlsAutoHide()
                 }
         ) {
             // 大号时钟（居中）
@@ -263,7 +263,7 @@ fun TvScreensaver(
 fun AppViewModel.resetScreensaverTimer() {
     // 触发 controlsVisible 变化即可重置（TvScreensaver 监听此变化）
     if (!controlsVisible.value) {
-        setControlsVisible(true)
+        showControlsAutoHide()
     }
 }
 

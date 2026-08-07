@@ -60,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.data.IptvChannel
+import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 
 // =================================================================
@@ -535,12 +536,12 @@ fun ChannelBatchOpsPanel(
         }
     }
 
-    // 监听批量编辑结果
-    val batchResult by viewModel.batchEditResult.collectAsState()
-    LaunchedEffect(batchResult) {
-        if (batchResult.isNotEmpty()) {
+    // 监听 OSD 消息（batchEditChannels 成功/失败后通过 showOsd 反馈）
+    val osdInfo by viewModel.osd.collectAsState()
+    LaunchedEffect(osdInfo) {
+        if (osdInfo != null && processing) {
             processing = false
-            resultMsg = batchResult
+            resultMsg = osdInfo!!.title + if (osdInfo!!.subtitle.isNotEmpty()) ": ${osdInfo!!.subtitle}" else ""
         }
     }
 }

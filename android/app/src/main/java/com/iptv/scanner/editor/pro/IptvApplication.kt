@@ -1,12 +1,11 @@
 package com.iptv.scanner.editor.pro
 
-import android.app.ActivityManager
-import android.content.Context
 import android.util.Log
 import coil.ImageLoader
 import coil.ImageLoaderFactory
-import coil.disk.DiskCacheBuilder
-import coil.memory.MemoryCacheBuilder
+import coil.disk.DiskCache
+import coil.imageLoader
+import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import com.chaquo.python.android.PyApplication
 import org.acra.ACRA
@@ -87,13 +86,13 @@ class IptvApplication : PyApplication(), ImageLoaderFactory {
             .crossfade(200)
             // 内存缓存：50MB 上限
             .memoryCache {
-                MemoryCacheBuilder(this)
+                MemoryCache.Builder(this)
                     .maxSizeBytes(COIL_MEMORY_CACHE_BYTES.toInt())
                     .build()
             }
             // 磁盘缓存：100MB 上限，存放在 cacheDir/coil 目录
             .diskCache {
-                coil.disk.DiskCache.Builder()
+                DiskCache.Builder()
                     .directory(File(cacheDir, "coil_cache"))
                     .maxSizeBytes(COIL_DISK_CACHE_BYTES)
                     .build()
@@ -129,27 +128,21 @@ class IptvApplication : PyApplication(), ImageLoaderFactory {
         when (level) {
             TRIM_MEMORY_RUNNING_LOW -> {
                 // 系统内存低：清空 Coil 内存缓存
-                (applicationContext as? IptvApplication)
-                    ?.let { app ->
-                        app.imageLoader.memoryCache?.clear()
-                    }
+                val loader = applicationContext.imageLoader
+                loader.memoryCache?.clear()
                 Log.i(TAG, "onTrimMemory: cleared Coil memory cache (RUNNING_LOW)")
             }
             TRIM_MEMORY_RUNNING_CRITICAL -> {
                 // 系统内存严重不足：清空所有内存缓存
-                (applicationContext as? IptvApplication)
-                    ?.let { app ->
-                        app.imageLoader.memoryCache?.clear()
-                    }
+                val loader = applicationContext.imageLoader
+                loader.memoryCache?.clear()
                 Log.w(TAG, "onTrimMemory: cleared Coil memory cache (RUNNING_CRITICAL)")
             }
             TRIM_MEMORY_MODERATE, TRIM_MEMORY_COMPLETE -> {
                 // 应用在后台且系统需要回收内存：清空所有缓存
-                (applicationContext as? IptvApplication)
-                    ?.let { app ->
-                        app.imageLoader.memoryCache?.clear()
-                        app.imageLoader.diskCache?.clear()
-                    }
+                val loader = applicationContext.imageLoader
+                loader.memoryCache?.clear()
+                loader.diskCache?.clear()
                 Log.w(TAG, "onTrimMemory: cleared all caches (level=$level)")
             }
         }
