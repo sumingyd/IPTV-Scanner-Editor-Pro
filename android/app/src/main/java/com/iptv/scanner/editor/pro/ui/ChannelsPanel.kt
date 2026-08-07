@@ -37,6 +37,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -216,7 +220,22 @@ fun ChannelsPanel(viewModel: AppViewModel, inline: Boolean = false, compact: Boo
 }
 
 /**
+ * 频道列表分页加载常量。
+ *
+ * 频道列表超过 PAGINATION_THRESHOLD 条时启用分页加载：
+ * - 初始加载 INITIAL_LOAD 条
+ * - 滚动到底部时预取 PREFETCH_SIZE 条
+ * - 平滑增量加载，避免一次性渲染数千项导致卡顿
+ */
+private const val PAGINATION_THRESHOLD = 1000
+private const val INITIAL_LOAD = 200
+private const val PREFETCH_SIZE = 100
+
+/**
  * 频道列表内容（空态 + LazyColumn）。
+ *
+ * 分页加载优化：频道超过 1000 条时，初始只渲染 200 条，
+ * 滚动到底部时预取下一批 100 条，避免一次性渲染全部项。
  */
 @Composable
 private fun ChannelListContent(
@@ -246,12 +265,39 @@ private fun ChannelListContent(
             )
         }
     } else {
+        // 分页加载：频道数超过阈值时启用增量加载
+        val usePagination = filteredChannels.size > PAGINATION_THRESHOLD
+        var visibleCount by remember(filteredChannels.size) {
+            mutableStateOf(if (usePagination) INITIAL_LOAD else filteredChannels.size)
+        }
+        val listState = rememberLazyListState()
+
+        // 监听滚动位置，接近底部时加载更多
+        LaunchedEffect(listState, filteredChannels.size) {
+            snapshotFlow {
+                val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                lastVisible >= visibleCount - 5
+            }.collect { nearEnd ->
+                if (nearEnd && visibleCount < filteredChannels.size) {
+                    // 加载下一批
+                    visibleCount = minOf(visibleCount + PREFETCH_SIZE, filteredChannels.size)
+                }
+            }
+        }
+
+        val displayedChannels = if (usePagination) {
+            filteredChannels.take(visibleCount)
+        } else {
+            filteredChannels
+        }
+
         LazyColumn(
+            state = if (usePagination) listState else rememberLazyListState(),
             modifier = modifier.fillMaxSize(),
             contentPadding = PaddingValues(vertical = 4.dp)
         ) {
             items(
-                items = filteredChannels,
+                items = displayedChannels,
                 key = { (channel, idx) -> idx }
             ) { (channel, idx) ->
                 ChannelListItem(
@@ -261,6 +307,22 @@ private fun ChannelListContent(
                     showGroupMeta = tab == ChannelTab.SUB || tab == ChannelTab.LOCAL,
                     onClick = { onPlay(idx) }
                 )
+            }
+            // 分页加载指示器
+            if (usePagination && visibleCount < filteredChannels.size) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
             }
         }
     }

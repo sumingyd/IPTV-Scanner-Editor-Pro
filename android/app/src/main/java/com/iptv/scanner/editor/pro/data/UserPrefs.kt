@@ -1106,6 +1106,18 @@ fun getTimeoutSwitchSource(): Int = prefs.getInt(KEY_TIMEOUT_SWITCH_SOURCE, DEFA
         private const val KEY_RECENT_FILES = "recent_files"
         private const val MAX_RECENT_FILES = 20
 
+        // TV 开机直接播放（跳过首页直接全屏播放上次频道）
+        private const val KEY_DIRECT_PLAY_ON_BOOT = "direct_play_on_boot"
+        private const val DEFAULT_DIRECT_PLAY_ON_BOOT = false
+
+        // TV 屏保超时（分钟，0=关闭）
+        private const val KEY_SCREENSAVER_TIMEOUT = "screensaver_timeout"
+        private const val DEFAULT_SCREENSAVER_TIMEOUT = 5
+
+        // 竖屏全屏模式（竖屏视频填满屏幕，不强制旋转）
+        private const val KEY_PORTRAIT_FULLSCREEN = "portrait_fullscreen"
+        private const val DEFAULT_PORTRAIT_FULLSCREEN = false
+
         @Volatile
         private var INSTANCE: UserPrefs? = null
 
@@ -1115,5 +1127,38 @@ fun getTimeoutSwitchSource(): Int = prefs.getInt(KEY_TIMEOUT_SWITCH_SOURCE, DEFA
             }
 
         fun init(context: Context) = getInstance().init(context)
+    }
+
+    // -----------------------------------------------------------------
+    // TV 开机直接播放（跳过首页直接全屏播放上次频道）
+    // -----------------------------------------------------------------
+
+    /** 是否开启 TV 开机直接播放，默认 false */
+    fun isDirectPlayOnBoot(): Boolean = prefs.getBoolean(KEY_DIRECT_PLAY_ON_BOOT, DEFAULT_DIRECT_PLAY_ON_BOOT)
+
+    fun setDirectPlayOnBoot(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DIRECT_PLAY_ON_BOOT, enabled).apply()
+    }
+
+    // -----------------------------------------------------------------
+    // TV 屏保超时（分钟，0=关闭屏保）
+    // -----------------------------------------------------------------
+
+    /** 获取屏保超时分钟数，默认 5 分钟，0=关闭 */
+    fun getScreensaverTimeout(): Int = prefs.getInt(KEY_SCREENSAVER_TIMEOUT, DEFAULT_SCREENSAVER_TIMEOUT)
+
+    fun setScreensaverTimeout(minutes: Int) {
+        prefs.edit().putInt(KEY_SCREENSAVER_TIMEOUT, minutes.coerceAtLeast(0)).apply()
+    }
+
+    // -----------------------------------------------------------------
+    // 竖屏全屏模式（竖屏视频/竖屏直播时填满屏幕，不强制旋转到横屏）
+    // -----------------------------------------------------------------
+
+    /** 是否开启竖屏全屏，默认 false */
+    fun isPortraitFullscreen(): Boolean = prefs.getBoolean(KEY_PORTRAIT_FULLSCREEN, DEFAULT_PORTRAIT_FULLSCREEN)
+
+    fun setPortraitFullscreen(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PORTRAIT_FULLSCREEN, enabled).apply()
     }
 }

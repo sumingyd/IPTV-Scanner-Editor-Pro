@@ -346,9 +346,82 @@ def create_app() -> web.Application:
     app.router.add_get('/api/log/view', handle_log_view)
     app.router.add_get('/api/log/download', handle_log_download)
     app.router.add_post('/api/log/clear', handle_log_clear)
+    # WebSocket 端点：实时日志流
+    app.router.add_get('/ws/logs', handle_ws_logs)
     # 管理后台静态文件（局域网 Web 管理页面）
     _register_admin_routes(app)
     return app
+
+
+async def handle_ws_logs(request):
+    """WebSocket 端点：实时推送日志行到前端。
+
+    连接后持续读取 app.log 文件尾部，有新行时推送到客户端。
+    客户端通过 WebSocket 接收日志行，实现实时日志流。
+    """
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    import asyncio
+    import os
+    from core.log_manager import global_logger
+
+    # 确定日志文件路径
+    log_file = None
+    try:
+        ctx = get_context()
+        if ctx:
+            log_file = getattr(ctx, '_log_file_path', None)
+    except Exception:
+        pass
+
+    if not log_file:
+        # 回退到默认路径
+        from utils.platform_utils import get_android_data_dir
+        log_file = os.path.join(get_android_data_dir(), 'ISEP', 'app.log')
+
+    last_pos = 0
+    try:
+        if os.path.exists(log_file):
+            # 从文件尾部开始（最后 200 行）
+            file_size = os.path.getsize(log_file)
+            with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+                # 先发送现有尾部日志
+                f.seek(max(0, file_size - 8192))
+                if file_size > 8192:
+                    f.readline()  # 跳过可能截断的行
+                for line in f:
+                    await ws.send_str(line.rstrip())
+                last_pos = f.tell()
+    except Exception as e:
+        global_logger.error(f'ws_logs: error reading initial log: {e}')
+
+    # 持续监听新日志行
+    try:
+        while True:
+            await asyncio.sleep(0.5)
+            if not os.path.exists(log_file):
+                continue
+            try:
+                file_size = os.path.getsize(log_file)
+                # 文件被截断（轮转）
+                if file_size < last_pos:
+                    last_pos = 0
+                if file_size > last_pos:
+                    with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+                        f.seek(last_pos)
+                        for line in f:
+                            await ws.send_str(line.rstrip())
+                        last_pos = f.tell()
+            except Exception:
+                pass
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        global_logger.error(f'ws_logs: error in watch loop: {e}')
+    finally:
+        await ws.close()
+    return ws
 
 
 # 允许通过认证的路由前缀（非 /api/ 的只读路由不需要认证）

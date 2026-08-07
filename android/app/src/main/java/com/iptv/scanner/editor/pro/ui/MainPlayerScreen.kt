@@ -337,32 +337,34 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
 // -----------------------------------------------------------------
 // 屏幕旋转修复：检测方向变化，恢复播放
 //
-// 根因：movableContentOf 在竖屏→横屏切换时可能销毁旧 AndroidView（onRelease→destroy），
-// destroy() 中 stop + playlist-clear 清除了播放状态。虽然 MPVView.destroy() 会保存
-// savedPlaybackPath 供新 MPVView 恢复，但如果不触发 AndroidView 重建（movableContentOf
-// 保留了 View），则只有 surfaceDestroyed→surfaceCreated。
-//
-// surfaceCreated 现在会重新 loadfile 恢复渲染（与 TextureView 行为对齐）。
-// suppressFileErrorFlag 由 onSurfaceAboutToDestroy 设置，onSurfaceRebuilt 延迟清除。
-//
-// 本 LaunchedEffect 作为兜底：延迟检查视频是否恢复，未恢复则重新加载文件。
+// 优化策略：
+// 1. 使用 remember（无 key）保持同一个 movableContentOf，避免旋转时重建 AndroidView
+// 2. 旋转只触发 surfaceDestroyed → surfaceCreated 生命周期
+// 3. surfaceCreated 中检测到 path 非空会自动恢复渲染
+// 4. 本 LaunchedEffect 作为快速兜底：缩短等待时间至 300ms，
+//    使用渐进式重试（300ms → 500ms → 800ms），减少旋转中断时间
 // -----------------------------------------------------------------
 LaunchedEffect(isPortrait) {
 if (viewModel.playerType.value == PlayerType.MPV && viewModel.mpv.fileLoaded.value) {
 Log.i("MainPlayerScreen", "Rotation detected: isPortrait=$isPortrait")
-// 等待 surfaceCreated 完成 VO 重建 + loadfile
-kotlinx.coroutines.delay(800)
-// 兜底检查：如果视频仍未恢复，尝试重新加载
-val path = viewModel.mpvGetPath()
-val w = viewModel.mpv.videoWidth.value
-val h = viewModel.mpv.videoHeight.value
-Log.i("MainPlayerScreen", "After rotation: path=$path, ${w}x${h}")
+// 快速检测：300ms 后检查视频是否恢复（surfaceCreated 通常在 100-200ms 内完成）
+kotlinx.coroutines.delay(300)
+var path = viewModel.mpvGetPath()
+var w = viewModel.mpv.videoWidth.value
+var h = viewModel.mpv.videoHeight.value
+Log.i("MainPlayerScreen", "After rotation (300ms): path=$path, ${w}x${h}")
 if (path.isNotEmpty() && (w == 0 || h == 0)) {
-Log.i("MainPlayerScreen", "Video not restored after rotation, reloading: $path")
+// 第一次重试：等待 200ms 后再次检查
+kotlinx.coroutines.delay(200)
+w = viewModel.mpv.videoWidth.value
+h = viewModel.mpv.videoHeight.value
+if (w == 0 || h == 0) {
+Log.i("MainPlayerScreen", "Video not restored after 500ms, reloading: $path")
 viewModel.mpvSuppressFileError()
 viewModel.mpv.playFile(path)
-kotlinx.coroutines.delay(500)
+kotlinx.coroutines.delay(300)
 viewModel.mpvClearSuppressFileError()
+}
 } else if (path.isEmpty()) {
 val savedPath = com.iptv.scanner.editor.pro.mpv.MPVView.savedPlaybackPath
 if (savedPath != null) {

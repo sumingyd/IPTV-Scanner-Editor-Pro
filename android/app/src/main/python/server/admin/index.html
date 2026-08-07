@@ -680,8 +680,11 @@ textarea.form-input {
     <button class="nav-tab" onclick="switchTab('scan')">扫描</button>
     <button class="nav-tab" onclick="switchTab('mappings')">频道映射</button>
     <button class="nav-tab" onclick="switchTab('epg-data')">节目单</button>
+    <button class="nav-tab" onclick="switchTab('epg-search')">EPG搜索</button>
     <button class="nav-tab" onclick="switchTab('remote')">遥控器</button>
     <button class="nav-tab" onclick="switchTab('status')">服务器状态</button>
+    <button class="nav-tab" onclick="switchTab('dashboard')">仪表盘</button>
+    <button class="nav-tab" onclick="switchTab('statistics')">数据统计</button>
     <button class="nav-tab" onclick="switchTab('logs')">日志</button>
   </div>
   <div class="nav-status">
@@ -1033,6 +1036,122 @@ textarea.form-input {
     </div>
   </div>
 
+  <!-- EPG 搜索面板 -->
+  <div class="panel" id="panel-epg-search">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">EPG 搜索</div>
+          <div class="card-subtitle">搜索所有频道的节目信息</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label class="form-label">搜索关键词</label>
+          <input class="form-input" id="epgSearchQuery" placeholder="输入节目名称..." onkeydown="if(event.key==='Enter')searchEpg()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">频道过滤（可选）</label>
+          <input class="form-input" id="epgSearchChannel" placeholder="频道名" onkeydown="if(event.key==='Enter')searchEpg()">
+        </div>
+        <div class="form-group" style="flex-shrink:0">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary" onclick="searchEpg()">搜索</button>
+        </div>
+      </div>
+      <div id="epgSearchContent">
+        <div class="empty-state"><div class="icon">🔍</div><div class="text">输入关键词搜索节目</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 频道分组管理面板 -->
+  <div class="panel" id="panel-group-mgmt">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">频道分组管理</div>
+          <div class="card-subtitle">管理频道分组：重命名、删除、查看统计</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadGroupManagement()">刷新</button>
+      </div>
+      <div id="groupMgmtContent">
+        <div class="empty-state"><div class="loading"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批量操作面板 -->
+  <div class="panel" id="panel-batch">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">批量操作</div>
+          <div class="card-subtitle">自动分类 / 名称清理 / 台标匹配 / 排序 / 验证</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;padding:12px">
+        <div style="background:var(--card);border-radius:12px;padding:16px">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">自动分类</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">按频道名称规则自动归类到对应分组（央视/卫视/地方/4K等）</div>
+          <button class="btn btn-primary" style="width:100%" onclick="batchAutoClassify()">执行自动分类</button>
+        </div>
+        <div style="background:var(--card);border-radius:12px;padding:16px">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">名称清理</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">去除多余括号、HD/4K 后缀、空格等</div>
+          <button class="btn btn-primary" style="width:100%" onclick="batchCleanNames()">执行名称清理</button>
+        </div>
+        <div style="background:var(--card);border-radius:12px;padding:16px">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">匹配台标</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">批量匹配频道台标图片</div>
+          <button class="btn btn-primary" style="width:100%" onclick="batchMatchLogo()">执行台标匹配</button>
+        </div>
+        <div style="background:var(--card);border-radius:12px;padding:16px">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">按组排序</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">按频道分组自动排序</div>
+          <button class="btn btn-primary" style="width:100%" onclick="batchSortByGroup()">执行排序</button>
+        </div>
+        <div style="background:var(--card);border-radius:12px;padding:16px">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">批量验证</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">验证所有频道是否可播放</div>
+          <button class="btn btn-outline" style="width:100%" onclick="batchValidate()">执行批量验证</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 仪表盘面板 -->
+  <div class="panel" id="panel-dashboard">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">服务器状态仪表盘</div>
+          <div class="card-subtitle">ISEP 运行概览</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadDashboard()">刷新</button>
+      </div>
+      <div id="dashboardContent">
+        <div class="empty-state"><div class="loading"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据统计面板 -->
+  <div class="panel" id="panel-statistics">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">数据统计</div>
+          <div class="card-subtitle">频道数据分析和统计</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadStatistics()">刷新</button>
+      </div>
+      <div id="statisticsContent">
+        <div class="empty-state"><div class="loading"></div></div>
+      </div>
+    </div>
+  </div>
+
   <!-- 虚拟遥控器面板 -->
   <div class="panel" id="panel-remote">
     <div class="card">
@@ -1267,6 +1386,12 @@ function switchTab(name) {
   handleEpgAutoLoad(name);
   // 日志轮询：进入 logs 启动，离开停止
   handleLogPolling(name);
+  // 仪表盘：进入 dashboard 自动加载
+  if (name === 'dashboard') loadDashboard();
+  // 数据统计：进入 statistics 自动加载
+  if (name === 'statistics') loadStatistics();
+  // 频道分组管理：进入 group-mgmt 自动加载
+  if (name === 'group-mgmt') loadGroupManagement();
 }
 
 // ====== HTTP 请求 ======
@@ -2484,17 +2609,289 @@ async function clearLog() {
   });
 }
 
+// ====== EPG 搜索 ======
+let _epgSearchResults = [];
+async function searchEpg() {
+  const q = document.getElementById('epgSearchQuery').value.trim();
+  if (!q) return;
+  const channel = document.getElementById('epgSearchChannel').value.trim();
+  const url = '/api/epg?search=' + encodeURIComponent(q) + (channel ? '&channel=' + encodeURIComponent(channel) : '') + '&limit=200';
+  document.getElementById('epgSearchContent').innerHTML = '<div class="empty-state"><div class="loading"></div></div>';
+  const data = await apiGet(url);
+  if (!data) { document.getElementById('epgSearchContent').innerHTML = '<div class="empty-state"><div class="text">搜索失败</div></div>'; return; }
+  const programs = data.programs || data || [];
+  _epgSearchResults = Array.isArray(programs) ? programs : [];
+  renderEpgSearchResults();
+}
+function renderEpgSearchResults() {
+  const el = document.getElementById('epgSearchContent');
+  if (_epgSearchResults.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><div class="text">无搜索结果</div></div>';
+    return;
+  }
+  let html = '<table class="data-table"><thead><tr><th>频道</th><th>节目</th><th>开始时间</th><th>结束时间</th><th>描述</th></tr></thead><tbody>';
+  _epgSearchResults.forEach(p => {
+    const chName = p.channel_name || p.channel || '-';
+    const title = p.title || '-';
+    const start = p.start || p.start_time || '-';
+    const stop = p.stop || p.end_time || '-';
+    const desc = p.desc || p.description || '';
+    html += `<tr><td>${escHtml(chName)}</td><td>${escHtml(title)}</td><td style="white-space:nowrap">${escHtml(start)}</td><td style="white-space:nowrap">${escHtml(stop)}</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${escHtml(desc)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// ====== 频道分组管理 ======
+async function loadGroupManagement() {
+  const data = await apiGet('/api/channels?size=1');
+  if (!data) return;
+  const groups = {};
+  // 获取所有频道分组
+  const allData = await apiGet('/api/channels?size=10000');
+  if (allData && allData.channels) {
+    allData.channels.forEach(ch => {
+      const g = ch.group || '未分组';
+      if (!groups[g]) groups[g] = 0;
+      groups[g]++;
+    });
+  }
+  renderGroupManagement(groups);
+}
+function renderGroupManagement(groups) {
+  const el = document.getElementById('groupMgmtContent');
+  if (!el) return;
+  const entries = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📁</div><div class="text">暂无分组</div></div>';
+    return;
+  }
+  let html = '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+  entries.forEach(([name, count]) => {
+    const isDefault = name === '未分组';
+    html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:14px;color:var(--text)">${escHtml(name)}</span>
+      <span style="background:var(--accent);color:#fff;border-radius:10px;padding:2px 8px;font-size:11px">${count}</span>
+      ${!isDefault ? `<button class="btn btn-outline" style="padding:2px 8px;font-size:11px" onclick="renameGroup('${escHtml(name)}')">重命名</button>
+        <button class="btn btn-danger" style="padding:2px 8px;font-size:11px" onclick="deleteGroup('${escHtml(name)}')">删除</button>` : ''}
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+async function renameGroup(oldName) {
+  const newName = prompt('输入新分组名称：', oldName);
+  if (!newName || newName === oldName) return;
+  showToast('正在重命名分组...', 'info');
+  const data = await apiPost('/api/channels/batch', { action: 'rename_group', old_group: oldName, new_group: newName });
+  if (data && data.success !== false) { showToast('分组已重命名', 'success'); loadGroupManagement(); }
+  else { showToast('重命名失败', 'error'); }
+}
+async function deleteGroup(groupName) {
+  if (!confirm('删除分组「' + groupName + '」下所有频道？此操作不可撤销。')) return;
+  const data = await apiPost('/api/channels/batch', { action: 'delete_group', group: groupName });
+  if (data && data.success !== false) { showToast('分组已删除', 'success'); loadGroupManagement(); }
+  else { showToast('删除失败', 'error'); }
+}
+
+// ====== 批量操作 ======
+async function batchAutoClassify() {
+  showToast('正在执行自动分类...', 'info');
+  const data = await apiPost('/api/channels/batch', { action: 'auto_classify', overwrite: false });
+  if (data && data.success !== false) showToast('自动分类完成：修改 ' + (data.changed || 0) + '/' + (data.total || 0) + ' 条', 'success');
+  else showToast('自动分类失败', 'error');
+}
+async function batchCleanNames() {
+  showToast('正在清理名称...', 'info');
+  const data = await apiPost('/api/channels/batch', { action: 'clean_names' });
+  if (data && data.success !== false) showToast('名称清理完成：修改 ' + (data.changed || 0) + '/' + (data.total || 0) + ' 条', 'success');
+  else showToast('名称清理失败', 'error');
+}
+async function batchMatchLogo() {
+  showToast('正在匹配台标...', 'info');
+  const data = await apiPost('/api/channels/batch', { action: 'match_logo', overwrite: false });
+  if (data && data.success !== false) showToast('台标匹配完成：修改 ' + (data.changed || 0) + '/' + (data.total || 0) + ' 条', 'success');
+  else showToast('台标匹配失败', 'error');
+}
+async function batchSortByGroup() {
+  showToast('正在按组排序...', 'info');
+  const data = await apiPost('/api/channels/batch', { action: 'sort_by_group' });
+  if (data && data.success !== false) showToast('排序完成', 'success');
+  else showToast('排序失败', 'error');
+}
+async function batchValidate() {
+  showToast('正在批量验证...', 'info');
+  const data = await apiPost('/api/scan/validate', { range: 'all' });
+  if (data) showToast('验证已启动', 'success');
+  else showToast('验证失败', 'error');
+}
+
+// ====== 服务器状态仪表盘 ======
+async function loadDashboard() {
+  const data = await apiGet('/api/status');
+  if (!data) return;
+  const el = document.getElementById('dashboardContent');
+  if (!el) return;
+  const total = data.channels_total || 0;
+  const valid = data.channels_valid || 0;
+  const invalid = total - valid;
+  const validRate = total > 0 ? Math.round(valid / total * 100) : 0;
+  const sources = data.sources_count || 0;
+  const epgSources = data.epg_sources_count || 0;
+  const uptime = data.uptime || 0;
+  const uptimeStr = uptime > 0 ? Math.floor(uptime / 3600) + 'h ' + Math.floor((uptime % 3600) / 60) + 'm' : '-';
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+      <div style="background:var(--card);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:var(--accent)">${total}</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:4px">频道总数</div>
+      </div>
+      <div style="background:var(--card);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:var(--success)">${valid}</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:4px">有效频道</div>
+      </div>
+      <div style="background:var(--card);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:var(--danger)">${invalid}</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:4px">无效频道</div>
+      </div>
+      <div style="background:var(--card);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:var(--accent)">${validRate}%</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:4px">有效率</div>
+      </div>
+      <div style="background:var(--card);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:var(--accent)">${sources}</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:4px">订阅源</div>
+      </div>
+      <div style="background:var(--card);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:var(--accent)">${epgSources}</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:4px">EPG 源</div>
+      </div>
+      <div style="background:var(--card);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:var(--success)">${uptimeStr}</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:4px">运行时间</div>
+      </div>
+    </div>
+    <div style="background:var(--card);border-radius:12px;padding:16px;margin-top:16px">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">频道有效率</div>
+      <div style="background:var(--bg);border-radius:8px;height:24px;overflow:hidden">
+        <div style="width:${validRate}%;height:100%;background:linear-gradient(90deg,var(--success),var(--accent));border-radius:8px;transition:width 0.5s"></div>
+      </div>
+    </div>
+  `;
+}
+
+// ====== 数据统计 ======
+async function loadStatistics() {
+  const el = document.getElementById('statisticsContent');
+  if (!el) return;
+  el.innerHTML = '<div class="empty-state"><div class="loading"></div></div>';
+  // 获取所有频道
+  const data = await apiGet('/api/channels?size=10000');
+  if (!data || !data.channels) { el.innerHTML = '<div class="empty-state"><div class="text">加载失败</div></div>'; return; }
+  const channels = data.channels || [];
+  // 按分组统计
+  const groupStats = {};
+  channels.forEach(ch => {
+    const g = ch.group || '未分组';
+    if (!groupStats[g]) groupStats[g] = { total: 0, valid: 0 };
+    groupStats[g].total++;
+    if (ch.is_valid || ch.valid !== false) groupStats[g].valid++;
+  });
+  // 按协议统计
+  const protoStats = {};
+  channels.forEach(ch => {
+    const proto = (ch.url || '').split('://')[0] || 'unknown';
+    if (!protoStats[proto]) protoStats[proto] = 0;
+    protoStats[proto]++;
+  });
+  let html = '';
+  // 分组统计表格
+  html += '<div class="card"><div class="card-header"><div><div class="card-title">分组统计</div><div class="card-subtitle">按分组统计频道数量和有效率</div></div></div>';
+  html += '<table class="data-table"><thead><tr><th>分组</th><th>总数</th><th>有效</th><th>有效率</th></tr></thead><tbody>';
+  Object.entries(groupStats).sort((a, b) => b[1].total - a[1].total).forEach(([name, stats]) => {
+    const rate = stats.total > 0 ? Math.round(stats.valid / stats.total * 100) : 0;
+    html += `<tr><td>${escHtml(name)}</td><td>${stats.total}</td><td style="color:var(--success)">${stats.valid}</td><td>${rate}%</td></tr>`;
+  });
+  html += '</tbody></table></div>';
+  // 协议统计
+  html += '<div class="card" style="margin-top:16px"><div class="card-header"><div><div class="card-title">协议统计</div><div class="card-subtitle">按流协议统计频道数量</div></div></div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px">';
+  Object.entries(protoStats).sort((a, b) => b[1] - a[1]).forEach(([proto, count]) => {
+    html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px"><span style="color:var(--accent);font-weight:600">${escHtml(proto.toUpperCase())}</span> <span style="color:var(--text-dim)">${count} 个频道</span></div>`;
+  });
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+
+// 日志实时流 WebSocket 连接
+let _logWs = null;
+let _logWsReconnectTimer = null;
+function connectLogWebSocket() {
+  if (_logWs) { try { _logWs.close(); } catch(_) {} }
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = proto + '//' + location.host + '/ws/logs';
+  try {
+    _logWs = new WebSocket(wsUrl);
+    _logWs.onopen = function() {
+      console.log('Log WebSocket connected');
+      var el = document.getElementById('logContent');
+      if (el && el.textContent.indexOf('点击') === 0) el.textContent = 'WebSocket 已连接，等待日志...';
+    };
+    _logWs.onmessage = function(ev) {
+      var el = document.getElementById('logContent');
+      if (!el) return;
+      var line = ev.data;
+      // 追加日志行
+      if (el.textContent.indexOf('点击') === 0 || el.textContent.indexOf('WebSocket') === 0) {
+        el.textContent = line;
+      } else {
+        el.textContent += '\n' + line;
+      }
+      // 限制最大行数（避免 DOM 过大）
+      var lines = el.textContent.split('\n');
+      if (lines.length > 2000) {
+        el.textContent = lines.slice(-2000).join('\n');
+      }
+      // 自动滚动
+      if (document.getElementById('logAutoScroll')?.checked) {
+        el.scrollTop = el.scrollHeight;
+      }
+    };
+    _logWs.onclose = function() {
+      console.log('Log WebSocket closed, will retry in 3s');
+      _logWs = null;
+      // 3 秒后重连
+      if (document.getElementById('logAutoRefresh')?.checked) {
+        _logWsReconnectTimer = setTimeout(connectLogWebSocket, 3000);
+      }
+    };
+    _logWs.onerror = function() { _logWs = null; };
+  } catch(e) {
+    console.warn('WebSocket not supported, falling back to polling');
+    _logWs = null;
+  }
+}
+function disconnectLogWebSocket() {
+  if (_logWsReconnectTimer) { clearTimeout(_logWsReconnectTimer); _logWsReconnectTimer = null; }
+  if (_logWs) { try { _logWs.close(); } catch(_) {} _logWs = null; }
+}
+
 function handleLogPolling(tabName) {
   if (tabName === 'logs' && document.getElementById('logAutoRefresh')?.checked) {
+    // 尝试 WebSocket 连接（如服务器支持）
+    connectLogWebSocket();
+    // 同时保留轮询作为 fallback（1秒间隔，更接近实时）
     if (!_logTimer) {
       loadLogs();
       _logTimer = setInterval(() => {
-        if (document.getElementById('logAutoRefresh')?.checked) {
+        if (document.getElementById('logAutoRefresh')?.checked && !_logWs) {
           loadLogs();
         }
-      }, 3000);
+      }, 1000);
     }
   } else {
+    disconnectLogWebSocket();
     if (_logTimer) {
       clearInterval(_logTimer);
       _logTimer = null;
