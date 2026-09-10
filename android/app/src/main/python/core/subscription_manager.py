@@ -767,7 +767,7 @@ class SubscriptionManager(Singleton):
                         self._epg_channel_names[channel_id] = channel_id
                 self._last_epg_update = datetime.now()
             
-            logger.info(f"load_cached_epg_data: 成功加载 {len(data)} 个频道")
+            logger.info(f"load_cached_epg_data: 成功加载 {len(self._epg_data)} 个频道")
             return True
         except Exception as e:
             logger.error(f"加载EPG缓存失败: {e}")
