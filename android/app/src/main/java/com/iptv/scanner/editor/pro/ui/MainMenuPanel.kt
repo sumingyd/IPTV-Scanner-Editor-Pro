@@ -73,9 +73,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -307,8 +320,62 @@ fun MainMenuPanel(viewModel: AppViewModel) {
         val safeIdx = selectedSectionIdx.coerceIn(0, sections.lastIndex)
         val currentSection = sections.getOrNull(safeIdx)
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            // 单个圆角矩形包含两列
+        // DPI自适应缩放（与TvPlayerLayout一致）
+        val configuration = LocalConfiguration.current
+        val origDensity = LocalDensity.current
+        val dpiScale = (configuration.screenHeightDp / 720f).coerceIn(0.55f, 1f)
+        val scaledDensity = Density(origDensity.density * dpiScale, origDensity.fontScale)
+
+        var leftSelectedIdx by remember { mutableStateOf(0) }
+        var activeColumn by remember { mutableStateOf(1) } // 0=左列, 1=右列
+        val safeLeftIdx = if (currentSection != null) leftSelectedIdx.coerceIn(0, currentSection.entries.lastIndex) else 0
+        val menuFocusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) { menuFocusRequester.requestFocus() }
+
+        CompositionLocalProvider(LocalDensity provides scaledDensity) {
+        Box(
+            modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    when (event.key) {
+                        Key.DirectionDown -> {
+                            if (activeColumn == 1) {
+                                selectedSectionIdx = (safeIdx + 1) % sections.size
+                            } else if (currentSection != null && currentSection.entries.isNotEmpty()) {
+                                leftSelectedIdx = (safeLeftIdx + 1) % currentSection.entries.size
+                            }
+                            true
+                        }
+                        Key.DirectionUp -> {
+                            if (activeColumn == 1) {
+                                selectedSectionIdx = (safeIdx - 1 + sections.size) % sections.size
+                            } else if (currentSection != null && currentSection.entries.isNotEmpty()) {
+                                leftSelectedIdx = (safeLeftIdx - 1 + currentSection.entries.size) % currentSection.entries.size
+                            }
+                            true
+                        }
+                        Key.DirectionLeft -> {
+                            if (activeColumn == 1 && currentSection != null && currentSection.entries.isNotEmpty()) {
+                                activeColumn = 0
+                                true
+                            } else false
+                        }
+                        Key.DirectionRight -> {
+                            if (activeColumn == 0) {
+                                activeColumn = 1
+                                true
+                            } else false
+                        }
+                        Key.DirectionCenter, Key.Enter -> {
+                            if (activeColumn == 0 && currentSection != null && currentSection.entries.isNotEmpty()) {
+                                currentSection.entries.getOrNull(safeLeftIdx)?.onClick()
+                                true
+                            } else false
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+        ) {
             Surface(
                 color = Color(0x80222222),
                 shape = RoundedCornerShape(10.dp),
@@ -316,6 +383,8 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                     .align(Alignment.TopEnd)
                     .fillMaxHeight()
                     .padding(end = 16.dp, top = 10.dp, bottom = 80.dp)
+                    .focusRequester(menuFocusRequester)
+                    .focusable()
             ) {
                 Row(modifier = Modifier.wrapContentWidth()) {
                     // 左列：子菜单（当前选中section的entries）
@@ -324,24 +393,34 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                             modifier = Modifier.fillMaxHeight().width(150.dp),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)
                         ) {
-                            items(
+                            itemsIndexed(
                                 items = currentSection.entries,
-                                key = { entry -> currentSection.title + "_" + entry.title }
-                            ) { entry ->
+                                key = { idx, entry -> currentSection.title + "_" + entry.title + "_" + idx }
+                            ) { idx, entry ->
+                                val isLeftSelected = activeColumn == 0 && idx == safeLeftIdx
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(if (entry.highlight) Color(0xFF2979FF) else Color.Transparent)
-                                        .tvFocusBorder()
-                                        .clickable { entry.onClick() }
+                                        .background(
+                                            when {
+                                                isLeftSelected -> Color(0xFF2979FF)
+                                                entry.highlight -> Color(0x402979FF)
+                                                else -> Color.Transparent
+                                            }
+                                        )
+                                        .clickable {
+                                            activeColumn = 0
+                                            leftSelectedIdx = idx
+                                            entry.onClick()
+                                        }
                                         .padding(horizontal = 12.dp, vertical = 11.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = entry.title,
-                                        color = if (entry.highlight) Color.White else Color(0xE6FFFFFF),
+                                        color = if (isLeftSelected || entry.highlight) Color.White else Color(0xE6FFFFFF),
                                         fontSize = 15.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -370,14 +449,17 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                     ) {
                         itemsIndexed(sections) { idx, section ->
                             val isSelected = idx == safeIdx
+                            val isRightActive = activeColumn == 1 && isSelected
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 4.dp, vertical = 1.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(if (isSelected) Color(0xFF2979FF) else Color.Transparent)
-                                    .tvFocusBorder()
-                                    .clickable { selectedSectionIdx = idx }
+                                    .clickable {
+                                        activeColumn = 1
+                                        selectedSectionIdx = idx
+                                    }
                                     .padding(horizontal = 12.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -396,6 +478,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             }
 
         }
+        } // CompositionLocalProvider
         return
     }
 

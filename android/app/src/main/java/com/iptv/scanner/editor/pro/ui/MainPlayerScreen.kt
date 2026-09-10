@@ -160,8 +160,17 @@ import androidx.compose.foundation.rememberScrollState
 import com.iptv.scanner.editor.pro.player.CatchupHelper
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.SwapHoriz
 import java.io.File
 
 /**
@@ -384,6 +393,25 @@ kotlinx.coroutines.delay(500)
 viewModel.mpvClearSuppressFileError()
 }
 }
+// 恢复音量和静音状态（MPV 属性在 loadfile 后可能被重置）
+val savedVol = viewModel.mpv.volume.value
+val savedMute = viewModel.mpv.muted.value
+if (savedVol > 0) viewModel.mpv.setVolume(savedVol)
+viewModel.mpv.setMute(savedMute)
+}
+// ExoPlayer: 旋转后检查播放状态，恢复音频和音量
+if (viewModel.playerType.value == PlayerType.EXO && viewModel.mpv.fileLoaded.value) {
+Log.i("MainPlayerScreen", "Rotation detected (EXO): isPortrait=$isPortrait")
+kotlinx.coroutines.delay(300)
+if (viewModel.mpv.paused.value) {
+Log.i("MainPlayerScreen", "EXO paused after rotation, resuming")
+viewModel.mpv.setPause(false)
+}
+// 恢复音量和静音状态
+val savedVol = viewModel.mpv.volume.value
+val savedMute = viewModel.mpv.muted.value
+if (savedVol > 0) viewModel.mpv.setVolume(savedVol)
+viewModel.mpv.setMute(savedMute)
 }
 }
 
@@ -2561,8 +2589,9 @@ private fun HomeChannelCard(
 }
 
 /**
- * 竖屏列表页：左右分栏布局（左=分组列表，右=频道列表），支持多订阅切换、回看标识、列表/缩略图模式
+ * 竖屏列表页：APTV风格全屏布局，支持分组底部弹窗、订阅源选择、列表/宫格模式
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PortraitListScreen(
     viewModel: AppViewModel,
@@ -2571,6 +2600,7 @@ private fun PortraitListScreen(
 ) {
     val channels by viewModel.channels.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
+    val fileLoaded by viewModel.mpv.fileLoaded.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val selectedGroup by viewModel.selectedGroup.collectAsState()
     val listSourceTab by viewModel.listSourceTab.collectAsState()
@@ -2580,12 +2610,29 @@ private fun PortraitListScreen(
     val sources by viewModel.sources.collectAsState()
     val selectedSource by viewModel.selectedSource.collectAsState()
     val thumbnailPaths by viewModel.thumbnailPaths.collectAsState()
+    val scanResults by viewModel.scanResults.collectAsState()
+
+    // 延迟映射：url -> latency(ms)，优先使用实时测量值，回退到扫描结果
+    val liveLatencyMap by viewModel.liveLatencyMap.collectAsState()
+    val latencyMap = remember(scanResults, liveLatencyMap) {
+        val merged = mutableMapOf<String, Int>()
+        scanResults.forEach { if (it.latency > 0) merged[it.url] = it.latency }
+        liveLatencyMap.forEach { (url, lat) -> if (lat > 0) merged[url] = lat }
+        merged
+    }
+
+    val thumbnailEnabled by viewModel.thumbnailEnabled.collectAsState()
+    val thumbnailGenProgress by viewModel.thumbnailGenProgress.collectAsState()
+    val mediaInfoMap by viewModel.mediaInfoMap.collectAsState()
 
     // 预加载 EPG 和缩略图
     LaunchedEffect(channels.size) {
         if (channels.isNotEmpty()) {
             viewModel.preloadEpgForAllChannels()
             viewModel.loadThumbnailPaths()
+            viewModel.loadScanResultsCache()
+            kotlinx.coroutines.delay(3000)
+            viewModel.fetchMediaInfoForChannels(channels)
             kotlinx.coroutines.delay(15000)
             viewModel.preloadEpgForAllChannels()
         }
@@ -2615,12 +2662,6 @@ private fun PortraitListScreen(
         else filteredChannels.filter { it.group == selectedGroup }
     }
 
-    // 缩略图模式下自动生成缺失的缩略图
-    LaunchedEffect(viewMode, displayChannels.size) {
-        if (viewMode == AppViewModel.ListViewMode.THUMBNAIL && displayChannels.isNotEmpty()) {
-            viewModel.generateMissingThumbnails(displayChannels)
-        }
-    }
 
     // 本地文件历史
     val localHistory = remember(history, channels) {
@@ -2641,7 +2682,11 @@ private fun PortraitListScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // 顶部标题栏：标题 + 视图切换
+        // APTV风格顶部栏：分组按钮(左) + 3个功能按钮(右)
+        var showGroupSheet by remember { mutableStateOf(false) }
+        var showSourceSheet by remember { mutableStateOf(false) }
+        var viewMenuExpanded by remember { mutableStateOf(false) }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2649,47 +2694,109 @@ private fun PortraitListScreen(
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                    text = stringResource(R.string.channel_list),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                fontWeight = FontWeight.Bold
-            )
+            // 左侧：分组按钮 → 底部弹窗（带背景的可点击按钮）
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.clickable { showGroupSheet = true }
+            ) {
+                Text(
+                    text = if (selectedGroup.isEmpty()) "全部频道" else selectedGroup,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 数据源切换
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                listOf(
-                    AppViewModel.ListSourceTab.SUBSCRIPTION to "订阅",
-                    AppViewModel.ListSourceTab.LOCAL to "本地"
-                ).forEach { (tab, label) ->
-                    FilterChip(
-                        selected = listSourceTab == tab,
-                        onClick = { viewModel.setListSourceTab(tab) },
-                        label = { Text(label, fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            // 右侧按钮1：订阅/本地切换
+            IconButton(onClick = {
+                viewModel.setListSourceTab(
+                    if (listSourceTab == AppViewModel.ListSourceTab.SUBSCRIPTION) AppViewModel.ListSourceTab.LOCAL
+                    else AppViewModel.ListSourceTab.SUBSCRIPTION
+                )
+            }) {
+                Icon(
+                    imageVector = if (listSourceTab == AppViewModel.ListSourceTab.SUBSCRIPTION) Icons.Default.Cloud else Icons.Default.Folder,
+                    contentDescription = "订阅/本地",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
+
+            // 右侧按钮2：订阅源选择（仅订阅模式且多源时）
+            if (listSourceTab == AppViewModel.ListSourceTab.SUBSCRIPTION && sources.size > 1) {
+                IconButton(onClick = { showSourceSheet = true }) {
+                    Icon(
+                        imageVector = Icons.Default.SwapHoriz,
+                        contentDescription = "订阅源",
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // 视图模式切换按钮
-            IconButton(onClick = {
-                viewModel.setListViewMode(
-                    if (viewMode == AppViewModel.ListViewMode.LIST) AppViewModel.ListViewMode.THUMBNAIL
-                    else AppViewModel.ListViewMode.LIST
-                )
-            }) {
+            // 右侧按钮3：列表/宫格切换 + 下拉菜单
+            Box {
+                IconButton(onClick = {
+                    viewModel.setListViewMode(
+                        if (viewMode == AppViewModel.ListViewMode.LIST) AppViewModel.ListViewMode.THUMBNAIL
+                        else AppViewModel.ListViewMode.LIST
+                    )
+                }) {
+                    Icon(
+                        imageVector = if (viewMode == AppViewModel.ListViewMode.LIST) Icons.Default.ViewList else Icons.Default.GridView,
+                        contentDescription = "切换视图",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                DropdownMenu(
+                    expanded = viewMenuExpanded,
+                    onDismissRequest = { viewMenuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(if (thumbnailGenProgress != null) "停止获取预览图" else "开始获取预览图") },
+                        onClick = {
+                            viewMenuExpanded = false
+                            if (thumbnailGenProgress == null) {
+                                viewModel.setThumbnailEnabled(true)
+                                viewModel.generateMissingThumbnails(displayChannels)
+                            } else {
+                                viewModel.setThumbnailEnabled(false)
+                            }
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("刷新预览图") },
+                        onClick = {
+                            viewMenuExpanded = false
+                            viewModel.setThumbnailEnabled(true)
+                            viewModel.refreshMissingThumbnails()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("刷新无预览频道") },
+                        onClick = {
+                            viewMenuExpanded = false
+                            viewModel.setThumbnailEnabled(true)
+                            viewModel.generateMissingThumbnails(displayChannels)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("清除预览图") },
+                        onClick = {
+                            viewMenuExpanded = false
+                            viewModel.clearAllThumbnails()
+                        }
+                    )
+                }
+            }
+            IconButton(onClick = { viewMenuExpanded = true }) {
                 Icon(
-                    imageVector = if (viewMode == AppViewModel.ListViewMode.LIST) Icons.Default.GridView else Icons.Default.ViewList,
-                    contentDescription = "切换视图",
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "菜单",
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -2723,41 +2830,127 @@ private fun PortraitListScreen(
             }
         }
 
-        // 订阅源横向滚动标签（仅订阅模式且多订阅源时显示）
-        if (listSourceTab == AppViewModel.ListSourceTab.SUBSCRIPTION && sources.size > 1) {
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+        // 缩略图生成进度提示已移除（后台静默执行）
+
+        // 分组选择底部弹窗
+        if (showGroupSheet) {
+            val sheetState = rememberModalBottomSheetState()
+            ModalBottomSheet(
+                onDismissRequest = { showGroupSheet = false },
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surface
             ) {
-                // 「全部」标签
-                item {
-                    FilterChip(
-                        selected = selectedSource.isEmpty(),
-                        onClick = { viewModel.setSelectedSource("") },
-                        label = { Text("全部", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    item {
+                        Text(
+                            text = "选择分组",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
-                    )
+                    }
+                    item {
+                        Surface(
+                            color = if (selectedGroup.isEmpty()) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp).clickable {
+                                viewModel.setSelectedGroup("")
+                                showGroupSheet = false
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("全部频道", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+                                Text("${filteredChannels.size}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                    items(groupList) { (group, count) ->
+                        Surface(
+                            color = if (selectedGroup == group) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp).clickable {
+                                viewModel.setSelectedGroup(group)
+                                showGroupSheet = false
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(group, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                Text("$count", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
                 }
-                items(sources) { src ->
-                    val name = src.name.ifEmpty { src.url.substringAfterLast("/").take(15) }
-                    FilterChip(
-                        selected = selectedSource == src.url,
-                        onClick = { viewModel.setSelectedSource(src.url) },
-                        label = { Text(name, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        }
+
+        // 订阅源选择底部弹窗
+        if (showSourceSheet) {
+            val sourceSheetState = rememberModalBottomSheetState()
+            val sourceChannelCounts = remember(channels, sources) {
+                sources.associate { src ->
+                    src.url to channels.count { it.source == src.url }
+                }
+            }
+            ModalBottomSheet(
+                onDismissRequest = { showSourceSheet = false },
+                sheetState = sourceSheetState,
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    item {
+                        Text(
+                            text = "选择订阅源",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
-                    )
+                    }
+                    item {
+                        Surface(
+                            color = if (selectedSource.isEmpty()) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp).clickable {
+                                viewModel.setSelectedSource("")
+                                showSourceSheet = false
+                            }
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth()) {
+                                Text("全部订阅", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+                                Text("${channels.count { it.source.isNotEmpty() }} 个频道", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                    items(sources) { src ->
+                        val name = src.name.ifEmpty { src.url.substringAfterLast("/").take(30) }
+                        val count = sourceChannelCounts[src.url] ?: 0
+                        Surface(
+                            color = if (selectedSource == src.url) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp).clickable {
+                                viewModel.setSelectedSource(src.url)
+                                showSourceSheet = false
+                            }
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth()) {
+                                Text(name, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("$count 个频道", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2833,45 +3026,43 @@ private fun PortraitListScreen(
             return
         }
 
-        // ---- 左右分栏布局 ----
-        Row(modifier = Modifier.fillMaxSize()) {
-            // 左侧：分组列表（固定宽度，可滚动）
-            GroupSidebar(
-                groupList = groupList,
-                selectedGroup = selectedGroup,
-                onSelect = { viewModel.setSelectedGroup(it) },
-                modifier = Modifier.width(100.dp)
-            )
-            // 分隔线
-            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
-            // 右侧：频道列表
-            Box(modifier = Modifier.weight(1f)) {
-                if (viewMode == AppViewModel.ListViewMode.LIST) {
-                    ChannelListPanel(
-                        displayChannels = displayChannels,
-                        channels = channels,
-                        currentIdx = currentIdx,
-                        favorites = favorites,
+        // ---- APTV风格全宽布局（无左右分栏） ----
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (viewMode == AppViewModel.ListViewMode.LIST) {
+                ChannelListPanel(
+                    displayChannels = displayChannels,
+                    channels = channels,
+                    currentIdx = currentIdx,
+                    fileLoaded = fileLoaded,
+                    favorites = favorites,
                         epgCacheVersion = epgCacheVersion,
                         thumbnailPaths = thumbnailPaths,
+                        thumbnailEnabled = thumbnailEnabled,
                         viewModel = viewModel,
                         showDelete = listSourceTab == AppViewModel.ListSourceTab.LOCAL,
-                        onDelete = { idx -> viewModel.deleteChannel(idx) }
+                        onDelete = { idx -> viewModel.deleteChannel(idx) },
+                        latencyMap = latencyMap,
+                        mediaInfoMap = mediaInfoMap
                     )
                 } else {
                     ChannelThumbnailPanel(
                         displayChannels = displayChannels,
                         channels = channels,
                         currentIdx = currentIdx,
+                        fileLoaded = fileLoaded,
                         favorites = favorites,
                         thumbnailPaths = thumbnailPaths,
+                        thumbnailEnabled = thumbnailEnabled,
                         viewModel = viewModel,
                         showDelete = listSourceTab == AppViewModel.ListSourceTab.LOCAL,
-                        onDelete = { idx -> viewModel.deleteChannel(idx) }
+                        onDelete = { idx -> viewModel.deleteChannel(idx) },
+                        latencyMap = latencyMap,
+                        groupList = groupList,
+                        mediaInfoMap = mediaInfoMap
                     )
                 }
             }
-        }
+
     }
 }
 
@@ -3018,15 +3209,18 @@ private fun ChannelListPanel(
     displayChannels: List<IptvChannel>,
     channels: List<IptvChannel>,
     currentIdx: Int,
+    fileLoaded: Boolean = false,
     favorites: Set<Int>,
     epgCacheVersion: Int,
     thumbnailPaths: Map<String, String>,
+    thumbnailEnabled: Boolean = false,
     viewModel: AppViewModel,
     showDelete: Boolean = false,
-    onDelete: (Int) -> Unit = {}
+    onDelete: (Int) -> Unit = {},
+    latencyMap: Map<String, Int> = emptyMap(),
+    mediaInfoMap: Map<String, String> = emptyMap()
 ) {
     val listState = rememberLazyListState()
-    // 自动滚动到当前频道
     LaunchedEffect(displayChannels, currentIdx) {
         if (currentIdx >= 0) {
             val scrollTarget = displayChannels.indexOfFirst { it == channels.getOrNull(currentIdx) }
@@ -3042,12 +3236,15 @@ private fun ChannelListPanel(
     ) {
         items(displayChannels) { channel ->
             val idx = channels.indexOf(channel)
-            val isCurrent = idx == currentIdx
+            val isCurrent = fileLoaded && idx == currentIdx
             val isFav = favorites.contains(idx)
             val canCatchup = CatchupHelper.isCatchupEnabled(channel)
             val currentProgram = if (idx >= 0) {
                 remember(epgCacheVersion, idx) { viewModel.getCachedCurrentProgram(idx) }
             } else null
+            val thumbPath = thumbnailPaths[channel.url]
+            val hasThumb = thumbPath != null && File(thumbPath).exists()
+            val latency = latencyMap[channel.url]
 
             Surface(
                 color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer
@@ -3066,106 +3263,117 @@ private fun ChannelListPanel(
                     )
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 台标（带自适应背景色，确保浅色台标在浅色模式下可见）
-                    if (channel.logo.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
+                    // 第一列：预览图或台标（底部覆盖分组）
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp, 40.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (hasThumb) {
+                            AsyncImage(
+                                model = thumbPath,
+                                contentDescription = channel.name,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else if (channel.logo.isNotEmpty()) {
                             AsyncImage(
                                 model = channel.logo,
                                 contentDescription = channel.name,
-                                modifier = Modifier.fillMaxSize().padding(2.dp),
+                                modifier = Modifier.fillMaxSize().padding(4.dp),
                                 contentScale = ContentScale.Fit
                             )
+                        } else {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                            contentAlignment = Alignment.Center
+                        // 底部覆盖分组标识
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(2.dp),
+                            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    // 频道名 + 节目
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = channel.name,
-                            color = if (isCurrent) MaterialTheme.colorScheme.onPrimaryContainer
-                                else MaterialTheme.colorScheme.onSurface,
-                            fontSize = 13.sp,
-                            fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        currentProgram?.let { prog ->
-                            if (prog.title.isNotEmpty()) {
-                                Text(
-                                    text = prog.title,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 10.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            } else {
-                                Text(
-                                    text = "精彩节目",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    fontSize = 10.sp,
-                                    maxLines = 1
-                                )
-                            }
-                        } ?: run {
-                            // 无 EPG 数据时显示「精彩节目」占位
                             Text(
-                                text = "精彩节目",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                fontSize = 10.sp,
-                                maxLines = 1
+                                text = channel.group.ifEmpty { "未分组" },
+                                color = Color.White,
+                                fontSize = 7.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 0.dp)
                             )
                         }
                     }
-                    // 回看标识
-                    if (canCatchup) {
-                        Icon(
-                            Icons.Default.History,
-                            contentDescription = "可回看",
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // 第二列：频道名 / 节目名 / 媒体标识
+                    Column(modifier = Modifier.weight(1f)) {
+                        // 第1行：频道名称 + 延迟
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = channel.name,
+                                color = if (isCurrent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                fontSize = 14.sp,
+                                fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (latency != null && latency > 0) {
+                                val latColor = when { latency < 200 -> Color(0xFF4CAF50); latency < 500 -> Color(0xFFFFC107); else -> Color(0xFFF44336) }
+                                Text("${latency}ms", color = latColor, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                        // 第2行：当前节目名称
+                        currentProgram?.let { prog ->
+                            Text(
+                                text = if (prog.title.isNotEmpty()) prog.title else "精彩节目",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (prog.title.isNotEmpty()) 1f else 0.6f),
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        } ?: Text("精彩节目", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 11.sp, maxLines = 1)
+                        // 第3行：媒体标识badge（圆角矩形，与竖屏播放界面一致）
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            mediaInfoMap[channel.url]?.split(" ")?.forEach { badge ->
+                                if (badge.isNotEmpty()) {
+                                    Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp)) {
+                                        Text(badge, color = MaterialTheme.colorScheme.primary, fontSize = 9.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
+                                    }
+                                }
+                            }
+                            if (isFav) {
+                                Surface(color = Color(0xFFFFC107).copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp)) {
+                                    Text("收藏", color = Color(0xFFFFC107), fontSize = 9.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
+                                }
+                            }
+                        }
                     }
-                    // 收藏标识
-                    if (isFav) {
-                        Icon(
-                            Icons.Default.Favorite,
-                            contentDescription = "已收藏",
-                            tint = Color(0xFFFFC107),
-                            modifier = Modifier.size(14.dp)
-                        )
+                    // 第三列：回看图标 + 台标
+                    if (canCatchup || channel.logo.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (canCatchup) {
+                                Icon(Icons.Default.History, contentDescription = "可回看", tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(16.dp))
+                            }
+                            if (channel.logo.isNotEmpty()) {
+                                if (canCatchup) Spacer(modifier = Modifier.height(2.dp))
+                                AsyncImage(
+                                    model = channel.logo,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(22.dp).clip(RoundedCornerShape(2.dp)),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
+                        }
                     }
-                    // 删除按钮（仅本地模式）
+                    // 删除按钮
                     if (showDelete && idx >= 0) {
                         Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "删除",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clickable { onDelete(idx) }
-                        )
+                        Icon(Icons.Default.Close, contentDescription = "删除", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp).clickable { onDelete(idx) })
                     }
                 }
             }
@@ -3180,167 +3388,163 @@ private fun ChannelThumbnailPanel(
     displayChannels: List<IptvChannel>,
     channels: List<IptvChannel>,
     currentIdx: Int,
+    fileLoaded: Boolean = false,
     favorites: Set<Int>,
     thumbnailPaths: Map<String, String>,
+    thumbnailEnabled: Boolean = false,
     viewModel: AppViewModel,
     showDelete: Boolean = false,
-    onDelete: (Int) -> Unit = {}
+    onDelete: (Int) -> Unit = {},
+    latencyMap: Map<String, Int> = emptyMap(),
+    groupList: List<Pair<String, Int>> = emptyList(),
+    mediaInfoMap: Map<String, String> = emptyMap()
 ) {
-    val thumbnailGenProgress by viewModel.thumbnailGenProgress.collectAsState()
+    val epgCacheVersion by viewModel.epgCacheVersion.collectAsState()
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 8.dp, top = 4.dp, end = 8.dp, bottom = 80.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(start = 6.dp, top = 4.dp, end = 6.dp, bottom = 80.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // 缩略图生成进度提示
-        if (thumbnailGenProgress != null) {
-            item(span = { GridItemSpan(2) }) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "正在生成缩略图 ${thumbnailGenProgress!!.first}/${thumbnailGenProgress!!.second}",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-            }
-        }
         gridItems(displayChannels) { channel ->
             val idx = channels.indexOf(channel)
-            val isCurrent = idx == currentIdx
+            val isCurrent = fileLoaded && idx == currentIdx
             val isFav = favorites.contains(idx)
             val canCatchup = CatchupHelper.isCatchupEnabled(channel)
-            // 只使用频道画面截图，不回退到台标
             val thumbPath = thumbnailPaths[channel.url]
             val hasThumb = thumbPath != null && File(thumbPath).exists()
+            val latency = latencyMap[channel.url]
+            val currentProgram = if (idx >= 0) {
+                remember(epgCacheVersion, idx) { viewModel.getCachedCurrentProgram(idx) }
+            } else null
+            val channelGroup = channel.group.ifEmpty { "未分组" }
 
             Surface(
                 color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer
                     else MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .aspectRatio(16f / 9f)
-                    .combinedClickable(
-                        onClick = { if (idx >= 0) viewModel.playChannel(idx) },
-                        onLongClick = {
-                            if (idx >= 0) {
-                                viewModel.toggleFavoriteByIndex(idx)
-                            }
-                        }
-                    )
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    // 频道画面截图
-                    if (hasThumb) {
-                        AsyncImage(
-                            model = thumbPath,
-                            contentDescription = channel.name,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        // 无截图时显示占位符（等待缩略图生成）
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
+                modifier = Modifier.combinedClickable(
+                    onClick = { if (idx >= 0) viewModel.playChannel(idx) },
+                    onLongClick = {
+                        if (idx >= 0) {
+                            viewModel.toggleFavoriteByIndex(idx)
                         }
                     }
-                    // 底部渐变遮罩 + 频道名
+                )
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // 预览图/台标区域（16:9）
                     Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .background(
-                                Color.Black.copy(alpha = 0.55f)
-                            )
-                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                            .aspectRatio(16f / 9f)
+                            .background(Color.Black)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (canCatchup) {
-                                Icon(
-                                    Icons.Default.History,
-                                    contentDescription = "可回看",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
+                        if (hasThumb) {
+                            AsyncImage(
+                                model = thumbPath,
+                                contentDescription = channel.name,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else if (channel.logo.isNotEmpty()) {
+                            AsyncImage(
+                                model = channel.logo,
+                                contentDescription = channel.name,
+                                modifier = Modifier.fillMaxSize().padding(12.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), modifier = Modifier.size(28.dp))
                             }
+                        }
+                        // 右下角分组标识
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)
+                        ) {
                             Text(
-                                text = channel.name,
+                                text = channelGroup,
                                 color = Color.White,
-                                fontSize = 11.sp,
+                                fontSize = 8.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                             )
-                            if (isFav) {
-                                Icon(
-                                    Icons.Default.Favorite,
-                                    contentDescription = "已收藏",
-                                    tint = Color(0xFFFFC107),
-                                    modifier = Modifier.size(12.dp)
-                                )
+                        }
+                        // 左下角延迟标识
+                        if (latency != null && latency > 0) {
+                            val latColor = when { latency < 200 -> Color(0xFF4CAF50); latency < 500 -> Color(0xFFFFC107); else -> Color(0xFFF44336) }
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.align(Alignment.BottomStart).padding(4.dp)
+                            ) {
+                                Text("${latency}ms", color = latColor, fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                            }
+                        }
+                        // 右上角：播放中
+                        if (isCurrent) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.align(Alignment.TopEnd).padding(3.dp)
+                            ) {
+                                Text("播放中", color = MaterialTheme.colorScheme.onPrimary, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                            }
+                        }
+                        // 删除按钮
+                        if (showDelete && idx >= 0) {
+                            Box(
+                                modifier = Modifier.align(Alignment.TopStart).padding(4.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.6f)).clickable { onDelete(idx) }.padding(4.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "删除", tint = Color.White, modifier = Modifier.size(14.dp))
                             }
                         }
                     }
-                    // 当前播放标识
-                    if (isCurrent) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(4.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text("播放中", color = MaterialTheme.colorScheme.onPrimary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    // 删除按钮（仅本地模式）
-                    if (showDelete && idx >= 0) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(4.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.6f))
-                                .clickable { onDelete(idx) }
-                                .padding(4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "删除",
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
+                    // 下方紧凑信息区
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        // 第1行：频道名称
+                        Text(
+                            text = channel.name,
+                            color = if (isCurrent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                            fontSize = 12.sp,
+                            fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        // 第2行：当前节目名称
+                        currentProgram?.let { prog ->
+                            Text(
+                                text = if (prog.title.isNotEmpty()) prog.title else "精彩节目",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (prog.title.isNotEmpty()) 1f else 0.6f),
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
+                        }
+                        // 第3行：媒体标识badge（圆角矩形，与列表/竖屏一致）
+                        val badges = mutableListOf<String>()
+                        mediaInfoMap[channel.url]?.split(" ")?.forEach { if (it.isNotEmpty()) badges.add(it) }
+                        if (canCatchup) badges.add("回看")
+                        if (isFav) badges.add("收藏")
+                        if (badges.isNotEmpty()) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                badges.forEach { badge ->
+                                    Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp)) {
+                                        Text(badge, color = MaterialTheme.colorScheme.primary, fontSize = 8.sp, fontWeight = FontWeight.Medium, maxLines = 1, modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.dp))
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -5268,6 +5472,14 @@ fun PortraitPanelDialog(
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val context = androidx.compose.ui.platform.LocalContext.current
     val isTv = context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+    val origDensity = androidx.compose.ui.platform.LocalDensity.current
+    val dpiScale = if (isTv || isLandscape) (configuration.screenHeightDp / 720f).coerceIn(0.55f, 1f) else 1f
+    val scaledDensity = androidx.compose.ui.unit.Density(origDensity.density * dpiScale, origDensity.fontScale)
+    val scaledContent: @Composable () -> Unit = {
+        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides scaledDensity) {
+            content()
+        }
+    }
     if (isTv) {
         Box(
             modifier = Modifier
@@ -5286,7 +5498,7 @@ fun PortraitPanelDialog(
                     border = BorderStroke(1.dp, oc.accent.copy(alpha = 0.35f)),
                     modifier = Modifier.matchParentSize()
                 ) {
-                    content()
+                    scaledContent()
                 }
             }
         }
@@ -5317,7 +5529,7 @@ fun PortraitPanelDialog(
                     border = BorderStroke(1.dp, oc.accent.copy(alpha = 0.35f)),
                     modifier = Modifier.matchParentSize()
                 ) {
-                    content()
+                    scaledContent()
                 }
             }
         }

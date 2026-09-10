@@ -3,6 +3,7 @@ package com.iptv.scanner.editor.pro.ui
 import android.app.Application
 import android.app.DownloadManager
 import android.content.BroadcastReceiver
+import android.media.MediaMetadataRetriever
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -339,7 +340,7 @@ private val _portraitTab = MutableStateFlow(PortraitTab.HOME)
 val portraitTab: StateFlow<PortraitTab> = _portraitTab.asStateFlow()
 
 /** 列表页视图模式：列表 / 缩略图 */
-private val _listViewMode = MutableStateFlow(ListViewMode.LIST)
+private val _listViewMode = MutableStateFlow(ListViewMode.THUMBNAIL)
 val listViewMode: StateFlow<ListViewMode> = _listViewMode.asStateFlow()
 
 /** 列表页数据源：订阅 / 本地 */
@@ -394,6 +395,58 @@ return if (mpvSingleton == _player.value) mpvSingleton.getPath() else ""
 /** 切换列表视图模式 */
 fun setListViewMode(mode: ListViewMode) {
     _listViewMode.value = mode
+}
+
+/** 预览图开关：false=显示台标，true=显示实时画面截图 */
+private val _thumbnailEnabled = MutableStateFlow(false)
+val thumbnailEnabled: StateFlow<Boolean> = _thumbnailEnabled.asStateFlow()
+
+/** 频道媒体信息缓存：url -> (width, height, fps, bitrate, audioChannels) */
+private val _mediaInfoMap = MutableStateFlow<Map<String, String>>(emptyMap())
+val mediaInfoMap: StateFlow<Map<String, String>> = _mediaInfoMap.asStateFlow()
+
+/** 实时测量的网络延迟：url -> latency(ms)，在获取预览图/媒体信息时同时测量 */
+private val _liveLatencyMap = MutableStateFlow<Map<String, Int>>(emptyMap())
+val liveLatencyMap: StateFlow<Map<String, Int>> = _liveLatencyMap.asStateFlow()
+
+fun setThumbnailEnabled(enabled: Boolean) {
+    _thumbnailEnabled.value = enabled
+    if (!enabled) {
+        thumbnailJob?.cancel()
+        _thumbnailGenProgress.value = null
+    }
+}
+
+/** 刷新所有预览图：清除旧的并强制重新获取 */
+fun refreshMissingThumbnails() {
+    val channels = _channels.value
+    viewModelScope.launch {
+        // 清除本地缓存的缩略图文件
+        val app = getApplication<Application>()
+        val thumbDir = java.io.File(app.cacheDir, "thumbnails")
+        if (thumbDir.exists()) {
+            thumbDir.listFiles()?.forEach { it.delete() }
+        }
+        _thumbnailPaths.value = emptyMap()
+        // 清除媒体信息和延迟缓存，强制重新获取
+        _mediaInfoMap.value = emptyMap()
+        _liveLatencyMap.value = emptyMap()
+        delay(300)
+        generateMissingThumbnails(channels)
+    }
+}
+
+/** 清除所有预览图，回退到台标 */
+fun clearAllThumbnails() {
+    viewModelScope.launch {
+        val app = getApplication<Application>()
+        val thumbDir = java.io.File(app.cacheDir, "thumbnails")
+        if (thumbDir.exists()) {
+            thumbDir.listFiles()?.forEach { it.delete() }
+        }
+        _thumbnailPaths.value = emptyMap()
+        _thumbnailEnabled.value = false
+    }
 }
 
 /** 切换列表数据源 */
@@ -4184,6 +4237,119 @@ fun hideControls() {
         }
     }
 
+    /** 加载扫描结果缓存（用于频道列表显示延迟标识） */
+    fun loadScanResultsCache() {
+        if (_scanResults.value.isEmpty()) {
+            viewModelScope.launch {
+                repository.getScanResults().onSuccess { results ->
+                    if (results.isNotEmpty()) {
+                        _scanResults.value = results
+                    }
+                }
+            }
+        }
+    }
+
+    /** 测量单个频道的 HTTP 延迟(ms)，超时3秒 */
+    private fun measureHttpLatency(url: String): Int {
+        return try {
+            val start = System.currentTimeMillis()
+            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 3000
+            connection.readTimeout = 3000
+            connection.requestMethod = "HEAD"
+            connection.connect()
+            val latency = (System.currentTimeMillis() - start).toInt()
+            connection.disconnect()
+            latency
+        } catch (e: Exception) {
+            try {
+                val start = System.currentTimeMillis()
+                val connection = java.net.URL(url).openConnection()
+                connection.connectTimeout = 3000
+                connection.readTimeout = 3000
+                connection.getInputStream().use { it.read() }
+                val latency = (System.currentTimeMillis() - start).toInt()
+                latency
+            } catch (e2: Exception) { -1 }
+        }
+    }
+
+    /** 批量获取频道媒体信息 */
+    fun fetchMediaInfoForChannels(channelsToFetch: List<IptvChannel>) {
+        thumbnailJob?.cancel()
+        thumbnailJob = viewModelScope.launch {
+            _thumbnailGenProgress.value = Pair(0, channelsToFetch.size)
+            var done = 0
+            for (ch in channelsToFetch) {
+                if (!isActive) break
+                if (ch.url.isEmpty()) {
+                    done++
+                    _thumbnailGenProgress.value = Pair(done, channelsToFetch.size)
+                    continue
+                }
+                // 测量网络延迟
+                if (!_liveLatencyMap.value.containsKey(ch.url)) {
+                    val lat = withContext(kotlinx.coroutines.Dispatchers.IO) { measureHttpLatency(ch.url) }
+                    if (lat > 0) {
+                        _liveLatencyMap.value = _liveLatencyMap.value.toMutableMap().apply { put(ch.url, lat) }
+                    }
+                }
+                if (_mediaInfoMap.value.containsKey(ch.url)) {
+                    done++
+                    _thumbnailGenProgress.value = Pair(done, channelsToFetch.size)
+                    continue
+                }
+                try {
+                    val mediaInfo = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        val retriever = MediaMetadataRetriever()
+                        try {
+                            retriever.setDataSource(ch.url, HashMap<String, String>())
+                            val w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                            val h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                            val fps = if (android.os.Build.VERSION.SDK_INT >= 29) retriever.extractMetadata(30)?.toFloatOrNull() else null
+                            val br = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull() ?: 0
+                            val mimeType = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE) ?: ""
+                            if (done < 5) Log.i(TAG, "mediaInfo: ${ch.name} w=$w h=$h fps=$fps br=$br mime=$mimeType")
+                            val parts = mutableListOf<String>()
+                            if (w > 0 && h > 0) {
+                                parts.add(when { w >= 3800 -> "4K"; w >= 1900 -> "1080P"; w >= 1200 -> "720P"; else -> "${h}P" })
+                            }
+                            if (mimeType.isNotEmpty()) {
+                                val container = when {
+                                    mimeType.contains("mp2ts") -> "TS"
+                                    mimeType.contains("mp4") -> "MP4"
+                                    mimeType.contains("matroska") -> "MKV"
+                                    mimeType.contains("avi") -> "AVI"
+                                    mimeType.contains("flv") -> "FLV"
+                                    mimeType.contains("webm") -> "WEBM"
+                                    else -> mimeType.substringAfter("/").take(4).uppercase()
+                                }
+                                if (container.isNotEmpty()) parts.add(container)
+                            }
+                            if (fps != null && fps > 0) parts.add("${fps.toInt()}fps")
+                            if (br > 0) parts.add("${br / 1000}kbps")
+                            val proto = ch.url.substringBefore("://").lowercase()
+                            when (proto) { "http" -> parts.add("HTTP"); "https" -> parts.add("HTTPS"); "rtsp" -> parts.add("RTSP"); "udp" -> parts.add("UDP"); "rtp" -> parts.add("RTP") }
+                            parts.joinToString(" ")
+                        } catch (e: Exception) { "" } finally {
+                            try { retriever.release() } catch (_: Exception) {}
+                        }
+                    }
+                    if (mediaInfo.isNotEmpty()) {
+                        _mediaInfoMap.value = _mediaInfoMap.value.toMutableMap().apply { put(ch.url, mediaInfo) }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "fetchMediaInfoForAll: error for ${ch.url}: ${e.message}")
+                }
+                done++
+                _thumbnailGenProgress.value = Pair(done, channelsToFetch.size)
+            }
+            _thumbnailGenProgress.value = null
+            Log.i(TAG, "fetchMediaInfoForAll: done, $done/${channelsToFetch.size}")
+        }
+    }
+
     /** 启动扫描状态轮询（800ms 间隔，扫描中实时加载结果，扫描结束后自动停止轮询） */
     private fun startScanPolling() {
         scanPollJob?.cancel()
@@ -6384,10 +6550,31 @@ fun loadThumbnailPaths() {
     if (urls.isEmpty()) return
     viewModelScope.launch {
         try {
+            // 先扫描本地缓存的缩略图
+            val app = getApplication<Application>()
+            val thumbDir = java.io.File(app.cacheDir, "thumbnails")
+            val localPaths = mutableMapOf<String, String>()
+            if (thumbDir.exists()) {
+                thumbDir.listFiles()?.forEach { file ->
+                    if (file.isFile && file.name.endsWith(".png")) {
+                        // 文件名是 url.hashCode().png，需要匹配频道
+                        val hashPart = file.nameWithoutExtension
+                        urls.forEach { url ->
+                            if (url.hashCode().toString() == hashPart) {
+                                localPaths[url] = file.absolutePath
+                            }
+                        }
+                    }
+                }
+            }
+            // 再从服务器加载
             val result = repository.getThumbnailPaths(urls)
-            result.onSuccess { paths ->
-                _thumbnailPaths.value = paths
-                Log.i(TAG, "loadThumbnailPaths: loaded ${paths.size} thumbnails")
+            result.onSuccess { serverPaths ->
+                _thumbnailPaths.value = localPaths.apply { putAll(serverPaths) }
+                Log.i(TAG, "loadThumbnailPaths: loaded ${localPaths.size} local + ${serverPaths.size} server thumbnails")
+            }.onFailure {
+                _thumbnailPaths.value = localPaths
+                Log.i(TAG, "loadThumbnailPaths: loaded ${localPaths.size} local thumbnails (server failed)")
             }
         } catch (e: Exception) {
             Log.w(TAG, "loadThumbnailPaths failed: ${e.message}")
@@ -6453,6 +6640,10 @@ fun generateMissingThumbnails(channelsToGen: List<IptvChannel>) {
     }
     if (missing.isEmpty()) {
         Log.i(TAG, "generateMissingThumbnails: no missing thumbnails")
+        // 即使没有缺失缩略图，也获取媒体信息
+        if (_mediaInfoMap.value.isEmpty()) {
+            fetchMediaInfoForChannels(channelsToGen)
+        }
         return
     }
 
@@ -6465,8 +6656,100 @@ fun generateMissingThumbnails(channelsToGen: List<IptvChannel>) {
         captureChannelThumbnail()
     }
 
-    // 提示用户：播放频道时会自动生成缩略图
-    showOsd("缩略图", "还有 ${missing.size} 个频道待生成，播放时自动截图")
+    // 用 MediaMetadataRetriever 在后台逐个生成缩略图
+    thumbnailJob?.cancel()
+    thumbnailJob = viewModelScope.launch {
+        _thumbnailGenProgress.value = Pair(0, missing.size)
+        val app = getApplication<Application>()
+        val thumbDir = java.io.File(app.cacheDir, "thumbnails")
+        thumbDir.mkdirs()
+        var done = 0
+        for (ch in missing) {
+            if (!isActive) break
+            try {
+                // 测量网络延迟
+                if (!_liveLatencyMap.value.containsKey(ch.url)) {
+                    val lat = withContext(kotlinx.coroutines.Dispatchers.IO) { measureHttpLatency(ch.url) }
+                    if (lat > 0) {
+                        _liveLatencyMap.value = _liveLatencyMap.value.toMutableMap().apply { put(ch.url, lat) }
+                    }
+                }
+                val bitmap = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(ch.url, HashMap<String, String>())
+                        retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "generateMissingThumbnails: failed for ${ch.name}: ${e.message}")
+                        null
+                    } finally {
+                        try { retriever.release() } catch (_: Exception) {}
+                    }
+                }
+                if (bitmap != null) {
+                    val thumbFile = java.io.File(thumbDir, "${ch.url.hashCode()}.png")
+                    java.io.FileOutputStream(thumbFile).use { fos ->
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 80, fos)
+                    }
+                    bitmap.recycle()
+                    _thumbnailPaths.value = _thumbnailPaths.value.toMutableMap().apply {
+                        put(ch.url, thumbFile.absolutePath)
+                    }
+                }
+                // 获取媒体信息
+                val mediaInfo = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(ch.url, HashMap<String, String>())
+                        val w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                        val h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                        val fps = if (android.os.Build.VERSION.SDK_INT >= 29) retriever.extractMetadata(30)?.toFloatOrNull() else null
+                        val br = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull() ?: 0
+                        val mimeType = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE) ?: ""
+                        val parts = mutableListOf<String>()
+                        // 分辨率
+                        if (w > 0 && h > 0) {
+                            parts.add(when { w >= 3800 -> "4K"; w >= 1900 -> "1080P"; w >= 1200 -> "720P"; else -> "${h}P" })
+                        }
+                        // 容器格式
+                        if (mimeType.isNotEmpty()) {
+                            val container = when {
+                                mimeType.contains("mp2ts") -> "TS"
+                                mimeType.contains("mp4") -> "MP4"
+                                mimeType.contains("matroska") -> "MKV"
+                                mimeType.contains("avi") -> "AVI"
+                                mimeType.contains("flv") -> "FLV"
+                                mimeType.contains("webm") -> "WEBM"
+                                else -> ""
+                            }
+                            if (container.isNotEmpty()) parts.add(container)
+                        }
+                        // 帧率
+                        if (fps != null && fps > 0) parts.add("${fps.toInt()}fps")
+                        // 码率
+                        if (br > 0) parts.add("${br / 1000}kbps")
+                        // 协议
+                        val proto = ch.url.substringBefore("://").lowercase()
+                        when (proto) { "http" -> parts.add("HTTP"); "https" -> parts.add("HTTPS"); "rtsp" -> parts.add("RTSP"); "udp" -> parts.add("UDP"); "rtp" -> parts.add("RTP") }
+                        parts.joinToString(" ")
+                    } catch (e: Exception) { "" } finally {
+                        try { retriever.release() } catch (_: Exception) {}
+                    }
+                }
+                if (mediaInfo.isNotEmpty()) {
+                    _mediaInfoMap.value = _mediaInfoMap.value.toMutableMap().apply {
+                        put(ch.url, mediaInfo)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "generateMissingThumbnails: error for ${ch.url}: ${e.message}")
+            }
+            done++
+            _thumbnailGenProgress.value = Pair(done, missing.size)
+        }
+        _thumbnailGenProgress.value = null
+        Log.i(TAG, "generateMissingThumbnails: batch done, $done/${missing.size}")
+    }
 }
 
     // -----------------------------------------------------------------
@@ -6895,6 +7178,23 @@ showOsd("播放器设置", "日志等级: $levelName")
         }
     }
 
+    fun updateSource(idx: Int, url: String, name: String) {
+        if (url.isBlank()) {
+            showOsd("请输入订阅源 URL")
+            return
+        }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                repository.updateSource(idx, mapOf("url" to url, "name" to name))
+            }
+            result.onSuccess {
+                showOsd("订阅源已更新", "正在重载...")
+                loadSources()
+                reloadSources()
+            }.onFailure { showOsd("更新失败", it.message ?: "") }
+        }
+    }
+
     fun deleteEpgSource(idx: Int) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { repository.deleteEpgSource(idx) }
@@ -6902,6 +7202,23 @@ showOsd("播放器设置", "日志等级: $levelName")
                 showOsd("EPG 源已删除")
                 loadEpgSources()
             }.onFailure { showOsd("删除失败", it.message ?: "") }
+        }
+    }
+
+    fun updateEpgSource(idx: Int, url: String, name: String) {
+        if (url.isBlank()) {
+            showOsd("请输入 EPG 订阅源 URL")
+            return
+        }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                repository.updateEpgSource(idx, mapOf("url" to url, "name" to name))
+            }
+            result.onSuccess {
+                showOsd("EPG 源已更新", "正在重载 EPG...")
+                loadEpgSources()
+                reloadEpgSources()
+            }.onFailure { showOsd("更新失败", it.message ?: "") }
         }
     }
 

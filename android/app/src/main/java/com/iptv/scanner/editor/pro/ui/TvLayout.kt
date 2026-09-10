@@ -1,11 +1,13 @@
 package com.iptv.scanner.editor.pro.ui
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.DisposableEffect
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,8 +56,13 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
 import coil.compose.AsyncImage
 import com.iptv.scanner.editor.pro.data.IptvChannel
 import com.iptv.scanner.editor.pro.data.IptvEpgProgram
@@ -106,10 +113,32 @@ fun TvPlayerLayout(
 
     val showOverlays by derivedStateOf { sidebarVisible || controlsVisible || controlsPinned }
 
+    // 横屏全屏：隐藏系统状态栏和导航栏（滑动可临时唤出）
+    val context = LocalContext.current
+    DisposableEffect(Unit) {
+        val activity = context as? Activity
+        val window = activity?.window
+        val controller = window?.let {
+            androidx.core.view.WindowCompat.getInsetsController(it, it.decorView)
+        }
+        controller?.systemBarsBehavior =
+            androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        onDispose {
+            controller?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    // DPI自适应缩放：以TV横屏720dp高度为基准，手机横屏高度不足时缩小UI
+    val configuration = LocalConfiguration.current
+    val origDensity = LocalDensity.current
+    val dpiScale = (configuration.screenHeightDp / 720f).coerceIn(0.55f, 1f)
+    val scaledDensity = Density(origDensity.density * dpiScale, origDensity.fontScale)
 
     Box(modifier = Modifier.fillMaxSize()) {
         primaryPlayer()
 
+        CompositionLocalProvider(LocalDensity provides scaledDensity) {
         // 酷9风格：右上角时间组（始终显示）
         if (ku9ShowTime) {
             TvTimeGroup(
@@ -172,6 +201,7 @@ fun TvPlayerLayout(
                 )
             }
         }
+        } // CompositionLocalProvider
     }
 }
 
@@ -337,10 +367,10 @@ private fun TvBottomBar(
 
     Box {
         if (isAndroid12Plus) {
-            Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)).blur(15.dp).background(Color(0xAA333333)))
+            Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)).blur(15.dp).background(Color(0x88333333)))
         }
         Surface(
-            color = if (isAndroid12Plus) Color(0xE6333333) else Color(0xF0333333),
+            color = if (isAndroid12Plus) Color(0xCC333333) else Color(0xD0333333),
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -398,10 +428,9 @@ private fun TvBottomBar(
                     }
                 }
 
-                // 第2行：当前节目名 + 时间范围 + 进度条 + 时间戳 + 距结束 + 按钮
-                if (fileLoaded) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                // 第2行：当前节目名 + 时间范围 + 进度条 + 时间戳 + 距结束 + 按钮（始终显示）
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                         // 日期
                         val dateText = remember(tick) { dateFmt.format(java.util.Date(tick)) }
                         Text(text = dateText, color = oc.textSecondary, fontSize = 12.sp)
@@ -447,9 +476,11 @@ private fun TvBottomBar(
                                 fakeChannel, currentProgram, timePos, duration
                             )
                         }
+                        val hasEpg = currentProgram != null && currentProgram.stopTs > 0
                         Slider(
-                            value = progress.percent / 100f,
-                            onValueChange = { viewModel.seekProgress(it * 100f) },
+                            value = if (hasEpg) progress.percent / 100f else 0f,
+                            onValueChange = { if (hasEpg) viewModel.seekProgress(it * 100f) },
+                            enabled = hasEpg,
                             modifier = Modifier.width(200.dp).height(10.dp),
                             colors = SliderDefaults.colors(thumbColor = Color(0xFF2979FF), activeTrackColor = Color(0xFF2979FF), inactiveTrackColor = Color(0x30FFFFFF))
                         )
@@ -479,16 +510,14 @@ private fun TvBottomBar(
                             Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(16.dp))
                         }
                     }
-                }
 
-                // 第3行：当前节目描述 + 下一节目预告（紧凑排列，无空白）
-                if (fileLoaded) {
+                // 第3行：当前节目描述 + 下一节目预告（始终显示，无节目单时占位）
+                run {
                     val hasDesc = currentProgram != null && currentProgram.desc.isNotEmpty()
                     val hasNext = nextProgram != null
-                    if (hasDesc || hasNext) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // 节目描述（有则显示，占剩余空间）
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                            // 节目描述（有则显示，无则占位"精彩节目"）
                             if (hasDesc) {
                                 Text(
                                     text = currentProgram!!.desc,
@@ -497,10 +526,18 @@ private fun TvBottomBar(
                                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
+                            } else {
+                                Text(
+                                    text = "精彩节目",
+                                    color = oc.textSecondary.copy(alpha = 0.6f),
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    modifier = Modifier.weight(1f)
+                                )
                             }
                             // 下一节目预告（紧跟描述或左对齐）
                             if (hasNext) {
-                                if (hasDesc) Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
                                 val nextStart = remember(nextProgram) {
                                     timeFmt.format(java.util.Date(nextProgram!!.startTs * 1000L))
                                 }
@@ -515,19 +552,16 @@ private fun TvBottomBar(
                                     color = Color(0xB3FFFFFF),
                                     fontSize = 12.sp,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    modifier = if (!hasDesc) Modifier.weight(1f) else Modifier.width(200.dp)
+                                    modifier = Modifier.width(200.dp)
                                 )
                             }
-                            if (!hasDesc && !hasNext) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
                         }
-                    }
-                }
             }
         }
     }
 }
+
+}  // TvBottomBar
 
 
 internal fun buildTvMediaBadges(mpv: com.iptv.scanner.editor.pro.player.Player, videoWidth: Int, videoHeight: Int, playbackUrl: String = ""): List<String> {

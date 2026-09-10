@@ -52,18 +52,20 @@ class ExoPlayerWrapper(
         private const val USER_AGENT = "VLC/3.0.18Libmpv"
 
         /**
-         * 软解专用 MediaCodecSelector：只返回软件编解码器（hardwareAccelerated=false）。
-         * 过滤掉 GPU 硬件编解码器，强制使用 CPU 软件解码（如 OMX.google.*）。
+         * 软解专用 MediaCodecSelector：优先软件编解码器，若无软解则回退硬解（避免黑屏）。
          */
         private val SOFTWARE_ONLY_SELECTOR = MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
-            MediaCodecUtil.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
-                .filter { !it.hardwareAccelerated }
+            val all = MediaCodecUtil.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+            val software = all.filter { !it.hardwareAccelerated }
+            if (software.isNotEmpty()) software else all
         }
     }
 
     private var player: ExoPlayer? = null
     private var playerView: PlayerView? = null
     private var currentUrl: String = ""
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private fun isMainThread() = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
 
     // -----------------------------------------------------------------
     // 可观察状态（与 MpvController StateFlow 对齐）
@@ -150,6 +152,21 @@ class ExoPlayerWrapper(
 
     /** 解绑 View，释放 ExoPlayer 资源 */
     override fun detach() {
+        _fileLoaded.value = false
+        _paused.value = true
+        _timePos.value = 0.0
+        _duration.value = 0.0
+        _videoWidth.value = 0
+        _videoHeight.value = 0
+        if (!isMainThread()) {
+            mainHandler.post {
+                playerView?.player = null
+                playerView = null
+                try { player?.release() } catch (_: Exception) {}
+                player = null
+            }
+            return
+        }
         playerView?.player = null
         playerView = null
         try {
@@ -158,12 +175,6 @@ class ExoPlayerWrapper(
             Log.w(TAG, "detach: release failed: ${e.message}")
         }
         player = null
-        _fileLoaded.value = false
-        _paused.value = true
-        _timePos.value = 0.0
-        _duration.value = 0.0
-        _videoWidth.value = 0
-        _videoHeight.value = 0
         Log.i(TAG, "detach: released")
     }
 
@@ -238,6 +249,17 @@ class ExoPlayerWrapper(
                         override fun onPlayerError(error: PlaybackException) {
                             Log.e(TAG, "Player error: ${error.message}", error)
                             _fileLoaded.value = false
+                            // 降级重试：若当前为软解且出错，自动切回硬解重试
+                            if (!hardwareDecodeEnabled && currentUrl.isNotEmpty()) {
+                                Log.w(TAG, "Soft decode failed, falling back to hardware decode")
+                                hardwareDecodeEnabled = true
+                                player?.release()
+                                player = null
+                                ensurePlayer()
+                                val url = currentUrl
+                                currentUrl = ""
+                                playFile(url)
+                            }
                         }
 
                         override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -257,14 +279,22 @@ class ExoPlayerWrapper(
     // -----------------------------------------------------------------
 
     override fun playFile(url: String) {
+        currentUrl = url
+        _eofReached.value = false
+        _fileLoaded.value = false
+        if (!isMainThread()) {
+            mainHandler.post { playFileOnMainThread(url) }
+            return
+        }
+        playFileOnMainThread(url)
+    }
+
+    private fun playFileOnMainThread(url: String) {
         ensurePlayer()
         val p = player ?: run {
             Log.e(TAG, "playFile: player is null")
             return
         }
-        currentUrl = url
-        _eofReached.value = false
-        _fileLoaded.value = false
         try {
             Log.i(TAG, "playFile: $url")
             val mediaItem = MediaItem.Builder().setUri(Uri.parse(url)).build()
@@ -279,12 +309,16 @@ class ExoPlayerWrapper(
     }
 
     override fun stop() {
+        currentUrl = ""
+        _fileLoaded.value = false
+        _paused.value = true
+        _timePos.value = 0.0
+        if (!isMainThread()) {
+            mainHandler.post { player?.stop() }
+            return
+        }
         try {
             player?.stop()
-            _fileLoaded.value = false
-            _paused.value = true
-            _timePos.value = 0.0
-            currentUrl = ""
             Log.i(TAG, "stop")
         } catch (e: Exception) {
             Log.w(TAG, "stop failed: ${e.message}")
@@ -296,21 +330,38 @@ class ExoPlayerWrapper(
     }
 
     override fun togglePause() {
+        if (!isMainThread()) {
+            mainHandler.post { togglePause() }
+            return
+        }
         val p = player ?: return
         p.playWhenReady = !p.playWhenReady
         _paused.value = !p.playWhenReady
     }
 
     override fun setPause(p: Boolean) {
-        player?.playWhenReady = !p
         _paused.value = p
+        if (!isMainThread()) {
+            mainHandler.post { player?.playWhenReady = !p }
+            return
+        }
+        player?.playWhenReady = !p
     }
 
     override fun seekTo(seconds: Double) {
-        player?.seekTo((seconds * 1000).toLong())
+        val targetMs = (seconds * 1000).toLong()
+        if (!isMainThread()) {
+            mainHandler.post { player?.seekTo(targetMs) }
+            return
+        }
+        player?.seekTo(targetMs)
     }
 
     override fun seekRelative(seconds: Double) {
+        if (!isMainThread()) {
+            mainHandler.post { seekRelative(seconds) }
+            return
+        }
         val p = player ?: return
         val target = (p.currentPosition + seconds * 1000.0).coerceAtLeast(0.0)
             .coerceAtMost(p.duration.coerceAtLeast(0L).toDouble())
@@ -328,8 +379,12 @@ class ExoPlayerWrapper(
     override fun setVolume(v: Int) {
         val clamped = v.coerceIn(0, 130)
         _volume.value = clamped
-        // ExoPlayer 音量范围 0.0~1.0，mpv 范围 0~130
-        player?.volume = (clamped / 100f).coerceIn(0f, 1f)
+        val vol = (clamped / 100f).coerceIn(0f, 1f)
+        if (!isMainThread()) {
+            mainHandler.post { player?.volume = vol }
+            return
+        }
+        player?.volume = vol
     }
 
     override fun adjustVolume(delta: Int) {
@@ -342,12 +397,21 @@ class ExoPlayerWrapper(
 
     override fun setMute(m: Boolean) {
         _muted.value = m
-        player?.volume = if (m) 0f else (_volume.value / 100f).coerceIn(0f, 1f)
+        val vol = if (m) 0f else (_volume.value / 100f).coerceIn(0f, 1f)
+        if (!isMainThread()) {
+            mainHandler.post { player?.volume = vol }
+            return
+        }
+        player?.volume = vol
     }
 
     override fun setSpeed(s: Double) {
         val clamped = s.coerceIn(0.01, 100.0)
         _speed.value = clamped
+        if (!isMainThread()) {
+            mainHandler.post { setSpeed(s) }
+            return
+        }
         try {
             val params = player?.playbackParameters?.withSpeed(clamped.toFloat())
             player?.playbackParameters = params ?: androidx.media3.common.PlaybackParameters(clamped.toFloat())
@@ -498,6 +562,10 @@ class ExoPlayerWrapper(
         if (hardwareDecodeEnabled == enabled) return true
         hardwareDecodeEnabled = enabled
         Log.i(TAG, "setHardwareDecode: $enabled")
+        if (!isMainThread()) {
+            mainHandler.post { setHardwareDecode(enabled) }
+            return true
+        }
         try {
             val p = player ?: return true
             // 重建播放器以应用新的 RenderersFactory 配置
@@ -633,6 +701,10 @@ class ExoPlayerWrapper(
      */
     fun updateProgress() {
         val p = player ?: return
+        if (!isMainThread()) {
+            mainHandler.post { updateProgress() }
+            return
+        }
         try {
             _timePos.value = p.currentPosition / 1000.0
             if (p.duration > 0) {

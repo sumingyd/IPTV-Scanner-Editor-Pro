@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -39,11 +40,13 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -285,7 +288,8 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                                     source = source,
                                     index = idx,
                                     onToggle = { enabled -> viewModel.toggleSourceEnabled(idx, enabled) },
-                                    onDelete = { viewModel.deleteSource(idx) }
+                                    onDelete = { viewModel.deleteSource(idx) },
+                                    onEdit = { url, name -> viewModel.updateSource(idx, url, name) }
                                 )
                             }
                         }
@@ -303,7 +307,8 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                                 EpgSourceItem(
                                     source = source,
                                     index = idx,
-                                    onDelete = { viewModel.deleteEpgSource(idx) }
+                                    onDelete = { viewModel.deleteEpgSource(idx) },
+                                    onEdit = { url, name -> viewModel.updateEpgSource(idx, url, name) }
                                 )
                             }
                         }
@@ -374,51 +379,72 @@ private fun SourceItem(
     source: IptvSource,
     index: Int,
     onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: (url: String, name: String) -> Unit
 ) {
+    var editing by remember { mutableStateOf(false) }
+    var editUrl by remember { mutableStateOf(source.url) }
+    var editName by remember { mutableStateOf(source.name) }
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = source.name.ifEmpty { "订阅源 ${index + 1}" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = source.url,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (source.lastUpdate != null && source.lastUpdate!!.isNotEmpty()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "更新: ${source.lastUpdate}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = source.name.ifEmpty { "订阅源 ${index + 1}" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = source.url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (source.lastUpdate != null && source.lastUpdate!!.isNotEmpty()) {
+                        Text(
+                            text = "更新: ${source.lastUpdate}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Switch(checked = source.enabled, onCheckedChange = onToggle, modifier = Modifier.tvFocusBorder())
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(onClick = { editing = !editing; editUrl = source.url; editName = source.name }, modifier = Modifier.tvFocusBorder()) {
+                    Icon(Icons.Default.Edit, contentDescription = "编辑", tint = MaterialTheme.colorScheme.primary)
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.tvFocusBorder()) {
+                    Icon(Icons.Default.Delete, contentDescription = "删除", tint = Color(0xFFE57373))
                 }
             }
-            // 启用开关
-            Switch(
-                checked = source.enabled,
-                onCheckedChange = onToggle,
-                modifier = Modifier.tvFocusBorder()
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            // 删除按钮
-            IconButton(onClick = onDelete, modifier = Modifier.tvFocusBorder()) {
-                Icon(Icons.Default.Delete, contentDescription = "删除", tint = Color(0xFFE57373))
+            if (editing) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = editUrl, onValueChange = { editUrl = it },
+                    label = { Text("URL") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = editName, onValueChange = { editName = it },
+                    label = { Text("名称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { onEdit(editUrl.trim(), editName.trim()); editing = false }) { Text("保存") }
+                    TextButton(onClick = { editing = false }) { Text("取消") }
+                }
             }
         }
     }
@@ -431,43 +457,70 @@ private fun SourceItem(
 private fun EpgSourceItem(
     source: IptvEpgSource,
     index: Int,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: (url: String, name: String) -> Unit
 ) {
+    var editing by remember { mutableStateOf(false) }
+    var editUrl by remember { mutableStateOf(source.url) }
+    var editName by remember { mutableStateOf(source.name) }
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = source.name.ifEmpty { "EPG 源 ${index + 1}" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = source.url,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (source.lastUpdate != null && source.lastUpdate!!.isNotEmpty()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "更新: ${source.lastUpdate}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = source.name.ifEmpty { "EPG 源 ${index + 1}" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = source.url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (source.lastUpdate != null && source.lastUpdate!!.isNotEmpty()) {
+                        Text(
+                            text = "更新: ${source.lastUpdate}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                IconButton(onClick = { editing = !editing; editUrl = source.url; editName = source.name }, modifier = Modifier.tvFocusBorder()) {
+                    Icon(Icons.Default.Edit, contentDescription = "编辑", tint = MaterialTheme.colorScheme.primary)
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.tvFocusBorder()) {
+                    Icon(Icons.Default.Delete, contentDescription = "删除", tint = Color(0xFFE57373))
                 }
             }
-            IconButton(onClick = onDelete, modifier = Modifier.tvFocusBorder()) {
-                Icon(Icons.Default.Delete, contentDescription = "删除", tint = Color(0xFFE57373))
+            if (editing) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = editUrl, onValueChange = { editUrl = it },
+                    label = { Text("URL") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = editName, onValueChange = { editName = it },
+                    label = { Text("名称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { onEdit(editUrl.trim(), editName.trim()); editing = false }) { Text("保存") }
+                    TextButton(onClick = { editing = false }) { Text("取消") }
+                }
             }
         }
     }

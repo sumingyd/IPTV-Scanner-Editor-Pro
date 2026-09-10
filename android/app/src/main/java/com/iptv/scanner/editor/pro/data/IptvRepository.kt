@@ -287,6 +287,11 @@ class IptvRepository private constructor() {
         return result.map { it.count }
     }
 
+    suspend fun updateEpgSource(idx: Int, fields: Map<String, String>): Result<Unit> {
+        val jsonStr = buildJsonObject(fields).toString()
+        return callPyTyped<OkResponse>("update_epg_source", idx, jsonStr).map { Unit }
+    }
+
     suspend fun reloadEpg(): Result<Boolean> =
         callPyTyped<StartedResponse>("reload_epg").map { it.started }
 
