@@ -2079,7 +2079,10 @@ def start_admin_server(port=8080):
             app = create_app()
 
             # 移除 server.routes 的 auth_middleware，由 _auth_middleware 统一处理
-            app.middlewares = [m for m in app.middlewares if m.__name__ != 'auth_middleware']
+            from aiohttp.frozenlist import FrozenList
+            app._middlewares = FrozenList(
+                [m for m in app.middlewares if m.__name__ != 'auth_middleware']
+            )
 
             # 注册认证中间件：所有 /api/ 路由需要携带有效 token
             # 静态文件路由（/admin/ /）免认证，页面加载后由前端 JS 在 API 请求中携带 token
