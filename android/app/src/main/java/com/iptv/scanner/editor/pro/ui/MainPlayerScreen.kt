@@ -3581,13 +3581,13 @@ private fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
         return
     }
 
-    // Tab 状态：订阅频道 = [频道列表, 节目单, 播放信息]，本地文件 = [播放信息, 最近文件]
+    // Tab 状态：订阅频道 = [分类, 频道, 节目, 信息]，本地文件 = [信息, 最近文件]
     var selectedTab by remember { mutableStateOf(0) }
 
     val tabs = if (isLocalFile) {
-        listOf(stringResource(R.string.tab_playback_info), stringResource(R.string.tab_recent_files))
+        listOf(stringResource(R.string.tab_info), stringResource(R.string.tab_recent_files))
     } else {
-        listOf(stringResource(R.string.tab_channel_list), stringResource(R.string.tab_epg_guide), stringResource(R.string.tab_playback_info))
+        listOf(stringResource(R.string.tab_category), stringResource(R.string.tab_channel), stringResource(R.string.tab_program), stringResource(R.string.tab_info))
     }
 
     // 如果 selectedTab 超出范围（切换模式时），重置为 0
@@ -3648,9 +3648,10 @@ private fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
                 }
             } else {
                 when (selectedTab) {
-                    0 -> PortraitChannelList(viewModel = viewModel, showFavoritesOnly = false)
-                    1 -> PortraitEpgContent(viewModel = viewModel)
-                    2 -> {
+                    0 -> PortraitCategoryContent(viewModel = viewModel)
+                    1 -> PortraitChannelOnlyList(viewModel = viewModel)
+                    2 -> PortraitEpgContent(viewModel = viewModel)
+                    3 -> {
                         val duration by player.duration.collectAsState()
                         val timePos by player.timePos.collectAsState()
                         val videoWidth by player.videoWidth.collectAsState()
@@ -3918,7 +3919,187 @@ private fun formatTime(seconds: Double): String {
 }
 
 // -----------------------------------------------------------------
-// EPG 节目单内容（竖屏 Tab 内简化版）
+// 分类列表（竖屏 Tab — 全屏分组选择）
+// -----------------------------------------------------------------
+
+@Composable
+private fun PortraitCategoryContent(viewModel: AppViewModel) {
+    val allGroups by viewModel.groups.collectAsState()
+    val selectedGroup by viewModel.selectedGroup.collectAsState()
+    val channels by viewModel.channels.collectAsState()
+    val channelsTab by viewModel.channelsTab.collectAsState()
+    val currentIdx by viewModel.currentIdx.collectAsState()
+    val oc = rememberPlayerOverlayColors()
+
+    val groups = remember(allGroups, channels, channelsTab) {
+        if (channelsTab == ChannelTab.LOCAL) {
+            channels
+                .filter { it.source.isEmpty() || ProgressHelper.isLocalFile(it.url) }
+                .map { it.group }
+                .filter { it.isNotEmpty() }
+                .distinct()
+        } else {
+            allGroups
+        }
+    }
+
+    // 计算每个分组的频道数
+    val groupCounts = remember(groups, channels, channelsTab) {
+        groups.associateWith { g ->
+            if (channelsTab == ChannelTab.LOCAL) {
+                channels.count { it.group == g && (it.source.isEmpty() || ProgressHelper.isLocalFile(it.url)) }
+            } else {
+                channels.count { it.group == g }
+            }
+        }
+    }
+    val totalCount = channels.size
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(vertical = 4.dp)
+    ) {
+        item {
+            val isSelected = selectedGroup.isEmpty()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .then(if (isSelected) Modifier.border(1.dp, oc.accent.copy(alpha = 0.50f), RoundedCornerShape(8.dp)) else Modifier)
+                    .clickable { viewModel.setSelectedGroup("") }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (isSelected) oc.accent else Color.Transparent)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "全部",
+                    color = if (isSelected) oc.accent else oc.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "$totalCount",
+                    color = oc.textSecondary,
+                    fontSize = 12.sp
+                )
+            }
+        }
+        items(groups, key = { it }) { group ->
+            val isSelected = selectedGroup == group
+            val count = groupCounts[group] ?: 0
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .then(if (isSelected) Modifier.border(1.dp, oc.accent.copy(alpha = 0.50f), RoundedCornerShape(8.dp)) else Modifier)
+                    .clickable { viewModel.setSelectedGroup(group) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (isSelected) oc.accent else Color.Transparent)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = group,
+                    color = if (isSelected) oc.accent else oc.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "$count",
+                    color = oc.textSecondary,
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------
+// 频道列表（竖屏 Tab — 仅频道，无分组列）
+// -----------------------------------------------------------------
+
+@Composable
+private fun PortraitChannelOnlyList(viewModel: AppViewModel) {
+    val channels by viewModel.channels.collectAsState()
+    val currentIdx by viewModel.currentIdx.collectAsState()
+    val selectedGroup by viewModel.selectedGroup.collectAsState()
+    val channelsTab by viewModel.channelsTab.collectAsState()
+    val epgCacheVersion by viewModel.epgCacheVersion.collectAsState()
+    val oc = rememberPlayerOverlayColors()
+
+    val filteredChannels = remember(channels, selectedGroup, channelsTab) {
+        val all = channels.mapIndexed { idx, c -> c to idx }
+        val filtered = if (channelsTab == ChannelTab.LOCAL) {
+            all.filter { (c, _) -> c.source.isEmpty() || ProgressHelper.isLocalFile(c.url) }
+        } else {
+            all
+        }
+        filtered.filter { (c, _) ->
+            selectedGroup.isEmpty() || c.group == selectedGroup
+        }
+    }
+
+    if (filteredChannels.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "暂无频道",
+                color = oc.textSecondary,
+                fontSize = 13.sp
+            )
+        }
+    } else {
+        val listState = rememberLazyListState()
+        LaunchedEffect(filteredChannels, currentIdx) {
+            if (currentIdx >= 0) {
+                val scrollTarget = filteredChannels.indexOfFirst { (_, idx) -> idx == currentIdx }
+                if (scrollTarget >= 0) {
+                    listState.scrollToItem(scrollTarget)
+                }
+            }
+        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = 4.dp)
+        ) {
+            items(
+                items = filteredChannels,
+                key = { (channel, idx) -> idx }
+            ) { (channel, idx) ->
+                PortraitChannelListItem(
+                    channel = channel,
+                    channelIdx = idx,
+                    isPlaying = idx == currentIdx,
+                    oc = oc,
+                    viewModel = viewModel,
+                    epgCacheVersion = epgCacheVersion,
+                    onPlay = { viewModel.playChannel(idx) },
+                    onEpg = { viewModel.playChannelAndShowEpg(idx) }
+                )
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------
+// EPG 节目单内容（竖屏 Tab — 日期选择 + 节目列表 + 状态标识）
 // -----------------------------------------------------------------
 
 @Composable
@@ -3938,26 +4119,59 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
         }
     }
 
+    // 从 EPG 数据中提取所有日期
+    val epgDates = remember(epg) {
+        epg.mapNotNull { p ->
+            val ms = portraitParseTimeMs(p.start, p.startTs)
+            if (ms > 0) portraitFormatDate(ms) else null
+        }.distinct()
+    }
+
+    // 当前选中的日期索引
+    var selectedDateIdx by remember { mutableStateOf(0) }
+    LaunchedEffect(epgDates.size) {
+        if (selectedDateIdx >= epgDates.size) selectedDateIdx = 0
+    }
+
+    // 默认选中今天
+    LaunchedEffect(epgDates) {
+        if (epgDates.isNotEmpty()) {
+            val today = portraitFormatDate(System.currentTimeMillis())
+            val todayIdx = epgDates.indexOf(today)
+            if (todayIdx >= 0) selectedDateIdx = todayIdx
+        }
+    }
+
+    val selectedDate = if (epgDates.isNotEmpty() && selectedDateIdx < epgDates.size) epgDates[selectedDateIdx] else ""
+
+    // 按日期过滤节目
+    val filteredEpg = remember(epg, selectedDate) {
+        if (selectedDate.isEmpty()) epg
+        else epg.filter { p ->
+            val ms = portraitParseTimeMs(p.start, p.startTs)
+            if (ms > 0) portraitFormatDate(ms) == selectedDate else false
+        }
+    }
+
     // 回看模式下高亮选定的节目，否则高亮当前时间的节目
     val catchupProgram = playbackState.catchupProgram?.program
-    val currentProgramIdx = remember(epg, now, catchupProgram) {
+    val currentProgramIdx = remember(filteredEpg, now, catchupProgram) {
         if (catchupProgram != null) {
-            epg.indexOfFirst { p -> p.start == catchupProgram.start && p.title == catchupProgram.title }
+            filteredEpg.indexOfFirst { p -> p.start == catchupProgram.start && p.title == catchupProgram.title }
         } else {
-            epg.indexOfFirst { p -> portraitIsCurrentProgram(p, now) }
+            filteredEpg.indexOfFirst { p -> portraitIsCurrentProgram(p, now) }
         }
     }
 
     val epgListState = rememberLazyListState()
     // 自动滚动到当前/回看节目
-    LaunchedEffect(currentProgramIdx, epg) {
+    LaunchedEffect(currentProgramIdx, filteredEpg) {
         if (currentProgramIdx >= 0) {
-            epgListState.scrollToItem(currentProgramIdx.coerceAtMost(epg.size - 1))
+            epgListState.scrollToItem(currentProgramIdx.coerceAtMost(filteredEpg.size - 1))
         }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 内容（标题栏由父级 Tab 提供）
         when {
             loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -3970,18 +4184,54 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
                 }
             }
             else -> {
+                // 日期选择器（上方水平滚动）
+                if (epgDates.isNotEmpty()) {
+                    val dateScrollState = rememberLazyListState()
+                    LazyRow(
+                        state = dateScrollState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(oc.infoBarBg)
+                            .padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) {
+                        items(epgDates.size) { idx ->
+                            val isSelected = idx == selectedDateIdx
+                            val dateLabel = portraitDateLabel(epgDates[idx], now)
+                            Surface(
+                                color = if (isSelected) oc.accent.copy(alpha = 0.15f) else Color.Transparent,
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.clickable { selectedDateIdx = idx }
+                            ) {
+                                Text(
+                                    text = dateLabel,
+                                    color = if (isSelected) oc.accent else oc.textSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                )
+                            }
+                        }
+                    }
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
+                }
+                // 节目列表
                 LazyColumn(
                     state = epgListState,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(epg) { program ->
-                        val programIdx = epg.indexOf(program)
+                    items(filteredEpg) { program ->
+                        val programIdx = filteredEpg.indexOf(program)
                         val isCurrent = programIdx == currentProgramIdx
                         val isPast = portraitIsPastProgram(program, now)
+                        val isUpcoming = !isCurrent && !isPast
                         PortraitEpgItem(
                             program = program,
                             isCurrent = isCurrent,
                             isPast = isPast,
+                            isUpcoming = isUpcoming,
                             oc = oc,
                             onClick = {
                                 if (isPast && !isCurrent) {
@@ -4003,6 +4253,7 @@ private fun PortraitEpgItem(
     program: com.iptv.scanner.editor.pro.data.IptvEpgProgram,
     isCurrent: Boolean,
     isPast: Boolean,
+    isUpcoming: Boolean,
     oc: PlayerOverlayColors,
     onClick: () -> Unit
 ) {
@@ -4013,7 +4264,8 @@ private fun PortraitEpgItem(
             .fillMaxWidth()
             .background(bg)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         // 时间
         val timeText = buildString {
@@ -4030,28 +4282,45 @@ private fun PortraitEpgItem(
             modifier = Modifier.width(90.dp)
         )
         // 节目标题
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = program.title,
-                color = if (isCurrent) oc.textPrimary else oc.textSecondary,
-                fontSize = 13.sp,
-                fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (isCurrent) {
-                Surface(
-                    color = oc.accent.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(3.dp),
-                    modifier = Modifier.padding(top = 2.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.epg_now_playing),
-                        color = oc.accent,
-                        fontSize = 9.sp,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                    )
-                }
+        Text(
+            text = program.title,
+            color = if (isCurrent) oc.textPrimary else oc.textSecondary,
+            fontSize = 13.sp,
+            fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        // 右侧状态标识
+        val statusText = when {
+            isCurrent -> stringResource(R.string.epg_status_live)
+            isPast -> stringResource(R.string.epg_status_catchup)
+            isUpcoming -> stringResource(R.string.epg_status_upcoming)
+            else -> ""
+        }
+        val statusColor = when {
+            isCurrent -> oc.accent
+            isPast -> Color(0xFFFF9800)
+            isUpcoming -> oc.textSecondary
+            else -> oc.textSecondary
+        }
+        val statusBg = when {
+            isCurrent -> oc.accent.copy(alpha = 0.2f)
+            isPast -> Color(0xFFFF9800).copy(alpha = 0.15f)
+            isUpcoming -> oc.textSecondary.copy(alpha = 0.1f)
+            else -> Color.Transparent
+        }
+        if (statusText.isNotEmpty()) {
+            Surface(
+                color = statusBg,
+                shape = RoundedCornerShape(3.dp)
+            ) {
+                Text(
+                    text = statusText,
+                    color = statusColor,
+                    fontSize = 9.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
             }
         }
     }
@@ -4082,6 +4351,31 @@ private fun portraitFormatTime(iso: String): String {
     if (ms <= 0) return iso
     val cal = java.util.Calendar.getInstance().apply { timeInMillis = ms }
     return String.format(java.util.Locale.US, "%02d:%02d", cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+}
+
+private fun portraitFormatDate(ms: Long): String {
+    if (ms <= 0) return ""
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = ms }
+    return String.format(java.util.Locale.US, "%04d-%02d-%02d",
+        cal.get(java.util.Calendar.YEAR),
+        cal.get(java.util.Calendar.MONTH) + 1,
+        cal.get(java.util.Calendar.DAY_OF_MONTH))
+}
+
+private fun portraitDateLabel(dateStr: String, nowMs: Long): String {
+    if (dateStr.isEmpty()) return ""
+    val todayCal = java.util.Calendar.getInstance().apply { timeInMillis = nowMs }
+    val todayStr = portraitFormatDate(todayCal.timeInMillis)
+    if (dateStr == todayStr) return "今天"
+    todayCal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+    if (dateStr == portraitFormatDate(todayCal.timeInMillis)) return "明天"
+    todayCal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+    if (dateStr == portraitFormatDate(todayCal.timeInMillis)) return "后天"
+    // 其他日期显示 MM-dd
+    return try {
+        val parts = dateStr.split("-")
+        "${parts[1]}-${parts[2]}"
+    } catch (_: Exception) { dateStr }
 }
 
 private fun portraitIsCurrentProgram(program: com.iptv.scanner.editor.pro.data.IptvEpgProgram, nowMs: Long): Boolean {

@@ -10,6 +10,13 @@
     <string name="tab_recent_files">Recent Files</string>
     <string name="tab_channel_list">Channels</string>
     <string name="tab_epg_guide">Guide</string>
+    <string name="tab_category">Category</string>
+    <string name="tab_channel">Channel</string>
+    <string name="tab_program">Program</string>
+    <string name="tab_info">Info</string>
+    <string name="epg_status_live">LIVE</string>
+    <string name="epg_status_catchup">Catchup</string>
+    <string name="epg_status_upcoming">Upcoming</string>
 
     <!-- Portrait Player Info Panel -->
     <string name="info_playback">Playback Info</string>

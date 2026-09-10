@@ -10,6 +10,13 @@
     <string name="tab_recent_files">最近文件</string>
     <string name="tab_channel_list">频道列表</string>
     <string name="tab_epg_guide">节目单</string>
+    <string name="tab_category">分类</string>
+    <string name="tab_channel">频道</string>
+    <string name="tab_program">节目</string>
+    <string name="tab_info">信息</string>
+    <string name="epg_status_live">正在直播</string>
+    <string name="epg_status_catchup">回看</string>
+    <string name="epg_status_upcoming">未播放</string>
 
     <!-- Portrait Player Info Panel -->
     <string name="info_playback">播放信息</string>
