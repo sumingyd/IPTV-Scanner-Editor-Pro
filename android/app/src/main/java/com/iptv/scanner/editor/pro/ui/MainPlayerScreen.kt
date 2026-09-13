@@ -4104,11 +4104,17 @@ private fun PortraitChannelOnlyList(viewModel: AppViewModel) {
 
 @Composable
 private fun PortraitEpgContent(viewModel: AppViewModel) {
-    val epg by viewModel.currentEpg.collectAsState()
     val loading by viewModel.epgLoading.collectAsState()
     val currentChannel by viewModel.currentChannel.collectAsState()
+    val currentIdx by viewModel.currentIdx.collectAsState()
+    val epgCacheVersion by viewModel.epgCacheVersion.collectAsState()
     val playbackState by viewModel.playbackState.collectAsState()
     val oc = rememberPlayerOverlayColors()
+
+    // 使用完整（未截断）的 EPG 数据，而非 trimEpgNearNow 裁剪后的 currentEpg
+    val epg = remember(currentIdx, epgCacheVersion) {
+        viewModel.getFullEpgForCurrent()
+    }
 
     // 每秒刷新当前时间（用于高亮当前节目）
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
