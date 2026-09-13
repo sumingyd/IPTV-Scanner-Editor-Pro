@@ -217,8 +217,10 @@ PlayerType.EXO -> {
 // 每次都重建 ExoPlayer wrapper，确保渲染器配置正确
 exoWrapper?.detach()
 exoWrapper = ExoPlayerWrapper(getApplication()).also {
-// 继承当前的硬解/软解设置
+// 继承当前的硬解/软解、音量、静音设置
 it.setHardwareDecode(_hardwareDecode.value)
+it.setVolume(mpv.volume.value)
+it.setMute(mpv.muted.value)
 }
 exoWrapper!!
 }
@@ -5629,9 +5631,9 @@ fun hideControls() {
         var visualizerStarted = false
         try {
             visualizer?.release()
-            // 尝试获取 MPV 的 audio session id
+            // 获取当前播放器的音频会话 ID
             val audioSessionId = try {
-                mpv.getPropertyInt("audio-params")?.let { 0 } ?: 0
+                mpv.getAudioSessionId()
             } catch (_: Exception) { 0 }
             
             visualizer = android.media.audiofx.Visualizer(audioSessionId)

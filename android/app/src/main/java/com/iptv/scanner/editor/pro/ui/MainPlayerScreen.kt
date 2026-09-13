@@ -4177,6 +4177,15 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
         }
     }
 
+    // 日期选择器滚动状态
+    val dateScrollState = rememberLazyListState()
+    // 选中日期变化时滚动使选中项居中
+    LaunchedEffect(selectedDateIdx, epgDates) {
+        if (epgDates.isNotEmpty() && selectedDateIdx < epgDates.size) {
+            dateScrollState.animateScrollToItem(selectedDateIdx)
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         when {
             loading -> {
@@ -4192,7 +4201,7 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
             else -> {
                 // 日期选择器（上方水平滚动）
                 if (epgDates.isNotEmpty()) {
-                    val dateScrollState = rememberLazyListState()
+
                     LazyRow(
                         state = dateScrollState,
                         modifier = Modifier

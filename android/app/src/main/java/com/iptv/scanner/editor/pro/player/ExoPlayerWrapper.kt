@@ -178,6 +178,10 @@ class ExoPlayerWrapper(
         Log.i(TAG, "detach: released")
     }
 
+    override fun getAudioSessionId(): Int {
+        return try { player?.audioSessionId ?: 0 } catch (_: Exception) { 0 }
+    }
+
     private fun ensurePlayer() {
         if (player != null) return
         try {
@@ -217,7 +221,7 @@ class ExoPlayerWrapper(
                         .setUsage(C.USAGE_MEDIA)
                         .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                         .build(),
-                    true  // handleAudioFocus = true
+                    false  // handleAudioFocus = false，避免模拟器音频焦点竞争导致无声
                 )
                 .setHandleAudioBecomingNoisy(true)
                 .build().also { p ->
@@ -269,6 +273,10 @@ class ExoPlayerWrapper(
                     })
                 }
             Log.i(TAG, "ExoPlayer initialized, hwdec=$hardwareDecodeEnabled")
+            // 确保初始音量正确设置
+            val initVol = if (_muted.value) 0f else (_volume.value / 100f).coerceIn(0f, 1f)
+            player?.volume = initVol
+            Log.i(TAG, "ExoPlayer initial volume=$initVol (muted=${_muted.value}, vol=${_volume.value})")
         } catch (e: Exception) {
             Log.e(TAG, "ensurePlayer failed", e)
         }
