@@ -368,10 +368,15 @@ jobs:
         continue-on-error: true
 
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses > /dev/null
+        # setup-android 失败中断时不会把 sdkmanager 写入 PATH，需按绝对路径解析
+        run: |
+          SDKM=$(ls /usr/local/lib/android/sdk/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)
+          yes | "$SDKM" --licenses > /dev/null
 
       - name: Install Android SDK packages
-        run: yes | sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        run: |
+          SDKM=$(ls /usr/local/lib/android/sdk/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)
+          yes | "$SDKM" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Download official mpv-android .so files
         # 从官方 mpv-android APK 提取 .so 文件（无 CAVS/AVS2 支持，但稳定可靠）
