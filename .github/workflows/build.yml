@@ -362,6 +362,13 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        # 2026-09 起 runner 预装 sdkmanager 版本变更触发 action 下载 cmdline-tools 16.0，
+        # 其内部 "sdkmanager --licenses" 交互确认在 CI 无 stdin 环境下失败（exit 1）。
+        # 此时 SDK 工具本身已安装完成，故容忍该失败，由下一步显式接受许可。
+        continue-on-error: true
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null
 
       - name: Install Android SDK packages
         run: yes | sdkmanager "platforms;android-35" "build-tools;35.0.0"
