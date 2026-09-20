@@ -230,6 +230,25 @@ class ScanChannelDialog(FloatingDialog):
         get_theme_manager().unregister_window(self)
         super().done(result)
 
+    def showEvent(self, event):
+        # 基类 FloatingDialog.showEvent 首次显示会调用 adjustSize()，
+        # 按内容 sizeHint 重新撑大窗口，覆盖 __init__ 里的 resize 目标尺寸，
+        # 导致本对话框始终以布局 hint 尺寸（过宽）显示。
+        # 这里首次显示时跳过基类的 adjustSize 分支，改用固定尺寸并居中。
+        if not getattr(self, '_centered', False):
+            self._centered = True
+            try:
+                screen = QtWidgets.QApplication.primaryScreen()
+                if screen:
+                    from utils.platform_utils import wayland_move
+                    sg = screen.availableGeometry()
+                    x = (sg.width() - self.width()) // 2 + sg.x()
+                    y = (sg.height() - self.height()) // 2 + sg.y()
+                    wayland_move(self, x, y)
+            except Exception:
+                pass
+        super().showEvent(event)
+
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             widget = QtWidgets.QApplication.widgetAt(event.globalPosition().toPoint())
@@ -300,15 +319,16 @@ class ScanChannelDialog(FloatingDialog):
         # 确保窗口保持活动状态
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
-        # 根据屏幕尺寸动态计算窗口大小，不超过90%屏幕
+        # 根据屏幕尺寸动态计算窗口大小：高度优先用满可用区，宽度由高度推导保持方正
         screen = QtWidgets.QApplication.primaryScreen()
         if screen:
             avail = screen.availableGeometry()
-            max_w = int(avail.width() * 0.9)
-            max_h = int(avail.height() * 0.9)
-            self.resize(min(1400, max_w), min(800, max_h))
+            max_w = int(avail.width() * 0.92)
+            h = min(880, int(avail.height() * 0.92))
+            w = min(1400, max_w, int(h * 1.8))
+            self.resize(w, h)
         else:
-            self.resize(1400, 800)
+            self.resize(1200, 860)
 
         # 先设置窗口样式，避免闪烁
         self.setStyleSheet(AppStyles.popup_dialog_style())
@@ -525,7 +545,7 @@ class ScanChannelDialog(FloatingDialog):
         user_agent_layout.addWidget(user_agent_label)
         self.user_agent_input = QtWidgets.QLineEdit()
         self.user_agent_input.setPlaceholderText(tr("optional_default_input", "Optional, use default if empty"))
-        self.user_agent_input.setFixedHeight(34)
+        self.user_agent_input.setFixedHeight(28)
         self.user_agent_input.installEventFilter(self._home_on_focus_out)
         user_agent_layout.addWidget(self.user_agent_input)
         self.user_agent_layout = user_agent_layout
@@ -540,7 +560,7 @@ class ScanChannelDialog(FloatingDialog):
         referer_layout.addWidget(referer_label)
         self.referer_input = QtWidgets.QLineEdit()
         self.referer_input.setPlaceholderText(tr("optional_not_used_input", "Optional, not used if empty"))
-        self.referer_input.setFixedHeight(34)
+        self.referer_input.setFixedHeight(28)
         self.referer_input.installEventFilter(self._home_on_focus_out)
         referer_layout.addWidget(self.referer_input)
         self.referer_layout = referer_layout
@@ -561,7 +581,7 @@ class ScanChannelDialog(FloatingDialog):
         self.timeout_input = QtWidgets.QLineEdit("10")
         self.timeout_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.timeout_input.setPlaceholderText("1-60")
-        self.timeout_input.setFixedHeight(34)
+        self.timeout_input.setFixedHeight(28)
         timeout_row.addWidget(self.timeout_input)
         timeout_threads_layout.addLayout(timeout_row)
 
@@ -574,7 +594,7 @@ class ScanChannelDialog(FloatingDialog):
         self.threads_input = QtWidgets.QLineEdit("4")
         self.threads_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.threads_input.setPlaceholderText("1-64")
-        self.threads_input.setFixedHeight(34)
+        self.threads_input.setFixedHeight(28)
         threads_row.addWidget(self.threads_input)
         timeout_threads_layout.addLayout(threads_row)
 
@@ -839,12 +859,10 @@ class ScanChannelDialog(FloatingDialog):
 
         # User-Agent（简化标签）
         scan_settings_section.addWidget(self.user_agent_label)
-        self.user_agent_input.setFixedHeight(28)
         scan_settings_section.addWidget(self.user_agent_input)
 
         # Referer（简化标签）
         scan_settings_section.addWidget(self.referer_label)
-        self.referer_input.setFixedHeight(28)
         scan_settings_section.addWidget(self.referer_input)
 
         # 超时和线程数
