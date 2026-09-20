@@ -228,9 +228,9 @@ dependencies {
     implementation 'androidx.media3:media3-exoplayer-hls:1.4.1'
     implementation 'androidx.media3:media3-exoplayer-dash:1.4.1'
     implementation 'androidx.media3:media3-exoplayer-rtsp:1.4.1'
-/* ExoPlayer 软解模式通过自定义 MediaCodecSelector 实现（过滤硬件编解码器），
-* 不依赖 FFmpeg 扩展（Google 不发布预编译的 media3-decoder-ffmpeg AAR）。
-* 软解模式下只使用 Android 系统自带的软件编解码器（如 OMX.google.*）。 */
+    /* JLayer: 纯Java MPEG音频解码器，用于ExoPlayer解码MP2(audio/mpeg-L2)音频。
+     * Android MediaCodec不支持MP2，用JLayer实现自定义ExoPlayer音频渲染器。 */
+    implementation 'javazoom:jlayer:1.0.1'
 
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'

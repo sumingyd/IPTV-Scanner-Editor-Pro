@@ -933,7 +933,7 @@ private fun TvChannelItem(
             // 酷9风格：当前节目名，EPG为空时显示"精彩节目"
             Text(
                 text = currentEpgTitle.ifEmpty { "精彩节目" },
-                color = Color.White.copy(alpha = 0.6f),
+                color = Color.White.copy(alpha = 0.75f),
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1061,8 +1061,10 @@ private fun MenuColumn(
         }
     }
 
+    // 深色不透明底（≥0.88）保证亮画面下菜单文字对比度达标
     Surface(
-        color = Color.Transparent,
+        color = Color(0xFF1A1A1A).copy(alpha = 0.88f),
+        shape = RoundedCornerShape(12.dp),
         modifier = modifier.fillMaxHeight()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {

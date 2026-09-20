@@ -15,6 +15,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,9 +55,11 @@ fun MultiViewOverlay(
     onViewportClick: (Int) -> Unit,
     onViewportClose: (Int) -> Unit,
     onToggleMute: (Int) -> Unit,
+    onExit: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (!state.active) return
+
 
     val focusedColor = MaterialTheme.colorScheme.primary
     val unfocusedColor = Color.White.copy(alpha = 0.2f)
@@ -223,6 +226,34 @@ fun MultiViewOverlay(
                 primaryContent()
             }
         }
+
+        // 右上角浮动退出按钮
+        Surface(
+            color = Color(0xCC222222),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 8.dp, end = 8.dp)
+                .clickable(onClick = onExit)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "退出多画面",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "退出多画面",
+                    color = Color.White,
+                    fontSize = 13.sp
+                )
+            }
+        }
     }
 }
 
@@ -355,13 +386,14 @@ private fun SubViewportContent(
     val playerState by subPlayer.state.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // ExoPlayer PlayerView
+        // ExoPlayer PlayerView（使用 TextureView 避免多 SurfaceView Z-order 冲突）
         AndroidView(
             factory = { ctx ->
-                androidx.media3.ui.PlayerView(ctx).apply {
-                    useController = false  // 不显示 ExoPlayer 默认控制器
+                (android.view.LayoutInflater.from(ctx)
+                    .inflate(com.iptv.scanner.editor.pro.R.layout.exo_player_texture_view, null)
+                    as androidx.media3.ui.PlayerView).apply {
+                    useController = false
                     setShowBuffering(androidx.media3.ui.PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                    // 保持宽高比，填满容器
                     resizeMode = androidx.media3.common.C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
                     player = subPlayer.getExoPlayer()
                 }

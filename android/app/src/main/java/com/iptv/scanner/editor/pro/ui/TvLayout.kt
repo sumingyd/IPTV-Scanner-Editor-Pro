@@ -42,6 +42,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,9 +73,36 @@ import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 
 private val TV_BOTTOM_BAR_HEIGHT = 100.dp
+
+/**
+ * 根据点击位置计算多画面视口索引。
+ * DUAL: 左=0, 右=1
+ * QUAD: 左上=0, 右上=1, 左下=2, 右下=3
+ * NINE: 3x3网格, 左上=0, ... 右下=8
+ */
+private fun computeViewportIndex(
+    x: Float, y: Float, w: Float, h: Float, layout: MultiViewLayout
+): Int {
+    if (w <= 0 || h <= 0) return -1
+    return when (layout) {
+        MultiViewLayout.DUAL -> if (x < w / 2f) 0 else 1
+        MultiViewLayout.QUAD -> {
+            val col = if (x < w / 2f) 0 else 1
+            val row = if (y < h / 2f) 0 else 1
+            row * 2 + col
+        }
+        MultiViewLayout.NINE -> {
+            val col = (x / (w / 3f)).toInt().coerceIn(0, 2)
+            val row = (y / (h / 3f)).toInt().coerceIn(0, 2)
+            row * 3 + col
+        }
+        MultiViewLayout.SINGLE -> 0
+    }
+}
 
 // 酷9风格配色
 private val KU9_GRADIENT_START = Color(0xFF036D80)
@@ -112,6 +140,8 @@ fun TvPlayerLayout(
     }
 
     val showOverlays by derivedStateOf { sidebarVisible || controlsVisible || controlsPinned }
+    val multiViewState by viewModel.multiViewState.collectAsState()
+    val multiViewStateUpdated = rememberUpdatedState(multiViewState)
 
     // 横屏全屏：隐藏系统状态栏和导航栏（滑动可临时唤出）
     val context = LocalContext.current
@@ -137,6 +167,9 @@ fun TvPlayerLayout(
 
     Box(modifier = Modifier.fillMaxSize()) {
         primaryPlayer()
+
+        // 触控分区由 Activity dispatchTouchEvent 处理（Compose 无法拦截 AndroidView 触控）
+        // 多画面模式下 dispatchTouchEvent 跳过分区toggle，触控直接传递给 MultiViewOverlay
 
         CompositionLocalProvider(LocalDensity provides scaledDensity) {
         // 酷9风格：右上角时间组（始终显示）
@@ -353,7 +386,7 @@ private fun TvBottomBar(
         } else null
     }
 
-    // 距结束时间
+    // 距结束时间（节目时段已过但 EPG 未更新时显示"节目间隙"，避免无状态空窗）
     val remainText = remember(tick, currentProgram) {
         if (currentProgram != null && currentProgram.stopTs > 0) {
             val nowSec = tick / 1000L
@@ -361,7 +394,7 @@ private fun TvBottomBar(
             if (diff > 0) {
                 val min = diff / 60
                 if (min > 0) "距结束 ${min}分钟" else "距结束 ${diff}秒"
-            } else null
+            } else "节目间隙"
         } else null
     }
 

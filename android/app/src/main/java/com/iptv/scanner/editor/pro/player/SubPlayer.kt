@@ -45,7 +45,12 @@ class SubPlayer(private val context: Context) {
         private const val TAG = "SubPlayer"
         /** 与 MPV 主播放器一致的 User-Agent */
         private const val USER_AGENT = "VLC/3.0.18Libmpv"
+        /** 实例计数器（用于日志诊断多实例创建） */
+        private var instanceCounter = 0
     }
+
+    /** 实例ID（日志用） */
+    private val instanceId = ++instanceCounter
 
     private var player: ExoPlayer? = null
 
@@ -64,26 +69,29 @@ class SubPlayer(private val context: Context) {
      * 使用硬解 + 低延迟配置，适合多画面同时播放。
      */
     fun init() {
+        Log.i(TAG, "init[#$instanceId]: called, released=$released, player=${player != null}")
         if (released) {
-            Log.w(TAG, "init: already released, ignoring")
+            Log.w(TAG, "init[#$instanceId]: already released, ignoring")
             return
         }
         if (player != null) {
-            Log.w(TAG, "init: already initialized")
+            Log.w(TAG, "init[#$instanceId]: already initialized")
             return
         }
         try {
+            Log.i(TAG, "init[#$instanceId]: creating ExoPlayer (instance #$instanceId, total instances=$instanceCounter)")
             // 设置与 MPV 一致的 User-Agent，确保 IPTV 流兼容性
             val httpDataSourceFactory = DefaultHttpDataSource.Factory()
                 .setUserAgent(USER_AGENT)
                 .setConnectTimeoutMs(8000)
                 .setReadTimeoutMs(8000)
+                .setAllowCrossProtocolRedirects(true)
             val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
             val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
 
-            val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context)
+            val renderersFactory = com.iptv.scanner.editor.pro.player.CustomRenderersFactory(context)
                 .setEnableDecoderFallback(true)
-                .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             player = ExoPlayer.Builder(context, renderersFactory)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .setUseLazyPreparation(true)
@@ -92,12 +100,13 @@ class SubPlayer(private val context: Context) {
                         .setUsage(androidx.media3.common.C.USAGE_MEDIA)
                         .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
                         .build(),
-                    true
+                    false
                 )
                 .setHandleAudioBecomingNoisy(true)
                 .build().also { p ->
                     p.addListener(object : Media3Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
+                            Log.i(TAG, "onPlaybackStateChanged[#$instanceId]: state=$playbackState (${when(playbackState){1->"BUFFERING";2->"READY";3->"ENDED";else->"IDLE"}})")
                             when (playbackState) {
                                 Media3Player.STATE_BUFFERING -> {
                                     _state.value = _state.value.copy(
@@ -128,11 +137,12 @@ class SubPlayer(private val context: Context) {
                         }
 
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            Log.i(TAG, "onIsPlayingChanged[#$instanceId]: isPlaying=$isPlaying")
                             _state.value = _state.value.copy(isPlaying = isPlaying)
                         }
 
                         override fun onPlayerError(error: PlaybackException) {
-                            Log.e(TAG, "Player error: ${error.message}", error)
+                            Log.e(TAG, "onPlayerError[#$instanceId]: ${error.message}", error)
                             _state.value = _state.value.copy(
                                 isError = true,
                                 errorMessage = error.message ?: "播放错误",
@@ -144,9 +154,9 @@ class SubPlayer(private val context: Context) {
                     // 副画面默认静音
                     p.volume = 0f
                 }
-            Log.i(TAG, "ExoPlayer initialized")
+            Log.i(TAG, "init[#$instanceId]: ExoPlayer initialized successfully, player=${player?.hashCode()}")
         } catch (e: Exception) {
-            Log.e(TAG, "init failed", e)
+            Log.e(TAG, "init[#$instanceId] failed", e)
             _state.value = _state.value.copy(
                 isError = true,
                 errorMessage = "播放器初始化失败: ${e.message}"
@@ -161,16 +171,17 @@ class SubPlayer(private val context: Context) {
      * @param url 流地址
      */
     fun play(url: String) {
+        Log.i(TAG, "play[#$instanceId]: url=$url, released=$released, player=${player != null}")
         if (released || player == null) {
-            Log.w(TAG, "play: player not ready, initializing first")
+            Log.w(TAG, "play[#$instanceId]: player not ready, initializing first")
             init()
         }
         val p = player ?: run {
-            Log.e(TAG, "play: player is null after init")
+            Log.e(TAG, "play[#$instanceId]: player is null after init")
             return
         }
         try {
-            Log.i(TAG, "play: $url")
+            Log.i(TAG, "play[#$instanceId]: setMediaItem + prepare + playWhenReady")
             val mediaItem = MediaItem.Builder()
                 .setUri(url)
                 .build()
@@ -183,8 +194,9 @@ class SubPlayer(private val context: Context) {
                 errorMessage = "",
                 isBuffering = true
             )
+            Log.i(TAG, "play[#$instanceId]: media item set, preparing...")
         } catch (e: Exception) {
-            Log.e(TAG, "play failed: $url", e)
+            Log.e(TAG, "play[#$instanceId] failed: $url", e)
             _state.value = _state.value.copy(
                 isError = true,
                 errorMessage = "播放失败: ${e.message}"
@@ -202,7 +214,7 @@ class SubPlayer(private val context: Context) {
                 currentUrl = ""
             )
         } catch (e: Exception) {
-            Log.w(TAG, "stop failed: ${e.message}")
+            Log.w(TAG, "stop[#$instanceId] failed: ${e.message}")
         }
     }
 
@@ -214,9 +226,9 @@ class SubPlayer(private val context: Context) {
         isMuted = muted
         try {
             player?.volume = if (muted) 0f else 1f
-            Log.i(TAG, "setMuted: $muted")
+            Log.i(TAG, "setMuted[#$instanceId]: $muted")
         } catch (e: Exception) {
-            Log.w(TAG, "setMuted failed: ${e.message}")
+            Log.w(TAG, "setMuted[#$instanceId] failed: ${e.message}")
         }
     }
 
@@ -236,13 +248,14 @@ class SubPlayer(private val context: Context) {
      * 释放后不能再使用此实例。
      */
     fun release() {
+        Log.i(TAG, "release[#$instanceId]: called, released=$released, player=${player != null}")
         if (released) return
         released = true
         try {
             player?.release()
-            Log.i(TAG, "Released")
+            Log.i(TAG, "release[#$instanceId]: Released")
         } catch (e: Exception) {
-            Log.w(TAG, "release failed: ${e.message}")
+            Log.w(TAG, "release[#$instanceId] failed: ${e.message}")
         }
         player = null
         _state.value = SubPlayerState()

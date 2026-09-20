@@ -687,13 +687,10 @@ viewModel.mpv.setMute(savedMute)
                                 getSubPlayer = { idx -> viewModel.getSubPlayer(idx) },
                                 onViewportClick = { idx ->
                                     viewModel.setFocusedViewport(idx)
-                                    val viewport = multiViewState.viewports.getOrNull(idx)
-                                    if (viewport != null && viewport.isEmpty) {
-                                        viewModel.setLandscapeSidebarVisible(true)
-                                    }
                                 },
                                 onViewportClose = { idx -> viewModel.removeFromMultiView(idx) },
-                                onToggleMute = { idx -> viewModel.toggleMultiViewMute(idx) }
+                                onToggleMute = { idx -> viewModel.toggleMultiViewMute(idx) },
+                                onExit = { viewModel.exitMultiView() }
                             )
                         },
                         videoAspectRatio = aspectRatio
@@ -715,7 +712,12 @@ viewModel.mpv.setMute(savedMute)
 
         // TV 端频道列表（酷9风格左侧面板：分组 + 频道 + EPG + 描述）
         if (tvUnifiedPanelOpen) {
-            TvUnifiedPanel(viewModel = viewModel)
+            val origDensity = androidx.compose.ui.platform.LocalDensity.current
+            val dpiScale = (configuration.screenHeightDp / 720f).coerceIn(0.55f, 1f)
+            val scaledDensity = androidx.compose.ui.unit.Density(origDensity.density * dpiScale, origDensity.fontScale)
+            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides scaledDensity) {
+                TvUnifiedPanel(viewModel = viewModel)
+            }
         }
 
         // 频道列表面板（菜单 → 频道列表）

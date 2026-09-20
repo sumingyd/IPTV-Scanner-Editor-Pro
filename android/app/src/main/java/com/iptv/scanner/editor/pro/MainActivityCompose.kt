@@ -69,6 +69,7 @@ class MainActivityCompose : ComponentActivity() {
     /** 触控滑动检测：记录 ACTION_DOWN 坐标，ACTION_UP 时判断是否为滑动 */
     private var touchDownX = 0f
     private var touchDownY = 0f
+    private var touchDownTime = 0L
     private val touchSlop = 40f
 
     /** 横屏模式判断：横屏统一用酷9风格布局，支持触控+遥控器 */
@@ -162,23 +163,84 @@ class MainActivityCompose : ComponentActivity() {
      *
      * PHONE 模式下也处理部分按键（BACK、MENU），方便外接键盘测试。
      */
-    /** 横屏触控处理：左40%→toggle频道列表，中20%→toggle底栏，右40%→toggle菜单 */
+    /** 横屏触控处理 */
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
         if (isLandscapeMode()) {
+            val multiActive = viewModel.multiViewState.value.active
+            if (ev.action == android.view.MotionEvent.ACTION_DOWN) {
+                android.util.Log.i("MainActivity", "dispatchTouchEvent: ACTION_DOWN x=${ev.x}, y=${ev.y}, multiActive=$multiActive")
+            }
             when (ev.action) {
                 android.view.MotionEvent.ACTION_DOWN -> {
                     touchDownX = ev.x
                     touchDownY = ev.y
+                    touchDownTime = System.currentTimeMillis()
                 }
                 android.view.MotionEvent.ACTION_UP -> {
                     val dx = ev.x - touchDownX
                     val dy = ev.y - touchDownY
                     val moved = (dx * dx + dy * dy) > touchSlop * touchSlop
-                    if (moved) return super.dispatchTouchEvent(ev)
+                    val duration = System.currentTimeMillis() - touchDownTime
+                    val isLongPress = duration > 500
                     val w = resources.displayMetrics.widthPixels
                     val h = resources.displayMetrics.heightPixels
                     val x = ev.x
                     val y = ev.y
+
+                    if (multiActive) {
+                        // ---- 多画面模式 ----
+                        // 右上角退出按钮区域：直接退出多画面
+                        if (x > w - 300f && y < 120f) {
+                            android.util.Log.i("MainActivity", "MultiView: exit button tapped")
+                            viewModel.exitMultiView()
+                            return true
+                        }
+                        // 面板打开时触控交给 Compose（列表滚动等）
+                        val anyPanelOpen = viewModel.tvUnifiedPanelOpen.value ||
+                                viewModel.landscapeSidebarVisible.value ||
+                                viewModel.menuPanelOpen.value
+                        android.util.Log.i("MainActivity", "MultiView touch: x=$x, y=$y, anyPanelOpen=$anyPanelOpen, moved=$moved, isLongPress=$isLongPress")
+                        if (anyPanelOpen) return super.dispatchTouchEvent(ev)
+                        if (moved) {
+                            // 上下滑动切换频道
+                            if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && kotlin.math.abs(dy) > 80f) {
+                                if (dy < 0) viewModel.prevChannel() else viewModel.nextChannel()
+                            }
+                            return true
+                        }
+                        // 计算视口索引
+                        val state = viewModel.multiViewState.value
+                        val idx = computeMultiViewportIndex(x, y, w, h, state.layout)
+                        android.util.Log.i("MainActivity", "MultiView tap: idx=$idx, focused=${state.focusedViewport}, layout=${state.layout}")
+                        if (idx >= 0) {
+                            viewModel.setFocusedViewport(idx)
+                            val viewport = state.viewports.getOrNull(idx)
+                            android.util.Log.i("MainActivity", "MultiView viewport: idx=$idx, isEmpty=${viewport?.isEmpty}, isPrimary=${viewport?.isPrimary}")
+                            if (isLongPress && viewport != null && viewport.isPrimary) {
+                                // 长按主画面：打开主菜单（可退出多画面）
+                                android.util.Log.i("MainActivity", "MultiView: long press primary, opening menu")
+                                viewModel.toggleMenuPanel()
+                            } else if (isLongPress && viewport != null && !viewport.isEmpty && !viewport.isPrimary) {
+                                // 长按有频道的副画面：移除频道（清空）
+                                viewModel.removeFromMultiView(idx)
+                            } else if (!isLongPress && viewport != null && viewport.isEmpty && !viewport.isPrimary) {
+                                // 单击空副画面：打开统一面板添加频道
+                                android.util.Log.i("MainActivity", "MultiView: opening TvUnifiedPanel for empty viewport $idx")
+                                viewModel.toggleTvUnifiedPanel()
+                            }
+                        }
+                        return true
+                    }
+
+                    // ---- 非多画面模式 ----
+                    if (moved) {
+                        // 上下滑动切换频道
+                        if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && kotlin.math.abs(dy) > 80f) {
+                            if (dy < 0) viewModel.prevChannel() else viewModel.nextChannel()
+                            return true
+                        }
+                        return super.dispatchTouchEvent(ev)
+                    }
                     val sidebarOpen = viewModel.landscapeSidebarVisible.value
                     val menuOpen = viewModel.menuPanelOpen.value
                     val isLeftZone = x < w * 0.3f
@@ -212,6 +274,27 @@ class MainActivityCompose : ComponentActivity() {
             }
         }
         return super.dispatchTouchEvent(ev)
+    }
+
+    /** 根据点击位置计算多画面视口索引 */
+    private fun computeMultiViewportIndex(
+        x: Float, y: Float, w: Int, h: Int, layout: com.iptv.scanner.editor.pro.ui.MultiViewLayout
+    ): Int {
+        if (w <= 0 || h <= 0) return -1
+        return when (layout) {
+            com.iptv.scanner.editor.pro.ui.MultiViewLayout.DUAL -> if (x < w / 2f) 0 else 1
+            com.iptv.scanner.editor.pro.ui.MultiViewLayout.QUAD -> {
+                val col = if (x < w / 2f) 0 else 1
+                val row = if (y < h / 2f) 0 else 1
+                row * 2 + col
+            }
+            com.iptv.scanner.editor.pro.ui.MultiViewLayout.NINE -> {
+                val col = (x / (w / 3f)).toInt().coerceIn(0, 2)
+                val row = (y / (h / 3f)).toInt().coerceIn(0, 2)
+                row * 3 + col
+            }
+            com.iptv.scanner.editor.pro.ui.MultiViewLayout.SINGLE -> 0
+        }
     }
 
      override fun dispatchKeyEvent(event: KeyEvent): Boolean {

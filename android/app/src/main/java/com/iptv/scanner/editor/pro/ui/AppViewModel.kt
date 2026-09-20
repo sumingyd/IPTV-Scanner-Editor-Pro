@@ -2281,7 +2281,7 @@ private var currentIsLocalFile: Boolean
         val channel = _channels.value.getOrNull(channelIdx) ?: return -1
 
         val focused = state.focusedViewport
-        val targetViewport = if (focused != null && focused.isEmpty && !focused.isPrimary) {
+        val targetViewport = if (focused != null && !focused.isPrimary) {
             focused
         } else {
             state.firstEmptyViewport ?: run {
@@ -2300,7 +2300,13 @@ private var currentIsLocalFile: Boolean
         // 副画面：创建/复用 SubPlayer 并播放
         try {
             val subPlayer = getOrCreateSubPlayer(targetIdx)
+            Log.i(TAG, "addChannelToMultiView: targetIdx=$targetIdx, subPlayer=${subPlayer.hashCode()}, exoPlayer=${subPlayer.getExoPlayer()?.hashCode()}")
             subPlayer.play(channel.url)
+
+            // 更新 _subPlayerStates 触发 Compose 重组（让 SubViewportContent 重新获取 SubPlayer）
+            _subPlayerStates.value = _subPlayerStates.value.toMutableMap().apply {
+                put(targetIdx, subPlayer.state.value)
+            }
 
             // 更新视口状态
             _multiViewState.value = state.copy(
@@ -2387,8 +2393,11 @@ private var currentIsLocalFile: Boolean
      * 如果该视口已有 SubPlayer 实例则复用，否则创建新实例并初始化。
      */
     private fun getOrCreateSubPlayer(viewportIndex: Int): SubPlayer {
+        val existing = subPlayers[viewportIndex]
+        Log.i(TAG, "getOrCreateSubPlayer: viewportIndex=$viewportIndex, existing=${existing != null}, currentCount=${subPlayers.size}, keys=${subPlayers.keys}")
         return subPlayers.getOrPut(viewportIndex) {
             val app = getApplication<Application>()
+            Log.i(TAG, "getOrCreateSubPlayer: creating NEW SubPlayer for viewportIndex=$viewportIndex")
             SubPlayer(app).also { it.init() }
         }
     }

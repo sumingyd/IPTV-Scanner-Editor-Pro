@@ -86,6 +86,10 @@ class ExoPlayerWrapper(
     private val _muted = MutableStateFlow(false)
     override val muted: StateFlow<Boolean> = _muted.asStateFlow()
 
+    /** 音频解码失败信号（如 MP2 格式 Android 不支持），UI 监听后自动切换到 MPV */
+    private val _audioDecodeError = MutableStateFlow(false)
+    val audioDecodeError: StateFlow<Boolean> = _audioDecodeError.asStateFlow()
+
     private val _mediaTitle = MutableStateFlow("")
     override val mediaTitle: StateFlow<String> = _mediaTitle.asStateFlow()
 
@@ -206,9 +210,9 @@ class ExoPlayerWrapper(
             // DefaultRenderersFactory 扩展渲染器模式说明：
             // - OFF：不加载扩展渲染器（无 FFmpeg 扩展时等于默认行为）
             // - setEnableDecoderFallback(true)：允许解码器 fallback，提升兼容性
-            val renderersFactory = DefaultRenderersFactory(context)
+            val renderersFactory = CustomRenderersFactory(context)
                 .setEnableDecoderFallback(true)
-                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
                 .setMediaCodecSelector(
                     if (hardwareDecodeEnabled) MediaCodecSelector.DEFAULT
                     else SOFTWARE_ONLY_SELECTOR
@@ -248,6 +252,48 @@ class ExoPlayerWrapper(
 
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             _paused.value = !isPlaying
+                        }
+
+                        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                            // 检查音轨选择状态
+                            val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+                            val hasSelectedAudio = audioGroups.any { it.isSelected }
+                            if (!hasSelectedAudio && audioGroups.isNotEmpty()) {
+                                Log.w(TAG, "No audio track selected, attempting to force-enable")
+                                try {
+                                    // 强制启用音轨类型（不被disabled）
+                                    p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                                        .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)
+                                        .build()
+                                    // 尝试直接override第一个音轨
+                                    val firstAudioGroup = audioGroups[0]
+                                    val supportedIndices = (0 until firstAudioGroup.length)
+                                        .filter { firstAudioGroup.isTrackSupported(it) }
+                                    if (supportedIndices.isNotEmpty()) {
+                                        p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                                            .setOverrideForType(
+                                                androidx.media3.common.TrackSelectionOverride(
+                                                    firstAudioGroup.mediaTrackGroup, supportedIndices
+                                                )
+                                            )
+                                            .build()
+                                        Log.i(TAG, "Forced audio track selection: group=${firstAudioGroup.mediaTrackGroup}, indices=$supportedIndices")
+                                    } else {
+                                        // 即使 supported=false 也尝试强制选择
+                                        val allIndices = (0 until firstAudioGroup.length).toList()
+                                        p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                                            .setOverrideForType(
+                                                androidx.media3.common.TrackSelectionOverride(
+                                                    firstAudioGroup.mediaTrackGroup, allIndices
+                                                )
+                                            )
+                                            .build()
+                                        Log.i(TAG, "Force-selected unsupported audio track: group=${firstAudioGroup.mediaTrackGroup}, indices=$allIndices")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Failed to force audio track", e)
+                                }
+                            }
                         }
 
                         override fun onPlayerError(error: PlaybackException) {
@@ -311,6 +357,22 @@ class ExoPlayerWrapper(
             p.playWhenReady = true
             _paused.value = false
             _mediaTitle.value = url.substringAfterLast('/').substringBefore('?')
+            // 诊断：延迟检查音轨和音量状态
+            mainHandler.postDelayed({
+                try {
+                    val audioGroups = p.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+                    Log.i(TAG, "EXO audio diag: volume=${p.volume}, audioSessionId=${p.audioSessionId}, " +
+                        "audioGroups=${audioGroups.size}, " +
+                        "selected=${audioGroups.count { it.isSelected }}, " +
+                        "isPlaying=${p.isPlaying}, playWhenReady=${p.playWhenReady}")
+                    audioGroups.forEachIndexed { i, g ->
+                        Log.i(TAG, "  audioGroup[$i]: selected=${g.isSelected}, length=${g.length}, " +
+                            "supported=${(0 until g.length).map { g.isTrackSupported(it) }}")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "EXO audio diag failed", e)
+                }
+            }, 3000L)
         } catch (e: Exception) {
             Log.e(TAG, "playFile failed: $url", e)
         }

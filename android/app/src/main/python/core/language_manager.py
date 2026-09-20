@@ -2722,7 +2722,10 @@ class LanguageManager(Singleton):
                 if day_key:
                     main_window.epg_date_label.setText(self.tr(day_key, current_text))
             if hasattr(main_window, 'epg_empty_label'):
-                main_window.epg_empty_label.setText(self.tr('no_epg_data', 'No program information'))
+                if not getattr(main_window, 'current_channel', None):
+                    main_window.epg_empty_label.setText(self.tr('no_epg_open_playlist', '暂无节目信息，点击打开或导入订阅'))
+                else:
+                    main_window.epg_empty_label.setText(self.tr('no_epg_data', 'No program information'))
 
             if hasattr(main_window, 'playlist_tab'):
                 main_window.playlist_tab.setTabText(0, self.tr('subscription_tab', 'Subscription'))
@@ -2750,7 +2753,11 @@ class LanguageManager(Singleton):
             if hasattr(main_window, 'remain_label'):
                 main_window.remain_label.setText(self.tr('waiting_to_play', 'Waiting to play...'))
             if hasattr(main_window, 'exit_catchup_button'):
-                main_window.exit_catchup_button.setText(self.tr('exit_catchup', '⏪ Exit Catchup'))
+                main_window._set_exit_catchup_visible(
+                    getattr(main_window, '_more_catchup_action', None) is not None
+                    and main_window._more_catchup_action.isVisible(),
+                    self.tr('exit_catchup', '⏪ Exit Catchup'),
+                )
 
             self._update_dialogs(main_window)
 
