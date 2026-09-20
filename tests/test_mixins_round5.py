@@ -127,7 +127,9 @@ class TestControlPanelMixin:
              patch('mixins.control_panel_mixin.AppStyles.player_button_style', return_value=''), \
              patch('mixins.control_panel_mixin.AppStyles.player_progress_label_style', return_value=''), \
              patch('mixins.control_panel_mixin.AppStyles.player_slider_style', return_value=''), \
-             patch('mixins.control_panel_mixin.AppStyles.player_volume_slider_style', return_value=''):
+             patch('mixins.control_panel_mixin.AppStyles.player_volume_slider_style', return_value=''), \
+             patch('mixins.control_panel_mixin.AppStyles.player_menu_bar_style', return_value=''), \
+             patch('PySide6.QtWidgets.QMenu'):
             mock_btn.return_value = MagicMock()
             mock_slider.return_value = MagicMock()
             mock_cps.return_value = MagicMock()
@@ -173,7 +175,7 @@ class TestPlaylistPanelMixin:
 
     def test_create_channel_search_row(self):
         with patch('mixins.playlist_panel_mixin.QHBoxLayout', return_value=MagicMock()), \
-             patch('mixins.playlist_panel_mixin.QtWidgets.QLineEdit', return_value=MagicMock()), \
+             patch('mixins.playlist_panel_mixin.QLineEdit', return_value=MagicMock()), \
              patch('mixins.playlist_panel_mixin.QToolButton', return_value=MagicMock()), \
              patch('mixins.playlist_panel_mixin.QButtonGroup', return_value=MagicMock()), \
              patch('mixins.playlist_panel_mixin.AppStyles.player_search_input_style', return_value=''), \
@@ -392,13 +394,13 @@ class TestEventMixin:
     def test_leave_event_normal(self):
         event = MagicMock()
         self.host._delayed_hide_floating_panels = MagicMock()
-        with patch('PySide6.QtCore.QTimer') as mock_timer:
+        with patch('mixins.event_mixin.safe_single_shot') as mock_shot:
             self.host.leaveEvent(event)
-            mock_timer.singleShot.assert_called_once()
+            mock_shot.assert_called_once_with(50, self.host, self.host._delayed_hide_floating_panels)
 
     def test_leave_event_pip(self):
         self.host.pip_mode = True
         event = MagicMock()
-        with patch('PySide6.QtCore.QTimer') as mock_timer:
+        with patch('mixins.event_mixin.safe_single_shot') as mock_shot:
             self.host.leaveEvent(event)
-        mock_timer.singleShot.assert_called_once()
+        mock_shot.assert_called_once_with(50, self.host, self.host.pip_ctrl.delayed_hide_overlay)

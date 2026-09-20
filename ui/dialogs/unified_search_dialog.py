@@ -115,39 +115,39 @@ class UnifiedSearchDialog(FloatingDialog):
         r = AppStyles._get_style_border_radius()
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {c.get('panel', '#1e1e1e')};
-                color: {c.get('window_text', '#ffffff')};
+                background-color: {c.get('panel', c['base'])};
+                color: {c.get('window_text')};
             }}
             QLabel {{
-                color: {c.get('window_text', '#ffffff')};
+                color: {c.get('window_text')};
                 background-color: transparent;
             }}
             QLineEdit {{
-                background-color: {c.get('player_combo', '#2a2a2a')};
-                color: {c.get('window_text', '#ffffff')};
-                border: 1px solid {c.get('player_line', '#555')};
+                background-color: {c.get('player_combo')};
+                color: {c.get('window_text')};
+                border: 1px solid {c.get('player_line')};
                 border-radius: {r}px;
                 padding: 4px 8px;
                 min-height: 28px;
             }}
             QCheckBox {{
-                color: {c.get('window_text', '#ffffff')};
+                color: {c.get('window_text')};
                 background-color: transparent;
                 spacing: 6px;
             }}
             QCheckBox::indicator {{
                 width: 16px; height: 16px;
-                border: 1px solid {c.get('player_line', '#555')};
+                border: 1px solid {c.get('player_line')};
                 border-radius: 3px;
-                background-color: {c.get('player_combo', '#2a2a2a')};
+                background-color: {c.get('player_combo')};
             }}
             QCheckBox::indicator:checked {{
-                background-color: {c.get('accent', '#4a9eff')};
-                border-color: {c.get('accent', '#4a9eff')};
+                background-color: {c.get('accent')};
+                border-color: {c.get('accent')};
             }}
             QListWidget {{
                 background-color: transparent;
-                color: {c.get('window_text', '#ffffff')};
+                color: {c.get('window_text')};
                 border: none; outline: none;
             }}
             QListWidget::item {{
@@ -155,13 +155,13 @@ class UnifiedSearchDialog(FloatingDialog):
                 border: 1px solid transparent; border-radius: {r}px;
             }}
             QListWidget::item:selected {{
-                border: 1px solid {c.get('accent', '#4a9eff')};
-                background-color: {c.get('highlight', '#264f78')};
-                color: {c.get('highlighted_text', '#ffffff')};
+                border: 1px solid {c.get('accent')};
+                background-color: {c.get('highlight')};
+                color: {c.get('highlighted_text')};
             }}
             QListWidget::item:hover {{
-                border: 1px solid {c.get('player_line', '#555')};
-                background-color: {c.get('highlight', '#264f78')};
+                border: 1px solid {c.get('player_line')};
+                background-color: {c.get('highlight')};
             }}
         """)
 
@@ -296,11 +296,11 @@ class UnifiedSearchDialog(FloatingDialog):
     def _render_results(self):
         c = AppStyles._get_colors()
         name_style = (
-            f"color: {c.get('window_text', '#ffffff')};"
+            f"color: {c.get('window_text')};"
             f" background-color: transparent;"
         )
         secondary_style = (
-            f"color: {c.get('player_panel_secondary', c.get('window_text', '#aaaaaa'))};"
+            f"color: {c.get('player_panel_secondary', c.get('window_text'))};"
             f" background-color: transparent; font-size: 11px;"
         )
         tr = self.window.language_manager.tr

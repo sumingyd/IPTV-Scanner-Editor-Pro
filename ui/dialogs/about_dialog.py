@@ -79,7 +79,7 @@ class AboutDialog(FloatingDialog):
                 logo_label.setPixmap(scaled)
         else:
 
-            tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('window_text', '#ffffff'), 48)
+            tv_icon_path = AppStyles.get_icon('tv', AppStyles.get_color('window_text'), 48)
             if tv_icon_path:
                 from PySide6.QtGui import QIcon
                 logo_label.setPixmap(QIcon(tv_icon_path).pixmap(128, 128))

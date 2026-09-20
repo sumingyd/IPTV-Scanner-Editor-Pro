@@ -45,10 +45,10 @@ class AVSyncWaveWidget(QWidget):
                 return
 
             c = AppStyles._get_colors()
-            bg = QColor(c.get('base', '#1a1a1a'))
-            mid_color = QColor(c.get('mid', '#444'))
-            text_color = QColor(c.get('window_text', '#ffffff'))
-            accent = QColor(c.get('accent', '#3a9'))
+            bg = QColor(c.get('base'))
+            mid_color = QColor(c.get('mid'))
+            text_color = QColor(c.get('window_text'))
+            accent = QColor(c.get('accent'))
 
             # 背景
             painter.fillRect(rect, bg)
@@ -175,12 +175,12 @@ class AVSyncDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        text_color = c.get('window_text', '#ffffff')
+        text_color = c.get('window_text')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QGroupBox {{
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 margin-top: 12px; padding: 8px;
             }}
@@ -188,12 +188,12 @@ class AVSyncDialog(FloatingDialog):
                 subcontrol-origin: margin; left: 10px; padding: 0 4px;
             }}
             QSlider::groove:horizontal {{
-                background: {c.get('base', '#1a1a1a')};
+                background: {c.get('base')};
                 height: 4px;
                 border-radius: 2px;
             }}
             QSlider::handle:horizontal {{
-                background: {c.get('accent', '#3a9')};
+                background: {c.get('accent')};
                 width: 14px; height: 14px;
                 margin: -5px 0;
                 border-radius: 7px;
@@ -359,13 +359,13 @@ class AVSyncDialog(FloatingDialog):
             abs_av = abs(avdiff)
             c = AppStyles._get_colors()
             if abs_av < 0.04:
-                color = QColor(c.get('accent', '#3a9'))
+                color = QColor(c.get('accent'))
                 status_text = tr('av_sync_status_ok', 'OK')
             elif abs_av < 0.2:
-                color = QColor('#f0ad4e')
+                color = QColor(c.get('warning'))
                 status_text = tr('av_sync_status_minor', 'Minor Desync')
             else:
-                color = QColor('#d9534f')
+                color = QColor(c.get('error'))
                 status_text = tr('av_sync_status_bad', 'Out of Sync')
             self._avdiff_label.setStyleSheet(f"color: {color.name()};")
             self._status_label.setText(status_text)

@@ -345,10 +345,9 @@ class CatchupController:
         if hasattr(self.window, 'exit_catchup_button') and self.window.exit_catchup_button:
             try:
                 tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
-                self.window.exit_catchup_button.setText(tr("exit_catchup", "退出回看"))
-                self.window.exit_catchup_button.show()
-                self.window.exit_catchup_button.raise_()
-                logger.debug("退出回看按钮已显示")
+                # 退出项已收入“更多”菜单，通过统一入口同步可见性与文案
+                self.window._set_exit_catchup_visible(True, tr("exit_catchup", "退出回看"))
+                logger.debug("退出回看菜单项已显示")
             except Exception as e:
                 logger.error(f"显示退出回看按钮失败: {e}")
 
@@ -383,10 +382,9 @@ class CatchupController:
         if hasattr(self.window, 'exit_catchup_button') and self.window.exit_catchup_button:
             try:
                 tr = getattr(self.window.language_manager, 'tr', lambda x, y: x)
-                self.window.exit_catchup_button.setText(tr("exit_timeshift", "退出时移"))
-                self.window.exit_catchup_button.show()
-                self.window.exit_catchup_button.raise_()
-                logger.debug("退出时移按钮已显示")
+                # 退出项已收入“更多”菜单，通过统一入口同步可见性与文案
+                self.window._set_exit_catchup_visible(True, tr("exit_timeshift", "退出时移"))
+                logger.debug("退出时移菜单项已显示")
             except Exception as e:
                 logger.error(f"显示退出时移按钮失败: {e}")
 

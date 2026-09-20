@@ -217,23 +217,23 @@ class VideoOpenDialog(FloatingDialog):
         r = AppStyles._get_style_border_radius()
         menu.setStyleSheet(f"""
             QMenu {{
-                background-color: {c.get('player_panel', '#1e1e1e')};
-                color: {c.get('window_text', '#ffffff')};
-                border: 1px solid {c.get('mid', '#555')};
+                background-color: {c.get('player_panel')};
+                color: {c.get('window_text')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 padding: 4px 0;
             }}
             QMenu::item {{
                 padding: 6px 24px;
-                color: {c.get('window_text', '#ffffff')};
+                color: {c.get('window_text')};
             }}
             QMenu::item:selected {{
-                background-color: {c.get('highlight', '#264f78')};
-                color: {c.get('highlighted_text', '#ffffff')};
+                background-color: {c.get('highlight')};
+                color: {c.get('highlighted_text')};
             }}
             QMenu::separator {{
                 height: 1px;
-                background-color: {c.get('mid', '#555')};
+                background-color: {c.get('mid')};
                 margin: 4px 8px;
             }}
         """)

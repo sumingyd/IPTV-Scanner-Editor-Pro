@@ -67,7 +67,7 @@ class ColorButton(QPushButton):
         self.setStyleSheet(
             f"background-color: rgba({c.red()},{c.green()},{c.blue()},{c.alpha()}); "
             f"color: {'#000' if c.value() > 128 else '#fff'}; "
-            f"padding: 4px; border-radius: 4px; border: 1px solid #888;"
+            f"padding: 4px; border-radius: 4px; border: 1px solid {AppStyles.get_color('mid')};"
         )
 
     def _on_clicked(self):
@@ -111,13 +111,12 @@ class SubtitleStyleDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        text_color = c.get('window_text', '#ffffff')
-        group_color = c.get('window', '#333333')
+        text_color = c.get('window_text')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QGroupBox {{
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 margin-top: 12px; padding: 8px;
             }}
@@ -125,11 +124,11 @@ class SubtitleStyleDialog(FloatingDialog):
                 subcontrol-origin: margin; left: 10px; padding: 0 4px;
             }}
             QSlider::groove:horizontal {{
-                height: 4px; background: {c.get('mid', '#555')}; border-radius: 2px;
+                height: 4px; background: {c.get('mid')}; border-radius: 2px;
             }}
             QSlider::handle:horizontal {{
                 width: 14px; height: 14px; margin: -5px 0;
-                background: {c.get('accent', '#3a9')}; border-radius: 7px;
+                background: {c.get('accent')}; border-radius: 7px;
             }}
         """)
 
@@ -331,21 +330,19 @@ class SubtitleStyleDialog(FloatingDialog):
         preset_layout.addStretch()
         layout.addWidget(preset_group)
 
-        # ===== 操作按钮组 =====
-        btn_row = QHBoxLayout()
-        apply_now = QPushButton(tr('sub_apply_now', '立即应用'))
-        apply_now.clicked.connect(self._apply_now)
-        save_btn = QPushButton(tr('sub_save', '保存'))
-        save_btn.clicked.connect(self._save)
-        reset_btn = QPushButton(tr('sub_reset', '重置默认'))
-        reset_btn.clicked.connect(self._reset)
-        close_btn = QPushButton(tr('sub_close', '关闭'))
-        close_btn.clicked.connect(self.close)
-        btn_row.addWidget(apply_now)
-        btn_row.addWidget(save_btn)
-        btn_row.addWidget(reset_btn)
-        btn_row.addWidget(close_btn)
-        layout.addLayout(btn_row)
+        # ===== 操作按钮组（标准设置式：重置默认 | 应用 + 完成） =====
+        def _on_done():
+            self._apply_now()
+            self._save()
+            self.close()
+
+        btn_bar, reset_btn, apply_now, close_btn = self.build_settings_buttons(
+            self._reset, self._apply_now, _on_done,
+            reset_text=tr('sub_reset', '重置默认'),
+            apply_text=tr('sub_apply_now', '应用'),
+            done_text=tr('sub_close', '完成'),
+        )
+        layout.addWidget(btn_bar)
 
         # 加载当前样式
         self._load_from_config()
@@ -567,7 +564,7 @@ class SubtitleDownloadDialog(FloatingDialog):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
         list_r = AppStyles._get_scaled_radius('list_item')
-        text_color = c.get('window_text', '#ffffff')
+        text_color = c.get('window_text')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QListWidget {{
@@ -580,7 +577,7 @@ class SubtitleDownloadDialog(FloatingDialog):
                 border: 1px solid transparent; border-radius: {list_r}px;
             }}
             QListWidget::item:selected {{
-                background-color: {c.get('accent', '#3a9')}; color: #fff;
+                background-color: {c.get('accent')}; color: {c.get('highlighted_text')};
             }}
         """)
 

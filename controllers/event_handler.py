@@ -103,6 +103,9 @@ class EventHandler:
         """判断按键组合是否由 eventFilter 统一处理（用于拦截 ShortcutOverride）"""
         if self._is_input_widget_focused():
             return False
+        # 快捷键速查浮层（? 键；Shift+/ 与直接 ? 两种键盘布局均支持）
+        if key == Qt.Key.Key_Question:
+            return True
         # _is_input_widget_focused() 已在上方检查，此处无需重复判断
         if modifiers == Qt.KeyboardModifier.NoModifier:
             global_keys = (Qt.Key.Key_Space, Qt.Key.Key_Escape,
@@ -159,6 +162,15 @@ class EventHandler:
             if self._is_input_widget_focused():
                 return False
             w = self.window
+
+            # 快捷键速查浮层：? 键切换；浮层开启时任意快捷键先将其关闭
+            overlay = getattr(w, '_shortcut_overlay', None)
+            if key == Qt.Key.Key_Question:
+                self.toggle_shortcut_overlay()
+                return True
+            if overlay is not None and overlay.isVisible():
+                overlay.close()
+                w._shortcut_overlay = None
 
             if modifiers == Qt.KeyboardModifier.NoModifier:
                 if key == Qt.Key.Key_Space:
@@ -426,6 +438,100 @@ class EventHandler:
             logger.error(f"快捷键处理失败(key={key}, mod={modifiers}): {e}")
 
         return False
+
+    def toggle_shortcut_overlay(self):
+        """切换快捷键速查浮层（? 键触发；再次按 ? 或任意快捷键关闭）"""
+        w = self.window
+        overlay = getattr(w, '_shortcut_overlay', None)
+        if overlay is not None and overlay.isVisible():
+            overlay.close()
+            w._shortcut_overlay = None
+            return
+
+        from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout
+        from ui.styles import AppStyles
+
+        tr = w.language_manager.tr
+        rows = [
+            ("Space", tr("sc_play_pause", "播放 / 暂停")),
+            ("↑ / ↓", tr("sc_channel_switch", "上一 / 下一频道")),
+            ("← / →", tr("sc_seek_10s", "快退 / 快进 10 秒")),
+            ("Backspace", tr("sc_prev_channel", "上一个频道")),
+            ("F / F11", tr("sc_fullscreen", "全屏切换")),
+            ("Esc", tr("sc_exit_or_stop", "退出全屏 / 停止播放")),
+            ("E", tr("sc_epg", "节目单")),
+            ("L", tr("sc_playlist", "频道列表")),
+            ("M", tr("sc_control_panel", "控制面板")),
+            ("Y", tr("sc_hide_panels", "隐藏悬浮面板")),
+            ("Tab", tr("sc_osd", "OSD 切换")),
+            ("J", tr("sc_mute", "静音切换")),
+            ("S", tr("sc_screenshot", "截图")),
+            ("P", tr("sc_pip", "画中画")),
+            ("V", tr("sc_subtitle_toggle", "字幕显示 / 隐藏")),
+            ("Z / X", tr("sc_subtitle_delay", "字幕延迟 ±0.1s")),
+            ("Q / W", tr("sc_subtitle_scale", "字幕缩放 ±0.1")),
+            (", / .", tr("sc_speed", "倍速 ±0.1x")),
+            ("- / =", tr("sc_audio_delay", "音频延迟 ±0.1s")),
+            ("G / H", tr("sc_audio_pitch", "音调补偿 ±0.05")),
+            ("R / T", tr("sc_rotate_flip", "画面旋转 / 翻转")),
+            ("[ / ]", tr("sc_frame_step", "逐帧后退 / 前进")),
+            ("3-0", tr("sc_video_eq", "亮度/对比度/饱和度/Gamma")),
+            ("A / B / C", tr("sc_ab_loop", "AB 循环设点 / 清除")),
+            ("PgUp / PgDn", tr("sc_prev_next_file", "上一 / 下一文件")),
+            ("Ctrl+O / S / Q", tr("sc_file_ops", "打开订阅 / 另存 / 退出")),
+            ("Ctrl+U", tr("sc_open_stream", "打开网络流")),
+            ("Ctrl+Shift+O", tr("sc_open_video", "打开本地视频")),
+            ("Ctrl+Shift+B", tr("sc_bookmark", "添加书签")),
+            ("Ctrl+Shift+E/R/F", tr("sc_tools", "EPG 时间轴 / 提醒 / 全局搜索")),
+            ("Ctrl+Shift+S/M", tr("sc_scan_mapping", "扫描频道 / 频道映射")),
+            ("?", tr("sc_help_hint", "本速查浮层")),
+        ]
+
+        c = AppStyles._get_colors()
+        overlay = QWidget(w, Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
+        overlay.setObjectName("shortcutOverlay")
+        overlay.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        overlay.setStyleSheet(f"""
+            QWidget#shortcutOverlay {{
+                background-color: {c.get('tooltip_base')};
+                border: 1px solid {c.get('mid')};
+                border-radius: 8px;
+            }}
+            QLabel {{ background: transparent; border: none; color: {c.get('tooltip_text')}; font-size: 14px; }}
+            QLabel[role="key"] {{ color: {c.get('accent')}; font-weight: 600; }}
+            QLabel[role="title"] {{ color: {c.get('window_text')}; font-size: 16px; font-weight: 700; }}
+        """)
+
+        layout = QVBoxLayout(overlay)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(8)
+        title = QLabel(tr("shortcut_cheatsheet", "快捷键速查（按 ? 或任意键关闭）"))
+        title.setProperty("role", "title")
+        layout.addWidget(title)
+
+        columns = QHBoxLayout()
+        columns.setSpacing(24)
+        half = (len(rows) + 1) // 2
+        for chunk in (rows[:half], rows[half:]):
+            grid = QGridLayout()
+            grid.setHorizontalSpacing(12)
+            grid.setVerticalSpacing(4)
+            for r, (k, desc) in enumerate(chunk):
+                key_lbl = QLabel(k)
+                key_lbl.setProperty("role", "key")
+                key_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                grid.addWidget(key_lbl, r, 0)
+                grid.addWidget(QLabel(desc), r, 1)
+            columns.addLayout(grid)
+        layout.addLayout(columns)
+
+        overlay.adjustSize()
+        geo = w.frameGeometry()
+        x = geo.center().x() - overlay.width() // 2
+        y = geo.center().y() - overlay.height() // 2
+        overlay.move(max(0, x), max(0, y))
+        overlay.show()
+        w._shortcut_overlay = overlay
 
     def _switch_channel(self, direction: int):
         """切换频道（-1=上一个，1=下一个）"""

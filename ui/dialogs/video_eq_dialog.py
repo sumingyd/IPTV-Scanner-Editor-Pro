@@ -43,12 +43,12 @@ class VideoEqualizerDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        text_color = c.get('window_text', '#ffffff')
+        text_color = c.get('window_text')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QGroupBox {{
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 margin-top: 12px; padding: 8px;
             }}
@@ -56,14 +56,14 @@ class VideoEqualizerDialog(FloatingDialog):
                 subcontrol-origin: margin; left: 10px; padding: 0 4px;
             }}
             QSlider::groove:horizontal {{
-                height: 4px; background: {c.get('mid', '#555')}; border-radius: 2px;
+                height: 4px; background: {c.get('mid')}; border-radius: 2px;
             }}
             QSlider::handle:horizontal {{
                 width: 14px; height: 14px; margin: -5px 0;
-                background: {c.get('accent', '#3a9')}; border-radius: 7px;
+                background: {c.get('accent')}; border-radius: 7px;
             }}
             QSlider::handle:horizontal:hover {{
-                background: {c.get('accent', '#3a9')}; border: 2px solid #fff;
+                background: {c.get('accent')}; border: 2px solid {text_color};
             }}
         """)
 
@@ -267,7 +267,7 @@ class VideoEqualizerDialog(FloatingDialog):
         scene_layout.addWidget(self.scene_detect_check)
         self.scene_label = QLabel('')
         self.scene_label.setStyleSheet(
-            f"color: {AppStyles._get_colors().get('accent', '#3a9')}; font-size: 11px;"
+            f"color: {AppStyles.get_color('accent')}; font-size: 11px;"
         )
         scene_layout.addWidget(self.scene_label)
         scene_layout.addStretch()
@@ -338,7 +338,7 @@ class VideoEqualizerDialog(FloatingDialog):
         self.hw_label = QLabel('')
         self.hw_label.setWordWrap(True)
         self.hw_label.setStyleSheet(
-            f"color: {AppStyles._get_colors().get('mid', '#888')}; font-size: 10px;"
+            f"color: {AppStyles.get_color('mid')}; font-size: 10px;"
         )
         hw_layout.addWidget(self.hw_label)
         try:
@@ -351,22 +351,19 @@ class VideoEqualizerDialog(FloatingDialog):
         bottom_row.addWidget(hw_box, 1)
         layout.addLayout(bottom_row)
 
-        # ===== 操作按钮 =====
-        btn_row = QHBoxLayout()
-        self.reset_btn = QPushButton(tr('video_eq_reset', '重置全部'))
-        self.reset_btn.clicked.connect(self._reset_all)
-        self.apply_btn = QPushButton(tr('video_eq_apply', '应用'))
-        self.apply_btn.clicked.connect(self._apply_now)
-        self.save_btn = QPushButton(tr('video_eq_save', '保存'))
-        self.save_btn.clicked.connect(self._save)
-        self.close_btn = QPushButton(tr('video_eq_close', '关闭'))
-        self.close_btn.clicked.connect(self.close)
-        btn_row.addWidget(self.reset_btn)
-        btn_row.addStretch()
-        btn_row.addWidget(self.apply_btn)
-        btn_row.addWidget(self.save_btn)
-        btn_row.addWidget(self.close_btn)
-        layout.addLayout(btn_row)
+        # ===== 操作按钮（标准设置式：恢复默认 | 应用 + 完成） =====
+        def _on_done():
+            self._apply_now()
+            self._save()
+            self.close()
+
+        btn_bar, self.reset_btn, self.apply_btn, self.close_btn = self.build_settings_buttons(
+            self._reset_all, self._apply_now, _on_done,
+            reset_text=tr('video_eq_reset', '恢复默认'),
+            apply_text=tr('video_eq_apply', '应用'),
+            done_text=tr('video_eq_close', '完成'),
+        )
+        layout.addWidget(btn_bar)
 
     def _make_int_slider(self, key: str, label_text: str):
         """构造 -100~100 整数滑块 + 数值标签，返回 (container, slider, value_label)"""

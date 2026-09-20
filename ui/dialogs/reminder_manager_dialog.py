@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QListWidget,
                                QListWidgetItem, QLabel, QPushButton)
 from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtGui import QColor
 from PySide6 import QtWidgets
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
@@ -35,16 +36,16 @@ class ReminderManagerDialog(FloatingDialog):
         r = AppStyles._get_style_border_radius()
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {c.get('panel', c.get('window', '#1e1e1e'))};
-                color: {c.get('window_text', '#ffffff')};
+                background-color: {c.get('window')};
+                color: {c.get('window_text')};
             }}
             QLabel {{
-                color: {c.get('window_text', '#ffffff')};
+                color: {c.get('window_text')};
                 background-color: transparent;
             }}
             QListWidget {{
                 background-color: transparent;
-                color: {c.get('window_text', '#ffffff')};
+                color: {c.get('window_text')};
                 border: none; outline: none;
             }}
             QListWidget::item {{
@@ -52,18 +53,18 @@ class ReminderManagerDialog(FloatingDialog):
                 border: 1px solid transparent; border-radius: {r}px;
             }}
             QListWidget::item:selected {{
-                border: 1px solid {c.get('accent', '#4a9eff')};
-                background-color: {c.get('highlight', '#264f78')};
+                border: 1px solid {c.get('accent')};
+                background-color: {c.get('highlight')};
             }}
             QPushButton {{
-                background-color: {c.get('player_button', '#3a3a3a')};
-                color: {c.get('window_text', '#ffffff')};
-                border: 1px solid {c.get('player_line', '#555')};
+                background-color: {c.get('player_button')};
+                color: {c.get('window_text')};
+                border: 1px solid {c.get('player_line')};
                 border-radius: {r}px;
                 padding: 4px 12px; min-height: 24px;
             }}
             QPushButton:hover {{
-                background-color: {c.get('accent', '#4a9eff')};
+                background-color: {c.get('accent')};
             }}
         """)
 
@@ -110,9 +111,9 @@ class ReminderManagerDialog(FloatingDialog):
             return
 
         c = AppStyles._get_colors()
-        name_style = f"color: {c.get('window_text', '#ffffff')}; background-color: transparent;"
+        name_style = f"color: {c.get('window_text')}; background-color: transparent;"
         time_style = (
-            f"color: {c.get('player_panel_secondary', c.get('window_text', '#aaaaaa'))};"
+            f"color: {c.get('player_panel_secondary', c.get('window_text'))};"
             f" background-color: transparent;"
         )
 
@@ -160,10 +161,7 @@ class ReminderManagerDialog(FloatingDialog):
             empty_item = QListWidgetItem(tr('reminder_empty', '暂无提醒，在节目详情中可添加提醒'))
             empty_item.setFlags(Qt.ItemFlag.NoItemFlags)
             c_empty = AppStyles._get_colors()
-            empty_item.setForeground(
-                Qt.GlobalColor.gray if c_empty.get('window_text', '#ffffff') == '#ffffff'
-                else Qt.GlobalColor.darkGray
-            )
+            empty_item.setForeground(QColor(c_empty.get('placeholder')))
             self.reminder_list.addItem(empty_item)
 
         self.info_label.setText(

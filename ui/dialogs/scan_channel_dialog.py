@@ -2589,7 +2589,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def _show_input_warning(self, input_widget, message):
         """在输入框旁显示临时警告提示"""
-        err_color = AppStyles._get_colors().get('error', '#e74c3c')
+        err_color = AppStyles.get_color('error')
         original_style = input_widget.styleSheet()
         input_widget.setStyleSheet(original_style + f"; border: 2px solid {err_color};")
         self.stats_label.setText(message)

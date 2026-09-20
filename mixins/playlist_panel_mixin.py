@@ -100,6 +100,16 @@ class PlaylistPanelMixin:
         self.epg_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.epg_empty_label.setStyleSheet(AppStyles.player_empty_label_style())
         self.epg_empty_label.hide()
+        # 空态 CTA：EPG 空时点击引导打开/导入订阅（该标签仅在空态可见）
+        self.epg_empty_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.epg_empty_label.setToolTip(tr("tooltip_open_playlist_cta", "点击打开订阅文件"))
+
+        def _on_epg_empty_clicked(event):
+            if event.button() == Qt.MouseButton.LeftButton:
+                event.accept()
+                self.open_playlist()
+
+        self.epg_empty_label.mousePressEvent = _on_epg_empty_clicked
 
         from ui.floating_dialog import FloatingDockWidget
         self.epg_dock = FloatingDockWidget(tr("epg_title", "Program Guide"), self)

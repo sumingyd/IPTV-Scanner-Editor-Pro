@@ -48,12 +48,12 @@ class BurstScreenshotDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        text_color = c.get('window_text', '#ffffff')
+        text_color = c.get('window_text')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QGroupBox {{
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 margin-top: 12px; padding: 8px;
             }}
@@ -61,14 +61,14 @@ class BurstScreenshotDialog(FloatingDialog):
                 subcontrol-origin: margin; left: 10px; padding: 0 4px;
             }}
             QProgressBar {{
-                background: {c.get('base', '#1a1a1a')};
+                background: {c.get('base')};
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 text-align: center;
             }}
             QProgressBar::chunk {{
-                background: {c.get('accent', '#3a9')};
+                background: {c.get('accent')};
                 border-radius: {r}px;
             }}
         """)

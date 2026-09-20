@@ -202,6 +202,11 @@ class ControlPanelMixin:
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.program_desc.setFixedHeight(self.PROGRAM_DESC_HEIGHT)
         self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        # 空态引导 CTA：文案为引导语时可点击打开订阅；业务描述更新无需感知
+        self.program_desc.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.program_desc.setToolTip(tr("tooltip_open_playlist_cta", "点击打开订阅文件"))
+        self.program_desc.mousePressEvent = self._on_program_desc_clicked
+        self.program_desc.enterEvent = self._on_program_desc_enter
         text_layout.addWidget(self.program_desc, 0, Qt.AlignmentFlag.AlignTop)
 
         info_layout.addLayout(text_layout)
@@ -321,7 +326,7 @@ class ControlPanelMixin:
         self.exit_catchup_button.clicked.connect(self.exit_catchup)
         self.exit_catchup_button.setToolTip(tr("panel_exit_catchup", "退出回看"))
         self.exit_catchup_button.hide()
-        self.control_row.addWidget(self.exit_catchup_button)
+        # 按钮保留为成员以兼容旧引用，但不单独上屏——统一收入“更多”菜单
 
         self.speed_button = QToolButton()
         self.speed_button.setIcon(QIcon(AppStyles.get_icon('speed', btn_color)))  # type: ignore[arg-type]
@@ -331,7 +336,6 @@ class ControlPanelMixin:
         self.speed_button.setStyleSheet(AppStyles.player_button_style())
         self.speed_button.clicked.connect(self.media_ctrl.show_speed_menu)
         self.speed_button.setToolTip(tr("panel_speed", "播放速度"))
-        self.control_row.addWidget(self.speed_button)
 
         self.aspect_button = QToolButton()
         self.aspect_button.setIcon(QIcon(AppStyles.get_icon('aspect', btn_color)))  # type: ignore[arg-type]
@@ -340,7 +344,6 @@ class ControlPanelMixin:
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
         self.aspect_button.clicked.connect(self.media_ctrl.show_aspect_menu)
         self.aspect_button.setToolTip(tr("panel_aspect", "画面比例"))
-        self.control_row.addWidget(self.aspect_button)
 
         self.audio_track_button = QToolButton()
         self.audio_track_button.setIcon(QIcon(AppStyles.get_icon('audio_track', btn_color)))  # type: ignore[arg-type]
@@ -349,7 +352,6 @@ class ControlPanelMixin:
         self.audio_track_button.setFixedSize(36, 32)
         self.audio_track_button.setStyleSheet(AppStyles.player_button_style())
         self.audio_track_button.clicked.connect(self.media_ctrl.show_audio_track_menu)
-        self.control_row.addWidget(self.audio_track_button)
 
         self.sub_track_button = QToolButton()
         self.sub_track_button.setIcon(QIcon(AppStyles.get_icon('subtitle', btn_color)))  # type: ignore[arg-type]
@@ -358,7 +360,6 @@ class ControlPanelMixin:
         self.sub_track_button.setFixedSize(36, 32)
         self.sub_track_button.setStyleSheet(AppStyles.player_button_style())
         self.sub_track_button.clicked.connect(self.media_ctrl.show_sub_track_menu)
-        self.control_row.addWidget(self.sub_track_button)
 
         self.pip_button = QToolButton()
         self.pip_button.setIcon(QIcon(AppStyles.get_icon('pip', btn_color)))  # type: ignore[arg-type]
@@ -367,7 +368,17 @@ class ControlPanelMixin:
         self.pip_button.setStyleSheet(AppStyles.player_button_style())
         self.pip_button.clicked.connect(self.pip_ctrl.toggle)
         self.pip_button.setToolTip(tr("panel_pip", "画中画"))
-        self.control_row.addWidget(self.pip_button)
+
+        self._create_more_menu()
+
+        self.more_button = QToolButton()
+        self.more_button.setIcon(QIcon(AppStyles.get_icon('more', btn_color)))  # type: ignore[arg-type]
+        self.more_button.setIconSize(btn_icon_size)
+        self.more_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
+        self.more_button.setStyleSheet(AppStyles.player_button_style())
+        self.more_button.clicked.connect(self._show_more_menu)
+        self.more_button.setToolTip(tr("panel_more", "更多"))
+        self.control_row.addWidget(self.more_button)
 
         self.fullscreen_button = QToolButton()
         self.fullscreen_button.setIcon(QIcon(AppStyles.get_icon('fullscreen', btn_color)))  # type: ignore[arg-type]
@@ -381,3 +392,75 @@ class ControlPanelMixin:
         self.floating_layout.addLayout(self.control_row)
 
         logger.debug("_create_control_row: 完成")
+
+    def _create_more_menu(self):
+        """创建“更多”菜单：收纳次级控制按钮（倍速/比例/音轨/字幕/画中画/退出回看）"""
+        from PySide6.QtWidgets import QMenu
+
+        self._more_menu = QMenu(self)
+        self._more_menu.setStyleSheet(AppStyles.player_menu_bar_style())
+        mc = self.media_ctrl
+        self._more_menu.addAction(self.language_manager.tr("panel_speed", "播放速度"), mc.show_speed_menu)
+        self._more_menu.addAction(self.language_manager.tr("panel_aspect", "画面比例"), mc.show_aspect_menu)
+        self._more_menu.addAction(self.language_manager.tr("panel_audio_track", "音轨"), mc.show_audio_track_menu)
+        self._more_menu.addAction(self.language_manager.tr("panel_subtitle", "字幕"), mc.show_sub_track_menu)
+        self._more_menu.addAction(self.language_manager.tr("panel_pip", "画中画"), self.pip_ctrl.toggle)
+        self._more_menu.addSeparator()
+        self._more_catchup_action = self._more_menu.addAction(
+            self.language_manager.tr("panel_exit_catchup", "退出回看"), self.exit_catchup
+        )
+        self._more_catchup_action.setVisible(False)
+
+    def _show_more_menu(self):
+        """弹出“更多”菜单（向上弹出，避免被屏幕底部裁剪）"""
+        from PySide6.QtCore import QPoint
+
+        menu = self._more_menu
+        btn = self.more_button
+        menu.adjustSize()
+        top_left = btn.mapToGlobal(btn.rect().topLeft())
+        y = top_left.y() - menu.height() - 4
+        if y < 0:
+            y = btn.mapToGlobal(btn.rect().bottomLeft()).y()
+        menu.exec(QPoint(top_left.x(), y))
+
+    def _set_exit_catchup_visible(self, visible: bool, text: str = None):
+        """回看/时移模式切换时同步“更多”菜单中的退出项。
+
+        exit_catchup_button 保留为成员仅作状态/文案载体（旧引用兼容），
+        不再单独上屏；菜单项的可见性与文案以此为准。
+        """
+        if text is not None and getattr(self, 'exit_catchup_button', None) is not None:
+            self.exit_catchup_button.setText(text)
+        action = getattr(self, '_more_catchup_action', None)
+        if action is not None:
+            action.setVisible(visible)
+            if text is not None:
+                action.setText(text)
+
+    def _is_program_desc_cta(self) -> bool:
+        """节目描述当前是否为空态引导文案（与语言切换无关，直接比较 tr 结果）"""
+        if not hasattr(self, 'program_desc'):
+            return False
+        cta_text = self.language_manager.tr(
+            "open_playlist_or_import", "Open a playlist file or import channels to start watching"
+        )
+        return self.program_desc.text() == cta_text
+
+    def _on_program_desc_clicked(self, event):
+        """空态引导文案可点击：打开订阅选择；业务描述文本走 QLabel 默认行为"""
+        if event.button() == Qt.MouseButton.LeftButton and self._is_program_desc_cta():
+            event.accept()
+            self.open_playlist()
+            return
+        QLabel.mousePressEvent(self.program_desc, event)
+
+    def _on_program_desc_enter(self, event):
+        """悬停时按文案判断手型光标与提示，避免业务描述残留 CTA 交互暗示"""
+        if self._is_program_desc_cta():
+            self.program_desc.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.program_desc.setToolTip(self.language_manager.tr("tooltip_open_playlist_cta", "点击打开订阅文件"))
+        else:
+            self.program_desc.setCursor(Qt.CursorShape.ArrowCursor)
+            self.program_desc.setToolTip("")
+        QLabel.enterEvent(self.program_desc, event)

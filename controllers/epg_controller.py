@@ -265,6 +265,10 @@ class EPGController:
         # 检查是否有当前频道
         if not hasattr(self.window, 'current_channel') or not self.window.current_channel:
             if hasattr(self.window, 'epg_empty_label'):
+                # 无频道时空态文案带动作引导（标签已绑定点击打开订阅）
+                self.window.epg_empty_label.setText(
+                    self.tr("no_epg_open_playlist", "暂无节目信息，点击打开或导入订阅")
+                )
                 self.window.epg_empty_label.show()
                 self.window.epg_empty_label.adjustSize()
                 cw = self.window.epg_content.width()

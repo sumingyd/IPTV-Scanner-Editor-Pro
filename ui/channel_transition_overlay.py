@@ -108,12 +108,21 @@ class ChannelTransitionOverlay(QWidget):
         r = AppStyles._get_style_border_radius()
         self._card.setStyleSheet(f"background: {bg_color}; border-radius: {r}px;")
 
+        # 连续换台时仅刷新内容并重置计时，不重播出现动画，避免飞梭换台时卡片常驻遮挡
+        if self._fade_animation is not None:
+            self._fade_animation.stop()
+            try:
+                self._fade_animation.finished.disconnect()
+            except Exception:
+                pass
+            self._fade_animation = None
         self.set_opacity(1.0)
         self.update()
-        self.show()
+        if not self.isVisible():
+            self.show()
         self.raise_()
 
-        self._auto_hide_timer.start(1500)
+        self._auto_hide_timer.start(700)
 
     def _start_fade_out(self):
         if self._fade_animation is not None:
@@ -123,7 +132,7 @@ class ChannelTransitionOverlay(QWidget):
             except Exception:
                 pass
         self._fade_animation = QPropertyAnimation(self, b"opacity", self)
-        self._fade_animation.setDuration(300)
+        self._fade_animation.setDuration(250)
         self._fade_animation.setStartValue(1.0)
         self._fade_animation.setEndValue(0.0)
         self._fade_animation.setEasingCurve(QEasingCurve.Type.OutQuad)

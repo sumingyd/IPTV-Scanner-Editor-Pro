@@ -28,8 +28,8 @@ def _safe_color(color_val, fallback='#1e1e1e'):
 
 class EpgTimelineWidget(QWidget):
     HOUR_WIDTH = 120
-    ROW_HEIGHT = 36
-    HEADER_HEIGHT = 28
+    ROW_HEIGHT = 44
+    HEADER_HEIGHT = 32
     LEFT_MARGIN = 120
     channel_double_clicked = Signal(str)
     program_hovered = Signal(str)
@@ -215,7 +215,7 @@ class EpgTimelineWidget(QWidget):
                                        Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                                        elided)
 
-        now = datetime.now()
+        # 复用 paintEvent 开头获取的 now，避免每帧重复调用系统时钟
         base = self._get_base()
         now_sec = (now - base).total_seconds()
         now_x = (now_sec / 3600) * self.HOUR_WIDTH

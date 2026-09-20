@@ -45,7 +45,7 @@ def _parse_hex_color(hex_str, default=(0, 0, 0)):
 class FloatingDockWidget(QDockWidget):
     """浮动停靠窗口 - QDockWidget 子控件模式（用于诊断对比）"""
 
-    _RESIZE_MARGIN = 6
+    _RESIZE_MARGIN = 8
 
     def __init__(self, title, parent=None, opacity=130):
         super().__init__(title, parent)
@@ -420,6 +420,79 @@ class FloatingDialog(QDialog):
         self._cached_frosted_colors = None
         self._cached_frosted_theme = None
         self._centered = False
+
+    # ------------------------------------------------------------------
+    # 标准按钮区范式
+    #   表单确认类: [取消] [确定]                     右对齐
+    #   设置调节类: [恢复默认] ... [应用] [完成]       默认值居左、主操作居右
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _tr(text_key, default_text):
+        try:
+            from core.language_manager import LanguageManager
+            return LanguageManager().tr(text_key, default_text)
+        except Exception:
+            return default_text
+
+    @classmethod
+    def _make_dialog_button(cls, text, role='normal'):
+        from PySide6.QtWidgets import QPushButton
+        btn = QPushButton(text)
+        if role in ('primary', 'apply'):
+            btn.style_type = 'apply'
+        elif role == 'cancel':
+            btn.style_type = 'cancel'
+        btn.setMinimumWidth(88)
+        return btn
+
+    def build_confirm_buttons(self, on_ok, ok_text=None, cancel_text=None):
+        """标准表单确认式按钮区：[取消] [确定]，右对齐。返回 (widget, ok_btn, cancel_btn)"""
+        from PySide6.QtWidgets import QHBoxLayout, QWidget
+        ok_text = ok_text or self._tr('ok', '确定')
+        cancel_text = cancel_text or self._tr('cancel', '取消')
+        bar = QWidget()
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(8, 8, 8, 4)
+        layout.setSpacing(8)
+        cancel_btn = self._make_dialog_button(cancel_text, 'cancel')
+        ok_btn = self._make_dialog_button(ok_text, 'primary')
+        ok_btn.setDefault(True)
+        cancel_btn.clicked.connect(self.reject)
+        ok_btn.clicked.connect(on_ok)
+        layout.addStretch(1)
+        layout.addWidget(cancel_btn)
+        layout.addWidget(ok_btn)
+        return bar, ok_btn, cancel_btn
+
+    def build_settings_buttons(self, on_reset, on_apply, on_done,
+                               reset_text=None, apply_text=None, done_text=None):
+        """标准设置调节式按钮区：[恢复默认] | 弹性 | [应用] [完成]。返回 (widget, reset_btn, apply_btn, done_btn)"""
+        from PySide6.QtWidgets import QHBoxLayout, QWidget
+        reset_text = reset_text or self._tr('reset_defaults', '恢复默认')
+        apply_text = apply_text or self._tr('apply', '应用')
+        done_text = done_text or self._tr('done', '完成')
+        bar = QWidget()
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(8, 8, 8, 4)
+        layout.setSpacing(8)
+        reset_btn = self._make_dialog_button(reset_text, 'normal')
+        apply_btn = self._make_dialog_button(apply_text, 'apply')
+        done_btn = self._make_dialog_button(done_text, 'primary')
+        done_btn.setDefault(True)
+        if on_reset:
+            reset_btn.clicked.connect(on_reset)
+        else:
+            reset_btn.hide()
+        if on_apply:
+            apply_btn.clicked.connect(on_apply)
+        else:
+            apply_btn.hide()
+        done_btn.clicked.connect(on_done)
+        layout.addWidget(reset_btn)
+        layout.addStretch(1)
+        layout.addWidget(apply_btn)
+        layout.addWidget(done_btn)
+        return bar, reset_btn, apply_btn, done_btn
 
     def showEvent(self, event):
         super().showEvent(event)

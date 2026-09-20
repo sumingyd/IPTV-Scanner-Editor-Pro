@@ -106,7 +106,7 @@ class EpgSearchDialog(FloatingDialog):
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QListWidget {{
                 background-color: transparent;
-                color: {c.get('window_text', '#ffffff')};
+                color: {c.get('window_text')};
                 border: none; outline: none;
             }}
             QListWidget::item {{
@@ -114,13 +114,13 @@ class EpgSearchDialog(FloatingDialog):
                 border: 1px solid transparent; border-radius: {list_r}px;
             }}
             QListWidget::item:selected {{
-                border: 1px solid {c.get('accent', '#4a9eff')};
-                background-color: {c.get('highlight', '#264f78')};
-                color: {c.get('highlighted_text', '#ffffff')};
+                border: 1px solid {c.get('accent')};
+                background-color: {c.get('highlight')};
+                color: {c.get('highlighted_text')};
             }}
             QListWidget::item:hover {{
-                border: 1px solid {c.get('player_line', '#555')};
-                background-color: {c.get('highlight', '#264f78')};
+                border: 1px solid {c.get('player_line')};
+                background-color: {c.get('highlight')};
             }}
         """)
 

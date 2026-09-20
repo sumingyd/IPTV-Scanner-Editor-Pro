@@ -52,12 +52,12 @@ class Video3DDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        text_color = c.get('window_text', '#ffffff')
+        text_color = c.get('window_text')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QGroupBox {{
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 margin-top: 12px; padding: 8px;
             }}
@@ -65,10 +65,10 @@ class Video3DDialog(FloatingDialog):
                 subcontrol-origin: margin; left: 10px; padding: 0 4px;
             }}
             QSlider::groove:horizontal {{
-                height: 4px; background: {c.get('mid', '#555')}; border-radius: 2px;
+                height: 4px; background: {c.get('mid')}; border-radius: 2px;
             }}
             QSlider::handle:horizontal {{
-                background: {c.get('accent', '#3a9')};
+                background: {c.get('accent')};
                 width: 14px; height: 14px; margin: -5px 0; border-radius: 7px;
             }}
         """)

@@ -252,7 +252,8 @@ class PlaybackController:
             catchup_ctrl._clear_catchup_state(set_state='live')
 
         if hasattr(self.window, 'exit_catchup_button'):
-            self.window.exit_catchup_button.hide()
+            # 退出项已收入“更多”菜单，通过统一入口隐藏
+            self.window._set_exit_catchup_visible(False)
 
         for attr in ['_catchup_start_time', '_catchup_start_progress',
                      '_target_catchup_progress',

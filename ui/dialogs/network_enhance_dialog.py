@@ -54,12 +54,12 @@ class NetworkEnhanceDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        text_color = c.get('window_text', '#ffffff')
+        text_color = c.get('window_text')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QGroupBox {{
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 margin-top: 12px; padding: 8px;
             }}
@@ -67,9 +67,9 @@ class NetworkEnhanceDialog(FloatingDialog):
                 subcontrol-origin: margin; left: 10px; padding: 0 4px;
             }}
             QLineEdit, QPlainTextEdit {{
-                background: {c.get('base', '#1a1a1a')};
+                background: {c.get('base')};
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 padding: 4px;
             }}
@@ -119,30 +119,21 @@ class NetworkEnhanceDialog(FloatingDialog):
         hform.addWidget(headers_hint)
         layout.addWidget(headers_group)
 
-        # ===== 操作按钮 =====
-        btn_row = QHBoxLayout()
-        self.clear_btn = QPushButton(tr('network_enhance_clear', 'Clear All'))
-        self.clear_btn.clicked.connect(self._clear_all)
+        # ===== 操作按钮（标准设置式：清空 | 应用 + 完成） =====
+        def _on_done():
+            self._apply_now()
+            self._save()
+            self.close()
+
+        btn_bar, self.clear_btn, self.apply_btn, self.close_btn = self.build_settings_buttons(
+            self._clear_all, self._apply_now, _on_done,
+            reset_text=tr('network_enhance_clear', '清空'),
+            apply_text=tr('network_enhance_apply', '应用'),
+            done_text=tr('playback_queue_close', '完成'),
+        )
         self.clear_btn.setToolTip(tr('clear_enhance_tooltip', '清除网络增强设置'))
-        btn_row.addWidget(self.clear_btn)
-
-        btn_row.addStretch()
-
-        self.apply_btn = QPushButton(tr('network_enhance_apply', 'Apply'))
-        self.apply_btn.clicked.connect(self._apply_now)
         self.apply_btn.setToolTip(tr('apply_enhance_tooltip', '应用设置'))
-        btn_row.addWidget(self.apply_btn)
-
-        self.save_btn = QPushButton(tr('audio_eq_save', 'Save'))
-        self.save_btn.clicked.connect(self._save)
-        self.save_btn.setToolTip(tr('save_enhance_tooltip', '保存为默认'))
-        btn_row.addWidget(self.save_btn)
-
-        self.close_btn = QPushButton(tr('playback_queue_close', 'Close'))
-        self.close_btn.clicked.connect(self.close)
-        self.close_btn.setToolTip(tr('close_tooltip', '关闭'))
-        btn_row.addWidget(self.close_btn)
-        layout.addLayout(btn_row)
+        layout.addWidget(btn_bar)
 
     def _reload_from_config(self):
         """从 config 加载当前设置"""

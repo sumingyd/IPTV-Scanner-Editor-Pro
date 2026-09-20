@@ -114,9 +114,10 @@ class TestServerMixin:
         mock_server.port = 8080
         mock_server.is_running.return_value = True
         with patch('server.app.get_server', return_value=mock_server), \
+             patch('server.routes.get_auth_token', return_value='tok123'), \
              patch('webbrowser.open') as mock_open:
             self.host._open_server_api()
-            mock_open.assert_called_once_with('http://localhost:8080/')
+            mock_open.assert_called_once_with('http://localhost:8080/?token=tok123')
 
     @patch('mixins.server_mixin.logger')
     def test_open_server_api_exception(self, mock_logger):

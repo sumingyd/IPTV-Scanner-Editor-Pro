@@ -1,9 +1,10 @@
-from PySide6.QtWidgets import QSlider, QLabel
-from PySide6.QtCore import Qt, QRectF, Signal, QPoint
-from PySide6.QtGui import QPainter, QColor
+from PySide6.QtWidgets import QSlider
+from PySide6.QtCore import Qt, QRectF, Signal
+from PySide6.QtGui import QPainter, QColor, QFontMetrics
 
 
 class CacheProgressSlider(QSlider):
+    """带缓存区间可视化与拖动时间预览（控件内自绘，避免顶层窗口闪烁）的进度条"""
 
     preview_position_changed = Signal(int)
 
@@ -13,20 +14,11 @@ class CacheProgressSlider(QSlider):
         self._cache_end_ratio = -1.0
         self._cache_color = QColor(76, 175, 80, 100)
         self._update_cache_color_from_theme()
+        self._preview_text = ''
+        self._is_dragging = False
+        self._update_preview_style()
         from ui.theme_manager import get_theme_manager
         get_theme_manager().theme_changed.connect(self._on_theme_changed)
-
-        self._preview_label = QLabel(self)
-        self._preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._preview_label.setVisible(False)
-        self._preview_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self._preview_label.setWindowFlags(
-            Qt.WindowType.ToolTip |
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.WindowStaysOnTopHint
-        )
-        self._update_preview_style()
-        self._is_dragging = False
 
     def _on_theme_changed(self, _theme_name):
         self._update_cache_color_from_theme()
@@ -37,23 +29,19 @@ class CacheProgressSlider(QSlider):
         try:
             from ui.styles import AppStyles
             colors = AppStyles._get_colors()
-            bg = colors.get('player_background', AppStyles._safe_fallback('window'))
-            text_color = colors.get('player_slider_handle', AppStyles._safe_fallback('window_text'))
-            border_color = colors.get('player_slider_fill', AppStyles._safe_fallback('accent'))
-            r = AppStyles._get_style_border_radius()
+            self._preview_bg = QColor(
+                colors.get('player_background') or AppStyles._safe_fallback('window'))
+            self._preview_bg.setAlpha(235)
+            self._preview_text_color = QColor(
+                colors.get('player_slider_handle') or AppStyles._safe_fallback('window_text'))
+            self._preview_border = QColor(
+                colors.get('player_slider_fill') or AppStyles._safe_fallback('accent'))
+            self._preview_radius = max(4, AppStyles._get_style_border_radius())
         except Exception:
-            bg, text_color, border_color = '#1a1a1a', '#ffffff', '#4CAF50'
-            r = 4
-        self._preview_label.setStyleSheet(
-            f"QLabel {{"
-            f"  color: {text_color};"
-            f"  background-color: {bg};"
-            f"  border: 1px solid {border_color};"
-            f"  border-radius: {r}px;"
-            f"  padding: 2px 6px;"
-            f"  font-size: 11px;"
-            f"}}"
-        )
+            self._preview_bg = QColor(26, 26, 26, 235)
+            self._preview_text_color = QColor('#ffffff')
+            self._preview_border = QColor('#4CAF50')
+            self._preview_radius = 4
 
     def _update_cache_color_from_theme(self):
         try:
@@ -92,10 +80,8 @@ class CacheProgressSlider(QSlider):
             self._cache_color = QColor(76, 175, 80, 100)
 
     def set_preview_text(self, text: str):
-        self._preview_label.setText(text)
-        self._preview_label.adjustSize()
-        if self._is_dragging:
-            self._update_preview_position()
+        self._preview_text = text or ''
+        self.update()
 
     def _get_handle_x(self) -> int:
         value = self.value()
@@ -106,15 +92,6 @@ class CacheProgressSlider(QSlider):
         ratio = (value - min_val) / (max_val - min_val)
         groove_rect = self._get_groove_rect()
         return int(groove_rect.x() + groove_rect.width() * ratio)
-
-    def _update_preview_position(self):
-        handle_x = self._get_handle_x()
-        label_w = self._preview_label.width()
-        label_h = self._preview_label.height()
-        global_pos = self.mapToGlobal(QPoint(handle_x, 0))
-        x = global_pos.x() - label_w // 2
-        y = global_pos.y() - label_h - 6
-        self._preview_label.move(x, y)
 
     def _pos_to_value(self, pos_x):
         groove_rect = self._get_groove_rect()
@@ -131,8 +108,7 @@ class CacheProgressSlider(QSlider):
             self.setValue(new_value)
             self.sliderPressed.emit()
             self.preview_position_changed.emit(self.value())
-            self._preview_label.setVisible(True)
-            self._update_preview_position()
+            self.update()
         else:
             super().mousePressEvent(event)
 
@@ -141,46 +117,66 @@ class CacheProgressSlider(QSlider):
             new_value = self._pos_to_value(event.position().toPoint().x())
             self.setValue(new_value)
             self.preview_position_changed.emit(self.value())
-            self._update_preview_position()
+            self.update()
         else:
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self._is_dragging:
             self._is_dragging = False
-            self._preview_label.setVisible(False)
             self.setSliderDown(False)
             self.sliderReleased.emit()
+            self.update()
         else:
             super().mouseReleaseEvent(event)
 
     def paintEvent(self, event):
         super().paintEvent(event)
 
-        if self._cache_start_ratio < 0 or self._cache_end_ratio <= self._cache_start_ratio:
-            return
-
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         groove_rect = self._get_groove_rect()
-        if groove_rect.isEmpty():
-            painter.end()
-            return
+        # 缓存区间可视化
+        if (groove_rect.width() > 0
+                and self._cache_start_ratio >= 0
+                and self._cache_end_ratio > self._cache_start_ratio):
+            cache_x_start = groove_rect.x() + groove_rect.width() * self._cache_start_ratio
+            cache_x_end = groove_rect.x() + groove_rect.width() * self._cache_end_ratio
+            cache_rect = QRectF(
+                cache_x_start,
+                groove_rect.y(),
+                cache_x_end - cache_x_start,
+                groove_rect.height()
+            )
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(self._cache_color)
+            painter.drawRoundedRect(cache_rect, groove_rect.height() / 2, groove_rect.height() / 2)
 
-        cache_x_start = groove_rect.x() + groove_rect.width() * self._cache_start_ratio
-        cache_x_end = groove_rect.x() + groove_rect.width() * self._cache_end_ratio
-
-        cache_rect = QRectF(
-            cache_x_start,
-            groove_rect.y(),
-            cache_x_end - cache_x_start,
-            groove_rect.height()
-        )
-
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(self._cache_color)
-        painter.drawRoundedRect(cache_rect, groove_rect.height() / 2, groove_rect.height() / 2)
+        # 拖动时间预览气泡（控件内自绘，随主题变色）
+        if self._is_dragging and self._preview_text:
+            font = self.font()
+            font.setPointSizeF(max(7.0, font.pointSizeF() - 1))
+            painter.setFont(font)
+            fm = QFontMetrics(font)
+            text_w = fm.horizontalAdvance(self._preview_text)
+            pad_x, pad_y = 8, 4
+            bubble_w = text_w + pad_x * 2
+            bubble_h = fm.height() + pad_y * 2
+            handle_x = self._get_handle_x()
+            bx = max(2, min(self.width() - bubble_w - 2, handle_x - bubble_w // 2))
+            by = max(2, int(groove_rect.y()) - bubble_h - 6)
+            if by <= 2:
+                by = int(groove_rect.y() + groove_rect.height()) + 6
+            bubble = QRectF(bx, by, bubble_w, bubble_h)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(self._preview_bg)
+            painter.drawRoundedRect(bubble, self._preview_radius, self._preview_radius)
+            painter.setPen(self._preview_border)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(bubble, self._preview_radius, self._preview_radius)
+            painter.setPen(self._preview_text_color)
+            painter.drawText(bubble, Qt.AlignmentFlag.AlignCenter, self._preview_text)
 
         painter.end()
 

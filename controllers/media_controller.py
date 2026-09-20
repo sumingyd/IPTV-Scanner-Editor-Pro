@@ -389,6 +389,23 @@ class MediaController:
             logger.debug(f"轨道降级切换失败: {e}")
         return None
 
+    def _menu_anchor(self, attr: str):
+        """菜单锚点：次级按钮已收入“更多”菜单，统一锚定到 more_button"""
+        more = getattr(self.window, 'more_button', None)
+        if more is not None:
+            return more
+        return getattr(self.window, attr, None)
+
+    def _exec_menu_upward(self, menu, btn):
+        """在按钮上方弹出菜单（控制栏位于底部，向下弹出会被屏幕裁剪）"""
+        from PySide6.QtCore import QPoint
+        menu.adjustSize()
+        top_left = btn.mapToGlobal(btn.rect().topLeft())
+        y = top_left.y() - menu.sizeHint().height() - 4
+        if y < 0:
+            y = btn.mapToGlobal(btn.rect().bottomLeft()).y()
+        menu.exec(QPoint(top_left.x(), y))
+
     def show_audio_track_menu(self):
         pc = self.window.player_controller
         if not pc or not pc.is_playing:
@@ -398,8 +415,9 @@ class MediaController:
         menu = QMenu(self.window)
         menu.setStyleSheet(AppStyles.player_menu_bar_style())
         self._populate_audio_menu(menu)
-        btn = self.window.audio_track_button
-        menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+        btn = self._menu_anchor('audio_track_button')
+        if btn:
+            self._exec_menu_upward(menu, btn)
 
     def show_sub_track_menu(self):
         pc = self.window.player_controller
@@ -410,8 +428,9 @@ class MediaController:
         menu = QMenu(self.window)
         menu.setStyleSheet(AppStyles.player_menu_bar_style())
         self._populate_subtitle_menu(menu)
-        btn = self.window.sub_track_button
-        menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+        btn = self._menu_anchor('sub_track_button')
+        if btn:
+            self._exec_menu_upward(menu, btn)
 
     def show_speed_menu(self):
         from PySide6.QtWidgets import QMenu
@@ -427,8 +446,9 @@ class MediaController:
         for s in self.SPEED_STEPS:
             label = f"{s}x" + (" ✓" if abs(current_speed - s) < 0.01 else "")
             menu.addAction(label, lambda *a, speed=s: self._set_speed(speed))
-        btn = self.window.speed_button
-        menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+        btn = self._menu_anchor('speed_button')
+        if btn:
+            self._exec_menu_upward(menu, btn)
 
     def show_aspect_menu(self):
         from PySide6.QtWidgets import QMenu
@@ -447,9 +467,9 @@ class MediaController:
         for ratio in self.ASPECT_CYCLE:
             label = aspect_labels.get(ratio, ratio) + (" ✓" if ratio == current_ratio else "")
             menu.addAction(label, lambda *a, r=ratio: self._set_aspect(r))
-        btn = getattr(self.window, 'aspect_button', None)
+        btn = self._menu_anchor('aspect_button')
         if btn:
-            menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+            self._exec_menu_upward(menu, btn)
 
     def _load_external_subtitle(self):
         pc = self.window.player_controller

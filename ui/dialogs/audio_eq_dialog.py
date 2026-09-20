@@ -36,22 +36,23 @@ class ChannelVUMeter(QWidget):
         self._bar.setTextVisible(False)
         self._bar.setFixedHeight(100)
         self._bar.setFixedWidth(24)
-        self._bar.setStyleSheet("""
-            QProgressBar {
-                border: 1px solid #444;
+        colors = AppStyles._get_colors()
+        self._bar.setStyleSheet(f"""
+            QProgressBar {{
+                border: 1px solid {colors.get('mid')};
                 border-radius: 3px;
-                background: #222;
-            }
-            QProgressBar::chunk {
+                background: {colors.get('alternate_base')};
+            }}
+            QProgressBar::chunk {{
                 border-radius: 2px;
                 background: qlineargradient(
                     y1: 1, y2: 0,
-                    stop: 0.0 #2ecc40,
-                    stop: 0.6 #2ecc40,
-                    stop: 0.8 #ffdc00,
-                    stop: 1.0 #ff4136
+                    stop: 0.0 {colors.get('success')},
+                    stop: 0.6 {colors.get('success')},
+                    stop: 0.8 {colors.get('warning')},
+                    stop: 1.0 {colors.get('error')}
                 );
-            }
+            }}
         """)
         layout.addWidget(self._bar, 1)
 
@@ -149,9 +150,9 @@ class AudioEqualizerDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        text_color = c.get('window_text', '#ffffff')
-        accent = c.get('accent', '#3a9')
-        mid = c.get('mid', '#555')
+        text_color = c.get('window_text')
+        accent = c.get('accent')
+        mid = c.get('mid')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QGroupBox {{
@@ -171,7 +172,7 @@ class AudioEqualizerDialog(FloatingDialog):
                 background: {accent}; border-radius: 7px;
             }}
             QSlider::handle:horizontal:hover {{
-                background: {accent}; border: 2px solid #fff;
+                background: {accent}; border: 2px solid {text_color};
             }}
             QSlider::groove:vertical {{
                 width: 4px; background: {mid}; border-radius: 2px;
@@ -181,7 +182,7 @@ class AudioEqualizerDialog(FloatingDialog):
                 background: {accent}; border-radius: 7px;
             }}
             QSlider::handle:vertical:hover {{
-                background: {accent}; border: 2px solid #fff;
+                background: {accent}; border: 2px solid {text_color};
             }}
         """)
 
@@ -279,7 +280,7 @@ class AudioEqualizerDialog(FloatingDialog):
             tr('audio_eq_channel_info', '检测中...')
         )
         self._channel_info_label.setStyleSheet(
-            f"color: {AppStyles._get_colors().get('mid', '#888')};"
+            f"color: {AppStyles.get_color('mid')};"
             f" font-size: 10px;"
         )
         self._channel_info_label.setWordWrap(True)
@@ -371,22 +372,19 @@ class AudioEqualizerDialog(FloatingDialog):
         self.reset_on_new_check.toggled.connect(self._on_reset_on_new_toggled)
         layout.addWidget(self.reset_on_new_check)
 
-        # ===== 操作按钮 =====
-        btn_row = QHBoxLayout()
-        self.reset_btn = QPushButton(tr('audio_eq_reset', '重置全部'))
-        self.reset_btn.clicked.connect(self._reset_all)
-        self.apply_btn = QPushButton(tr('audio_eq_apply', '应用'))
-        self.apply_btn.clicked.connect(self._apply_now)
-        self.save_btn = QPushButton(tr('audio_eq_save', '保存'))
-        self.save_btn.clicked.connect(self._save)
-        self.close_btn = QPushButton(tr('audio_eq_close', '关闭'))
-        self.close_btn.clicked.connect(self.close)
-        btn_row.addWidget(self.reset_btn)
-        btn_row.addStretch()
-        btn_row.addWidget(self.apply_btn)
-        btn_row.addWidget(self.save_btn)
-        btn_row.addWidget(self.close_btn)
-        layout.addLayout(btn_row)
+        # ===== 操作按钮（标准设置式：恢复默认 | 应用 + 完成） =====
+        def _on_done():
+            self._apply_now()
+            self._save()
+            self.close()
+
+        btn_bar, self.reset_btn, self.apply_btn, self.close_btn = self.build_settings_buttons(
+            self._reset_all, self._apply_now, _on_done,
+            reset_text=tr('audio_eq_reset', '恢复默认'),
+            apply_text=tr('audio_eq_apply', '应用'),
+            done_text=tr('audio_eq_close', '完成'),
+        )
+        layout.addWidget(btn_bar)
 
     def showEvent(self, event):
         super().showEvent(event)

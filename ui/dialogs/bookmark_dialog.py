@@ -50,12 +50,12 @@ class BookmarkDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        text_color = c.get('window_text', '#ffffff')
+        text_color = c.get('window_text')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QGroupBox {{
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 margin-top: 12px; padding: 8px;
             }}
@@ -63,39 +63,39 @@ class BookmarkDialog(FloatingDialog):
                 subcontrol-origin: margin; left: 10px; padding: 0 4px;
             }}
             QListWidget {{
-                background: {c.get('base', '#1a1a1a')};
+                background: {c.get('base')};
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 padding: 4px;
             }}
             QListWidget::item:selected {{
-                background: {c.get('accent', '#3a9')};
-                color: #ffffff;
+                background: {c.get('accent')};
+                color: {c.get('bright_text')};
             }}
             QTabWidget::pane {{
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 top: -1px;
             }}
             QTabBar::tab {{
-                background: {c.get('button', '#2a2a2a')};
+                background: {c.get('button')};
                 color: {text_color};
                 padding: 6px 14px;
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-bottom: none;
                 border-top-left-radius: {r}px;
                 border-top-right-radius: {r}px;
                 margin-right: 2px;
             }}
             QTabBar::tab:selected {{
-                background: {c.get('accent', '#3a9')};
-                color: #ffffff;
+                background: {c.get('accent')};
+                color: {c.get('bright_text')};
             }}
             QLineEdit {{
-                background: {c.get('base', '#1a1a1a')};
+                background: {c.get('base')};
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 padding: 4px 8px;
             }}
@@ -256,7 +256,7 @@ class BookmarkDialog(FloatingDialog):
             if is_current:
                 try:
                     c = AppStyles._get_colors()
-                    item.setForeground(QColor(c.get('accent', '#3a9')))
+                    item.setForeground(QColor(c.get('accent')))
                 except Exception:
                     pass
                 self._chapter_list.setCurrentItem(item)
@@ -326,7 +326,7 @@ class BookmarkDialog(FloatingDialog):
             if is_current:
                 try:
                     c = AppStyles._get_colors()
-                    item.setForeground(QColor(c.get('accent', '#3a9')))
+                    item.setForeground(QColor(c.get('accent')))
                 except Exception:
                     pass
                 self._bookmark_list.setCurrentItem(item)

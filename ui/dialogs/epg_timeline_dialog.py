@@ -134,7 +134,7 @@ class EpgTimelineDialog(FloatingDialog):
 
     def _update_date_edit_icon(self):
         try:
-            icon_color = AppStyles._get_colors().get('window_text', '#ffffff')
+            icon_color = AppStyles.get_color('window_text')
             icon_path = AppStyles.get_icon('chevron_down', icon_color, 12)
             if icon_path:
                 safe_icon = icon_path.replace('\\', '/')
@@ -162,9 +162,9 @@ class EpgTimelineDialog(FloatingDialog):
             tc = c
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QDateEdit {{
-                background-color: {tc.get('player_combo', '#2a2a2a')};
-                color: {tc.get('window_text', '#ffffff')};
-                border: 1px solid {tc.get('player_line', '#555')};
+                background-color: {tc.get('player_combo')};
+                color: {tc.get('window_text')};
+                border: 1px solid {tc.get('player_line')};
                 border-radius: {r}px;
                 padding: 2px 4px 2px 8px;
                 min-height: 24px;
@@ -184,42 +184,42 @@ class EpgTimelineDialog(FloatingDialog):
                 subcontrol-position: center right;
             }}
             QCalendarWidget {{
-                background-color: {tc.get('base', '#1e1e1e')};
-                color: {tc.get('window_text', '#ffffff')};
+                background-color: {tc.get('base')};
+                color: {tc.get('window_text')};
             }}
             QCalendarWidget QWidget {{
-                alternate-background-color: {tc.get('alternate_base', '#2d2d2d')};
+                alternate-background-color: {tc.get('alternate_base')};
             }}
             QCalendarWidget QToolButton {{
-                color: {tc.get('window_text', '#ffffff')};
-                background-color: {tc.get('player_button', '#3a3a3a')};
-                border: 1px solid {tc.get('player_line', '#555')};
+                color: {tc.get('window_text')};
+                background-color: {tc.get('player_button')};
+                border: 1px solid {tc.get('player_line')};
                 border-radius: {r}px;
                 padding: 4px;
                 min-width: 80px;
             }}
             QCalendarWidget QToolButton:hover {{
-                background-color: {tc.get('alternate_base', '#2a2a2a')};
-                border-color: {tc.get('accent', '#4a9eff')};
+                background-color: {tc.get('alternate_base')};
+                border-color: {tc.get('accent')};
             }}
             QCalendarWidget QToolButton:pressed {{
-                background-color: {tc.get('accent', '#4a9eff')};
-                color: {tc.get('highlighted_text', '#ffffff')};
+                background-color: {tc.get('accent')};
+                color: {tc.get('highlighted_text')};
             }}
             QCalendarWidget QMenu {{
-                background-color: {tc.get('base', '#1e1e1e')};
-                color: {tc.get('window_text', '#ffffff')};
+                background-color: {tc.get('base')};
+                color: {tc.get('window_text')};
             }}
             QCalendarWidget QAbstractItemView {{
-                background-color: {tc.get('base', '#1e1e1e')};
-                color: {tc.get('window_text', '#ffffff')};
-                selection-background-color: {tc.get('accent', '#4a9eff')};
-                selection-color: {tc.get('highlighted_text', '#ffffff')};
-                alternate-background-color: {tc.get('alternate_base', '#2d2d2d')};
+                background-color: {tc.get('base')};
+                color: {tc.get('window_text')};
+                selection-background-color: {tc.get('accent')};
+                selection-color: {tc.get('highlighted_text')};
+                alternate-background-color: {tc.get('alternate_base')};
             }}
             QCalendarWidget QSpinBox {{
-                color: {tc.get('window_text', '#ffffff')};
-                background-color: {tc.get('player_combo', '#2a2a2a')};
+                color: {tc.get('window_text')};
+                background-color: {tc.get('player_combo')};
             }}
         """)
 
@@ -359,7 +359,7 @@ class EpgTimelineDialog(FloatingDialog):
 
     def _update_calendar_nav_icons(self):
         try:
-            icon_color = AppStyles._get_colors().get('window_text', '#ffffff')
+            icon_color = AppStyles.get_color('window_text')
             prev_path = AppStyles.get_icon('chevron_left', icon_color, 12)
             next_path = AppStyles.get_icon('chevron_right', icon_color, 12)
             if prev_path and next_path:
@@ -455,7 +455,7 @@ class EpgTimelineDialog(FloatingDialog):
     def _update_corner_widget(self):
         c = AppStyles._get_colors()
         from ui.styles import color_to_hex
-        header_bg = c.get('alternate_base', c.get('window', '#2d2d2d'))
+        header_bg = c.get('alternate_base', c.get('window'))
         if isinstance(header_bg, str) and header_bg.startswith('rgba('):
             header_bg = color_to_hex(header_bg)
         self._corner_widget.setStyleSheet(f"background-color: {header_bg};")
@@ -468,7 +468,7 @@ class EpgTimelineDialog(FloatingDialog):
             return
         try:
             calendar.setMinimumSize(320, 240)
-            accent = AppStyles._get_colors().get('accent', '#4a9eff')
+            accent = AppStyles.get_color('accent')
             fmt = QTextCharFormat()
             fmt.setForeground(QColor(accent))
             fmt.setFontWeight(QFont.Weight.Bold)

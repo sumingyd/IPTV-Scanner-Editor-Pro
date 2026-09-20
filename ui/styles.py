@@ -159,6 +159,30 @@ class AppStyles:
         """获取主题颜色，自动使用 _safe_fallback 作为回退"""
         return cls._get_colors().get(key, cls._safe_fallback(key))
 
+    # 统一 5 档字阶：辅助 12 / 正文 14 / 小标题 16 / 标题 20 / 大标题 28
+    FONT_SIZE_STEPS = (12, 14, 16, 20, 28)
+
+    @classmethod
+    def font_size(cls, level: str) -> int:
+        """语义字阶：caption(辅助)/body(正文)/subtitle(小标题)/title(标题)/display(大标题)"""
+        return {'caption': 12, 'body': 14, 'subtitle': 16,
+                'title': 20, 'display': 28}.get(level, 14)
+
+    @classmethod
+    def normalize_font_sizes(cls, qss: str) -> str:
+        """把 QSS 文本中所有 font-size: Npx 吸附到 5 档标准字阶"""
+        if not qss:
+            return qss
+        import re
+        steps = cls.FONT_SIZE_STEPS
+
+        def _snap(m):
+            px = int(m.group(1))
+            snapped = min(steps, key=lambda s: (abs(s - px), -s))
+            return f"font-size: {snapped}px"
+
+        return re.sub(r'font-size:\s*(\d+)px', _snap, qss)
+
     @classmethod
     def _get_scaled_radius(cls, widget_type: str) -> int:
         r = cls._get_style_border_radius()
@@ -333,6 +357,11 @@ class AppStyles:
             'pip': (
                 f'<rect x="{p}" y="{p}" width="{s-p*2}" height="{s-p*2}" rx="2" stroke="{color}" stroke-width="{ri(s*0.08)}" fill="none"/>'
                 f'<rect x="{ri(h+s*0.05)}" y="{ri(h+s*0.05)}" width="{ri(h-p-s*0.05)}" height="{ri(h-p-s*0.05)}" rx="1" fill="{color}"/>'
+            ),
+            'more': (
+                f'<circle cx="{ri(p+s*0.2)}" cy="{h}" r="{ri(s*0.08)}" fill="{color}"/>'
+                f'<circle cx="{h}" cy="{h}" r="{ri(s*0.08)}" fill="{color}"/>'
+                f'<circle cx="{ri(s-p-s*0.2)}" cy="{h}" r="{ri(s*0.08)}" fill="{color}"/>'
             ),
             'speed': (
                 f'<circle cx="{h}" cy="{h}" r="{h-p}" stroke="{color}" stroke-width="{ri(s*0.08)}" fill="none"/>'

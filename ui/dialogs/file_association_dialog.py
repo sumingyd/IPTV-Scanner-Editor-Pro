@@ -117,20 +117,8 @@ class FileAssociationDialog(FloatingDialog):
 
         layout.addStretch()
 
-        btn_layout = QtWidgets.QHBoxLayout()
-        btn_layout.addStretch()
-
-        ok_btn = QtWidgets.QPushButton(tr("ok", "确定"))
-        ok_btn.setFixedSize(90, 32)
-        ok_btn.clicked.connect(self._on_ok)
-        btn_layout.addWidget(ok_btn)
-
-        cancel_btn = QtWidgets.QPushButton(tr("cancel", "取消"))
-        cancel_btn.setFixedSize(90, 32)
-        cancel_btn.clicked.connect(self.reject)
-        btn_layout.addWidget(cancel_btn)
-
-        layout.addLayout(btn_layout)
+        btn_bar, ok_btn, cancel_btn = self.build_confirm_buttons(self._on_ok)
+        layout.addWidget(btn_bar)
 
     def _toggle_group(self, group_key, state):
         group_info = SUPPORTED_FORMATS[group_key]

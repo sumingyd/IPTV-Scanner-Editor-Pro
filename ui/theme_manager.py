@@ -86,11 +86,11 @@ class ThemeManager(Singleton, QtCore.QObject):
             window.setUpdatesEnabled(False)
             window.setStyleSheet("")
             if isinstance(window, QtWidgets.QMainWindow):
-                window.setStyleSheet(AppStyles.main_window_style())
+                window.setStyleSheet(AppStyles.normalize_font_sizes(AppStyles.main_window_style()))
                 self._update_child_widgets(window)
                 self._reapply_main_window_components(window)
             elif isinstance(window, QtWidgets.QDialog):
-                window.setStyleSheet(AppStyles.dialog_style())
+                window.setStyleSheet(AppStyles.normalize_font_sizes(AppStyles.dialog_style()))
                 self._update_child_widgets(window)
                 if hasattr(window, 'reapply_styles'):
                     window.reapply_styles()
@@ -224,7 +224,7 @@ class ThemeManager(Singleton, QtCore.QObject):
             ]:
                 widget = getattr(window, attr, None)
                 if widget:
-                    widget.setStyleSheet(style_func())
+                    widget.setStyleSheet(AppStyles.normalize_font_sizes(style_func()))
 
             self._reapply_title_bar_icons(window)
 
@@ -233,7 +233,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 if panel:
                     container = panel.widget()
                     if container and hasattr(container, 'setStyleSheet'):
-                        container.setStyleSheet(AppStyles.player_panel_style())
+                        container.setStyleSheet(AppStyles.normalize_font_sizes(AppStyles.player_panel_style()))
                         container.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
                         container.setAutoFillBackground(False)
                     panel.update()
@@ -259,7 +259,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 return
             from PySide6.QtGui import QIcon
             from PySide6.QtCore import QSize
-            btn_color = AppStyles._get_colors().get('window_text', '#ffffff')
+            btn_color = AppStyles._get_colors().get('window_text')
             icon_size = QSize(14, 14)
             btn_style = window_ctrl._title_btn_style()
 
@@ -294,7 +294,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 is_on_top = getattr(window_ctrl, '_stay_on_top_active', False)
                 if is_on_top:
                     icon_path = AppStyles.get_icon('pin_active', btn_color, 14)
-                    accent = AppStyles._get_colors().get('accent', '#0078d4')
+                    accent = AppStyles._get_colors().get('accent')
                     r, g, b = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
                     stay_on_top_btn.setStyleSheet(
                         btn_style.replace("}", "") +
@@ -314,7 +314,7 @@ class ThemeManager(Singleton, QtCore.QObject):
                 if os.path.exists(ico_path):
                     title_icon_label.setPixmap(QIcon(ico_path).pixmap(16, 16))
                 else:
-                    tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('accent', '#0078d4'), 16)
+                    tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('accent'), 16)
                     if tv_icon_path:
                         title_icon_label.setPixmap(QIcon(tv_icon_path).pixmap(16, 16))
         except Exception as e:
@@ -402,12 +402,12 @@ class ThemeManager(Singleton, QtCore.QObject):
                 try:
                     style = style_func(widget)
                     if style:
-                        widget.setStyleSheet(style)
+                        widget.setStyleSheet(AppStyles.normalize_font_sizes(style))
                 except Exception:
                     pass
             elif widget_type is QtWidgets.QSpinBox and spin_style:
                 try:
-                    widget.setStyleSheet(spin_style)
+                    widget.setStyleSheet(AppStyles.normalize_font_sizes(spin_style))
                 except Exception:
                     pass
 

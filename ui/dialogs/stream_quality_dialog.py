@@ -51,20 +51,20 @@ class StreamQualityDialog(FloatingDialog):
     def _apply_theme(self):
         c = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
-        text_color = c.get('window_text', '#ffffff')
-        value_color = c.get('window_text', '#ffffff')
-        label_color = c.get('mid', '#888888')
+        text_color = c.get('window_text')
+        value_color = c.get('window_text')
+        label_color = c.get('mid')
         self.setStyleSheet(AppStyles.popup_dialog_style() + f"""
             QLabel {{ color: {text_color}; }}
             QGroupBox {{
                 color: {text_color};
-                border: 1px solid {c.get('mid', '#555')};
+                border: 1px solid {c.get('mid')};
                 border-radius: {r}px;
                 margin-top: 12px; padding: 8px;
             }}
             QGroupBox::title {{
                 subcontrol-origin: margin; left: 10px; padding: 0 4px;
-                color: {c.get('accent', '#4A9EFF')};
+                color: {c.get('accent')};
                 font-weight: 600;
             }}
         """)
@@ -177,8 +177,8 @@ class StreamQualityDialog(FloatingDialog):
         form.setContentsMargins(8, 4, 8, 4)
 
         c = AppStyles._get_colors()
-        label_color = c.get('mid', '#888888')
-        value_color = c.get('window_text', '#ffffff')
+        label_color = c.get('mid')
+        value_color = c.get('window_text')
         # label 列最小宽度：取所有 label 文本估算宽度的最大值
         # 中文每字约 12px，英文每字符约 7px，4 字 label 约 48px + padding
         label_min_width = 72

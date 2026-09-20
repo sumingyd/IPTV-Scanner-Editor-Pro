@@ -87,14 +87,9 @@ class MappingManagerDialog(FloatingDialog):
 
         from ui.styles import AppStyles
         colors = AppStyles._get_colors()
-        accent_color = colors.get('accent', '#4682B4')
-        text_color = colors.get('window_text', '#d0e0f0')
-        text_secondary = colors.get('player_panel_secondary', '#90a0b0')
-        accent_hover = colors.get('accent_hover', '#5a9bd5')
-        accent_pressed = colors.get('accent_pressed', '#3a72a4')
-        player_panel_secondary = colors.get('player_panel_secondary', '#b0c0d0')
-        player_panel_hint = colors.get('player_panel_hint', '#8090a0')
-        mid_color = colors.get('mid', '#8090a0')
+        text_color = colors.get('window_text')
+        text_secondary = colors.get('player_panel_secondary')
+        player_panel_hint = colors.get('player_panel_hint')
 
         info_box = QtWidgets.QFrame()
         r = AppStyles._get_style_border_radius()
@@ -242,7 +237,7 @@ class MappingManagerDialog(FloatingDialog):
         _ = self._tr
         from ui.styles import AppStyles
         colors = AppStyles._get_colors()
-        player_panel_hint = colors.get('player_panel_hint', '#8090a0')
+        player_panel_hint = colors.get('player_panel_hint')
         self.update_status_label.setText(_('checking_update', 'Checking for updates...'))
         self.update_status_label.setStyleSheet(
             f"color: {player_panel_hint}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
@@ -258,14 +253,14 @@ class MappingManagerDialog(FloatingDialog):
         _ = self._tr
         from ui.styles import AppStyles
         colors = AppStyles._get_colors()
-        color = colors.get('success', '#60a080')
+        color = colors.get('success')
         if status.get('error'):
             text = _('update_check_failed', 'Update check failed: {}').format(status['error'])
-            color = colors.get('error', '#c07050')
+            color = colors.get('error')
         elif status.get('has_update'):
             text = _('update_available',
                 'New version available! Click the button above to refresh.')
-            color = colors.get('warning', '#f0a030')
+            color = colors.get('warning')
         else:
             last_time = status.get('last_cache_time', 0)
             local_count = status.get('local_count', 0)
@@ -307,7 +302,7 @@ class MappingManagerDialog(FloatingDialog):
             empty_item = QtWidgets.QTableWidgetItem(tr('mapping_empty', '暂无自定义映射，请在下方添加'))
             empty_item.setFlags(Qt.ItemFlag.NoItemFlags)
             colors = AppStyles._get_colors()
-            empty_item.setForeground(QColor(colors.get('player_panel_secondary', '#888888')))
+            empty_item.setForeground(QColor(colors.get('player_panel_secondary')))
             self.mapping_table.setItem(0, 0, empty_item)
 
     def filter_mappings(self):
@@ -649,18 +644,8 @@ class MappingEditDialog(FloatingDialog):
 
         layout.addLayout(form)
 
-        btn_layout = QtWidgets.QHBoxLayout()
-        btn_layout.setSpacing(8)
-        btn_layout.addStretch()
-        self.ok_btn = QtWidgets.QPushButton(_('ok_button', 'OK'))
-        self.ok_btn.setStyleSheet(AppStyles.common_button_style())
-        self.ok_btn.clicked.connect(self.accept)
-        self.cancel_btn = QtWidgets.QPushButton(_('cancel_button', 'Cancel'))
-        self.cancel_btn.setStyleSheet(AppStyles.common_button_style())
-        self.cancel_btn.clicked.connect(self.reject)
-        btn_layout.addWidget(self.ok_btn)
-        btn_layout.addWidget(self.cancel_btn)
-        layout.addLayout(btn_layout)
+        btn_bar, self.ok_btn, self.cancel_btn = self.build_confirm_buttons(self.accept)
+        layout.addWidget(btn_bar)
 
     def get_mapping_data(self):
         standard_name = self.standard_name_input.text().strip()
