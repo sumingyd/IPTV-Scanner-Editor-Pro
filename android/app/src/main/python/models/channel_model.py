@@ -232,6 +232,11 @@ class ChannelListModel(QtCore.QAbstractTableModel):
 
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
             return self._get_display_data(channel, actual_col, index.row())
+        elif role == QtCore.Qt.ItemDataRole.ToolTipRole:
+            text = self._get_display_data(channel, actual_col, index.row())
+            if text is None or text == '':
+                return None
+            return str(text)
         elif role == QtCore.Qt.ItemDataRole.DecorationRole and actual_col == 0:
             return None
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:

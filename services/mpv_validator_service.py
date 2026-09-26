@@ -16,6 +16,7 @@ from services.mpv_common import (
     create_mpv_handle,
     initialize_mpv,
     destroy_mpv,
+    terminate_destroy_mpv,
     set_property_string as _mpv_set_property_string,
     set_option_string as _mpv_set_option_string,
     send_command as _mpv_send_command,
@@ -380,7 +381,7 @@ class MpvStreamValidator:
                         self._active_handles.remove(handle)
                 if was_active:
                     try:
-                        destroy_mpv(handle)
+                        terminate_destroy_mpv(handle)
                     except Exception:
                         pass
             sem.release()
@@ -397,9 +398,7 @@ class MpvStreamValidator:
 
     @classmethod
     def set_max_concurrent(cls, max_count):
-        if not getattr(cls, '_semaphore_initialized', False):
-            cls._semaphore = threading.Semaphore(max(1, max_count))
-            cls._semaphore_initialized = True
+        cls._semaphore = threading.Semaphore(max(1, max_count))
 
     @classmethod
     def set_user_agent(cls, user_agent: str):
@@ -439,7 +438,7 @@ class MpvStreamValidator:
             cls._active_handles.clear()
         for handle in handles_to_destroy:
             try:
-                destroy_mpv(handle)
+                terminate_destroy_mpv(handle)
             except Exception:
                 pass
 
@@ -456,7 +455,7 @@ class MpvStreamValidator:
             cls._active_handles.clear()
         for handle in handles_to_destroy:
             try:
-                destroy_mpv(handle)
+                terminate_destroy_mpv(handle)
             except Exception:
                 pass
 

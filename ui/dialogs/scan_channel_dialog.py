@@ -66,7 +66,7 @@ class UrlRangeInputWidget(QtWidgets.QWidget):
 
         self.text_edit = QtWidgets.QPlainTextEdit()
         self.text_edit.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
-        self.text_edit.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.text_edit.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.text_edit.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         from utils.general_utils import setup_i18n_context_menu
         setup_i18n_context_menu(self.text_edit)
@@ -324,11 +324,11 @@ class ScanChannelDialog(FloatingDialog):
         if screen:
             avail = screen.availableGeometry()
             max_w = int(avail.width() * 0.92)
-            h = min(880, int(avail.height() * 0.92))
-            w = min(1400, max_w, int(h * 1.8))
+            h = min(660, int(avail.height() * 0.92))
+            w = min(1600, max_w, int(h * 2.4))
             self.resize(w, h)
         else:
-            self.resize(1200, 860)
+            self.resize(1400, 640)
 
         # 先设置窗口样式，避免闪烁
         self.setStyleSheet(AppStyles.popup_dialog_style())
@@ -387,15 +387,6 @@ class ScanChannelDialog(FloatingDialog):
         self.scan_scroll.setWidget(scan_widget)
         left_layout.addWidget(self.scan_scroll, 1)
 
-        # 关闭按钮放在左下角靠右
-        close_row = QtWidgets.QHBoxLayout()
-        close_row.addStretch()
-        self.close_btn = QtWidgets.QPushButton(tr('close_button', 'Close'))
-        self.close_btn.setStyleSheet(AppStyles.common_button_style())
-        self.close_btn.setFixedHeight(32)
-        self.close_btn.clicked.connect(self.close)
-        close_row.addWidget(self.close_btn)
-        left_layout.addLayout(close_row)
 
         main_layout.addWidget(self.left_panel)
 
@@ -566,37 +557,31 @@ class ScanChannelDialog(FloatingDialog):
         self.referer_layout = referer_layout
 
     def _setup_timeout_threads_input(self):
-        """设置超时和线程数输入控件（两行独立布局）"""
+        """设置超时和线程数输入控件（一行布局）"""
         tr = self.language_manager.tr
 
-        timeout_threads_layout = QtWidgets.QVBoxLayout()
-        timeout_threads_layout.setSpacing(4)
+        timeout_threads_layout = QtWidgets.QHBoxLayout()
+        timeout_threads_layout.setSpacing(6)
 
-        timeout_row = QtWidgets.QHBoxLayout()
-        timeout_row.setSpacing(6)
         timeout_label = QtWidgets.QLabel(tr("scan_timeout", "Timeout(s):"))
         timeout_label.setStyleSheet(AppStyles.small_label_style())
         self.timeout_label = timeout_label
-        timeout_row.addWidget(timeout_label)
+        timeout_threads_layout.addWidget(timeout_label)
         self.timeout_input = QtWidgets.QLineEdit("10")
         self.timeout_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.timeout_input.setPlaceholderText("1-60")
         self.timeout_input.setFixedHeight(28)
-        timeout_row.addWidget(self.timeout_input)
-        timeout_threads_layout.addLayout(timeout_row)
+        timeout_threads_layout.addWidget(self.timeout_input)
 
-        threads_row = QtWidgets.QHBoxLayout()
-        threads_row.setSpacing(6)
         threads_label = QtWidgets.QLabel(tr("scan_threads", "Threads:"))
         threads_label.setStyleSheet(AppStyles.small_label_style())
         self.threads_label = threads_label
-        threads_row.addWidget(threads_label)
+        timeout_threads_layout.addWidget(threads_label)
         self.threads_input = QtWidgets.QLineEdit("4")
         self.threads_input.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         self.threads_input.setPlaceholderText("1-64")
         self.threads_input.setFixedHeight(28)
-        threads_row.addWidget(self.threads_input)
-        timeout_threads_layout.addLayout(threads_row)
+        timeout_threads_layout.addWidget(self.threads_input)
 
         self.timeout_threads_layout = timeout_threads_layout
 
@@ -846,7 +831,8 @@ class ScanChannelDialog(FloatingDialog):
         address_example_label.setMinimumHeight(28)
 
         address_section.addWidget(address_example_label)
-        self.ip_range_input.setMinimumHeight(36)
+        # 地址输入框固定3行高度，内容多时内部滚动
+        self.ip_range_input.setFixedHeight(72)
         self.ip_range_input.text_edit.setStyleSheet(AppStyles.url_range_input_style())
         address_section.addWidget(self.ip_range_input)
 
@@ -857,13 +843,11 @@ class ScanChannelDialog(FloatingDialog):
         scan_settings_section = QtWidgets.QVBoxLayout()
         scan_settings_section.setSpacing(8)
 
-        # User-Agent（简化标签）
-        scan_settings_section.addWidget(self.user_agent_label)
-        scan_settings_section.addWidget(self.user_agent_input)
+        # User-Agent（标签与输入框同一行）
+        scan_settings_section.addLayout(self.user_agent_layout)
 
-        # Referer（简化标签）
-        scan_settings_section.addWidget(self.referer_label)
-        scan_settings_section.addWidget(self.referer_input)
+        # Referer（标签与输入框同一行）
+        scan_settings_section.addLayout(self.referer_layout)
 
         # 超时和线程数
         if hasattr(self, 'timeout_threads_layout'):
@@ -885,15 +869,26 @@ class ScanChannelDialog(FloatingDialog):
         scan_layout.addLayout(options_section)
         scan_layout.addStretch()
 
-        # 扫描按钮（垂直排列，适合窄边栏）
+        # 扫描按钮 + 关闭按钮（2行每行2个）
         button_section = QtWidgets.QVBoxLayout()
-        button_section.setSpacing(8)
+        button_section.setSpacing(6)
+        button_row1 = QtWidgets.QHBoxLayout()
+        button_row1.setSpacing(6)
+        button_row2 = QtWidgets.QHBoxLayout()
+        button_row2.setSpacing(6)
         self.btn_scan.setFixedHeight(36)
-        button_section.addWidget(self.btn_scan)
+        button_row1.addWidget(self.btn_scan)
         self.btn_append_scan.setFixedHeight(36)
-        button_section.addWidget(self.btn_append_scan)
+        button_row1.addWidget(self.btn_append_scan)
         self.btn_generate.setFixedHeight(36)
-        button_section.addWidget(self.btn_generate)
+        button_row2.addWidget(self.btn_generate)
+        self.close_btn = QtWidgets.QPushButton(tr('close_button', 'Close'))
+        self.close_btn.setStyleSheet(AppStyles.common_button_style())
+        self.close_btn.setFixedHeight(36)
+        self.close_btn.clicked.connect(self.close)
+        button_row2.addWidget(self.close_btn)
+        button_section.addLayout(button_row1)
+        button_section.addLayout(button_row2)
 
         scan_layout.addLayout(button_section)
 
@@ -943,13 +938,13 @@ class ScanChannelDialog(FloatingDialog):
         # 各列默认列宽
         _col_widths = {
             ChannelListModel.COL_INDEX: 45,          # 序号
-            ChannelListModel.COL_NAME: 200,          # 频道名称（加宽）
-            ChannelListModel.COL_RESOLUTION: 80,     # 分辨率
+            ChannelListModel.COL_NAME: 140,          # 频道名称（变窄）
+            ChannelListModel.COL_RESOLUTION: 95,     # 分辨率（加宽，可完整显示1920*1080）
             ChannelListModel.COL_URL: 200,           # URL
             ChannelListModel.COL_GROUP: 90,          # 分组
-            ChannelListModel.COL_LOGO: 60,           # 台标
+            ChannelListModel.COL_LOGO: 80,           # 台标（加宽以完整显示标题"Logo地址"）
             ChannelListModel.COL_STATUS: 60,         # 状态（窄）
-            ChannelListModel.COL_LATENCY: 55,        # 延迟（窄）
+            ChannelListModel.COL_LATENCY: 75,        # 延迟（加宽以完整显示标题"延迟(ms)"）
             ChannelListModel.COL_TVG_ID: 70,         # TVG-ID（窄）
             ChannelListModel.COL_TVG_CHNO: 60,       # TVG频道号（窄）
             ChannelListModel.COL_TVG_SHIFT: 60,      # TVG时移（窄）

@@ -45,6 +45,13 @@ class ProgressMixin:
             return
         v = max(0, min(int(seconds), self.program_progress.maximum()))
         self.program_progress.setValue(v)
+        try:
+            start_text = self.progress_start.text()
+            end_text = self.progress_end.text()
+            if start_text and end_text and start_text != "--:--" and end_text != "--:--":
+                self.program_progress.setToolTip(f"{start_text} / {end_text}")
+        except Exception:
+            pass
 
     def _get_progress_seconds(self):
         return self.program_progress.value()

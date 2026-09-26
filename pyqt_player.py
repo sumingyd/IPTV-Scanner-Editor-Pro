@@ -720,11 +720,11 @@ class IPTVPlayer(
         except Exception as ex:
             logger.error(f"更新频道列表UI失败: {ex}")
 
-    def status_bar_show_message(self, message):
+    def status_bar_show_message(self, message, timeout=0):
         """在状态栏显示消息"""
         try:
             if self.status_bar:
-                self.status_bar.showMessage(message)
+                self.status_bar.showMessage(message, timeout)
         except Exception as ex:
             logger.error(f"在状态栏显示消息失败: {ex}")
 

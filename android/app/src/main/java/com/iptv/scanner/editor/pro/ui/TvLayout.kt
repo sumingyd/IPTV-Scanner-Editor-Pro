@@ -386,7 +386,7 @@ private fun TvBottomBar(
         } else null
     }
 
-    // 距结束时间（节目时段已过但 EPG 未更新时显示"节目间隙"，避免无状态空窗）
+    // 距结束时间
     val remainText = remember(tick, currentProgram) {
         if (currentProgram != null && currentProgram.stopTs > 0) {
             val nowSec = tick / 1000L
@@ -394,7 +394,7 @@ private fun TvBottomBar(
             if (diff > 0) {
                 val min = diff / 60
                 if (min > 0) "距结束 ${min}分钟" else "距结束 ${diff}秒"
-            } else "节目间隙"
+            } else null
         } else null
     }
 

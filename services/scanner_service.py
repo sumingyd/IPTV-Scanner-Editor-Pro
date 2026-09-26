@@ -544,7 +544,10 @@ class ScannerController(QObject):
         self.logger.debug(f"动态计算最优队列大小: {self._optimal_queue_size}（线程数: {thread_count}）")
 
         ValidatorClass = self._get_validator_class()
-        ValidatorClass.set_max_concurrent(thread_count)
+        if self._scan_engine == 'mpv':
+            ValidatorClass.set_max_concurrent(min(thread_count, 8))
+        else:
+            ValidatorClass.set_max_concurrent(thread_count)
         ValidatorClass.reset_terminating()
         if user_agent is not None:
             ValidatorClass.set_user_agent(user_agent)
@@ -644,7 +647,10 @@ class ScannerController(QObject):
         self.timeout = timeout
 
         ValidatorClass = self._get_validator_class()
-        ValidatorClass.set_max_concurrent(thread_count)
+        if self._scan_engine == 'mpv':
+            ValidatorClass.set_max_concurrent(min(thread_count, 8))
+        else:
+            ValidatorClass.set_max_concurrent(thread_count)
         ValidatorClass.reset_terminating()
         if user_agent is not None:
             ValidatorClass.set_user_agent(user_agent)
