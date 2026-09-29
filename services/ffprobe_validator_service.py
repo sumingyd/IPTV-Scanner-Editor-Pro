@@ -90,6 +90,11 @@ class FfprobeStreamValidator:
 
         try:
             cmd = self._build_ffprobe_command(ffprobe_path, url, timeout)
+            url_lower = url.lower()
+            if url_lower.startswith('rtp://') or url_lower.startswith('udp://'):
+                max_wait = max(timeout, 30) + 15
+            else:
+                max_wait = timeout + 10
             start_time = time.time()
 
             creation_flags = get_subprocess_creation_flags()
@@ -115,7 +120,7 @@ class FfprobeStreamValidator:
                         result['error_type'] = 'terminating'
                         return result
                     elapsed = time.time() - start_time
-                    if elapsed > timeout + 10:
+                    if elapsed > max_wait:
                         try:
                             proc.kill()
                             proc.wait(timeout=1)
@@ -236,18 +241,30 @@ class FfprobeStreamValidator:
         return result
 
     def _build_ffprobe_command(self, ffprobe_path: str, url: str, timeout: int) -> list:
+        u = url.lower()
+        is_multicast = u.startswith('rtp://') or u.startswith('udp://')
+
         cmd = [
             ffprobe_path,
             '-v', 'quiet',
             '-print_format', 'json',
             '-show_format',
             '-show_streams',
-            '-analyzeduration', str(timeout * 1000000),
-            '-probesize', '5242880',
-            '-timeout', str(timeout * 1000000),
         ]
 
-        u = url.lower()
+        if is_multicast:
+            cmd.extend([
+                '-analyzeduration', str(max(timeout, 30) * 1000000),
+                '-probesize', '10485760',
+            ])
+        else:
+            cmd.extend([
+                '-analyzeduration', str(timeout * 1000000),
+                '-probesize', '5242880',
+                '-timeout', str(timeout * 1000000),
+            ])
+
+
         if u.startswith('rtsp://'):
             rtsp_transport = 'tcp'
             try:
@@ -368,9 +385,7 @@ class FfprobeStreamValidator:
 
     @classmethod
     def set_max_concurrent(cls, max_count):
-        if not getattr(cls, '_semaphore_initialized', False):
-            cls._semaphore = threading.Semaphore(max(1, max_count))
-            cls._semaphore_initialized = True
+        cls._semaphore = threading.Semaphore(max(1, max_count))
 
     @classmethod
     def set_user_agent(cls, user_agent: str):

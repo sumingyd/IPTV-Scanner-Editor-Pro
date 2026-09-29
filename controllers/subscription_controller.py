@@ -29,6 +29,12 @@ class SubscriptionWorker(QThread):
         try:
             result = self._callback()
             self.finished.emit(result)
+        except TypeError as e:
+            if '__init__() should return None' in str(e):
+                logger.debug(f"忽略 PySide6/Python 3.14 __init__ 兼容性错误: {e}")
+                self.finished.emit(None)
+            else:
+                self.error.emit(str(e))
         except Exception as e:
             self.error.emit(str(e))
 

@@ -60,9 +60,21 @@ def _patch_py314_asyncio_exception_handler():
         pass
 
 
+def _patch_py314_gc_threshold():
+    """Python 3.14 GC 在多线程 native 操作（datetime/shiboken）期间触发 access violation。
+
+    增大 GC 阈值减少自动触发频率，由 QTimer 定期手动 collect 替代。"""
+    try:
+        import gc
+        gc.set_threshold(10000, 50, 50)
+    except Exception:
+        pass
+
+
 def setup_environment():
     _patch_py314_traceback_bug()
     _patch_py314_asyncio_exception_handler()
+    _patch_py314_gc_threshold()
     if sys.platform == 'darwin' and getattr(sys, 'frozen', False):
         try:
             import certifi

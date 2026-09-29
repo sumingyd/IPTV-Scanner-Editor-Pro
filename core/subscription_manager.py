@@ -1,4 +1,5 @@
 import os
+import time as _time
 import threading
 from datetime import datetime, timedelta
 from .log_manager import global_logger as logger
@@ -490,14 +491,17 @@ class SubscriptionManager(Singleton):
         parts = time_str.split()
         dt_part = parts[0][:14]
         tz_part = parts[1] if len(parts) > 1 else None
-        dt = datetime.strptime(dt_part, '%Y%m%d%H%M%S')
+        dt = datetime(
+            int(dt_part[0:4]), int(dt_part[4:6]), int(dt_part[6:8]),
+            int(dt_part[8:10]), int(dt_part[10:12]), int(dt_part[12:14]),
+        )
         if tz_part:
             sign = 1 if tz_part[0] == '+' else -1
             tz_hours = int(tz_part[1:3])
             tz_minutes = int(tz_part[3:5]) if len(tz_part) >= 5 else 0
             offset = timedelta(hours=tz_hours, minutes=tz_minutes) * sign
             dt_utc = dt - offset
-            import time as _time
+
             local_offset = timedelta(seconds=-_time.timezone)
             if _time.daylight:
                 local_offset = timedelta(seconds=-_time.altzone)
@@ -514,6 +518,8 @@ class SubscriptionManager(Singleton):
             解析后的EPG数据字典
         """
         result = {}
+        import gc
+        gc.disable()
         try:
             import xml.etree.ElementTree as ET
             root = ET.fromstring(content)
@@ -579,9 +585,11 @@ class SubscriptionManager(Singleton):
                         logger.debug(f"解析节目时间失败: {e}")
                         pass
             
+            gc.enable()
             return result
         except Exception as e:
             logger.error(f"XML格式EPG解析失败: {e}")
+            gc.enable()
             return {}
     
     def get_epg_data_copy(self) -> dict:
