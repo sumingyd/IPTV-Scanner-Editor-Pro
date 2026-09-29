@@ -279,6 +279,11 @@ def get_ffprobe_path():
         ]:
             if os.path.exists(p):
                 return p
+    # 退回到系统 PATH
+    import shutil as _sh
+    sys_ffprobe = _sh.which('ffprobe')
+    if sys_ffprobe:
+        return sys_ffprobe
     return None
 
 
