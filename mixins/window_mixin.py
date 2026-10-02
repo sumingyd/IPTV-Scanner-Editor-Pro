@@ -256,6 +256,8 @@ class WindowMixin:
 
     def _raise_child_dialogs(self):
         for dialog in self.findChildren(QDialog):
+            if getattr(dialog, '_no_auto_raise', False):
+                continue
             if dialog.isVisible() and not dialog.isModal():
                 dialog.raise_()
 

@@ -183,6 +183,20 @@ class MappingManagerDialog(FloatingDialog):
         self.mapping_table.horizontalHeader().setSectionResizeMode(
             2, QtWidgets.QHeaderView.ResizeMode.Interactive)
         self.mapping_table.horizontalHeader().setStretchLastSection(True)
+        vh = self.mapping_table.verticalHeader()
+        vh.setFixedWidth(28)
+        _colors = AppStyles._get_colors()
+        vh.setStyleSheet(f"""
+            QHeaderView {{ background-color: {_colors['table_header']}; border: none; }}
+            QHeaderView::section {{
+                background-color: {_colors['table_header']};
+                color: {_colors['window_text']};
+                padding: 2px;
+                border: none;
+                border-right: 1px solid {_colors['mid']};
+                font-size: 11px;
+            }}
+        """)
         self.mapping_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.mapping_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.mapping_table.setMaximumHeight(200)

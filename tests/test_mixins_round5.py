@@ -7,10 +7,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from mixins.control_panel_mixin import ControlPanelMixin
 from mixins.playlist_panel_mixin import PlaylistPanelMixin
 from mixins.event_mixin import EventMixin
+from mixins.progress_mixin import ProgressMixin
 from tests.conftest import MockMainWindow
 
 
-class _ControlPanelTestHost(MockMainWindow, ControlPanelMixin):
+class _ControlPanelTestHost(MockMainWindow, ControlPanelMixin, ProgressMixin):
     pass
 
 

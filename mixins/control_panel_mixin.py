@@ -286,7 +286,7 @@ class ControlPanelMixin:
         self.program_progress.setPageStep(30)
         self.program_progress.setStyleSheet(AppStyles.player_slider_style())
         self.program_progress.set_cache_color(AppStyles._get_colors().get('player_cache_bar', 'rgba(76,175,80,0.4)'))
-        self.program_progress.setToolTip(tr("panel_progress", "节目进度"))
+        self.program_progress.set_tooltip_formatter(self._format_preview_text)
         self.program_progress.sliderReleased.connect(self.on_progress_slider_released)
         self.program_progress.sliderPressed.connect(self._on_progress_slider_pressed)
         self.program_progress.preview_position_changed.connect(self._on_progress_preview)

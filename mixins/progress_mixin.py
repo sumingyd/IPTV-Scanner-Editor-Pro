@@ -45,13 +45,7 @@ class ProgressMixin:
             return
         v = max(0, min(int(seconds), self.program_progress.maximum()))
         self.program_progress.setValue(v)
-        try:
-            start_text = self.progress_start.text()
-            end_text = self.progress_end.text()
-            if start_text and end_text and start_text != "--:--" and end_text != "--:--":
-                self.program_progress.setToolTip(f"{start_text} / {end_text}")
-        except Exception:
-            pass
+
 
     def _get_progress_seconds(self):
         return self.program_progress.value()
@@ -112,22 +106,21 @@ class ProgressMixin:
         self._stop_auto_hide_timer()
         self._disable_progress_auto_update = True
 
-    def _on_progress_preview(self, seconds):
+    def _format_preview_text(self, seconds):
         mode = getattr(self, '_progress_time_mode', None)
         if mode == 'vod':
-            self.program_progress.set_preview_text(self._format_seconds_to_time(seconds))
+            return self._format_seconds_to_time(seconds)
         elif mode == 'epg':
             program_start = getattr(self, '_progress_program_start', None)
             if program_start:
                 preview_time = program_start + timedelta(seconds=seconds)
-                self.program_progress.set_preview_text(preview_time.strftime("%H:%M:%S"))
-            else:
-                self.program_progress.set_preview_text(self._format_seconds_to_time(seconds))
+                return preview_time.strftime("%H:%M:%S")
+            return self._format_seconds_to_time(seconds)
         elif mode == 'hour':
             now = datetime.now()
             hour_start = now.replace(minute=0, second=0, microsecond=0)
             preview_time = hour_start + timedelta(seconds=seconds)
-            self.program_progress.set_preview_text(preview_time.strftime("%H:%M:%S"))
+            return preview_time.strftime("%H:%M:%S")
         else:
             is_catchup = self.play_state.is_catchup_or_timeshift
             if is_catchup:
@@ -136,9 +129,11 @@ class ProgressMixin:
                     start_time = catchup_program.get('start')
                     if start_time:
                         preview_time = start_time + timedelta(seconds=seconds)
-                        self.program_progress.set_preview_text(preview_time.strftime("%H:%M:%S"))
-                        return
-            self.program_progress.set_preview_text(self._format_seconds_to_time(seconds))
+                        return preview_time.strftime("%H:%M:%S")
+            return self._format_seconds_to_time(seconds)
+
+    def _on_progress_preview(self, seconds):
+        self.program_progress.set_preview_text(self._format_preview_text(seconds))
 
     def _format_seconds_to_time(self, seconds):
         seconds = max(0, int(seconds))

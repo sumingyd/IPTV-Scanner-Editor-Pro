@@ -133,6 +133,11 @@ class UrlRangeInputWidget(QtWidgets.QWidget):
         if not self._history:
             return
         menu = QtWidgets.QMenu(self)
+        try:
+            from ui.styles import AppStyles
+            menu.setStyleSheet(AppStyles.common_menu_style())
+        except Exception:
+            pass
         for url in self._history[-50:]:  # 最多显示 50 条
             action = menu.addAction(url if len(url) <= 120 else url[:117] + "...")
             action.setToolTip(url)
@@ -154,6 +159,7 @@ class ScanChannelDialog(FloatingDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent, frameless=False, stay_on_top=False)
+        self._no_auto_raise = True
         colors = AppStyles._get_colors()
         if AppStyles._visual_style == 'frosted':
             self.opacity = int(colors.get('frosted_opacity', 0.8) * 255)

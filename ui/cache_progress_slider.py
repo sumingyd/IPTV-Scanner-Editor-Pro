@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QSlider
+from PySide6.QtWidgets import QSlider, QToolTip
 from PySide6.QtCore import Qt, QRectF, Signal
 from PySide6.QtGui import QPainter, QColor, QFontMetrics
 
@@ -16,6 +16,8 @@ class CacheProgressSlider(QSlider):
         self._update_cache_color_from_theme()
         self._preview_text = ''
         self._is_dragging = False
+        self._tooltip_formatter = None
+        self.setMouseTracking(True)
         self._update_preview_style()
         from ui.theme_manager import get_theme_manager
         get_theme_manager().theme_changed.connect(self._on_theme_changed)
@@ -83,6 +85,9 @@ class CacheProgressSlider(QSlider):
         self._preview_text = text or ''
         self.update()
 
+    def set_tooltip_formatter(self, formatter):
+        self._tooltip_formatter = formatter
+
     def _get_handle_x(self) -> int:
         value = self.value()
         min_val = self.minimum()
@@ -119,7 +124,19 @@ class CacheProgressSlider(QSlider):
             self.preview_position_changed.emit(self.value())
             self.update()
         else:
+            if self._tooltip_formatter:
+                try:
+                    v = self._pos_to_value(event.position().toPoint().x())
+                    text = self._tooltip_formatter(v)
+                    if text:
+                        QToolTip.showText(event.globalPosition().toPoint(), text, self)
+                except Exception:
+                    pass
             super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        QToolTip.hideText()
+        super().leaveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self._is_dragging:
