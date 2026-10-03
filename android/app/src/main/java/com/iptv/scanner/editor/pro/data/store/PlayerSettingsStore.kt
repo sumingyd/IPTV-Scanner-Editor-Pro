@@ -1,0 +1,241 @@
+package com.iptv.scanner.editor.pro.data.store
+
+import android.content.SharedPreferences
+import com.iptv.scanner.editor.pro.data.ChannelPlayerSettings
+import com.iptv.scanner.editor.pro.data.SpeedConfig
+import org.json.JSONObject
+
+/**
+ * 播放器设置域存储：vo/hwdec/HDR/RTSP/反交错/播放器类型/超时换源/断线重连/画面锁定/倍速/频道级设置。
+ *
+ * 与 MPVView.DEFAULT_VO / DEFAULT_HWDEC 默认值对齐（字符串常量避免反向依赖 mpv 层）。
+ */
+class PlayerSettingsStore(private val prefs: SharedPreferences) {
+
+    // -----------------------------------------------------------------
+    // vo / hwdec
+    // -----------------------------------------------------------------
+
+    /** 获取持久化的 video output，默认 "gpu" */
+    fun getVo(): String = prefs.getString(KEY_VO, DEFAULT_VO_VALUE) ?: DEFAULT_VO_VALUE
+
+    fun setVo(vo: String) {
+        prefs.edit().putString(KEY_VO, vo).apply()
+    }
+
+    /** 获取持久化的 hwdec 模式，默认 "auto-copy" */
+    fun getHwdec(): String =
+        prefs.getString(KEY_HWDEC, DEFAULT_HWDEC_VALUE) ?: DEFAULT_HWDEC_VALUE
+
+    fun setHwdec(hwdec: String) {
+        prefs.edit().putString(KEY_HWDEC, hwdec).apply()
+    }
+
+    /** 是否已确认该设备需要 vo fallback（黑屏检测曾触发过） */
+    fun isVoFallbackConfirmed(): Boolean = prefs.getBoolean(KEY_VO_FALLBACK, false)
+
+    fun setVoFallbackConfirmed(confirmed: Boolean) {
+        prefs.edit().putBoolean(KEY_VO_FALLBACK, confirmed).apply()
+    }
+
+    // -----------------------------------------------------------------
+    // HDR 输出模式
+    // -----------------------------------------------------------------
+
+    fun getHdrMode(): String = prefs.getString(KEY_HDR_MODE, DEFAULT_HDR_MODE) ?: DEFAULT_HDR_MODE
+
+    fun setHdrMode(mode: String) {
+        prefs.edit().putString(KEY_HDR_MODE, mode).apply()
+    }
+
+    // -----------------------------------------------------------------
+    // RTSP 传输协议
+    // -----------------------------------------------------------------
+
+    fun getRtspTransport(): String = prefs.getString(KEY_RTSP_TRANSPORT, DEFAULT_RTSP_TRANSPORT) ?: DEFAULT_RTSP_TRANSPORT
+
+    fun setRtspTransport(transport: String) {
+        prefs.edit().putString(KEY_RTSP_TRANSPORT, transport).apply()
+    }
+
+    // -----------------------------------------------------------------
+    // 反交错
+    // -----------------------------------------------------------------
+
+    fun getDeinterlace(): String = prefs.getString(KEY_DEINTERLACE, DEFAULT_DEINTERLACE) ?: DEFAULT_DEINTERLACE
+
+    fun setDeinterlace(value: String) {
+        prefs.edit().putString(KEY_DEINTERLACE, value).apply()
+    }
+
+    // -----------------------------------------------------------------
+    // 播放器类型（MPV / ExoPlayer）
+    // -----------------------------------------------------------------
+
+    fun getPlayerType(): String = prefs.getString(KEY_PLAYER_TYPE, DEFAULT_PLAYER_TYPE) ?: DEFAULT_PLAYER_TYPE
+
+    fun setPlayerType(type: String) {
+        prefs.edit().putString(KEY_PLAYER_TYPE, type).apply()
+    }
+
+    // -----------------------------------------------------------------
+    // 超时换源（0=5s, 1=10s, 2=15s, 3=20s, 4=25s, 5=30s）
+    // -----------------------------------------------------------------
+
+    fun getTimeoutSwitchSource(): Int = prefs.getInt(KEY_TIMEOUT_SWITCH_SOURCE, DEFAULT_TIMEOUT_SWITCH_SOURCE)
+
+    fun setTimeoutSwitchSource(value: Int) {
+        prefs.edit().putInt(KEY_TIMEOUT_SWITCH_SOURCE, value).apply()
+    }
+
+    fun getTimeoutMs(): Long = when (getTimeoutSwitchSource()) {
+        0 -> 5_000L
+        1 -> 10_000L
+        2 -> 15_000L
+        3 -> 20_000L
+        4 -> 25_000L
+        5 -> 30_000L
+        else -> 10_000L
+    }
+
+    // -----------------------------------------------------------------
+    // 断线重连（0=关闭, 1=1s, 2=3s, 3=5s, 4=10s, 5=20s）
+    // -----------------------------------------------------------------
+
+    fun getReconnectIndex(): Int = prefs.getInt(KEY_RECONNECT_INDEX, DEFAULT_RECONNECT_INDEX)
+
+    fun setReconnectIndex(value: Int) {
+        prefs.edit().putInt(KEY_RECONNECT_INDEX, value).apply()
+    }
+
+    fun getReconnectDelayMs(): Long = when (getReconnectIndex()) {
+        0 -> 0L
+        1 -> 1_000L
+        2 -> 3_000L
+        3 -> 5_000L
+        4 -> 10_000L
+        5 -> 20_000L
+        else -> 0L
+    }
+
+    // -----------------------------------------------------------------
+    // 画面锁定（换源不黑屏）
+    // -----------------------------------------------------------------
+
+    fun getScreenLock(): Boolean = prefs.getBoolean(KEY_SCREEN_LOCK, true)
+
+    fun setScreenLock(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SCREEN_LOCK, enabled).apply()
+    }
+
+    // -----------------------------------------------------------------
+    // 倍速双步进参数
+    // -----------------------------------------------------------------
+
+    fun getSpeedParams(): String = prefs.getString(KEY_SPEED_PARAMS, DEFAULT_SPEED_PARAMS) ?: DEFAULT_SPEED_PARAMS
+
+    fun setSpeedParams(params: String) {
+        prefs.edit().putString(KEY_SPEED_PARAMS, params).apply()
+    }
+
+    fun getSpeedConfig(): SpeedConfig {
+        val parts = getSpeedParams().split(",")
+        return try {
+            SpeedConfig(
+                min = parts.getOrNull(0)?.toDoubleOrNull() ?: 0.5,
+                max = parts.getOrNull(1)?.toDoubleOrNull() ?: 3.0,
+                slowStep = parts.getOrNull(2)?.toDoubleOrNull() ?: 0.25,
+                fastStep = parts.getOrNull(3)?.toDoubleOrNull() ?: 0.5,
+                fastStep2 = parts.getOrNull(4)?.toDoubleOrNull() ?: 1.0,
+                fastStep2Threshold = parts.getOrNull(5)?.toDoubleOrNull() ?: 2.0
+            )
+        } catch (e: Exception) {
+            SpeedConfig()
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // 频道级播放器设置（per-channel override）
+    // -----------------------------------------------------------------
+
+    fun isPerChannelPlayerSettings(): Boolean =
+        prefs.getBoolean(KEY_PER_CHANNEL_SETTINGS, false)
+
+    fun setPerChannelPlayerSettings(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PER_CHANNEL_SETTINGS, enabled).apply()
+    }
+
+    fun getChannelSettings(idx: Int): ChannelPlayerSettings? {
+        val json = prefs.getString("$KEY_CHANNEL_SETTINGS_PREFIX$idx", null) ?: return null
+        return try {
+            val obj = JSONObject(json)
+            ChannelPlayerSettings(
+                playerType = obj.optString("player_type").takeIf { it.isNotEmpty() },
+                vo = obj.optString("vo").takeIf { it.isNotEmpty() },
+                hwdec = obj.optString("hwdec").takeIf { it.isNotEmpty() },
+                hdrMode = obj.optString("hdr_mode").takeIf { it.isNotEmpty() }
+            )
+        } catch (e: Exception) { null }
+    }
+
+    fun setChannelSettings(idx: Int, settings: ChannelPlayerSettings) {
+        val obj = JSONObject().apply {
+            settings.playerType?.let { put("player_type", it) }
+            settings.vo?.let { put("vo", it) }
+            settings.hwdec?.let { put("hwdec", it) }
+            settings.hdrMode?.let { put("hdr_mode", it) }
+        }
+        prefs.edit().putString("$KEY_CHANNEL_SETTINGS_PREFIX$idx", obj.toString()).apply()
+    }
+
+    fun removeChannelSettings(idx: Int) {
+        prefs.edit().remove("$KEY_CHANNEL_SETTINGS_PREFIX$idx").apply()
+    }
+
+    // -----------------------------------------------------------------
+    // 重置
+    // -----------------------------------------------------------------
+
+    fun resetPlayerSettings() {
+        prefs.edit()
+            .remove(KEY_VO)
+            .remove(KEY_HWDEC)
+            .remove(KEY_VO_FALLBACK)
+            .remove(KEY_PLAYER_TYPE)
+            .remove(KEY_HDR_MODE)
+            .remove(KEY_RTSP_TRANSPORT)
+            .remove(KEY_DEINTERLACE)
+            .remove(KEY_TIMEOUT_SWITCH_SOURCE)
+            .remove(KEY_RECONNECT_INDEX)
+            .remove(KEY_SCREEN_LOCK)
+            .remove(KEY_SPEED_PARAMS)
+            .apply()
+    }
+
+    companion object {
+        private const val KEY_VO = "player_vo"
+        private const val KEY_HWDEC = "player_hwdec"
+        private const val KEY_VO_FALLBACK = "player_vo_fallback_confirmed"
+        private const val KEY_PLAYER_TYPE = "player_type"
+        private const val DEFAULT_PLAYER_TYPE = "MPV"
+        private const val KEY_HDR_MODE = "hdr_output_mode"
+        private const val DEFAULT_HDR_MODE = "disable"
+        private const val KEY_TIMEOUT_SWITCH_SOURCE = "timeout_switch_source"
+        private const val DEFAULT_TIMEOUT_SWITCH_SOURCE = 2
+        private const val KEY_RECONNECT_INDEX = "reconnect_index"
+        private const val DEFAULT_RECONNECT_INDEX = 0
+        private const val KEY_SCREEN_LOCK = "screen_lock"
+        private const val KEY_SPEED_PARAMS = "speed_params"
+        private const val DEFAULT_SPEED_PARAMS = "0.5,3,0.25,0.5,1,2"
+        private const val KEY_RTSP_TRANSPORT = "rtsp_transport"
+        private const val DEFAULT_RTSP_TRANSPORT = "tcp"
+        private const val KEY_DEINTERLACE = "deinterlace"
+        private const val DEFAULT_DEINTERLACE = "no"
+        private const val KEY_PER_CHANNEL_SETTINGS = "per_channel_player_settings"
+        private const val KEY_CHANNEL_SETTINGS_PREFIX = "channel_settings_"
+
+        // 与 MPVView.DEFAULT_VO / DEFAULT_HWDEC 保持一致（字符串常量避免反向依赖 mpv 层）
+        private const val DEFAULT_VO_VALUE = "gpu"
+        private const val DEFAULT_HWDEC_VALUE = "auto-copy"
+    }
+}

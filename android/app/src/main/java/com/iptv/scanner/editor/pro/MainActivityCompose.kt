@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.iptv.scanner.editor.pro.ui.InitState
+import com.iptv.scanner.editor.pro.ui.*
 
 /**
  * Compose 主入口 Activity。
@@ -61,6 +63,20 @@ class MainActivityCompose : ComponentActivity() {
 
     companion object {
         private const val TAG = "MainActivityCompose"
+        // 触控区域边界（占屏幕比例）
+        private const val LEFT_REGION_BOUND = 0.3f
+        private const val RIGHT_REGION_BOUND = 0.7f
+        private const val BOTTOM_REGION_BOUND = 0.85f
+        private const val SIDEBAR_CLOSE_BOUND = 0.82f
+        // 触控阈值
+        private const val SLIDE_THRESHOLD = 80f
+        private const val TOUCH_SLOP = 40f
+        private const val LONG_PRESS_TIMEOUT_MS = 500L
+        // 多画面退出按钮区域（px）
+        private const val EXIT_BUTTON_WIDTH = 300f
+        private const val EXIT_BUTTON_HEIGHT = 120f
+        // 菜单关闭边界（px）
+        private const val MENU_CLOSE_WIDTH = 850f
     }
 
     /** OK 键长按标记：长按显示控制层，跳过短按逻辑（打开统一面板） */
@@ -70,12 +86,15 @@ class MainActivityCompose : ComponentActivity() {
     private var touchDownX = 0f
     private var touchDownY = 0f
     private var touchDownTime = 0L
-    private val touchSlop = 40f
+    private val touchSlop = TOUCH_SLOP
 
-    /** 横屏模式判断：横屏统一用酷9风格布局，支持触控+遥控器 */
+    /** 横屏模式判断：横屏统一用侧边栏风格布局，支持触控+遥控器 */
     private fun isLandscapeMode(): Boolean {
         return resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     }
+
+    /** TV 模式判断：结合 UiMode 状态（含 leanback/forceTvMode/无触屏检测），避免手机横屏误判为 TV */
+    private fun isTvMode(): Boolean = viewModel.uiMode.value == UiMode.TV
 
     @Suppress("DEPRECATION")
     private val viewModel: AppViewModel by viewModels {
@@ -101,7 +120,7 @@ class MainActivityCompose : ComponentActivity() {
             IptvTheme(themeMode = themeMode) {
                 val initState by viewModel.initState.collectAsState()
                 when (initState) {
-                    is AppViewModel.InitState.Ready -> MainPlayerScreen(viewModel)
+                    is InitState.Ready -> MainPlayerScreen(viewModel)
                     else -> SplashScreen(viewModel)
                 }
             }
@@ -110,7 +129,7 @@ class MainActivityCompose : ComponentActivity() {
         // 监听初始化完成，自动恢复上次播放的频道（如果有）
         lifecycleScope.launch {
             viewModel.initState
-                .filterIsInstance<AppViewModel.InitState.Ready>()
+                .filterIsInstance<InitState.Ready>()
                 .distinctUntilChanged()
                 .collect { state ->
                     Log.i(TAG, "Init Ready, channels=${state.status.channelsTotal}")
@@ -168,7 +187,7 @@ class MainActivityCompose : ComponentActivity() {
         if (isLandscapeMode()) {
             val multiActive = viewModel.multiViewState.value.active
             if (ev.action == android.view.MotionEvent.ACTION_DOWN) {
-                android.util.Log.i("MainActivity", "dispatchTouchEvent: ACTION_DOWN x=${ev.x}, y=${ev.y}, multiActive=$multiActive")
+                Log.v(TAG, "dispatchTouchEvent: ACTION_DOWN x=${ev.x}, y=${ev.y}, multiActive=$multiActive")
             }
             when (ev.action) {
                 android.view.MotionEvent.ACTION_DOWN -> {
@@ -181,7 +200,7 @@ class MainActivityCompose : ComponentActivity() {
                     val dy = ev.y - touchDownY
                     val moved = (dx * dx + dy * dy) > touchSlop * touchSlop
                     val duration = System.currentTimeMillis() - touchDownTime
-                    val isLongPress = duration > 500
+                    val isLongPress = duration > LONG_PRESS_TIMEOUT_MS
                     val w = resources.displayMetrics.widthPixels
                     val h = resources.displayMetrics.heightPixels
                     val x = ev.x
@@ -190,8 +209,8 @@ class MainActivityCompose : ComponentActivity() {
                     if (multiActive) {
                         // ---- 多画面模式 ----
                         // 右上角退出按钮区域：直接退出多画面
-                        if (x > w - 300f && y < 120f) {
-                            android.util.Log.i("MainActivity", "MultiView: exit button tapped")
+                        if (x > w - EXIT_BUTTON_WIDTH && y < EXIT_BUTTON_HEIGHT) {
+                            Log.v(TAG, "MultiView: exit button tapped")
                             viewModel.exitMultiView()
                             return true
                         }
@@ -199,11 +218,11 @@ class MainActivityCompose : ComponentActivity() {
                         val anyPanelOpen = viewModel.tvUnifiedPanelOpen.value ||
                                 viewModel.landscapeSidebarVisible.value ||
                                 viewModel.menuPanelOpen.value
-                        android.util.Log.i("MainActivity", "MultiView touch: x=$x, y=$y, anyPanelOpen=$anyPanelOpen, moved=$moved, isLongPress=$isLongPress")
+                        Log.v(TAG, "MultiView touch: x=$x, y=$y, anyPanelOpen=$anyPanelOpen, moved=$moved, isLongPress=$isLongPress")
                         if (anyPanelOpen) return super.dispatchTouchEvent(ev)
                         if (moved) {
                             // 上下滑动切换频道
-                            if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && kotlin.math.abs(dy) > 80f) {
+                            if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && kotlin.math.abs(dy) > SLIDE_THRESHOLD) {
                                 if (dy < 0) viewModel.prevChannel() else viewModel.nextChannel()
                             }
                             return true
@@ -211,21 +230,21 @@ class MainActivityCompose : ComponentActivity() {
                         // 计算视口索引
                         val state = viewModel.multiViewState.value
                         val idx = computeMultiViewportIndex(x, y, w, h, state.layout)
-                        android.util.Log.i("MainActivity", "MultiView tap: idx=$idx, focused=${state.focusedViewport}, layout=${state.layout}")
+                        Log.v(TAG, "MultiView tap: idx=$idx, focused=${state.focusedViewport}, layout=${state.layout}")
                         if (idx >= 0) {
                             viewModel.setFocusedViewport(idx)
                             val viewport = state.viewports.getOrNull(idx)
-                            android.util.Log.i("MainActivity", "MultiView viewport: idx=$idx, isEmpty=${viewport?.isEmpty}, isPrimary=${viewport?.isPrimary}")
+                            Log.v(TAG, "MultiView viewport: idx=$idx, isEmpty=${viewport?.isEmpty}, isPrimary=${viewport?.isPrimary}")
                             if (isLongPress && viewport != null && viewport.isPrimary) {
                                 // 长按主画面：打开主菜单（可退出多画面）
-                                android.util.Log.i("MainActivity", "MultiView: long press primary, opening menu")
+                                Log.v(TAG, "MultiView: long press primary, opening menu")
                                 viewModel.toggleMenuPanel()
                             } else if (isLongPress && viewport != null && !viewport.isEmpty && !viewport.isPrimary) {
                                 // 长按有频道的副画面：移除频道（清空）
                                 viewModel.removeFromMultiView(idx)
                             } else if (!isLongPress && viewport != null && viewport.isEmpty && !viewport.isPrimary) {
                                 // 单击空副画面：打开统一面板添加频道
-                                android.util.Log.i("MainActivity", "MultiView: opening TvUnifiedPanel for empty viewport $idx")
+                                Log.v(TAG, "MultiView: opening TvUnifiedPanel for empty viewport $idx")
                                 viewModel.toggleTvUnifiedPanel()
                             }
                         }
@@ -235,7 +254,7 @@ class MainActivityCompose : ComponentActivity() {
                     // ---- 非多画面模式 ----
                     if (moved) {
                         // 上下滑动切换频道
-                        if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && kotlin.math.abs(dy) > 80f) {
+                        if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && kotlin.math.abs(dy) > SLIDE_THRESHOLD) {
                             if (dy < 0) viewModel.prevChannel() else viewModel.nextChannel()
                             return true
                         }
@@ -243,20 +262,20 @@ class MainActivityCompose : ComponentActivity() {
                     }
                     val sidebarOpen = viewModel.landscapeSidebarVisible.value
                     val menuOpen = viewModel.menuPanelOpen.value
-                    val isLeftZone = x < w * 0.3f
-                    val isRightZone = x > w * 0.7f
-                    val isBottomZone = y > h * 0.85f
+                    val isLeftZone = x < w * LEFT_REGION_BOUND
+                    val isRightZone = x > w * RIGHT_REGION_BOUND
+                    val isBottomZone = y > h * BOTTOM_REGION_BOUND
                     if (isBottomZone && !sidebarOpen && !menuOpen) {
                         viewModel.toggleControls()
                         return true
                     }
                     if (sidebarOpen) {
-                        if (x < w * 0.82f) return super.dispatchTouchEvent(ev)
+                        if (x < w * SIDEBAR_CLOSE_BOUND) return super.dispatchTouchEvent(ev)
                         viewModel.setLandscapeSidebarVisible(false)
                         return true
                     }
                     if (menuOpen) {
-                        if (x > w - 850f) return super.dispatchTouchEvent(ev)
+                        if (x > w - MENU_CLOSE_WIDTH) return super.dispatchTouchEvent(ev)
                         viewModel.toggleMenuPanel()
                         return true
                     }
@@ -298,7 +317,7 @@ class MainActivityCompose : ComponentActivity() {
     }
 
      override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (isLandscapeMode()) {
+        if (isTvMode()) {
             val kc = event.keyCode
             val isOk = kc == KeyEvent.KEYCODE_DPAD_CENTER || kc == KeyEvent.KEYCODE_ENTER
             val isDpad = kc == KeyEvent.KEYCODE_DPAD_UP || kc == KeyEvent.KEYCODE_DPAD_DOWN ||
@@ -329,11 +348,11 @@ class MainActivityCompose : ComponentActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         // 初始化未完成时，按键交给系统处理
         val initState = viewModel.initState.value
-        if (initState !is AppViewModel.InitState.Ready) {
+        if (initState !is InitState.Ready) {
             return super.onKeyDown(keyCode, event)
         }
 
-        // 数字选台（与酷9 CHANNEL_NUMBER 对齐）：
+        // 数字选台（与侧边栏 CHANNEL_NUMBER 对齐）：
         // 用户按数字键 0-9 时，累积输入并显示在 OSD 上。
         // 2秒内无新输入或按确认键(DPAD_CENTER/ENTER)时，切到对应频道。
         val digit = when (keyCode) {
@@ -385,7 +404,7 @@ class MainActivityCompose : ComponentActivity() {
             return true
         }
 
-        // MENU 键：酷9风格 — TV/PHONE 都打开右侧设置菜单
+        // MENU 键：侧边栏风格 — TV/PHONE 都打开右侧设置菜单
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             when {
                 viewModel.menuPanelOpen.value -> {
@@ -407,8 +426,8 @@ class MainActivityCompose : ComponentActivity() {
             return true
         }
 
-        // 左方向键：酷9风格 — TV模式下打开左侧频道列表
-        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && isLandscapeMode()) {
+        // 左方向键：侧边栏风格 — TV模式下打开左侧频道列表
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && isTvMode()) {
             // 仅在全屏播放（无任何面板打开）时，左方向键打开频道列表
             if (!viewModel.landscapeSidebarVisible.value && !viewModel.menuPanelOpen.value && !viewModel.anyPanelOpen) {
                 viewModel.setLandscapeSidebarVisible(true)
@@ -463,7 +482,7 @@ class MainActivityCompose : ComponentActivity() {
         }
 
         // 仅在 TV 模式下处理 DPAD 方向键
-        val isTv = isLandscapeMode()
+        val isTv = isTvMode()
         if (!isTv) {
             // PHONE 模式下也处理一些快捷键（方便外接键盘测试）
             when (keyCode) {
@@ -490,13 +509,8 @@ class MainActivityCompose : ComponentActivity() {
                 keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
                 keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
                 keyCode == KeyEvent.KEYCODE_ENTER
-        // TV 侧边栏打开时，OK 键关闭侧边栏（不交给 Compose 焦点系统）
-        if (isLandscapeMode() && viewModel.landscapeSidebarVisible.value &&
-            (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
-            viewModel.setLandscapeSidebarVisible(false)
-            Log.i(TAG, "DPAD_CENTER: close sidebar")
-            return true
-        }
+        // 侧边栏打开时 OK 键由 dispatchKeyEvent 传给 Compose 焦点系统处理（菜单项点击），
+        // 关闭侧边栏由 BACK 键或菜单项 onClick 处理，此处不重复处理避免逻辑冲突。
         if (viewModel.anyPanelOpen && isDpadNavigation) {
             // 交给 Compose 焦点系统处理（在面板内导航/确认）
             return super.onKeyDown(keyCode, event)
@@ -612,7 +626,7 @@ class MainActivityCompose : ComponentActivity() {
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
             okKeyLongPressed = true
             // TV 模式：长按显示控制层（auto-hide）
-            if (isLandscapeMode() && !viewModel.anyPanelOpen) {
+            if (isTvMode() && !viewModel.anyPanelOpen) {
                 viewModel.showControlsAutoHide()
                 Log.i(TAG, "Long press OK: show controls")
                 return true
@@ -630,7 +644,7 @@ class MainActivityCompose : ComponentActivity() {
                 okKeyLongPressed = false
                 return true
             }
-            if (isLandscapeMode()) {
+            if (isTvMode()) {
                 return true
             }
             if (viewModel.anyPanelOpen) {
@@ -661,15 +675,7 @@ class MainActivityCompose : ComponentActivity() {
             && packageManager.hasSystemFeature("android.software.picture_in_picture")
         ) {
             try {
-                val builder = PictureInPictureParams.Builder()
-                val mpv = MpvController.getInstance()
-                mpv.getVideoAspectRatio()?.let { ratio -> builder.setAspectRatio(ratio) }
-                mpv.getVideoBoundsOnScreen()?.let { rect -> builder.setSourceRectHint(rect) }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    builder.setAutoEnterEnabled(true)
-                    builder.setSeamlessResizeEnabled(true)
-                }
-                enterPictureInPictureMode(builder.build())
+                enterPictureInPictureMode(buildPipParams())
                 Log.i(TAG, "Manual PiP entered")
             } catch (e: Exception) {
                 Log.w(TAG, "Manual PiP failed: ${e.message}")
@@ -707,6 +713,18 @@ class MainActivityCompose : ComponentActivity() {
         handleIntent(intent)
     }
 
+    private fun buildPipParams(): PictureInPictureParams {
+        val builder = PictureInPictureParams.Builder()
+        val mpv = MpvController.getInstance()
+        mpv.getVideoAspectRatio()?.let { ratio -> builder.setAspectRatio(ratio) }
+        mpv.getVideoBoundsOnScreen()?.let { rect -> builder.setSourceRectHint(rect) }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(true)
+            builder.setSeamlessResizeEnabled(true)
+        }
+        return builder.build()
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         val mpv = MpvController.getInstance()
@@ -716,23 +734,7 @@ class MainActivityCompose : ComponentActivity() {
             && mpv.fileLoaded.value && !mpv.paused.value
         ) {
             try {
-                val builder = PictureInPictureParams.Builder()
-                // 1. 设置视频宽高比（消除 PiP 窗口黑边）
-                mpv.getVideoAspectRatio()?.let { ratio ->
-                    builder.setAspectRatio(ratio)
-                    Log.i(TAG, "PiP aspect ratio: $ratio")
-                }
-                // 2. 设置源矩形（动画从视频区域平滑过渡到 PiP 窗口）
-                mpv.getVideoBoundsOnScreen()?.let { rect ->
-                    builder.setSourceRectHint(rect)
-                    Log.i(TAG, "PiP source bounds: $rect")
-                }
-                // 3. Android 12+：自动进入 PiP + 无缝调整大小
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    builder.setAutoEnterEnabled(true)
-                    builder.setSeamlessResizeEnabled(true)
-                }
-                enterPictureInPictureMode(builder.build())
+                enterPictureInPictureMode(buildPipParams())
                 Log.i(TAG, "Auto-entered PiP on user leave")
             } catch (e: Exception) {
                 Log.w(TAG, "Auto PiP failed: ${e.message}")
@@ -758,13 +760,6 @@ class MainActivityCompose : ComponentActivity() {
         }
     }
 
-    override fun onStop() {
-        super.onStop()
-        // 如果在 PiP 模式中被 stop，不要停止播放
-        if (!isInPictureInPictureMode) {
-            // 非画中画模式下离开应用时可以选择暂停（但保持视频状态）
-        }
-    }
 
     override fun onDestroy() {
         super.onDestroy()
