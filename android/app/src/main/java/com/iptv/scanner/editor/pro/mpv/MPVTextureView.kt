@@ -55,6 +55,9 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
     @Volatile
     private var surfaceAttached = false
 
+    /** 公共逻辑委托 */
+    private val delegate = BaseMPVViewDelegate(MPVView.sharedState)
+
     @Volatile
     override var pendingResumePos: Double = -1.0
 
@@ -77,14 +80,14 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         savedConfigDir = configDir
         savedCacheDir = cacheDir
         savedHwdec = hwdec
-        myGeneration = ++MPVView.activeGeneration
+        myGeneration = ++MPVView.sharedState.activeGeneration
         Log.i(TAG, "initialize: generation=$myGeneration, vo=$vo, hwdec=$hwdec")
 
         // TextureView 必须设为不透明！
         // isOpaque=false 会导致 surface 带 alpha 通道，mpv GPU VO 渲染的视频变成透明（不可见）。
         isOpaque = true
 
-        if (MPVView.nativeInstanceCreated) {
+        if (MPVView.sharedState.nativeInstanceCreated) {
             // 复用现有 native mpv 实例
             Log.i(TAG, "initialize: reusing existing native mpv instance (generation=$myGeneration)")
             try {
@@ -95,13 +98,13 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             }
             filePath = null
             // 恢复旋转前的播放路径
-            val savedPath = MPVView.savedPlaybackPath
+            val savedPath = MPVView.sharedState.savedPlaybackPath
             if (savedPath != null) {
                 filePath = savedPath
-                MPVView.savedPlaybackPath = null
+                MPVView.sharedState.savedPlaybackPath = null
                 Log.i(TAG, "initialize: restored saved playback path=$savedPath")
             }
-            MPVView.nativeInstanceAlive = true
+            MPVView.sharedState.nativeInstanceAlive = true
             surfaceTextureListener = this
             // 关键：SurfaceTexture 可能已经可用（TextureView 在 initialize 之前已布局），
             // 此时 onSurfaceTextureAvailable 不会再触发，需要手动 attach。
@@ -122,12 +125,12 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         }
 
         // 首次创建或 shutdown 后重建
-        if (MPVView.nativeHandleCreated) {
+        if (MPVView.sharedState.nativeHandleCreated) {
             Log.i(TAG, "initialize: native handle already exists, skipping create() (init only)")
         } else {
             Log.i(TAG, "initialize: creating new native mpv instance")
             MPVLib.create(context)
-            MPVView.nativeHandleCreated = true
+            MPVView.sharedState.nativeHandleCreated = true
         }
 
         MPVLib.setOptionString("config", "yes")
@@ -138,9 +141,9 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         MPVLib.setOptionString("vo", vo)
         MPVLib.setOptionString("hwdec", hwdec)
         // user-agent：与 PC 端一致（Chrome UA），避免本地代理服务器因 UA 关闭流
-        MPVLib.setOptionString("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        // keep-open=yes：与 PC 端和 MPVView 保持一致，避免循环暂停。
-        MPVLib.setOptionString("keep-open", "yes")
+        MPVLib.setOptionString("user-agent", MpvProtocolConstants.USER_AGENT)
+        // keep-open=always：与 MPVView 保持一致，stop 期间保留最后一帧避免换台黑屏。
+        MPVLib.setOptionString("keep-open", "always")
         MPVLib.setOptionString("keepaspect", "yes")
         MPVLib.setOptionString("keepaspect-window", "no")
 
@@ -183,42 +186,28 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
 
         updateLogLevel()
 
-        MPVView.nativeInstanceAlive = true
-        MPVView.nativeInstanceCreated = true
+        MPVView.sharedState.nativeInstanceAlive = true
+        MPVView.sharedState.nativeInstanceCreated = true
 
         surfaceTextureListener = this
         observeProperties()
     }
 
-    private fun updateLogLevel() {
-        try {
-            val logLevel = UserPrefs.getInstance().getLogLevel()
-            val mpvMsgLevel = when (logLevel) {
-                "debug" -> "all=trace"
-                "info" -> "all=info"
-                "warn" -> "all=warn"
-                "error" -> "all=error"
-                else -> "all=info"
-            }
-            MPVLib.setPropertyString("msg-level", mpvMsgLevel)
-        } catch (e: Throwable) {
-            Log.w(TAG, "updateLogLevel failed: ${e.message}")
-        }
-    }
+    private fun updateLogLevel() = delegate.updateLogLevel()
 
     override fun destroy() {
         surfaceTextureListener = null
-        if (myGeneration != MPVView.activeGeneration) {
-            Log.i(TAG, "destroy: skipped (myGen=$myGeneration, activeGen=${MPVView.activeGeneration})")
+        if (myGeneration != MPVView.sharedState.activeGeneration) {
+            Log.i(TAG, "destroy: skipped (myGen=$myGeneration, activeGen=${MPVView.sharedState.activeGeneration})")
             return
         }
         // 保存当前播放路径，供新 MPVTextureView 恢复播放
         val currentPath = try { MPVLib.getPropertyString("path") } catch (_: Exception) { null }
         if (!currentPath.isNullOrEmpty()) {
-            MPVView.savedPlaybackPath = currentPath
+            MPVView.sharedState.savedPlaybackPath = currentPath
             Log.i(TAG, "destroy: saved playback path=$currentPath")
         }
-        if (MPVView.nativeInstanceAlive) {
+        if (MPVView.sharedState.nativeInstanceAlive) {
             try {
                 MPVLib.command(arrayOf("stop"))
                 MPVLib.command(arrayOf("playlist-clear"))
@@ -231,21 +220,12 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             } catch (e: Throwable) {
                 Log.w(TAG, "destroy: reset failed: ${e.message}")
             }
-            MPVView.nativeInstanceAlive = false
+            MPVView.sharedState.nativeInstanceAlive = false
             Log.i(TAG, "destroy: instance kept alive, state reset (gen=$myGeneration)")
         }
     }
 
-    private fun observeProperties() {
-        MPVLib.observeProperty("time-pos", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
-        MPVLib.observeProperty("duration", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
-        MPVLib.observeProperty("pause", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("eof-reached", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("volume", MPVLib.MpvFormat.MPV_FORMAT_INT64)
-        MPVLib.observeProperty("mute", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("media-title", MPVLib.MpvFormat.MPV_FORMAT_STRING)
-        MPVLib.observeProperty("track-list", MPVLib.MpvFormat.MPV_FORMAT_NODE)
-    }
+    private fun observeProperties() = delegate.observeProperties()
 
     override fun setVoInUse(vo: String) {
         voInUse = vo
@@ -306,24 +286,20 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         }
     }
 
-    override fun markInstanceDead() {
-        Log.w(TAG, "markInstanceDead: mpv core shutdown detected, marking instance as dead")
-        MPVView.nativeInstanceCreated = false
-        MPVView.nativeInstanceAlive = false
-    }
+    override fun markInstanceDead() = delegate.markInstanceDead()
 
 
     private fun ensureInstanceAlive(): Boolean {
-        if (MPVView.forceRecreatePending) {
-            MPVView.forceRecreatePending = false
+        if (MPVView.sharedState.forceRecreatePending) {
+            MPVView.sharedState.forceRecreatePending = false
             Log.i(TAG, "ensureInstanceAlive: forceRecreatePending=true, state already reset")
         }
-        if (MPVView.nativeInstanceCreated && MPVView.nativeInstanceAlive) {
+        if (MPVView.sharedState.nativeInstanceCreated && MPVView.sharedState.nativeInstanceAlive) {
             return true
-        } else if (MPVView.nativeInstanceCreated) {
+        } else if (MPVView.sharedState.nativeInstanceCreated) {
             return true
         }
-        if (MPVView.nativeHandleCreated) {
+        if (MPVView.sharedState.nativeHandleCreated) {
             Log.e(TAG, "ensureInstanceAlive: core shutdown but native handle exists. Returning false.")
             return false
         }
@@ -343,26 +319,19 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             return true
         } catch (e: Throwable) {
             Log.e(TAG, "ensureInstanceAlive: re-create failed", e)
-            MPVView.nativeInstanceCreated = false
-            MPVView.nativeInstanceAlive = false
+            MPVView.sharedState.nativeInstanceCreated = false
+            MPVView.sharedState.nativeInstanceAlive = false
             return false
         }
     }
 
-    override fun stop() {
-        if (!MPVView.nativeInstanceCreated || !MPVView.nativeInstanceAlive) return
-        try {
-            MPVLib.command(arrayOf("stop"))
-        } catch (e: Throwable) {
-            Log.w(TAG, "stop failed: ${e.message}")
-        }
-    }
+    override fun stop() = delegate.stop()
 
     // ---- TextureView.SurfaceTextureListener ----
 
     override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
-        if (!MPVView.nativeInstanceCreated || !MPVView.nativeInstanceAlive) {
-            Log.w(TAG, "onSurfaceTextureAvailable: skipped, nativeInstanceCreated=${MPVView.nativeInstanceCreated}, nativeInstanceAlive=${MPVView.nativeInstanceAlive}")
+        if (!MPVView.sharedState.nativeInstanceCreated || !MPVView.sharedState.nativeInstanceAlive) {
+            Log.w(TAG, "onSurfaceTextureAvailable: skipped, nativeInstanceCreated=${MPVView.sharedState.nativeInstanceCreated}, nativeInstanceAlive=${MPVView.sharedState.nativeInstanceAlive}")
             return
         }
         Log.i(TAG, "onSurfaceTextureAvailable: attaching surface (vo=$voInUse, ${width}x${height})")
@@ -403,7 +372,7 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
     }
 
     override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture): Boolean {
-        if (!MPVView.nativeInstanceAlive) {
+        if (!MPVView.sharedState.nativeInstanceAlive) {
             Log.i(TAG, "onSurfaceTextureDestroyed: native instance not active, skipping")
             surface?.release()
             surface = null
@@ -430,14 +399,5 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         // mpv 内部处理渲染，无需回调
     }
 
-    override fun forceRecreate() {
-        Log.w(TAG, "forceRecreate: resetting mpv state (stop + playlist-clear, no quit)")
-        MPVView.forceRecreatePending = true
-        try {
-            MPVLib.command(arrayOf("stop"))
-            MPVLib.command(arrayOf("playlist-clear"))
-        } catch (e: Throwable) {
-            Log.w(TAG, "forceRecreate: reset commands failed: ${e.message}")
-        }
-    }
+    override fun forceRecreate() = delegate.forceRecreate()
 }

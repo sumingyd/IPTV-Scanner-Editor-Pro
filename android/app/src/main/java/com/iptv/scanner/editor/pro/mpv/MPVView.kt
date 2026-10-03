@@ -35,6 +35,12 @@ class MPVView @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : SurfaceView(context, attrs), SurfaceHolder.Callback, MPVViewLike {
 
+    /** mpv 实例状态（共享单例，所有 MPVView/MPVTextureView 引用同一份） */
+    val instanceState = sharedState
+
+    /** 公共逻辑委托 */
+    private val delegate = BaseMPVViewDelegate(instanceState)
+
     // 保存初始化参数，用于 mpv 核心 shutdown 后重新创建实例
     private var savedConfigDir: String? = null
     private var savedCacheDir: String? = null
@@ -73,10 +79,10 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         savedConfigDir = configDir
         savedCacheDir = cacheDir
         savedHwdec = hwdec
-        myGeneration = ++activeGeneration
+        myGeneration = ++instanceState.activeGeneration
         Log.i(TAG, "initialize: generation=$myGeneration, vo=$vo, hwdec=$hwdec")
 
-        if (nativeInstanceCreated) {
+        if (instanceState.nativeInstanceCreated) {
             // 复用现有 native mpv 实例（不 destroy + create）
             Log.i(TAG, "initialize: reusing existing native mpv instance (generation=$myGeneration)")
             try {
@@ -91,14 +97,14 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             filePath = null
             // 恢复旋转前的播放路径：destroy() 时保存了 path，
             // 新 MPVView 创建后 surfaceCreated 时自动恢复播放
-            val savedPath = savedPlaybackPath
+            val savedPath = instanceState.savedPlaybackPath
             if (savedPath != null) {
                 filePath = savedPath
-                savedPlaybackPath = null
+                instanceState.savedPlaybackPath = null
                 Log.i(TAG, "initialize: restored saved playback path=$savedPath, will play on surfaceCreated")
             }
             // 标记实例为活跃（surfaceDestroyed/destroy 会设为 false）
-            nativeInstanceAlive = true
+            instanceState.nativeInstanceAlive = true
             holder.setFormat(PixelFormat.RGBA_8888)
             holder.addCallback(this)
             return
@@ -109,12 +115,12 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         // 跳过 create() 直接 init()，避免 "mpv is already initialized" 错误导致 native 崩溃。
         // 场景：mpv 核心 shutdown 后 markInstanceDead() 重置 nativeInstanceCreated=false，
         // 但 native 句柄仍然存在，ensureInstanceAlive() 走重建路径时需要跳过 create()。
-        if (nativeHandleCreated) {
+        if (instanceState.nativeHandleCreated) {
             Log.i(TAG, "initialize: native handle already exists, skipping create() (init only)")
         } else {
             Log.i(TAG, "initialize: creating new native mpv instance")
             MPVLib.create(context)
-            nativeHandleCreated = true
+            instanceState.nativeHandleCreated = true
         }
 
         MPVLib.setOptionString("config", "yes")
@@ -207,8 +213,8 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
 
         updateLogLevel()
 
-        nativeInstanceAlive = true
-        nativeInstanceCreated = true
+        instanceState.nativeInstanceAlive = true
+        instanceState.nativeInstanceCreated = true
 
         holder.setFormat(PixelFormat.RGBA_8888)
         holder.addCallback(this)
@@ -219,36 +225,22 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
      * 更新 mpv 日志等级（运行时切换）。
      * 通过 setPropertyString("msg-level", ...) 实现，无需重启。
      */
-    private fun updateLogLevel() {
-        try {
-            val logLevel = UserPrefs.getInstance().getLogLevel()
-            val mpvMsgLevel = when (logLevel) {
-                "debug" -> "all=trace"
-                "info" -> "all=info"
-                "warn" -> "all=warn"
-                "error" -> "all=error"
-                else -> "all=info"
-            }
-            MPVLib.setPropertyString("msg-level", mpvMsgLevel)
-        } catch (e: Throwable) {
-            Log.w(TAG, "updateLogLevel failed: ${e.message}")
-        }
-    }
+    private fun updateLogLevel() = delegate.updateLogLevel()
 
     override fun destroy() {
         holder.removeCallback(this)
-        if (myGeneration != activeGeneration) {
-            Log.i(TAG, "destroy: skipped (myGen=$myGeneration, activeGen=$activeGeneration)")
+        if (myGeneration != instanceState.activeGeneration) {
+            Log.i(TAG, "destroy: skipped (myGen=$myGeneration, activeGen=$instanceState.activeGeneration)")
             return
         }
         // 保存当前播放路径，供新 MPVView 恢复播放（旋转时 AndroidView 可能被销毁重建）
         val currentPath = try { MPVLib.getPropertyString("path") } catch (_: Exception) { null }
         if (!currentPath.isNullOrEmpty()) {
-            savedPlaybackPath = currentPath
+            instanceState.savedPlaybackPath = currentPath
             Log.i(TAG, "destroy: saved playback path=$currentPath")
         }
         // keep-alive：不调用 MPVLib.destroy()，只做状态重置
-        if (nativeInstanceAlive) {
+        if (instanceState.nativeInstanceAlive) {
             try {
                 MPVLib.command(arrayOf("stop"))
                 MPVLib.command(arrayOf("playlist-clear"))
@@ -262,21 +254,12 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             } catch (e: Throwable) {
                 Log.w(TAG, "destroy: reset failed: ${e.message}")
             }
-            nativeInstanceAlive = false
+            instanceState.nativeInstanceAlive = false
             Log.i(TAG, "destroy: instance kept alive, state reset (gen=$myGeneration)")
         }
     }
 
-    private fun observeProperties() {
-        MPVLib.observeProperty("time-pos", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
-        MPVLib.observeProperty("duration", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
-        MPVLib.observeProperty("pause", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("eof-reached", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("volume", MPVLib.MpvFormat.MPV_FORMAT_INT64)
-        MPVLib.observeProperty("mute", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("media-title", MPVLib.MpvFormat.MPV_FORMAT_STRING)
-        MPVLib.observeProperty("track-list", MPVLib.MpvFormat.MPV_FORMAT_NODE)
-    }
+    private fun observeProperties() = delegate.observeProperties()
 
     private var filePath: String? = null
     private var voInUse: String = DEFAULT_VO
@@ -376,14 +359,10 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
      *
      * mpv 核心在某些坏流场景下会自动 shutdown（如加载无法解析的 m3u8），
      * shutdown 后所有 MPVLib 命令都发到已死的实例上，静默失败。
-     * 此方法重置 nativeInstanceCreated 标志，使下次 initialize/ensureInstanceAlive
+     * 此方法重置 instanceState.nativeInstanceCreated 标志，使下次 initialize/ensureInstanceAlive
      * 能重新创建 mpv 实例。
      */
-    override fun markInstanceDead() {
-        Log.w(TAG, "markInstanceDead: mpv core shutdown detected, marking instance as dead")
-        nativeInstanceCreated = false
-        nativeInstanceAlive = false
-    }
+    override fun markInstanceDead() = delegate.markInstanceDead()
 
     /**
      * 确保 mpv 核心存活。如果核心已 shutdown，使用保存的参数重新创建。
@@ -392,20 +371,20 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
      */
     private fun ensureInstanceAlive(): Boolean {
         // 检查强制重建标志：forceRecreate() 已通过 stop+playlist-clear 重置状态
-        if (forceRecreatePending) {
-            forceRecreatePending = false
-            Log.i(TAG, "ensureInstanceAlive: forceRecreatePending=true, state already reset by forceRecreate()")
+        if (instanceState.forceRecreatePending) {
+            instanceState.forceRecreatePending = false
+            Log.i(TAG, "ensureInstanceAlive: instanceState.forceRecreatePending=true, state already reset by forceRecreate()")
             // idle=yes 确保核心仍然存活，forceRecreate 只做了状态重置（stop + playlist-clear），
             // 不需要重建核心。如果核心确实已 shutdown（极端情况），下面的检查会处理。
         }
         // 核心存活检查：如果核心已创建且活跃，直接返回
-        if (nativeInstanceCreated && nativeInstanceAlive) {
+        if (instanceState.nativeInstanceCreated && instanceState.nativeInstanceAlive) {
             return true
-        } else if (nativeInstanceCreated && !nativeHandleCreated) {
+        } else if (instanceState.nativeInstanceCreated && !instanceState.nativeHandleCreated) {
             // nativeInstanceCreated=true 但 nativeInstanceAlive=false 且无 native 句柄：
             // 实例存在但未活跃（destroy() 后状态），surfaceCreated 会恢复
             return true
-        } else if (nativeInstanceCreated) {
+        } else if (instanceState.nativeInstanceCreated) {
             // nativeInstanceCreated=true + nativeHandleCreated=true 但 nativeInstanceAlive=false：
             // mpv 核心已 shutdown（markInstanceDead），native 句柄仍存在（keep-alive）。
             // idle=yes 下核心不应 shutdown，但若发生，返回 false 防止在已死句柄上操作。
@@ -417,7 +396,7 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         // 调用 setOptionString/init —— libmpv 的 mpv_initialize() 只能调用一次，
         // 在已终止的句柄上调用会导致 native 崩溃（SIGABRT）。
         // 此时返回 false，让 playFile 跳过本次播放，避免崩溃。
-        if (nativeHandleCreated) {
+        if (instanceState.nativeHandleCreated) {
             Log.e(TAG, "ensureInstanceAlive: core has shutdown but native handle still exists (keep-alive). " +
                 "Cannot safely re-initialize. Returning false to avoid native crash.")
             return false
@@ -426,7 +405,7 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         val cacheDir = savedCacheDir ?: return false
         Log.i(TAG, "ensureInstanceAlive: re-creating mpv instance after shutdown")
         try {
-            // nativeInstanceCreated 为 false（首次创建或 native 句柄不存在），
+            // instanceState.nativeInstanceCreated 为 false（首次创建或 native 句柄不存在），
             // 走完整初始化路径：create() + setOptionString + init() + observeProperties()。
             initialize(configDir, cacheDir, vo = voInUse, hwdec = savedHwdec)
             // 重新 attach surface（initialize 中已 addCallback，但 surface 可能已存在）
@@ -443,26 +422,19 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         } catch (e: Throwable) {
             Log.e(TAG, "ensureInstanceAlive: re-create failed", e)
             // 恢复状态：重建失败时标记为死亡，下次 playFile 会再次尝试
-            nativeInstanceCreated = false
-            nativeInstanceAlive = false
+            instanceState.nativeInstanceCreated = false
+            instanceState.nativeInstanceAlive = false
             return false
         }
     }
 
-    override fun stop() {
-        if (!nativeInstanceCreated || !nativeInstanceAlive) return
-        try {
-            MPVLib.command(arrayOf("stop"))
-        } catch (e: Throwable) {
-            Log.w(TAG, "stop failed: ${e.message}")
-        }
-    }
+    override fun stop() = delegate.stop()
 
     // ---- SurfaceHolder.Callback ----
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        if (!nativeInstanceCreated || !nativeInstanceAlive) {
-            Log.w(TAG, "surfaceCreated: skipped, nativeInstanceCreated=$nativeInstanceCreated, nativeInstanceAlive=$nativeInstanceAlive")
+        if (!instanceState.nativeInstanceCreated || !instanceState.nativeInstanceAlive) {
+            Log.w(TAG, "surfaceCreated: skipped, instanceState.nativeInstanceCreated=$instanceState.nativeInstanceCreated, instanceState.nativeInstanceAlive=$instanceState.nativeInstanceAlive")
             return
         }
         Log.i(TAG, "surfaceCreated: attaching surface (vo=$voInUse)")
@@ -512,7 +484,7 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        if (!nativeInstanceAlive) {
+        if (!instanceState.nativeInstanceAlive) {
             Log.i(TAG, "surfaceDestroyed: native instance not active, skipping")
             return
         }
@@ -531,69 +503,12 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
     }
 
     companion object {
-        private const val TAG = "mpv"
+        private const val TAG = "MPVView"
 
         const val DEFAULT_VO = "gpu"
         const val DEFAULT_HWDEC = "auto-copy"
 
-        /**
-         * native mpv 实例是否处于活跃状态（有 MPVView 关联，可以接收命令）。
-         * destroy() 设为 false，initialize() 设为 true。
-         * surfaceDestroyed() 检查此标志，为 false 时跳过 native 调用。
-         */
-        @Volatile
-        internal var nativeInstanceAlive = false
-
-        /**
-         * native mpv 实例是否已创建（MPVLib.create 至少调用过一次）。
-         * 一旦为 true 永远为 true（keep-alive 策略不 destroy）。
-         * initialize() 用此标志判断是首次创建还是复用。
-         *
-         * 注意：markInstanceDead() 会将此标志重置为 false，表示 mpv 核心已 shutdown
-         * 需要 ensureInstanceAlive() 重建。但底层 native 句柄仍然存在（keep-alive 不
-         * 调用 MPVLib.destroy()），重建时应跳过 create() 直接 init()。
-         * 参见 [nativeHandleCreated]。
-         */
-        @Volatile
-        internal var nativeInstanceCreated = false
-
-        /**
-         * native mpv 句柄是否已创建（MPVLib.create() 调用成功后置 true，永不重置）。
-         *
-         * 与 [nativeInstanceCreated] 的区别：
-         * - nativeInstanceCreated 会被 markInstanceDead() 重置（表示核心需重建）
-         * - nativeHandleCreated 永不重置（表示 native 句柄存在，重建时跳过 create）
-         *
-         * 根因修复：keep-alive 策略下 MPVLib.destroy() 永不调用，native 句柄一直存在。
-         * 当 mpv 核心 shutdown 后 markInstanceDead() 重置 nativeInstanceCreated=false，
-         * ensureInstanceAlive() 误以为需要重新 create()，但 MPVLib.create() 检测到
-         * 句柄已存在会报 "mpv is already initialized" 错误，后续 init() 在异常状态下
-         * 执行导致 native 崩溃（SIGABRT/SIGSEGV）。
-         * 修复：用 nativeHandleCreated 标志跳过 create()，直接 init() 重新初始化核心。
-         */
-        @Volatile
-        internal var nativeHandleCreated = false
-
-        @Volatile
-        internal var activeGeneration: Int = 0
-
-        /**
-         * 强制重建标志：由 forceRecreate() 设置。
-         * ensureInstanceAlive() 检测到此标志时，即使 nativeInstanceCreated=true
-         * 也会强制标记为死亡并重建核心，用于清除卡死的 demuxer。
-         */
-        @Volatile
-        internal var forceRecreatePending = false
-
-        /**
-         * 旋转时保存的播放路径：destroy() 时保存，新 MPVView initialize() 时恢复。
-         *
-         * 根因：movableContentOf 在竖屏→横屏切换时可能销毁旧 AndroidView（onRelease→destroy），
-         * destroy() 中 stop + playlist-clear 清除了播放状态，新 MPVView 创建后不知道之前在播放什么。
-         * 此变量在 destroy() 时保存 path，新 MPVView 的 initialize() 中检查并恢复。
-         */
-        @Volatile
-        internal var savedPlaybackPath: String? = null
+        internal val sharedState = MpvInstanceState()
     }
 
     /**
@@ -611,14 +526,5 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
      * 配合 idle=yes，mpv 核心永不自动关闭，forceRecreate 只需重置状态而非重建核心。
      * demuxer-read-timeout=5 确保卡死的 demuxer 最终会超时释放。
      */
-    override fun forceRecreate() {
-        Log.w(TAG, "forceRecreate: resetting mpv state (stop + playlist-clear, no quit)")
-        forceRecreatePending = true
-        try {
-            MPVLib.command(arrayOf("stop"))
-            MPVLib.command(arrayOf("playlist-clear"))
-        } catch (e: Throwable) {
-            Log.w(TAG, "forceRecreate: reset commands failed: ${e.message}")
-        }
-    }
+    override fun forceRecreate() = delegate.forceRecreate()
 }
