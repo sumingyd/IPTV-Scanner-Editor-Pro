@@ -6,6 +6,7 @@ import time
 from collections import deque
 from typing import Optional
 from PySide6.QtCore import QObject, Signal
+from PySide6.QtWidgets import QWidget
 from services.mpv_common import (
     MPV_EVENT_FILE_LOADED,
     MPV_EVENT_END_FILE,
@@ -20,6 +21,7 @@ from services.mpv_common import (
 
 # Android Chaquopy 环境：优先使用 IPTV_DATA_DIR（已指向 ISEP 目录）下的 cache 目录
 from utils.platform_utils import get_android_data_dir
+from core.log_manager import global_logger as logger
 _android_data = get_android_data_dir()
 if _android_data:
     CACHE_DIR = os.path.join(_android_data, 'cache', 'thumbnails')
@@ -113,8 +115,8 @@ def _capture_single(url: str, timeout: int = 8, wid: int = 0, force: bool = Fals
                 import json
                 headers_json = json.dumps(headers).encode('utf-8')
                 _mpv_set_option_string(handle, 'http-header-fields', headers_json)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"设置 HTTP headers 失败: {e}")
 
         if not initialize_mpv(handle):
             destroy_mpv(handle)
@@ -149,7 +151,6 @@ class ThumbnailService(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        from PySide6.QtWidgets import QWidget
         self._hidden_widget = QWidget()
         self._hidden_widget.resize(320, 180)
         self._hidden_winid = int(self._hidden_widget.winId())
@@ -210,6 +211,6 @@ class ThumbnailService(QObject):
                         self.thumbnail_ready.emit(name, url)
                     except RuntimeError:
                         pass
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"缩略图生成失败: {e}")
 

@@ -1,3 +1,4 @@
+from PySide6.QtCore import QTimer
 import json
 import threading
 from datetime import datetime, timedelta
@@ -43,8 +44,8 @@ class EpgReminderService:
                 for i in range(len(self._reminders), old_count + 1):
                     try:
                         self._config.remove_option('EpgReminders', f'r_{i}')
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"_save_to_config: {e}")
                 self._config.save_config()
             except Exception as e:
                 logger.error(f"保存EPG提醒失败: {e}")
@@ -93,7 +94,6 @@ class EpgReminderService:
     def start_check_timer(self):
         if self._timer is not None:
             return
-        from PySide6.QtCore import QTimer
         self._timer = QTimer()
         self._timer.setInterval(self.CHECK_INTERVAL_SEC * 1000)
         self._timer.timeout.connect(self._check_reminders)

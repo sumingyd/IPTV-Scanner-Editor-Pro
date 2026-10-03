@@ -7,6 +7,12 @@ from .log_manager import global_logger as logger
 from utils.config_notifier import notify_config_change
 from utils.singleton import Singleton
 from utils.platform_utils import get_android_data_dir
+from core.stores.window_layout_store import WindowLayoutStore
+from core.stores.network_settings_store import NetworkSettingsStore
+from core.stores.resume_store import ResumeStore
+from core.stores.bookmark_store import BookmarkStore
+from core.stores.video_eq_store import VideoEqStore
+from core.stores.audio_eq_store import AudioEqStore
 
 
 class ConfigManager(Singleton):
@@ -35,17 +41,17 @@ class ConfigManager(Singleton):
         self._save_timer: threading.Timer | None = None
         self._save_timer_lock = threading.Lock()
         self.load_config()
+        # 域存储实例
+        self._window_layout_store = WindowLayoutStore(self)
+        self._network_settings_store = NetworkSettingsStore(self)
+        self._resume_store = ResumeStore(self, self._resume_file)
+        self._bookmark_store = BookmarkStore(self, self._bookmark_file)
+        self._video_eq_store = VideoEqStore(self)
+        self._audio_eq_store = AudioEqStore(self)
         self._initialized = True
 
     def save_window_layout(self, x, y, width, height, dividers):
-        """保存窗口布局（包括位置和大小）"""
-        self.set_value('UI', 'window_x', str(x))
-        self.set_value('UI', 'window_y', str(y))
-        self.set_value('UI', 'window_width', str(width))
-        self.set_value('UI', 'window_height', str(height))
-        for i, pos in enumerate(dividers):
-            self.set_value('UI', f'divider_{i}', str(pos))
-        return self.save_config()  # 确保立即保存到文件
+        return self._window_layout_store.save_window_layout(x, y, width, height, dividers)
 
     def load_window_layout(
             self, default_x=100,
@@ -81,35 +87,16 @@ class ConfigManager(Singleton):
         return x, y, width, height, dividers or default_dividers
 
     def save_network_settings(self, url, timeout, threads, user_agent, referer):
-        """保存网络设置"""
-        self.set_value('Network', 'url', url)
-        self.set_value('Network', 'timeout', str(timeout))
-        self.set_value('Network', 'threads', str(threads))
-        self.set_value('Network', 'user_agent', user_agent)
-        self.set_value('Network', 'referer', referer)
-
-        return self.save_config()
+        return self._network_settings_store.save_network_settings(url, timeout, threads, user_agent, referer)
 
     def load_network_settings(self):
-        return {
-            'url': self.get_value('Network', 'url', ''),
-            'timeout': self._parse_int(self.get_value('Network', 'timeout', '5'), 5),
-            'threads': self._parse_int(self.get_value('Network', 'threads', '4'), 4),
-            'user_agent': self.get_value('Network', 'user_agent', ''),
-            'referer': self.get_value('Network', 'referer', '')
-        }
+        return self._network_settings_store.load_network_settings()
 
     def save_url_history(self, urls):
-        """保存URL历史记录（最多10条）"""
-        self.set_value('Network', 'url_history', '\n'.join(urls[:10]))
-        return self.save_config()
+        return self._network_settings_store.save_url_history(urls)
 
     def load_url_history(self):
-        """加载URL历史记录"""
-        raw = self.get_value('Network', 'url_history', '')
-        if not raw:
-            return []
-        return [u.strip() for u in raw.split('\n') if u.strip()]
+        return self._network_settings_store.load_url_history()
 
     def save_language_settings(self, language_code):
         """保存语言设置"""
@@ -121,70 +108,16 @@ class ConfigManager(Singleton):
         return self.get_value('Language', 'current_language', 'zh')
 
     def save_scan_retry_settings(self, enable_retry):
-        """保存扫描重试设置"""
-        self.set_value('ScanRetry', 'enable_retry', str(enable_retry))
-        return self.save_config()
+        return self._network_settings_store.save_scan_retry_settings(enable_retry)
 
     def load_scan_retry_settings(self):
-        return {
-            'enable_retry': self._parse_bool(self.get_value('ScanRetry', 'enable_retry', 'False'))
-        }
+        return self._network_settings_store.load_scan_retry_settings()
 
     def save_sort_config(self, sort_config):
-        """保存排序配置"""
-        # 保存优先级设置
-        self.set_value('SortConfig', 'primary_field', sort_config['primary']['field'])
-        self.set_value('SortConfig', 'primary_method', sort_config['primary']['method'])
-        self.set_value('SortConfig', 'secondary_field', sort_config['secondary']['field'])
-        self.set_value('SortConfig', 'secondary_method', sort_config['secondary']['method'])
-        self.set_value('SortConfig', 'tertiary_field', sort_config['tertiary']['field'])
-        self.set_value('SortConfig', 'tertiary_method', sort_config['tertiary']['method'])
-
-        # 保存分组优先级
-        group_priority = sort_config.get('group_priority', [])
-        self.set_value('SortConfig', 'group_priority_count', str(len(group_priority)))
-        for i, group in enumerate(group_priority):
-            self.set_value('SortConfig', f'group_priority_{i}', group)
-
-        return self.save_config()
+        return self._network_settings_store.save_sort_config(sort_config)
 
     def load_sort_config(self):
-        """加载排序配置"""
-        default_config = {
-            'primary': {'field': 'group', 'method': 'custom'},
-            'secondary': {'field': 'name', 'method': 'alphabetical'},
-            'tertiary': {'field': 'resolution', 'method': 'quality_high_to_low'},
-            'group_priority': []
-        }
-
-        try:
-            config = {
-                'primary': {
-                    'field': self.get_value('SortConfig', 'primary_field', 'group'),
-                    'method': self.get_value('SortConfig', 'primary_method', 'custom')
-                },
-                'secondary': {
-                    'field': self.get_value('SortConfig', 'secondary_field', 'name'),
-                    'method': self.get_value('SortConfig', 'secondary_method', 'alphabetical')
-                },
-                'tertiary': {
-                    'field': self.get_value('SortConfig', 'tertiary_field', 'resolution'),
-                    'method': self.get_value('SortConfig', 'tertiary_method', 'quality_high_to_low')
-                },
-                'group_priority': []
-            }
-
-            # 加载分组优先级
-            group_count = self._parse_int(self.get_value('SortConfig', 'group_priority_count', '0') or '0')
-            for i in range(group_count):
-                group = self.get_value('SortConfig', f'group_priority_{i}')
-                if group:
-                    config['group_priority'].append(group)
-
-            return config
-        except Exception as e:
-            logger.error(f"加载排序配置失败: {str(e)}")
-            return default_config
+        return self._network_settings_store.load_sort_config()
 
     def load_config(self):
         with self._lock:
@@ -333,32 +266,10 @@ class ConfigManager(Singleton):
                 logger.debug(f"配置管理-移除选项失败: {section}.{key}: {e}")
 
     def save_ui_settings(self, settings: dict):
-        """保存UI相关设置"""
-        for key, value in settings.items():
-            self.set_value('UI', key, str(value))
-        return self.save_config()
+        return self._window_layout_store.save_ui_settings(settings)
 
     def load_ui_settings(self, defaults: dict | None = None) -> dict:
-        """加载 UI 相关设置"""
-        defaults = defaults or {}
-        settings = {}
-        for key, default_value in defaults.items():
-            value = self.get_value('UI', key)
-            if value is not None:
-                try:
-                    if isinstance(default_value, bool):
-                        settings[key] = self._parse_bool(value)
-                    elif isinstance(default_value, int):
-                        settings[key] = int(value)
-                    elif isinstance(default_value, float):
-                        settings[key] = float(value)
-                    else:
-                        settings[key] = value
-                except (ValueError, TypeError):
-                    settings[key] = default_value
-            else:
-                settings[key] = default_value
-        return settings
+        return self._window_layout_store.load_ui_settings(defaults)
 
     def save_player_settings(self, volume: int, mute: bool = False, aspect_ratio: str = 'default'):
         """保存播放器设置"""
@@ -387,27 +298,16 @@ class ConfigManager(Singleton):
         }
 
     def save_validation_settings(self, auto_validate: bool = False, validate_timeout: int = 10):
-        """保存验证相关设置"""
-        self.set_value('Validation', 'auto_validate', str(auto_validate))
-        self.set_value('Validation', 'validate_timeout', str(validate_timeout))
-        return self.save_config()
+        return self._network_settings_store.save_validation_settings(auto_validate, validate_timeout)
 
     def load_validation_settings(self) -> dict:
-        return {
-            'auto_validate': self._parse_bool(self.get_value('Validation', 'auto_validate', 'False')),
-            'validate_timeout': self._parse_int(self.get_value('Validation', 'validate_timeout', '10'), 10)
-        }
+        return self._network_settings_store.load_validation_settings()
 
     def save_scan_engine_settings(self, engine: str):
-        """保存扫描引擎设置，engine: 'mpv' 或 'ffprobe'"""
-        self.set_value('ScanEngine', 'engine', engine)
-        return self.save_config()
+        return self._network_settings_store.save_scan_engine_settings(engine)
 
     def load_scan_engine_settings(self) -> dict:
-        """加载扫描引擎设置"""
-        return {
-            'engine': self.get_value('ScanEngine', 'engine', 'ffprobe')
-        }
+        return self._network_settings_store.load_scan_engine_settings()
 
     def save_server_settings(self, enabled: bool = True, port: int = 8080,
                              host: str = '0.0.0.0', auto_start: bool = True):
@@ -419,28 +319,16 @@ class ConfigManager(Singleton):
         return self.save_config()
 
     def load_server_settings(self) -> dict:
-        """加载Server后端设置"""
-        return {
-            'enabled': self._parse_bool(self.get_value('Server', 'enabled', 'True'), True),
-            'port': self._parse_int(self.get_value('Server', 'port', '8080'), 8080),
-            'host': self.get_value('Server', 'host', '0.0.0.0') or '0.0.0.0',
-            'auto_start': self._parse_bool(self.get_value('Server', 'auto_start', 'True'), True)
-        }
+        return self._network_settings_store.load_server_settings()
 
     def save_mapping_settings(self, enable_mapping: bool = True):
-        """保存映射功能设置"""
-        self.set_value('Mapping', 'enable_mapping', str(enable_mapping))
-        return self.save_config()
+        return self._network_settings_store.save_mapping_settings(enable_mapping)
 
     def load_mapping_settings(self) -> dict:
-        return {
-            'enable_mapping': self._parse_bool(self.get_value('Mapping', 'enable_mapping', 'True'), True)
-        }
+        return self._network_settings_store.load_mapping_settings()
 
     def save_close_behavior(self, action: str):
-        """保存关闭行为设置，action: 'minimize_tray' 或 'exit'"""
-        self.set_value('UI', 'close_action', action)
-        return self.save_config()
+        return self._window_layout_store.save_close_behavior(action)
 
     def load_close_behavior(self) -> str | None:
         """加载关闭行为设置，返回 'minimize_tray'、'exit' 或 None（未设置则弹窗询问）"""
@@ -450,11 +338,7 @@ class ConfigManager(Singleton):
         return None
 
     def clear_close_behavior(self):
-        """清除记住的关闭行为设置"""
-        with self._lock:
-            if self.config.has_section('UI') and self.config.has_option('UI', 'close_action'):
-                self.config.remove_option('UI', 'close_action')
-        return self.save_config()
+        return self._window_layout_store.clear_close_behavior()
 
     def save_playlist_sources(self, sources: list):
         """保存多个直播源配置
@@ -682,30 +566,10 @@ class ConfigManager(Singleton):
         return False
 
     def save_theme_settings(self, color_mode, visual_style='flat'):
-        self.set_value('Theme', 'color_mode', color_mode)
-        self.set_value('VisualStyle', 'current_style', visual_style)
-        self.set_value('Theme', 'current_theme', f"{color_mode}+{visual_style}")
-        return self.save_config()
+        return self._window_layout_store.save_theme_settings(color_mode, visual_style)
 
     def load_theme_settings(self):
-        color_mode = self.get_value('Theme', 'color_mode', '')
-        visual_style = self.get_value('VisualStyle', 'current_style', '')
-        if not color_mode:
-            old_theme = self.get_value('Theme', 'current_theme', 'dark') or 'dark'
-            from ui.styles import AppStyles
-            if old_theme in AppStyles._OLD_THEME_MAPPING:
-                color_mode, visual_style = AppStyles._OLD_THEME_MAPPING[old_theme]
-            else:
-                if '+' in old_theme:
-                    parts = old_theme.split('+')
-                    color_mode = parts[0] if len(parts) > 0 else 'dark'
-                    visual_style = parts[1] if len(parts) > 1 else 'flat'
-                else:
-                    color_mode = 'dark'
-                    visual_style = 'flat'
-        if not visual_style:
-            visual_style = 'flat'
-        return color_mode, visual_style
+        return self._window_layout_store.load_theme_settings()
 
     def save_all_settings(self, settings_dict: dict):
         """保存所有设置"""
@@ -849,24 +713,12 @@ class ConfigManager(Singleton):
         return result
 
     def save_last_channel(self, file_path, channel_name, channel_index):
-        self.set_value('Player', 'last_channel_file', file_path or '')
-        self.set_value('Player', 'last_channel_name', channel_name or '')
-        self.set_value('Player', 'last_channel_index', str(channel_index if channel_index is not None else -1))
-        return self.save_config()
+        return self._resume_store.save_last_channel(file_path, channel_name, channel_index)
 
     def load_last_channel(self):
-        return {
-            'file': self.get_value('Player', 'last_channel_file', ''),
-            'name': self.get_value('Player', 'last_channel_name', ''),
-            'index': self._parse_int(self.get_value('Player', 'last_channel_index', '-1'), -1),
-        }
+        return self._resume_store.load_last_channel()
 
     # ---------- 断点续播（JSON 文件存储）----------
-    _RESUME_MAX_ENTRIES = 200  # 最多保存 200 条断点
-    _RESUME_MIN_POSITION_SEC = 5.0  # 少于 5 秒不保存
-    _RESUME_TOLERANCE_SEC = 3.0  # 距离结尾少于 3 秒视为已播完，删除断点
-
-    def _load_resume_cache(self) -> dict:
         """懒加载断点缓存"""
         if self._resume_cache is not None:
             return self._resume_cache
@@ -884,56 +736,10 @@ class ConfigManager(Singleton):
         return cache
 
     def _save_resume_cache(self):
-        """保存断点缓存到 JSON 文件"""
-        try:
-            import json
-            import tempfile
-            cache = self._resume_cache or {}
-            config_dir = os.path.dirname(self._resume_file)
-            fd, tmp_path = tempfile.mkstemp(dir=config_dir, suffix='.tmp', prefix='resume_')
-            try:
-                with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                    json.dump(cache, f, ensure_ascii=False, indent=2)
-                os.replace(tmp_path, self._resume_file)
-            except Exception:
-                try:
-                    os.remove(tmp_path)
-                except OSError:
-                    pass
-                raise
-        except Exception as e:
-            logger.error(f"保存断点缓存失败: {e}")
+        return self._resume_store._save_resume_cache()
 
     def save_resume_position(self, url: str, position: float, duration: float, name: str = ''):
-        """保存播放位置
-        - position < _RESUME_MIN_POSITION_SEC 时不保存（视为开头）
-        - duration > 0 且 position + _RESUME_TOLERANCE_SEC >= duration 时删除断点（视为已播完）
-        """
-        if not url or position < self._RESUME_MIN_POSITION_SEC:
-            return
-        with self._lock:
-            cache = self._load_resume_cache()
-            # 判断是否已播完
-            if duration and duration > 0 and position + self._RESUME_TOLERANCE_SEC >= duration:
-                if url in cache:
-                    cache.pop(url, None)
-                    self._save_resume_cache()
-                return
-            entry = {
-                'url': url,
-                'position': float(position),
-                'duration': float(duration) if duration else 0.0,
-                'name': name or '',
-                'updated_at': int(time.time()),
-            }
-            cache[url] = entry
-            # 限制最大条数（按 updated_at 升序淘汰最旧的）
-            if len(cache) > self._RESUME_MAX_ENTRIES:
-                sorted_items = sorted(cache.items(), key=lambda kv: kv[1].get('updated_at', 0))
-                while len(cache) > self._RESUME_MAX_ENTRIES:
-                    k, _ = sorted_items.pop(0)
-                    cache.pop(k, None)
-            self._save_resume_cache()
+        return self._resume_store.save_resume_position(url, position, duration, name)
 
     def load_resume_position(self, url: str) -> dict | None:
         """加载指定 URL 的播放位置"""
@@ -948,40 +754,16 @@ class ConfigManager(Singleton):
             return dict(entry)
 
     def load_all_resume_positions(self) -> list:
-        """加载所有断点（按 updated_at 降序）"""
-        with self._lock:
-            cache = self._load_resume_cache()
-            items = [dict(v) for v in cache.values()]
-        items.sort(key=lambda x: x.get('updated_at', 0), reverse=True)
-        return items
+        return self._resume_store.load_all_resume_positions()
 
     def clear_resume_position(self, url: str):
-        """清除指定 URL 的断点"""
-        if not url:
-            return
-        with self._lock:
-            cache = self._load_resume_cache()
-            if url in cache:
-                cache.pop(url, None)
-                self._save_resume_cache()
+        return self._resume_store.clear_resume_position(url)
 
     def clear_all_resume_positions(self):
-        """清除所有断点"""
-        with self._lock:
-            self._resume_cache = {}
-            try:
-                if os.path.exists(self._resume_file):
-                    os.remove(self._resume_file)
-            except Exception as e:
-                logger.debug(f"清除断点文件失败: {e}")
+        return self._resume_store.clear_all_resume_positions()
 
     # ---------- 书签管理（JSON 文件存储）----------
     # 一个 URL 可对应多个书签，每个书签结构：{position, name, created_at}
-    _BOOKMARK_MAX_URLS = 500  # 最多保存 500 个 URL 的书签
-    _BOOKMARK_MAX_PER_URL = 100  # 每个 URL 最多保存 100 个书签
-    _BOOKMARK_MATCH_TOLERANCE = 0.5  # 删除/查询时位置匹配容差（秒）
-
-    def _load_bookmark_cache(self) -> dict:
         """懒加载书签缓存"""
         if self._bookmark_cache is not None:
             return self._bookmark_cache
@@ -999,150 +781,25 @@ class ConfigManager(Singleton):
         return cache
 
     def _save_bookmark_cache(self):
-        """保存书签缓存到 JSON 文件"""
-        try:
-            import json
-            import tempfile
-            cache = self._bookmark_cache or {}
-            config_dir = os.path.dirname(self._bookmark_file)
-            fd, tmp_path = tempfile.mkstemp(dir=config_dir, suffix='.tmp', prefix='bm_')
-            try:
-                with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                    json.dump(cache, f, ensure_ascii=False, indent=2)
-                os.replace(tmp_path, self._bookmark_file)
-            except Exception:
-                try:
-                    os.remove(tmp_path)
-                except OSError:
-                    pass
-                raise
-        except Exception as e:
-            logger.error(f"保存书签缓存失败: {e}")
+        return self._bookmark_store._save_bookmark_cache()
 
     def save_bookmark(self, url: str, position: float, name: str = ''):
-        """添加书签
-        - position < 0 时不保存
-        - 同一 URL 同一位置（容差内）的书签会被覆盖
-        """
-        if not url or position < 0:
-            return
-        with self._lock:
-            cache = self._load_bookmark_cache()
-            marks = cache.get(url)
-            if not isinstance(marks, list):
-                marks = []
-            # 检查是否已存在相同位置的书签（覆盖 name 和 created_at）
-            replaced = False
-            for i, m in enumerate(marks):
-                if abs(float(m.get('position', 0)) - position) < self._BOOKMARK_MATCH_TOLERANCE:
-                    marks[i] = {
-                        'position': float(position),
-                        'name': name or '',
-                        'created_at': int(time.time()),
-                    }
-                    replaced = True
-                    break
-            if not replaced:
-                marks.append({
-                    'position': float(position),
-                    'name': name or '',
-                    'created_at': int(time.time()),
-                })
-            # 限制每个 URL 的书签数量（按 created_at 升序淘汰最旧）
-            if len(marks) > self._BOOKMARK_MAX_PER_URL:
-                marks.sort(key=lambda x: x.get('created_at', 0))
-                marks = marks[-self._BOOKMARK_MAX_PER_URL:]
-            cache[url] = marks
-            # 限制 URL 总数（按 created_at 升序淘汰最旧）
-            if len(cache) > self._BOOKMARK_MAX_URLS:
-                # 计算每个 URL 的最新 created_at
-                url_times = []
-                for k, v in cache.items():
-                    if isinstance(v, list) and v:
-                        latest = max(int(m.get('created_at', 0)) for m in v)
-                    else:
-                        latest = 0
-                    url_times.append((k, latest))
-                url_times.sort(key=lambda kv: kv[1])
-                while len(cache) > self._BOOKMARK_MAX_URLS:
-                    k, _ = url_times.pop(0)
-                    cache.pop(k, None)
-            self._bookmark_cache = cache
-            self._save_bookmark_cache()
+        return self._bookmark_store.save_bookmark(url, position, name)
 
     def load_bookmarks(self, url: str) -> list:
-        """加载指定 URL 的所有书签（按 position 升序）"""
-        if not url:
-            return []
-        with self._lock:
-            cache = self._load_bookmark_cache()
-            marks = cache.get(url)
-            if not isinstance(marks, list):
-                return []
-            # 返回副本避免外部修改内部缓存
-            result = [dict(m) for m in marks if isinstance(m, dict)]
-        result.sort(key=lambda x: float(x.get('position', 0)))
-        return result
+        return self._bookmark_store.load_bookmarks(url)
 
     def load_all_bookmarks(self) -> list:
-        """加载所有书签（按 created_at 降序）
-        返回 [{url, position, name, created_at}, ...]
-        """
-        with self._lock:
-            cache = self._load_bookmark_cache()
-            items = []
-            for url, marks in cache.items():
-                if not isinstance(marks, list):
-                    continue
-                for m in marks:
-                    if isinstance(m, dict):
-                        item = dict(m)
-                        item['url'] = url
-                        items.append(item)
-        items.sort(key=lambda x: int(x.get('created_at', 0)), reverse=True)
-        return items
+        return self._bookmark_store.load_all_bookmarks()
 
     def delete_bookmark(self, url: str, position: float) -> bool:
-        """删除指定 URL 中位置匹配（容差内）的书签"""
-        if not url:
-            return False
-        with self._lock:
-            cache = self._load_bookmark_cache()
-            marks = cache.get(url)
-            if not isinstance(marks, list) or not marks:
-                return False
-            new_marks = [m for m in marks
-                         if abs(float(m.get('position', 0)) - position) >= self._BOOKMARK_MATCH_TOLERANCE]
-            if len(new_marks) == len(marks):
-                return False
-            if new_marks:
-                cache[url] = new_marks
-            else:
-                cache.pop(url, None)
-            self._bookmark_cache = cache
-            self._save_bookmark_cache()
-            return True
+        return self._bookmark_store.delete_bookmark(url, position)
 
     def clear_bookmarks(self, url: str):
-        """清除指定 URL 的所有书签"""
-        if not url:
-            return
-        with self._lock:
-            cache = self._load_bookmark_cache()
-            if url in cache:
-                cache.pop(url, None)
-                self._bookmark_cache = cache
-                self._save_bookmark_cache()
+        return self._bookmark_store.clear_bookmarks(url)
 
     def clear_all_bookmarks(self):
-        """清除所有书签"""
-        with self._lock:
-            self._bookmark_cache = {}
-            try:
-                if os.path.exists(self._bookmark_file):
-                    os.remove(self._bookmark_file)
-            except Exception as e:
-                logger.debug(f"清除书签文件失败: {e}")
+        return self._bookmark_store.clear_all_bookmarks()
 
     def save_timeshift_settings(self, settings):
         for key, value in settings.items():
@@ -1173,262 +830,28 @@ class ConfigManager(Singleton):
         }
 
     # ---------- 字幕样式与控制 ----------
-    SUBTITLE_STYLE_DEFAULTS = {
-        'color': '#FFFFFFFF',
-        'border_color': '#FF000000',
-        'shadow_color': '#FF000000',
-        'font': 'sans-serif',
-        'font_size': 55,
-        'border_size': 3,
-        'shadow_offset': 1,
-        'bold': False,
-        'italic': False,
-        'margin_x': 25,
-        'margin_y': 22,
-        'align_x': 'center',
-        'align_y': 'bottom',
-        'sub_delay': 0.0,
-        'sub_scale': 1.0,
-        'sub_pos': 100,
-        'sub_visibility': True,
-    }
 
     def save_subtitle_style(self, settings: dict):
-        """保存字幕样式到 SubtitleStyle 节"""
-        for key, value in settings.items():
-            if isinstance(value, bool):
-                self.set_value('SubtitleStyle', key, 'yes' if value else 'no')
-            elif isinstance(value, float):
-                self.set_value('SubtitleStyle', key, f"{value:.3f}")
-            elif isinstance(value, int):
-                self.set_value('SubtitleStyle', key, str(value))
-            else:
-                self.set_value('SubtitleStyle', key, str(value))
-        return self.save_config()
+        return self._video_eq_store.save_subtitle_style(settings)
 
     def load_subtitle_style(self) -> dict:
-        """加载字幕样式，缺失项写回默认值"""
-        result = {}
-        need_save = False
-        missing_keys = {}
-        for key, default in self.SUBTITLE_STYLE_DEFAULTS.items():
-            raw = self.get_value('SubtitleStyle', key)
-            if raw is None:
-                result[key] = default
-                need_save = True
-                missing_keys[key] = str(default)
-            elif isinstance(default, bool):
-                result[key] = self._parse_bool(raw)
-            elif isinstance(default, float):
-                try:
-                    result[key] = float(raw)
-                except (ValueError, TypeError):
-                    result[key] = default
-            elif isinstance(default, int):
-                try:
-                    result[key] = int(raw)
-                except (ValueError, TypeError):
-                    result[key] = default
-            else:
-                result[key] = raw
-        if missing_keys:
-            with self._lock:
-                if not self.config.has_section('SubtitleStyle'):
-                    self.config.add_section('SubtitleStyle')
-                for key, value in missing_keys.items():
-                    self.config.set('SubtitleStyle', key, value)
-        if need_save:
-            self.save_config()
-        return result
+        return self._video_eq_store.load_subtitle_style()
 
     # ---------- 视频图像调整 ----------
-    VIDEO_EQ_DEFAULTS = {
-        'brightness': 0,
-        'contrast': 0,
-        'saturation': 0,
-        'hue': 0,
-        'gamma': 0,
-        'sharpness': 0.0,
-        'video_rotate': 0,
-        'video_flip': '',
-        'reset_on_new_file': False,
-        # 运动补偿
-        'motion_comp': 'off',       # off / low / medium / high
-        'motion_comp_fps': 60,      # 50 / 60 / 90 / 120 / 144 / 240
-        # 分辨率提升
-        'superres_scale': 'off',    # off / bilinear / bicubic / lanczos / spline / ewa_lanczos / ewa_lanczossharp
-        'superres_detail': 0,       # 0-100
-        # 用户着色器
-        'shader_preset': 'off',     # off / ravu / fsrcnnx / anime4k / krig / ssim / esrgan / adaptive_sharpen / 自定义路径
-        # 第三阶段：智能场景检测
-        'scene_detect_enabled': False,  # 是否启用自动场景检测
-        # 第三阶段：GPU API 选择
-        'gpu_api': 'auto',          # auto / d3d11 / vulkan
-    }
 
     def save_video_eq(self, settings: dict):
-        """保存视频图像参数到 VideoEQ 节"""
-        for key, value in settings.items():
-            if isinstance(value, bool):
-                self.set_value('VideoEQ', key, 'yes' if value else 'no')
-            elif isinstance(value, float):
-                self.set_value('VideoEQ', key, f"{value:.3f}")
-            elif isinstance(value, int):
-                self.set_value('VideoEQ', key, str(value))
-            else:
-                self.set_value('VideoEQ', key, str(value))
-        return self.save_config()
+        return self._video_eq_store.save_video_eq(settings)
 
     def load_video_eq(self) -> dict:
-        """加载视频图像参数，缺失项写回默认值"""
-        result = {}
-        need_save = False
-        missing_keys = {}
-        for key, default in self.VIDEO_EQ_DEFAULTS.items():
-            raw = self.get_value('VideoEQ', key)
-            if raw is None:
-                result[key] = default
-                need_save = True
-                missing_keys[key] = str(default)
-            elif isinstance(default, bool):
-                result[key] = self._parse_bool(raw)
-            elif isinstance(default, float):
-                try:
-                    result[key] = float(raw)
-                except (ValueError, TypeError):
-                    result[key] = default
-            elif isinstance(default, int):
-                try:
-                    result[key] = int(raw)
-                except (ValueError, TypeError):
-                    result[key] = default
-            else:
-                result[key] = raw
-        if missing_keys:
-            with self._lock:
-                if not self.config.has_section('VideoEQ'):
-                    self.config.add_section('VideoEQ')
-                for key, value in missing_keys.items():
-                    self.config.set('VideoEQ', key, value)
-        if need_save:
-            self.save_config()
-        return result
+        return self._video_eq_store.load_video_eq()
 
     # ---------- 音频系统增强 ----------
-    AUDIO_EQ_DEFAULTS = {
-        'audio_delay': 0.0,
-        'audio_channels': 'auto',
-        'audio_pitch': 1.0,
-        'audio_device': '',
-        'eq': [0.0] * 10,
-        'channel_volumes': {},  # {'FL': 1.0, 'FR': 0.8, ...}
-        'reset_on_new_file': False,
-    }
 
     def save_audio_eq(self, settings: dict):
-        """保存音频参数到 AudioEQ 节
-        eq 字段为长度 10 的列表，存储为逗号分隔字符串
-        channel_volumes 为 dict，存储为 JSON 字符串
-        """
-        import json as _json
-        for key, value in settings.items():
-            if key == 'eq':
-                if isinstance(value, list):
-                    s = ','.join(f"{float(v):.1f}" for v in value)
-                    self.set_value('AudioEQ', key, s)
-                else:
-                    self.set_value('AudioEQ', key, str(value))
-            elif key == 'channel_volumes':
-                if isinstance(value, dict):
-                    self.set_value('AudioEQ', key, _json.dumps(value))
-                else:
-                    self.set_value('AudioEQ', key, str(value))
-            elif isinstance(value, bool):
-                self.set_value('AudioEQ', key, 'yes' if value else 'no')
-            elif isinstance(value, float):
-                self.set_value('AudioEQ', key, f"{value:.3f}")
-            elif isinstance(value, int):
-                self.set_value('AudioEQ', key, str(value))
-            else:
-                self.set_value('AudioEQ', key, str(value))
-        return self.save_config()
+        return self._audio_eq_store.save_audio_eq(settings)
 
     def load_audio_eq(self) -> dict:
-        """加载音频参数，缺失项写回默认值"""
-        result = {}
-        need_save = False
-        missing_keys = {}
-        for key, default in self.AUDIO_EQ_DEFAULTS.items():
-            raw = self.get_value('AudioEQ', key)
-            if raw is None:
-                result[key] = default
-                need_save = True
-                if key == 'eq':
-                    missing_keys[key] = ','.join(f"{float(v):.1f}" for v in default)
-                elif key == 'channel_volumes':
-                    import json as _json
-                    missing_keys[key] = _json.dumps(default)
-                else:
-                    missing_keys[key] = str(default)
-            elif key == 'eq':
-                # 列表类型，存储为逗号分隔字符串
-                try:
-                    if isinstance(raw, str) and raw:
-                        parts = [float(x) for x in raw.split(',') if x.strip()]
-                        if len(parts) == 10:
-                            result[key] = [max(-12.0, min(12.0, p)) for p in parts]
-                        else:
-                            result[key] = list(default)
-                            need_save = True
-                    else:
-                        result[key] = list(default)
-                        need_save = True
-                except (ValueError, TypeError):
-                    result[key] = list(default)
-                    need_save = True
-            elif key == 'channel_volumes':
-                # dict 类型，存储为 JSON 字符串
-                import json as _json
-                try:
-                    if isinstance(raw, str) and raw:
-                        parsed = _json.loads(raw)
-                        if isinstance(parsed, dict):
-                            result[key] = {
-                                k: max(0.0, min(2.0, float(v)))
-                                for k, v in parsed.items()
-                            }
-                        else:
-                            result[key] = dict(default)
-                            need_save = True
-                    else:
-                        result[key] = dict(default)
-                        need_save = True
-                except (ValueError, TypeError):
-                    result[key] = dict(default)
-                    need_save = True
-            elif isinstance(default, bool):
-                result[key] = self._parse_bool(raw)
-            elif isinstance(default, float):
-                try:
-                    result[key] = float(raw)
-                except (ValueError, TypeError):
-                    result[key] = default
-            elif isinstance(default, int):
-                try:
-                    result[key] = int(raw)
-                except (ValueError, TypeError):
-                    result[key] = default
-            else:
-                result[key] = raw
-        if missing_keys:
-            with self._lock:
-                if not self.config.has_section('AudioEQ'):
-                    self.config.add_section('AudioEQ')
-                for key, value in missing_keys.items():
-                    self.config.set('AudioEQ', key, value)
-        if need_save:
-            self.save_config()
-        return result
+        return self._audio_eq_store.load_audio_eq()
 
     def load_all_settings(self) -> dict:
         """加载所有设置"""

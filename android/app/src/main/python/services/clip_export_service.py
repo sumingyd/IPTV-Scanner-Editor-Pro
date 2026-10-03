@@ -51,8 +51,8 @@ class ClipExportService:
         try:
             if self.window and hasattr(self.window, 'language_manager'):
                 return self.window.language_manager.tr(key, default)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_tr: {e}")
         return default
 
     def is_busy(self) -> bool:
@@ -67,8 +67,8 @@ class ClipExportService:
         if proc and proc.poll() is None:
             try:
                 proc.terminate()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"cancel: {e}")
 
     # ---------- 视频切片导出 ----------
     def export_clip(self, source: str, start_sec: float, end_sec: float,
@@ -206,8 +206,8 @@ class ClipExportService:
                 try:
                     if os.path.exists(output_path):
                         os.remove(output_path)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_run_export: {e}")
                 self._call(done_callback, False, self._tr('clip_export_cancelled', '已取消'))
                 return
             if proc.returncode == 0 and os.path.exists(output_path):
@@ -302,21 +302,21 @@ class ClipExportService:
                 for img in images:
                     try:
                         img.close()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"_run_gif: {e}")
                 return
             for img in images:
                 try:
                     img.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_run_gif: {e}")
             self._cleanup_tmp(tmp_dir)
             if self._cancel:
                 try:
                     if os.path.exists(output_path):
                         os.remove(output_path)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_run_gif: {e}")
                 self._call(done_callback, False, self._tr('clip_export_cancelled', '已取消'))
                 return
             self._call(done_callback, True,
@@ -334,12 +334,12 @@ class ClipExportService:
         try:
             import shutil
             shutil.rmtree(tmp_dir, ignore_errors=True)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_cleanup_tmp: {e}")
 
     def _call(self, callback, success, message):
         if callback:
             try:
                 callback(success, message)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_call: {e}")

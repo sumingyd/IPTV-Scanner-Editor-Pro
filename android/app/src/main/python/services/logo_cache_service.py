@@ -7,6 +7,7 @@ from collections import OrderedDict
 from PySide6.QtCore import Signal, QUrl, QTimer, Qt
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PySide6.QtGui import QPixmap, QImage
+from PySide6.QtWidgets import QApplication
 from utils.thread_safety import ThreadSafeQObject
 from core.log_manager import global_logger as logger
 
@@ -27,7 +28,6 @@ class LogoCacheService(ThreadSafeQObject):
         if pixmap.isNull():
             return pixmap
 
-        from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
         if screen:
             device_pixel_ratio = screen.devicePixelRatio()
@@ -47,7 +47,6 @@ class LogoCacheService(ThreadSafeQObject):
         if pixmap.isNull():
             return pixmap
 
-        from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
         if screen:
             device_pixel_ratio = screen.devicePixelRatio()
@@ -436,8 +435,8 @@ class LogoCacheService(ThreadSafeQObject):
             try:
                 if disk_path and os.path.exists(disk_path):
                     os.remove(disk_path)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"evict_expired: {e}")
             self._meta.pop(key, None)
         if expired_keys:
             self._save_meta()

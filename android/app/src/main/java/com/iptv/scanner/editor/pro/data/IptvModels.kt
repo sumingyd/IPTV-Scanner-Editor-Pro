@@ -104,7 +104,11 @@ data class IptvEpgProgram(
     @SerialName("end") val end: String = "",
     @SerialName("start_ts") val startTs: Long = 0,
     @SerialName("stop_ts") val stopTs: Long = 0,
-)
+) {
+    /** 统一的结束时间戳：优先 stop_ts，其次尝试解析 stop/end 字符串 */
+    val endTimestamp: Long
+        get() = if (stopTs > 0) stopTs else 0L
+}
 
 @Serializable
 data class IptvEpgList(
@@ -282,7 +286,7 @@ data class SubtitleSearchResponse(
 )
 
 // -----------------------------------------------------------------
-// 倍速双步进控制配置（与酷9 Speed_value 对齐）
+// 倍速双步进控制配置（与侧边栏 Speed_value 对齐）
 // -----------------------------------------------------------------
 
 /**
@@ -334,7 +338,7 @@ data class SpeedConfig(
         return (current - step).coerceIn(min, max)
     }
 
-    /** 格式化为酷9配置字符串 */
+    /** 格式化为侧边栏配置字符串 */
     fun toConfigString(): String = "$min,$max,$slowStep,$fastStep,$fastStep2,$fastStep2Threshold"
 }
 

@@ -55,8 +55,8 @@ def _close_udp_socket():
         if _udp_sock is not None:
             try:
                 _udp_sock.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_close_udp_socket: {e}")
             _udp_sock = None
 
 

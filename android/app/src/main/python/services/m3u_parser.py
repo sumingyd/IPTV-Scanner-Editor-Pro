@@ -283,8 +283,8 @@ def _extract_fcc_to_channel(url: str, channel: Dict[str, Any]):
             fcc_val = qs.get('fcc', [None])
             if fcc_val and fcc_val[0]:
                 channel['fcc'] = fcc_val[0]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"_extract_fcc_to_channel: {e}")
 
 
 def detect_catchup_pattern(url: str) -> Optional[Tuple[str, str]]:
@@ -320,8 +320,8 @@ def detect_catchup_pattern(url: str) -> Optional[Tuple[str, str]]:
             base_url = url[:m.start()]
             catchup_source = base_url + tvod_path + '?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}'
             return 'pltv', catchup_source
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"detect_catchup_pattern: {e}")
     return None
 
 
@@ -336,8 +336,8 @@ def _auto_detect_catchup_from_url(url: str, channel: Dict[str, Any]):
             channel['catchup'] = catchup_type
             channel['catchup_days'] = channel.get('catchup_days') or '3'
             channel['catchup_source'] = catchup_source
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"_auto_detect_catchup_from_url: {e}")
 
 
 def safe_detect_catchup_source(url: str) -> Optional[str]:

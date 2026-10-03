@@ -1,3 +1,5 @@
+from PySide6.QtCore import QThread
+from PySide6.QtWidgets import QApplication
 import os
 import time as _time
 import threading
@@ -699,8 +701,6 @@ class SubscriptionManager(Singleton):
         for callback in callbacks:
             try:
                 # 如果当前在子线程，通过 QMetaObject.invokeMethod 调度到主线程
-                from PySide6.QtCore import QThread
-                from PySide6.QtWidgets import QApplication
                 main_thread = QApplication.instance().thread() if QApplication.instance() else None
                 if main_thread and QThread.currentThread() != main_thread:
                     from utils.thread_safety import invoke_on_thread

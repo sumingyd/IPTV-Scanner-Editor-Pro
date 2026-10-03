@@ -1,5 +1,10 @@
+from PySide6.QtCore import QPoint, QStandardPaths
+from PySide6.QtGui import QGuiApplication
 import os
 import sys
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 def is_windows():
@@ -41,10 +46,13 @@ def wayland_move(widget, x, y):
             widget.createWinId()
             window_handle = widget.windowHandle()
         if window_handle:
-            from PySide6.QtCore import QPoint
             window_handle.setPosition(QPoint(x, y))
             widget.move(x, y)
-    except Exception:
+        else:
+            _logger.warning("wayland_move: windowHandle is None after createWinId, falling back to widget.move")
+            widget.move(x, y)
+    except Exception as e:
+        _logger.warning(f"wayland_move: setPosition failed ({e}), falling back to widget.move")
         widget.move(x, y)
 
 
@@ -58,20 +66,19 @@ def wayland_set_geometry(widget, x, y, w, h):
             widget.createWinId()
             window_handle = widget.windowHandle()
         if window_handle:
-            from PySide6.QtCore import QPoint
             window_handle.setPosition(QPoint(x, y))
+        else:
+            _logger.warning("wayland_set_geometry: windowHandle is None after createWinId, falling back to setGeometry")
         widget.resize(w, h)
         widget.move(x, y)
-    except Exception:
+    except Exception as e:
+        _logger.warning(f"wayland_set_geometry: setPosition failed ({e}), falling back to setGeometry")
         widget.setGeometry(x, y, w, h)
 
 
 def is_android():
     return getattr(sys, 'platform', '') == 'android' or 'ANDROID_ARGUMENT' in os.environ
 
-
-def is_mobile():
-    return is_android()
 
 
 def is_touch_device():
@@ -117,7 +124,6 @@ def get_app_base_path():
         if data_dir:
             return data_dir
         try:
-            from PySide6.QtCore import QStandardPaths
             app_data = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
             if app_data:
                 return app_data
@@ -333,7 +339,6 @@ def get_subprocess_creation_flags():
 
 def get_screen_dpi_scale():
     try:
-        from PySide6.QtGui import QGuiApplication
         if QGuiApplication.instance():
             screen = QGuiApplication.primaryScreen()
             if screen:

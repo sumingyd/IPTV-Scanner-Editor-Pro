@@ -75,8 +75,8 @@ def _setup_android_paths(ext_files_dir='', files_dir='', native_lib_dir=''):
             finally:
                 try:
                     os.remove(test_file)
-                except Exception:
-                    pass
+                except Exception as e:
+                    _log(f'_setup_android_paths: cleanup test file failed: {e}', 'D')
             target_dir = candidate
             _log(f'_setup_android_paths: using external storage {target_dir}')
         except Exception as e:
@@ -238,8 +238,8 @@ def _add_file_handler(root_logger):
         if os.path.exists(log_path):
             try:
                 os.remove(log_path)
-            except Exception:
-                pass
+            except Exception as e:
+                _log(f'remove old log file failed: {e}', 'D')
 
         file_handler = RotatingFileHandler(
             log_path,
@@ -350,8 +350,8 @@ def _find_admin_dir():
         admin_dir = os.path.join(server_dir, 'admin')
         if os.path.isdir(admin_dir):
             return admin_dir
-    except Exception:
-        pass
+    except Exception as e:
+        _log(f'_find_admin_dir: import server module failed: {e}', 'W')
     this_dir = os.path.dirname(os.path.abspath(__file__))
     for candidate in [
         os.path.join(this_dir, 'server', 'admin'),
@@ -663,7 +663,7 @@ def init_context(ext_files_dir='', files_dir='', log_level='info', native_lib_di
             _log(f'init_context failed: {e}', 'E')
             import traceback
             traceback.print_exc()
-            logger.exception('操作失败')
+            logger.exception('init_context failed')
             return _err('操作失败')
 
 
@@ -701,7 +701,7 @@ def get_status_json():
             'source_message': str(status.get('message', '')),
         })
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_status_json failed')
         return _err(str(e))
 
 
@@ -750,7 +750,7 @@ def get_channels_json(page=1, size=100, group='', search='', valid_filter='', so
             'groups': groups,
         })
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_channels_json failed')
         return _err(str(e))
 
 
@@ -767,7 +767,7 @@ def get_channel_json(idx):
         c = channels[idx]
         return _ok({k: v for k, v in c.items() if not k.startswith('_')})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_channel_json failed')
         return _err(str(e))
 
 
@@ -785,7 +785,7 @@ def get_groups_json():
             groups[g] = groups.get(g, 0) + 1
         return _ok([{'name': k, 'count': v} for k, v in groups.items()])
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_groups_json failed')
         return _err(str(e))
 
 
@@ -814,7 +814,7 @@ def add_channel(url, name, group=''):
         ctx._save_channels_to_cache()
         return _ok({'idx': len(ctx._channels) - 1})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('add_channel failed')
         return _err(str(e))
 
 
@@ -834,7 +834,7 @@ def update_channel(idx, json_data):
         ctx._save_channels_to_cache()
         return _ok({'ok': True})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('update_channel failed')
         return _err(str(e))
 
 
@@ -853,7 +853,7 @@ def delete_channel(idx):
         ctx._save_channels_to_cache()
         return _ok({'ok': True})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('delete_channel failed')
         return _err(str(e))
 
 
@@ -869,7 +869,7 @@ def clear_local_channels():
         ctx._save_channels_to_cache()
         return _ok({'cleared': cleared})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('clear_local_channels failed')
         return _err(str(e))
 
 
@@ -911,7 +911,7 @@ def import_channels(content, name=''):
             return _ok(result)
         return _ok({'imported': 0})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('import_channels failed')
         return _err(str(e))
 # -------------------------------------------------------------------
 # 订阅源管理
@@ -929,7 +929,7 @@ def get_sources_json():
         sources = config.load_playlist_sources() or []
         return _ok(sources)
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_sources_json failed')
         return _err(str(e))
 
 
@@ -957,7 +957,7 @@ def export_config():
         }
         return _ok(data)
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('export_config failed')
         return _err(str(e))
 
 
@@ -1001,7 +1001,7 @@ def import_config(json_data):
 
         return _ok({'ok': True})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('import_config failed')
         return _err(str(e))
 
 
@@ -1026,7 +1026,7 @@ def add_source(url, name=''):
         _log(f'add_source: done, total sources={len(sources)}')
         return _ok({'ok': True, 'count': len(sources)})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('add_source failed')
         return _err(str(e))
 
 
@@ -1048,7 +1048,7 @@ def delete_source(idx):
         config.save_playlist_sources(sources)
         return _ok({'ok': True, 'count': len(sources)})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('delete_source failed')
         return _err(str(e))
 
 
@@ -1070,7 +1070,7 @@ def update_source(idx, json_data):
         config.save_playlist_sources(sources)
         return _ok({'ok': True})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('update_source failed')
         return _err(str(e))
 
 
@@ -1085,7 +1085,7 @@ def reload_sources(url=''):
         _log(f'reload_sources: started={result}')
         return _ok({'started': bool(result)})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('reload_sources failed')
         return _err(str(e))
 
 
@@ -1098,7 +1098,7 @@ def get_source_status_json():
         status = ctx.get_source_load_status() or {}
         return _ok(status)
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_source_status_json failed')
         return _err(str(e))
 
 
@@ -1118,7 +1118,7 @@ def get_epg_sources_json():
         sources = config.load_epg_sources() or []
         return _ok(sources)
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_epg_sources_json failed')
         return _err(str(e))
 
 
@@ -1146,7 +1146,7 @@ def add_epg_source(url, name=''):
             _log(f'add_epg_source: reload_epg failed: {e}', 'W')
         return _ok({'ok': True, 'count': len(sources)})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('add_epg_source failed')
         return _err(str(e))
 
 
@@ -1168,7 +1168,7 @@ def delete_epg_source(idx):
         config.save_epg_sources(sources)
         return _ok({'ok': True, 'count': len(sources)})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('delete_epg_source failed')
         return _err(str(e))
 
 
@@ -1181,7 +1181,7 @@ def reload_epg():
         result = ctx.reload_epg()
         return _ok({'started': bool(result)})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('reload_epg failed')
         return _err(str(e))
 
 
@@ -1200,7 +1200,7 @@ def get_epg_status_json():
             'program_count': int(sm.get_epg_program_count()),
         })
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_epg_status_json failed')
         return _err(str(e))
 
 
@@ -1264,14 +1264,14 @@ def get_epg_json(channel_name='', tvg_id='', tvg_name='', comma_name=''):
                         dt = _parse_xmltv_time(stop_str)
                         if dt:
                             p['stop_ts'] = int(dt.timestamp())
-                except Exception:
-                    pass
+                except Exception as e:
+                    _log(f'get_epg_json: parse stop_ts failed: {e}', 'D')
         return _ok({
             'programmes': programmes or [],
             'matched': bool(programmes),
         })
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_epg_json failed')
         return _err(str(e))
 
 
@@ -1287,7 +1287,7 @@ def get_epg_channels_json():
         data = sm.get_epg_data_copy() or {}
         return _ok({'channels': list(data.keys())})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_epg_channels_json failed')
         return _err(str(e))
 
 
@@ -1326,7 +1326,7 @@ def start_scan(base_url, timeout=10, threads=4, engine='requests', retry=False, 
         _log(f'start_scan: started={result}')
         return _ok({'started': bool(result)})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('start_scan failed')
         return _err(str(e))
 
 
@@ -1343,7 +1343,7 @@ def stop_scan():
         scanner.stop_scan()
         return _ok({'ok': True})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('stop_scan failed')
         return _err(str(e))
 
 
@@ -1359,7 +1359,7 @@ def get_scan_status_json():
         status = scanner.get_status() or {}
         return _ok(status)
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_scan_status_json failed')
         return _err(str(e))
 
 
@@ -1375,7 +1375,7 @@ def get_scan_results_json():
         results = scanner.get_results() or []
         return _ok(results)
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_scan_results_json failed')
         return _err(str(e))
 
 
@@ -1401,7 +1401,7 @@ def start_validate(timeout=10, threads=4):
         _log(f'start_validate: started={result}')
         return _ok({'started': bool(result)})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('start_validate failed')
         return _err(str(e))
 
 
@@ -1571,7 +1571,7 @@ def batch_edit_channels(action, options_json='{}'):
             result['matched'] = changed
         return _ok(result)
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('batch_edit_channels failed')
         return _err(str(e))
 
 
@@ -1589,7 +1589,7 @@ def get_mappings_json():
         entries = mapping_manager.get_mapping_entries() or []
         return _ok(entries)
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_mappings_json failed')
         return _err(str(e))
 
 
@@ -1608,7 +1608,7 @@ def add_mapping(raw_name, standard_name, logo_url='', group_name=''):
         )
         return _ok({'ok': True})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('add_mapping failed')
         return _err(str(e))
 
 
@@ -1631,7 +1631,7 @@ def delete_mapping(standard_name, raw_name=''):
             mapping_manager.remove_user_mapping(standard_name=str(standard_name))
         return _ok({'ok': True})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('delete_mapping failed')
         return _err(str(e))
 
 
@@ -1645,7 +1645,7 @@ def refresh_mappings():
         mapping_manager.refresh_cache()
         return _ok({'ok': True})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('refresh_mappings failed')
         return _err(str(e))
 
 
@@ -1672,7 +1672,7 @@ def search_subtitles(query='', imdb_id='', language='all', file_path=''):
             'last_error': getattr(svc, 'last_error', '') or '',
         })
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('search_subtitles failed')
         return _err(str(e))
 
 
@@ -1694,7 +1694,7 @@ def download_subtitle(download_link, dest_dir, file_name='', language=''):
             return _ok({'path': result_path})
         return _err(getattr(svc, 'last_error', '下载失败') or '下载失败')
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('download_subtitle failed')
         return _err(str(e))
 
 
@@ -1736,11 +1736,11 @@ def clear_cache(cache_type='all'):
                 try:
                     shutil.rmtree(full)
                     deleted += 1
-                except Exception:
-                    pass
+                except Exception as e:
+                    _log(f'clear_cache: rmtree {full} failed: {e}', 'W')
         return _ok({'ok': True, 'deleted_count': deleted})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('clear_cache failed')
         return _err(str(e))
 
 
@@ -1773,7 +1773,7 @@ def get_thumbnail_paths(urls_json='[]'):
                     break
         return _ok({'paths': paths})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('get_thumbnail_paths failed')
         return _err(str(e))
 
 
@@ -1799,7 +1799,7 @@ def capture_thumbnail(url, file_path):
         shutil.copy2(file_path, dest)
         return _ok({'path': dest})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('capture_thumbnail failed')
         return _err(str(e))
 
 
@@ -1857,8 +1857,8 @@ def generate_thumbnail_bg(url):
             if not _mpv_common.MPV_AVAILABLE and _mpv_common._mpv_loaded:
                 _mpv_common._mpv_loaded = False
                 _log('generate_thumbnail_bg: reset mpv_common._mpv_loaded for retry')
-        except Exception:
-            pass
+        except Exception as e:
+            _log(f'generate_thumbnail_bg: reset mpv_common failed: {e}', 'D')
 
         try:
             from services.mpv_common import (
@@ -1913,8 +1913,8 @@ def generate_thumbnail_bg(url):
                     import json
                     headers_json = json.dumps(headers).encode('utf-8')
                     _mpv_set_option_string(handle, 'http-header-fields', headers_json)
-            except Exception:
-                pass
+            except Exception as e:
+                _log(f'generate_thumbnail_bg: set http-header-fields failed: {e}', 'D')
 
             if not initialize_mpv(handle):
                 destroy_mpv(handle)
@@ -1948,11 +1948,11 @@ def generate_thumbnail_bg(url):
             if handle:
                 try:
                     destroy_mpv(handle)
-                except Exception:
-                    pass
+                except Exception as e:
+                    _log(f'generate_thumbnail_bg: destroy_mpv failed: {e}', 'W')
     except Exception as e:
         _log(f'generate_thumbnail_bg: error: {e}')
-        logger.exception('操作失败')
+        logger.exception('generate_thumbnail_bg failed')
         return _err(str(e))
 
 
@@ -2295,8 +2295,8 @@ def stop_admin_server():
     if _admin_server_task is not None and _admin_loop is not None:
         try:
             _admin_loop.call_soon_threadsafe(_admin_server_task.cancel)
-        except Exception:
-            pass
+        except Exception as e:
+            _log(f'stop_server: cancel task failed: {e}', 'D')
     # 等待 server 线程结束，确保 socket 释放（避免下次启动时 address already in use）
     if _admin_server_thread is not None and _admin_server_thread.is_alive():
         _admin_server_thread.join(timeout=5)
@@ -2433,7 +2433,7 @@ def load_playback_settings(url):
         settings = store.load_settings(url or '')
         return _ok({'settings': settings})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('load_playback_settings failed')
         return _err(str(e))
 
 
@@ -2451,5 +2451,5 @@ def save_playback_settings(url, settings_json, name=''):
         store.save_settings(url or '', settings, name or '')
         return _ok({'ok': True})
     except Exception as e:
-        logger.exception('操作失败')
+        logger.exception('save_playback_settings failed')
         return _err(str(e))

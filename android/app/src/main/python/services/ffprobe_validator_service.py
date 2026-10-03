@@ -114,8 +114,8 @@ class FfprobeStreamValidator:
                         try:
                             proc.kill()
                             proc.wait(timeout=1)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"validate_stream: {e}")
                         result['error'] = '验证器正在关闭'
                         result['error_type'] = 'terminating'
                         return result
@@ -124,8 +124,8 @@ class FfprobeStreamValidator:
                         try:
                             proc.kill()
                             proc.wait(timeout=1)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"validate_stream: {e}")
                         latency = int(elapsed * 1000)
                         result['latency'] = latency
                         result['error'] = f'超时({timeout}秒)'
@@ -153,8 +153,8 @@ class FfprobeStreamValidator:
             try:
                 proc.stdout.close()
                 proc.stderr.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"validate_stream: {e}")
 
             stderr_output = stderr_data.decode('utf-8', errors='ignore').strip()
 
@@ -272,8 +272,8 @@ class FfprobeStreamValidator:
                 cfg = ConfigManager()
                 playback = cfg.load_playback_settings()
                 rtsp_transport = playback.get('rtsp_transport', 'tcp')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_build_ffprobe_command: {e}")
             cmd.extend(['-rtsp_transport', rtsp_transport])
 
         if u.startswith('udp://') or u.startswith('rtp://'):
@@ -288,8 +288,8 @@ class FfprobeStreamValidator:
                 from core.config_manager import ConfigManager
                 playback = ConfigManager().load_playback_settings()
                 user_agent = playback.get('user_agent', '')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_build_ffprobe_command: {e}")
 
         headers_parts = []
         if user_agent:
@@ -307,8 +307,8 @@ class FfprobeStreamValidator:
                         if line and 'eferer' in line:
                             referer = line.split(':', 1)[1].strip() if ':' in line else ''
                             break
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_build_ffprobe_command: {e}")
 
         if referer:
             headers_parts.append(f'Referer: {referer}')
@@ -426,8 +426,8 @@ class FfprobeStreamValidator:
                     try:
                         proc.kill()
                         proc.wait(timeout=1)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"terminate_all: {e}")
             cls._active_processes.clear()
 
     @classmethod
@@ -442,8 +442,8 @@ class FfprobeStreamValidator:
                     try:
                         proc.kill()
                         proc.wait(timeout=1)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"destroy_all_handles: {e}")
             cls._active_processes.clear()
 
     @classmethod

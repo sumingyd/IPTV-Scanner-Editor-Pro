@@ -113,8 +113,8 @@ class AutoCropService:
                 # 删除临时文件
                 try:
                     os.remove(tmp_path)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_worker: {e}")
             w, h = img.size
             if w < 16 or h < 16:
                 self._finish(done_callback, False, None, '图像太小')
@@ -147,8 +147,8 @@ class AutoCropService:
             # 4. 应用 crop 滤镜（先移除旧的）
             try:
                 pc.send_command(['vf', 'remove', '@iptv_autocrop'])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_worker: {e}")
             # crop 滤镜参数：w:h:x:y
             # 注意 crop 宽高应为偶数（H.264 编码要求）
             crop_w = crop_w - (crop_w % 2)
@@ -173,8 +173,8 @@ class AutoCropService:
         if callback:
             try:
                 callback(success, crop, message)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_finish: {e}")
 
     @staticmethod
     def _find_edge(arr, axis: int, threshold: int, max_ratio: float = 0.4) -> int:

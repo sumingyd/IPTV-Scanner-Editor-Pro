@@ -206,8 +206,8 @@ class MpvStreamValidator:
                     cfg = ConfigManager()
                     playback = cfg.load_playback_settings()
                     rtsp_transport = playback.get('rtsp_transport', 'tcp')
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"validate_stream: {e}")
                 _mpv_set_property_string(handle, 'rtsp-transport', rtsp_transport)
                 _mpv_set_property_string(handle, 'demuxer', 'lavf')
                 _mpv_set_property_string(handle, 'force-seekable', 'yes')
@@ -253,8 +253,8 @@ class MpvStreamValidator:
                             if len(tracks) > 0:
                                 found_tracks = True
                                 found_tracks_time = time.time()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"validate_stream: {e}")
                 else:
                     if found_tracks_time > 0 and (time.time() - found_tracks_time) > 1.5:
                         break
@@ -312,8 +312,8 @@ class MpvStreamValidator:
                         end_file = _ctypes.cast(event_data, _ctypes.POINTER(mpv_event_end_file)).contents
                         end_reason = end_file.reason
                         end_error = end_file.error
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"validate_stream: {e}")
 
                 if end_reason in (MPV_END_FILE_REASON_EOF, MPV_END_FILE_REASON_STOP):
                     result['valid'] = True
@@ -339,8 +339,8 @@ class MpvStreamValidator:
                                 tracks = json.loads(tl)
                                 if len(tracks) > 0:
                                     found_tracks = True
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"validate_stream: {e}")
                         if found_tracks:
                             result['valid'] = True
                             result['error'] = f'播放警告(vo=null,END_FILE错误码:{end_error})'
@@ -382,8 +382,8 @@ class MpvStreamValidator:
                 if was_active:
                     try:
                         terminate_destroy_mpv(handle)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"validate_stream: {e}")
             sem.release()
 
         if not result.get('valid', False):
@@ -439,8 +439,8 @@ class MpvStreamValidator:
         for handle in handles_to_destroy:
             try:
                 terminate_destroy_mpv(handle)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"terminate_all: {e}")
 
     @classmethod
     def set_terminating(cls):
@@ -456,8 +456,8 @@ class MpvStreamValidator:
         for handle in handles_to_destroy:
             try:
                 terminate_destroy_mpv(handle)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"destroy_all_handles: {e}")
 
     @classmethod
     def reset_terminating(cls):

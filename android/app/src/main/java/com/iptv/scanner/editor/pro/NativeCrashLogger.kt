@@ -27,7 +27,7 @@ import java.util.Locale
  * 崩溃报告保存路径：getFilesDir()/crash-reports/crash_<timestamp>.txt
  *
  * 与 ACRA 配合：
- * - Java 异常 → ACRA 捕获，保存到 getFilesDir()/acra-reports/
+ * - Java 异常 → ACRA 捕获，保存到 getFilesDir()/ACRA/
  * - Native 崩溃 → 本类捕获，保存到 getFilesDir()/crash-reports/
  * - 两种报告都可在 设置 > 崩溃日志 中查看
  */
@@ -118,7 +118,7 @@ object NativeCrashLogger {
             // 先从 logcat 临时文件读取（后台进程记录的）
             val tempLogcat = File(context.filesDir, LOGCAT_TEMP_FILE)
             val logcatContent = if (tempLogcat.exists()) {
-                tempLogcat.readText()
+                tempLogcat.readText().take(512 * 1024)
             } else {
                 "(logcat buffer not found)"
             }
@@ -126,7 +126,9 @@ object NativeCrashLogger {
             // 再从 logcat -d 读取缓冲区中残留的崩溃信息
             val dumpLogcat = try {
                 val proc = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-t", "500"))
-                proc.inputStream.bufferedReader().readText()
+                val text = proc.inputStream.bufferedReader().readText()
+                proc.waitFor()
+                text
             } catch (e: Exception) {
                 "(logcat dump failed: ${e.message})"
             }
@@ -250,7 +252,7 @@ object NativeCrashLogger {
      */
     fun clearAllCrashReports(context: Context) {
         val dir = File(context.filesDir, CRASH_DIR)
-        dir.listFiles()?.forEach { it.delete() }
+        dir.listFiles()?.filter { it.isFile }?.forEach { it.delete() }
     }
 
     /**

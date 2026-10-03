@@ -51,16 +51,16 @@ class LogManager(Singleton):
             if os.path.exists(self.log_file):
                 try:
                     os.remove(self.log_file)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_setup_logger: {e}")
             # 清除轮转备份文件
             for i in range(1, self.backup_count + 1):
                 backup_file = f"{self.log_file}.{i}"
                 if os.path.exists(backup_file):
                     try:
                         os.remove(backup_file)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"_setup_logger: {e}")
 
             file_handler = RotatingFileHandler(
                 self.log_file,

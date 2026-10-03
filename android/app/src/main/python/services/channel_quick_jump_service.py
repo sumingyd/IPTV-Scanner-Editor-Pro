@@ -1,4 +1,5 @@
 from typing import Dict, Any, List, Optional, Tuple
+from core.log_manager import global_logger as logger
 
 
 class ChannelQuickJumpService:
@@ -17,8 +18,8 @@ class ChannelQuickJumpService:
             try:
                 initials = self._pypinyin.lazy_pinyin(text, style=self._pypinyin.Style.FIRST_LETTER)
                 return ''.join(initials).lower()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"get_pinyin_initials: {e}")
         result = []
         for ch in text:
             if 'a' <= ch.lower() <= 'z':

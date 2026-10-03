@@ -9,8 +9,10 @@ from core.log_manager import global_logger
 from models.channel_model import ChannelListModel
 from PySide6 import QtCore
 from PySide6.QtCore import Signal, QObject
+from PySide6.QtWidgets import QApplication
 from models.channel_mappings import extract_channel_name_from_url
 from utils.scan_state_manager import get_scan_state_manager
+from utils.delay_constants import DelayMs
 
 
 def calculate_optimal_queue_size(thread_count: int = 10) -> int:
@@ -123,13 +125,12 @@ class ScannerController(QObject):
 
     @staticmethod
     def _run_on_main(func, *args):
-        from PySide6.QtWidgets import QApplication
         from utils.thread_safety import invoke_on_thread
         app = QApplication.instance()
         if app:
             invoke_on_thread(app, functools.partial(func, *args))
         else:
-            QtCore.QTimer.singleShot(0, functools.partial(func, *args))
+            QtCore.QTimer.singleShot(DelayMs.NEXT_TICK, functools.partial(func, *args))
 
     def _worker(self) -> None:
         """工作线程函数"""
@@ -230,7 +231,7 @@ class ScannerController(QObject):
                 return
             self._batch_flush_pending = True
 
-        QtCore.QTimer.singleShot(100, self._flush_pending_channels)
+        QtCore.QTimer.singleShot(DelayMs.LAYOUT_SETTLE, self._flush_pending_channels)
 
     def _flush_pending_channels(self):
         """将攒批的频道一次性添加到模型，扫描期间使用 reset 模式避免竞态崩溃"""
@@ -426,7 +427,7 @@ class ScannerController(QObject):
                 success = self.model.update_channel_by_url(url, channel_info)
                 if not success:
                     self._pending_mappings[url] = channel_info
-                    QtCore.QTimer.singleShot(150, self._apply_pending_mappings_and_refresh)
+                    QtCore.QTimer.singleShot(DelayMs.DEFERRED_INIT, self._apply_pending_mappings_and_refresh)
             else:
                 self.logger.debug("频道信息缺少URL，跳过更新")
 
@@ -442,8 +443,8 @@ class ScannerController(QObject):
             from core.config_manager import ConfigManager
             settings = ConfigManager().load_scan_engine_settings()
             engine = settings.get('engine', 'ffprobe')
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_get_validator_class: {e}")
         self._scan_engine = engine
         if engine == 'ffprobe':
             from services.ffprobe_validator_service import FfprobeStreamValidator
@@ -724,8 +725,8 @@ class ScannerController(QObject):
         if self._mapping_executor is not None:
             try:
                 self._mapping_executor.shutdown(wait=True)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"stop_scan: {e}")
             self._mapping_executor = None
 
         self.workers = []
@@ -760,8 +761,8 @@ class ScannerController(QObject):
                 for worker in alive_workers:
                     worker.join(timeout=2.0)
             ValidatorClass.destroy_all_handles()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_terminate_all_processes: {e}")
 
     def _cleanup_workers_fast(self):
         """快速清理工作线程"""
@@ -809,8 +810,8 @@ class ScannerController(QObject):
             still_alive = [w for w in workers if w.is_alive()]
             if still_alive:
                 self.logger.warning(f"后台清理后仍有 {len(still_alive)} 个线程存活")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_background_cleanup: {e}")
 
     def _cleanup_other_resources(self):
         if hasattr(self, 'stats_thread') and self.stats_thread and self.stats_thread.is_alive():
@@ -949,7 +950,7 @@ class ScannerController(QObject):
             self._pending_validations.append((url, valid, result))
             if self._validation_flush_timer is None:
                 self._validation_flush_timer = True
-                QtCore.QTimer.singleShot(100, self._flush_pending_validations)
+                QtCore.QTimer.singleShot(DelayMs.LAYOUT_SETTLE, self._flush_pending_validations)
         self.channel_validated.emit(index, valid, latency, resolution)
 
     def _flush_pending_validations(self):

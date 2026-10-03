@@ -56,8 +56,8 @@ class MpvGLWidget(QOpenGLWidget):
             fmt.setGreenBufferSize(16)
             fmt.setBlueBufferSize(16)
             fmt.setAlphaBufferSize(8)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"__init__: {e}")
         self.setFormat(fmt)
 
         self.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
