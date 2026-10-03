@@ -96,7 +96,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 
-private val KU9_ACCENT_CYAN = Color(0xFF00BCD4)
+private val ACCENT_CYAN = Color(0xFF00BCD4)
 
 /**
  * 主菜单面板：与 PC 端主菜单（panelMenu）对齐。
@@ -116,13 +116,13 @@ fun MainMenuPanel(viewModel: AppViewModel) {
     val currentChannel by viewModel.currentChannel.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
-    val ku9ShowTime by viewModel.ku9ShowTime.collectAsState()
-    val ku9ShowNetSpeed by viewModel.ku9ShowNetSpeed.collectAsState()
-    val ku9HideChannelNum by viewModel.ku9HideChannelNum.collectAsState()
-    val ku9DisableEpg by viewModel.ku9DisableEpg.collectAsState()
-    val ku9DisableFavorite by viewModel.ku9DisableFavorite.collectAsState()
-    val ku9ShowListIcon by viewModel.ku9ShowListIcon.collectAsState()
-    val ku9ShowBottomIcon by viewModel.ku9ShowBottomIcon.collectAsState()
+    val osdShowTime by viewModel.osdShowTime.collectAsState()
+    val osdShowNetSpeed by viewModel.osdShowNetSpeed.collectAsState()
+    val osdHideChannelNum by viewModel.osdHideChannelNum.collectAsState()
+    val osdDisableEpg by viewModel.osdDisableEpg.collectAsState()
+    val osdDisableFavorite by viewModel.osdDisableFavorite.collectAsState()
+    val osdShowListIcon by viewModel.osdShowListIcon.collectAsState()
+    val osdShowBottomIcon by viewModel.osdShowBottomIcon.collectAsState()
     val isTv = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val sources by viewModel.sources.collectAsState()
     val selectedSource by viewModel.selectedSource.collectAsState()
@@ -143,7 +143,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
         if (uri != null) viewModel.playLocalVideo(uri.toString())
     }
 
-    val sections = remember(currentIdx, isFavorite, ku9ShowTime, ku9ShowNetSpeed, ku9HideChannelNum, ku9DisableEpg, ku9DisableFavorite, ku9ShowListIcon, ku9ShowBottomIcon, sources, selectedSource, multiViewState) {
+    val sections = remember(currentIdx, isFavorite, osdShowTime, osdShowNetSpeed, osdHideChannelNum, osdDisableEpg, osdDisableFavorite, osdShowListIcon, osdShowBottomIcon, sources, selectedSource, multiViewState) {
         buildMenuSections(
             onOpenPlaylist = {
                 if (!viewModel.isSafAvailable()) {
@@ -170,12 +170,12 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 }
             },
             onSources = {
-                viewModel.setSourceTab(AppViewModel.SourceTab.PLAYLIST)
+                viewModel.setSourceTab(SourceTab.PLAYLIST)
                 viewModel.toggleMenuPanel()
                 viewModel.toggleSourceManager()
             },
             onEpgSources = {
-                viewModel.setSourceTab(AppViewModel.SourceTab.EPG)
+                viewModel.setSourceTab(SourceTab.EPG)
                 viewModel.toggleMenuPanel()
                 viewModel.toggleSourceManager()
             },
@@ -283,20 +283,20 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 viewModel.toggleMenuPanel()
                 viewModel.refreshUi()
             },
-            onToggleShowTime = { viewModel.setKu9ShowTime(!ku9ShowTime) },
-            onToggleShowNetSpeed = { viewModel.setKu9ShowNetSpeed(!ku9ShowNetSpeed) },
-            onToggleHideChannelNum = { viewModel.setKu9HideChannelNum(!ku9HideChannelNum) },
-            onToggleDisableEpg = { viewModel.setKu9DisableEpg(!ku9DisableEpg) },
-            onToggleDisableFavorite = { viewModel.setKu9DisableFavorite(!ku9DisableFavorite) },
-            onToggleShowListIcon = { viewModel.setKu9ShowListIcon(!ku9ShowListIcon) },
-            onToggleShowBottomIcon = { viewModel.setKu9ShowBottomIcon(!ku9ShowBottomIcon) },
-            showTime = ku9ShowTime,
-            showNetSpeed = ku9ShowNetSpeed,
-            hideChannelNum = ku9HideChannelNum,
-            disableEpg = ku9DisableEpg,
-            disableFavorite = ku9DisableFavorite,
-            showListIcon = ku9ShowListIcon,
-            showBottomIcon = ku9ShowBottomIcon,
+            onToggleShowTime = { viewModel.setOsdShowTime(!osdShowTime) },
+            onToggleShowNetSpeed = { viewModel.setOsdShowNetSpeed(!osdShowNetSpeed) },
+            onToggleHideChannelNum = { viewModel.setOsdHideChannelNum(!osdHideChannelNum) },
+            onToggleDisableEpg = { viewModel.setOsdDisableEpg(!osdDisableEpg) },
+            onToggleDisableFavorite = { viewModel.setOsdDisableFavorite(!osdDisableFavorite) },
+            onToggleShowListIcon = { viewModel.setOsdShowListIcon(!osdShowListIcon) },
+            onToggleShowBottomIcon = { viewModel.setOsdShowBottomIcon(!osdShowBottomIcon) },
+            showTime = osdShowTime,
+            showNetSpeed = osdShowNetSpeed,
+            hideChannelNum = osdHideChannelNum,
+            disableEpg = osdDisableEpg,
+            disableFavorite = osdDisableFavorite,
+            showListIcon = osdShowListIcon,
+            showBottomIcon = osdShowBottomIcon,
             hasCurrentChannel = currentChannel != null,
             isFavorite = isFavorite,
             sources = sources,
@@ -314,7 +314,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
         )
     }
 
-    // 横屏模式：酷9风格右侧两列浮动菜单（单圆角矩形包含两列）
+    // 横屏模式：侧边栏风格右侧两列浮动菜单（单圆角矩形包含两列）
     if (isTv) {
         var selectedSectionIdx by remember { mutableStateOf(0) }
         val safeIdx = selectedSectionIdx.coerceIn(0, sections.lastIndex)
@@ -714,7 +714,7 @@ private fun buildMenuSections(
     onExitMultiView: () -> Unit = {}
 ): List<MenuSection> {
 
-    // 酷9风格分组：订阅源 = 订阅源列表 + 管理入口
+    // 侧边栏风格分组：订阅源 = 订阅源列表 + 管理入口
     val sourceEntries = mutableListOf<MenuEntry>()
     sources.filter { it.enabled }.forEachIndexed { idx, src ->
         val name = src.name.ifEmpty { "源${idx + 1}" }
@@ -896,7 +896,7 @@ private fun MenuEntryItem(
                 )
             }
         }
-        // 酷9风格：开关项
+        // 侧边栏风格：开关项
         if (entry.isToggle) {
             Switch(
                 checked = entry.toggleValue,

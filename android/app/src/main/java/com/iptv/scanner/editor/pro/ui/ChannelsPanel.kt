@@ -54,7 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.data.IptvChannel
 import com.iptv.scanner.editor.pro.player.ProgressHelper
-import com.iptv.scanner.editor.pro.ui.AppViewModel.ChannelTab
+import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import com.iptv.scanner.editor.pro.ui.theme.tvTextField
 

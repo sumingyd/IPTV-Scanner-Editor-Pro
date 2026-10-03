@@ -104,13 +104,13 @@ private fun computeViewportIndex(
     }
 }
 
-// 酷9风格配色
-private val KU9_GRADIENT_START = Color(0xFF036D80)
-private val KU9_GRADIENT_END = Color(0xFF052D49)
-private val KU9_ACCENT_GREEN = Color(0xFF70C439)
-private val KU9_ACCENT_CYAN = Color(0xFF00BCD4)
-private val KU9_ICON_BG = Color(0x32FFFFFF)
-private val KU9_TIME_BG = Color(0x26000000)
+// 侧边栏风格配色
+private val SIDEBAR_GRADIENT_START = Color(0xFF036D80)
+private val SIDEBAR_GRADIENT_END = Color(0xFF052D49)
+private val ACCENT_GREEN = Color(0xFF70C439)
+private val ACCENT_CYAN = Color(0xFF00BCD4)
+private val ICON_BG = Color(0x32FFFFFF)
+private val TIME_BG = Color(0x26000000)
 
 @Composable
 fun TvPlayerLayout(
@@ -132,8 +132,8 @@ fun TvPlayerLayout(
     val currentEpg by viewModel.currentEpg.collectAsState()
     val channelNumberInput by viewModel.channelNumberInput.collectAsState()
     val channelNumDisplay by viewModel.channelNumDisplay.collectAsState()
-    val ku9ShowTime by viewModel.ku9ShowTime.collectAsState()
-    val ku9ShowNetSpeed by viewModel.ku9ShowNetSpeed.collectAsState()
+    val osdShowTime by viewModel.osdShowTime.collectAsState()
+    val osdShowNetSpeed by viewModel.osdShowNetSpeed.collectAsState()
 
     val currentProgram = remember(currentEpg) {
         ProgressHelper.findCurrentProgram(currentEpg, System.currentTimeMillis())
@@ -172,8 +172,8 @@ fun TvPlayerLayout(
         // 多画面模式下 dispatchTouchEvent 跳过分区toggle，触控直接传递给 MultiViewOverlay
 
         CompositionLocalProvider(LocalDensity provides scaledDensity) {
-        // 酷9风格：右上角时间组（始终显示）
-        if (ku9ShowTime) {
+        // 侧边栏风格：右上角时间组（始终显示）
+        if (osdShowTime) {
             TvTimeGroup(
                 modifier = Modifier.align(Alignment.TopEnd),
                 channelNumberInput = channelNumberInput,
@@ -188,8 +188,8 @@ fun TvPlayerLayout(
             )
         }
 
-        // 酷9风格：右下角网速显示
-        if (fileLoaded && !sidebarVisible && ku9ShowNetSpeed) {
+        // 侧边栏风格：右下角网速显示
+        if (fileLoaded && !sidebarVisible && osdShowNetSpeed) {
             TvNetSpeed(
                 modifier = Modifier.align(Alignment.BottomEnd),
                 mpv = viewModel.mpv
@@ -254,15 +254,15 @@ private fun TvTimeGroup(modifier: Modifier = Modifier, channelNumberInput: Strin
         modifier = modifier.padding(top = 15.dp, end = 15.dp),
         horizontalAlignment = Alignment.End
     ) {
-        // 酷9风格：数字选台时显示大字号频道号
+        // 侧边栏风格：数字选台时显示大字号频道号
         if (channelNumberInput.isNotEmpty()) {
             Surface(
-                color = KU9_TIME_BG,
+                color = TIME_BG,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
                     text = channelNumberInput,
-                    color = KU9_ACCENT_GREEN,
+                    color = ACCENT_GREEN,
                     fontSize = 72.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -272,12 +272,12 @@ private fun TvTimeGroup(modifier: Modifier = Modifier, channelNumberInput: Strin
         } else if (channelNumDisplay.isNotEmpty()) {
             // 切台时显示频道号
             Surface(
-                color = KU9_TIME_BG,
+                color = TIME_BG,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
                     text = channelNumDisplay,
-                    color = KU9_ACCENT_GREEN,
+                    color = ACCENT_GREEN,
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
@@ -286,7 +286,7 @@ private fun TvTimeGroup(modifier: Modifier = Modifier, channelNumberInput: Strin
             Spacer(modifier = Modifier.height(6.dp))
         }
         Surface(
-            color = KU9_TIME_BG,
+            color = TIME_BG,
             shape = RoundedCornerShape(8.dp)
         ) {
             Column(
@@ -317,7 +317,7 @@ private fun TvNetSpeed(modifier: Modifier = Modifier, mpv: com.iptv.scanner.edit
     }
     if (speedText != null) {
         Surface(
-            color = KU9_TIME_BG,
+            color = TIME_BG,
             shape = RoundedCornerShape(4.dp),
             modifier = modifier.padding(bottom = 12.dp, end = 15.dp)
         ) {
@@ -371,12 +371,12 @@ private fun TvBottomBar(
     val dateFmt = remember { java.text.SimpleDateFormat("MM月dd日 EE", java.util.Locale.CHINESE) }
     val fullTimeFmt = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
 
-    // 酷9风格状态标签
+    // 侧边栏风格状态标签
     val statusTag = when {
         !fileLoaded -> null
         playbackMode == PlayMode.TIMESHIFT -> "时移" to Color(0xFF2979FF)
         showExitCatchup -> "回看" to Color(0xFFFFA500)
-        else -> "直播" to KU9_ACCENT_GREEN
+        else -> "直播" to ACCENT_GREEN
     }
 
     // 下一节目
@@ -410,7 +410,7 @@ private fun TvBottomBar(
                 // 第1行：Logo + 频道号 + 频道名 + 状态标签 + 技术标签
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier.size(96.dp, 64.dp).clip(RoundedCornerShape(8.dp)).background(KU9_ICON_BG),
+                        modifier = Modifier.size(96.dp, 64.dp).clip(RoundedCornerShape(8.dp)).background(ICON_BG),
                         contentAlignment = Alignment.Center
                     ) {
                         if (displayInfo.logo.isNotEmpty()) {
@@ -428,7 +428,7 @@ private fun TvBottomBar(
                     if (displayInfo.idx >= 0) {
                         Text(
                             text = String.format("%03d", displayInfo.idx + 1),
-                            color = KU9_ACCENT_CYAN,
+                            color = ACCENT_CYAN,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -480,7 +480,7 @@ private fun TvBottomBar(
                         } else {
                             Text(
                                 text = "精彩节目",
-                                color = KU9_ACCENT_CYAN,
+                                color = ACCENT_CYAN,
                                 fontSize = 15.sp,
                                 modifier = Modifier.weight(1f)
                             )
@@ -530,7 +530,7 @@ private fun TvBottomBar(
                         }
                         if (remainText != null) {
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = remainText, color = KU9_ACCENT_CYAN, fontSize = 11.sp)
+                            Text(text = remainText, color = ACCENT_CYAN, fontSize = 11.sp)
                         }
                         if (showExitCatchup) {
                             Spacer(modifier = Modifier.width(4.dp))
@@ -576,7 +576,7 @@ private fun TvBottomBar(
                                 }
                                 Text(
                                     text = "下一节目 $nextStart ",
-                                    color = KU9_ACCENT_CYAN,
+                                    color = ACCENT_CYAN,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium
                                 )

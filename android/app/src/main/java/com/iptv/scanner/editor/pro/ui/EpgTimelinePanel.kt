@@ -206,20 +206,20 @@ maxLines = 1
             // 频道范围 FilterChip
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
-                    selected = range == AppViewModel.EpgTimelineRange.ALL,
-                    onClick = { viewModel.setEpgTimelineRange(AppViewModel.EpgTimelineRange.ALL) },
+                    selected = range == EpgTimelineRange.ALL,
+                    onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.ALL) },
                     label = { Text("全部频道", fontSize = 11.sp) },
                     modifier = Modifier.tvFocusBorder()
                 )
                 FilterChip(
-                    selected = range == AppViewModel.EpgTimelineRange.FAVORITES,
-                    onClick = { viewModel.setEpgTimelineRange(AppViewModel.EpgTimelineRange.FAVORITES) },
+                    selected = range == EpgTimelineRange.FAVORITES,
+                    onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.FAVORITES) },
                     label = { Text("仅收藏", fontSize = 11.sp) },
                     modifier = Modifier.tvFocusBorder()
                 )
                 FilterChip(
-                    selected = range == AppViewModel.EpgTimelineRange.CURRENT_GROUP,
-                    onClick = { viewModel.setEpgTimelineRange(AppViewModel.EpgTimelineRange.CURRENT_GROUP) },
+                    selected = range == EpgTimelineRange.CURRENT_GROUP,
+                    onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.CURRENT_GROUP) },
                     label = { Text("当前分组", fontSize = 11.sp) },
                     modifier = Modifier.tvFocusBorder()
                 )
@@ -297,7 +297,7 @@ private val TIME_HEADER_HEIGHT_DP = 28.dp
  */
 @Composable
 private fun TimelineGrid(
-    rows: List<AppViewModel.EpgTimelineRow>,
+    rows: List<EpgTimelineRow>,
     currentIdx: Int,
     dateOffset: Int,
     horizontalScroll: androidx.compose.foundation.ScrollState,
@@ -686,7 +686,7 @@ private fun TimelineGrid(
  */
 private fun handleGridTap(
     offset: Offset,
-    rows: List<AppViewModel.EpgTimelineRow>,
+    rows: List<EpgTimelineRow>,
     dayStartMs: Long,
     hourWidthPx: Float,
     rowHeightPx: Float,

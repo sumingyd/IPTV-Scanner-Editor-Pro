@@ -152,20 +152,20 @@ fun SearchPanel(viewModel: AppViewModel) {
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
-                        selected = scope == AppViewModel.SearchScope.ALL,
-                        onClick = { viewModel.setSearchScope(AppViewModel.SearchScope.ALL) },
+                        selected = scope == SearchScope.ALL,
+                        onClick = { viewModel.setSearchScope(SearchScope.ALL) },
                         label = { Text("全部", fontSize = 11.sp) },
                         modifier = Modifier.tvFocusBorder()
                     )
                     FilterChip(
-                        selected = scope == AppViewModel.SearchScope.CHANNELS,
-                        onClick = { viewModel.setSearchScope(AppViewModel.SearchScope.CHANNELS) },
+                        selected = scope == SearchScope.CHANNELS,
+                        onClick = { viewModel.setSearchScope(SearchScope.CHANNELS) },
                         label = { Text("频道", fontSize = 11.sp) },
                         modifier = Modifier.tvFocusBorder()
                     )
                     FilterChip(
-                        selected = scope == AppViewModel.SearchScope.PROGRAMS,
-                        onClick = { viewModel.setSearchScope(AppViewModel.SearchScope.PROGRAMS) },
+                        selected = scope == SearchScope.PROGRAMS,
+                        onClick = { viewModel.setSearchScope(SearchScope.PROGRAMS) },
                         label = { Text("节目", fontSize = 11.sp) },
                         modifier = Modifier.tvFocusBorder()
                     )
@@ -230,9 +230,9 @@ fun SearchPanel(viewModel: AppViewModel) {
 }
 
 /** 生成结果项的唯一 key */
-private fun resultKey(result: AppViewModel.SearchResult): String = when (result) {
-    is AppViewModel.SearchResult.ChannelResult -> "ch_${result.idx}"
-    is AppViewModel.SearchResult.ProgramResult ->
+private fun resultKey(result: SearchResult): String = when (result) {
+    is SearchResult.ChannelResult -> "ch_${result.idx}"
+    is SearchResult.ProgramResult ->
         "pg_${result.channelIdx}_${result.program.start}_${result.program.title}"
 }
 
@@ -243,7 +243,7 @@ private fun resultKey(result: AppViewModel.SearchResult): String = when (result)
  */
 @Composable
 private fun SearchResultRow(
-    result: AppViewModel.SearchResult,
+    result: SearchResult,
     onClick: () -> Unit
 ) {
     Row(
@@ -255,7 +255,7 @@ private fun SearchResultRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         when (result) {
-            is AppViewModel.SearchResult.ChannelResult -> {
+            is SearchResult.ChannelResult -> {
                 // 频道图标
                 Icon(
                     imageVector = Icons.Default.Tv,
@@ -291,7 +291,7 @@ private fun SearchResultRow(
                     }
                 }
             }
-            is AppViewModel.SearchResult.ProgramResult -> {
+            is SearchResult.ProgramResult -> {
                 // 时间
                 val timeText = remember(result.program.start) {
                     formatProgramTime(result.program.start)

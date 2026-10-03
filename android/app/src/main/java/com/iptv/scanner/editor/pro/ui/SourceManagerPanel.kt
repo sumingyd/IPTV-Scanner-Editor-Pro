@@ -154,7 +154,7 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                         Spacer(modifier = Modifier.width(8.dp))
                     } else {
                         IconButton(onClick = {
-                            if (sourceTab == AppViewModel.SourceTab.PLAYLIST) {
+                            if (sourceTab == SourceTab.PLAYLIST) {
                                 viewModel.reloadSources()
                             } else {
                                 viewModel.reloadEpgSources()
@@ -230,13 +230,13 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
             // Tab 切换
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
-                    selected = sourceTab == AppViewModel.SourceTab.PLAYLIST,
-                    onClick = { viewModel.setSourceTab(AppViewModel.SourceTab.PLAYLIST) },
+                    selected = sourceTab == SourceTab.PLAYLIST,
+                    onClick = { viewModel.setSourceTab(SourceTab.PLAYLIST) },
                     label = { Text("频道源 (${sources.size})") }
                 )
                 FilterChip(
-                    selected = sourceTab == AppViewModel.SourceTab.EPG,
-                    onClick = { viewModel.setSourceTab(AppViewModel.SourceTab.EPG) },
+                    selected = sourceTab == SourceTab.EPG,
+                    onClick = { viewModel.setSourceTab(SourceTab.EPG) },
                     label = { Text("EPG 源 (${epgSources.size})") }
                 )
             }
@@ -257,13 +257,13 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
 
             // 添加订阅源输入框
             when (sourceTab) {
-                AppViewModel.SourceTab.PLAYLIST -> {
+                SourceTab.PLAYLIST -> {
                     AddSourceRow(
                         placeholder = "输入 M3U 订阅源 URL",
                         onAdd = { url, name -> viewModel.addSource(url, name) }
                     )
                 }
-                AppViewModel.SourceTab.EPG -> {
+                SourceTab.EPG -> {
                     AddSourceRow(
                         placeholder = "输入 EPG 订阅源 URL（XMLTV）",
                         onAdd = { url, name -> viewModel.addEpgSource(url, name) }
@@ -275,7 +275,7 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
 
             // 列表（使用 Column 而非 LazyColumn，因为外层已用 verticalScroll）
             when (sourceTab) {
-                AppViewModel.SourceTab.PLAYLIST -> {
+                SourceTab.PLAYLIST -> {
                     if (sources.isEmpty()) {
                         EmptyHint("暂无频道订阅源，点击上方输入框添加")
                     } else {
@@ -295,7 +295,7 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
                         }
                     }
                 }
-                AppViewModel.SourceTab.EPG -> {
+                SourceTab.EPG -> {
                     if (epgSources.isEmpty()) {
                         EmptyHint("暂无 EPG 订阅源，点击上方输入框添加")
                     } else {

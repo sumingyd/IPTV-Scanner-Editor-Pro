@@ -80,14 +80,14 @@ import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.data.IptvChannel
 import com.iptv.scanner.editor.pro.data.IptvEpgProgram
 import com.iptv.scanner.editor.pro.player.ProgressHelper
-import com.iptv.scanner.editor.pro.ui.AppViewModel.ChannelTab
+import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import java.util.Locale
 
-// 酷9风格配色
-private val KU9_ACCENT_GREEN = Color(0xFF2979FF)
-private val KU9_ACCENT_CYAN = Color(0xFF00BCD4)
-private val KU9_ICON_BG = Color(0x32FFFFFF)
+// 侧边栏风格配色
+private val ACCENT_GREEN = Color(0xFF2979FF)
+private val ACCENT_CYAN = Color(0xFF00BCD4)
+private val ICON_BG = Color(0x32FFFFFF)
 
 /**
  * TV 端统一面板：五列布局（控制层 + 分组 + 频道列表 + 节目单 + 节目描述）。
@@ -128,9 +128,9 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     val focusedEpgLoading by viewModel.focusedEpgLoading.collectAsState()
     val controlsPinned by viewModel.controlsPinned.collectAsState()
     val epgCacheVersion by viewModel.epgCacheVersion.collectAsState()
-    val ku9HideChannelNum by viewModel.ku9HideChannelNum.collectAsState()
-    val ku9DisableFavorite by viewModel.ku9DisableFavorite.collectAsState()
-    val ku9DisableEpg by viewModel.ku9DisableEpg.collectAsState()
+    val osdHideChannelNum by viewModel.osdHideChannelNum.collectAsState()
+    val osdDisableFavorite by viewModel.osdDisableFavorite.collectAsState()
+    val osdDisableEpg by viewModel.osdDisableEpg.collectAsState()
 
     // 多画面状态（多画面模式下点击频道添加到副画面，而非切换主画面）
     val multiViewState by viewModel.multiViewState.collectAsState()
@@ -250,10 +250,10 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                 UnifiedMode.CHANNELS -> {
                     // 是否显示分组列和节目单/描述列
                     val showGroups = groups.isNotEmpty()
-                    val showEpg = !ku9DisableEpg
+                    val showEpg = !osdDisableEpg
 
                     // -----------------------------------------------------------------
-                    // 第0列：快捷菜单列（酷9风格竖向图标列）
+                    // 第0列：快捷菜单列（侧边栏风格竖向图标列）
                     // -----------------------------------------------------------------
                     QuickMenuColumn(
                         channelsTab = channelsTab,
@@ -273,7 +273,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     )
 
                     // -----------------------------------------------------------------
-                    // 订阅源切换列（多源时显示，酷9风格）
+                    // 订阅源切换列（多源时显示，侧边栏风格）
                     // -----------------------------------------------------------------
                     if (enabledSources.size > 1) {
                         SourceSwitchColumn(
@@ -317,9 +317,9 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                                     viewModel.getCachedCurrentProgram(idx)
                                 },
                                 epgCacheVersion = epgCacheVersion,
-                                hideChannelNum = ku9HideChannelNum,
-                                disableFavorite = ku9DisableFavorite,
-                                disableEpg = ku9DisableEpg,
+                                hideChannelNum = osdHideChannelNum,
+                                disableFavorite = osdDisableFavorite,
+                                disableEpg = osdDisableEpg,
                                 onChannelClick = { idx ->
                                     if (multiViewState.active) {
                                         viewModel.addChannelToMultiView(idx)
@@ -419,13 +419,13 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                         },
                         onSources = {
                             openOverlay {
-                                viewModel.setSourceTab(AppViewModel.SourceTab.PLAYLIST)
+                                viewModel.setSourceTab(SourceTab.PLAYLIST)
                                 viewModel.toggleSourceManager()
                             }
                         },
                         onEpgSources = {
                             openOverlay {
-                                viewModel.setSourceTab(AppViewModel.SourceTab.EPG)
+                                viewModel.setSourceTab(SourceTab.EPG)
                                 viewModel.toggleSourceManager()
                             }
                         },
@@ -472,7 +472,7 @@ enum class UnifiedMode { CHANNELS, MENU }
 // =====================================================================
 
 // =====================================================================
-// 订阅源切换列（酷9风格，多源时显示）
+// 订阅源切换列（侧边栏风格，多源时显示）
 // =====================================================================
 
 @Composable
@@ -497,7 +497,7 @@ private fun SourceSwitchColumn(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(if (isSelected) KU9_ACCENT_GREEN.copy(alpha = 0.2f) else Color.Transparent)
+                        .background(if (isSelected) ACCENT_GREEN.copy(alpha = 0.2f) else Color.Transparent)
                         .tvFocusBorder()
                         .clickable { onSourceSelected(src.url) }
                         .padding(horizontal = 6.dp, vertical = 10.dp),
@@ -507,12 +507,12 @@ private fun SourceSwitchColumn(
                         modifier = Modifier
                             .size(5.dp)
                             .clip(CircleShape)
-                            .background(if (isSelected) KU9_ACCENT_GREEN else MaterialTheme.colorScheme.outline)
+                            .background(if (isSelected) ACCENT_GREEN else MaterialTheme.colorScheme.outline)
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         text = displayName,
-                        color = if (isSelected) KU9_ACCENT_GREEN else MaterialTheme.colorScheme.onSurface,
+                        color = if (isSelected) ACCENT_GREEN else MaterialTheme.colorScheme.onSurface,
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                         maxLines = 1,
@@ -581,7 +581,7 @@ private fun GroupColumn(
 }
 
 // =====================================================================
-// 快捷菜单列（酷9风格竖向图标列）
+// 快捷菜单列（侧边栏风格竖向图标列）
 // =====================================================================
 
 @Composable
@@ -625,7 +625,7 @@ private fun QuickMenuIcon(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) KU9_ACCENT_GREEN else Color.Transparent)
+            .background(if (isSelected) ACCENT_GREEN else Color.Transparent)
             .tvFocusBorder()
             .clickable { onClick() }
             .padding(horizontal = 6.dp, vertical = 8.dp)
@@ -654,7 +654,7 @@ private fun GroupItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (selected) KU9_ACCENT_CYAN.copy(alpha = 0.2f) else Color.Transparent)
+            .background(if (selected) ACCENT_CYAN.copy(alpha = 0.2f) else Color.Transparent)
             .tvFocusBorder()
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -665,12 +665,12 @@ private fun GroupItemRow(
             modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
-                .background(if (selected) KU9_ACCENT_CYAN else MaterialTheme.colorScheme.outline)
+                .background(if (selected) ACCENT_CYAN else MaterialTheme.colorScheme.outline)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = label,
-            color = if (selected) KU9_ACCENT_CYAN else MaterialTheme.colorScheme.onSurface,
+            color = if (selected) ACCENT_CYAN else MaterialTheme.colorScheme.onSurface,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
             maxLines = 1,
@@ -878,15 +878,15 @@ private fun TvChannelItem(
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged { onFocusChange(it.isFocused) }
             .tvFocusBorder()
-            .then(if (isPlaying) Modifier.background(KU9_ACCENT_GREEN) else Modifier)
+            .then(if (isPlaying) Modifier.background(ACCENT_GREEN) else Modifier)
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 酷9风格：序号显示（圆角矩形背景）
+        // 侧边栏风格：序号显示（圆角矩形背景）
         if (!hideChannelNum) {
             Surface(
-                color = if (isPlaying) Color.White.copy(alpha = 0.2f) else KU9_ICON_BG,
+                color = if (isPlaying) Color.White.copy(alpha = 0.2f) else ICON_BG,
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
@@ -898,9 +898,9 @@ private fun TvChannelItem(
             }
             Spacer(modifier = Modifier.width(8.dp))
         }
-        // 酷9风格：频道台标（logo）：有 logo 显示图片，无 logo 显示首字
+        // 侧边栏风格：频道台标（logo）：有 logo 显示图片，无 logo 显示首字
         Box(
-            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(4.dp)).background(KU9_ICON_BG),
+            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(4.dp)).background(ICON_BG),
             contentAlignment = Alignment.Center
         ) {
             if (channel.logo.isNotEmpty()) {
@@ -930,7 +930,7 @@ private fun TvChannelItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            // 酷9风格：当前节目名，EPG为空时显示"精彩节目"
+            // 侧边栏风格：当前节目名，EPG为空时显示"精彩节目"
             Text(
                 text = currentEpgTitle.ifEmpty { "精彩节目" },
                 color = Color.White.copy(alpha = 0.6f),
@@ -1247,7 +1247,7 @@ private fun TvEpgItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isCurrent) KU9_ACCENT_GREEN.copy(alpha = 0.2f) else Color.Transparent)
+            .background(if (isCurrent) ACCENT_GREEN.copy(alpha = 0.2f) else Color.Transparent)
             .tvFocusBorder()
             .clickable {
                 onSelect()
@@ -1262,7 +1262,7 @@ private fun TvEpgItem(
                 modifier = Modifier
                     .width(3.dp)
                     .height(36.dp)
-                    .background(KU9_ACCENT_GREEN)
+                    .background(ACCENT_GREEN)
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -1282,7 +1282,7 @@ private fun TvEpgItem(
                 text = program.title,
                 color = when {
                     isPast -> MaterialTheme.colorScheme.onSurfaceVariant
-                    isCurrent -> KU9_ACCENT_GREEN
+                    isCurrent -> ACCENT_GREEN
                     else -> MaterialTheme.colorScheme.onSurface
                 },
                 fontSize = 13.sp,
@@ -1291,10 +1291,10 @@ private fun TvEpgItem(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        // 酷9风格：回看/直播/预约标签
+        // 侧边栏风格：回看/直播/预约标签
         if (isPast) {
-            Surface(color = KU9_ACCENT_CYAN.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
-                Text("回看", color = KU9_ACCENT_CYAN, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+            Surface(color = ACCENT_CYAN.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
+                Text("回看", color = ACCENT_CYAN, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
             }
         } else if (isCurrent) {
             Surface(color = Color(0xFFFF5252).copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
@@ -1302,8 +1302,8 @@ private fun TvEpgItem(
             }
         } else {
             if (hasReminder) {
-                Surface(color = KU9_ACCENT_GREEN.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
-                    Text("已预约", color = KU9_ACCENT_GREEN, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                Surface(color = ACCENT_GREEN.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
+                    Text("已预约", color = ACCENT_GREEN, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                 }
             } else {
                 Surface(color = Color(0x20FFFFFF), shape = RoundedCornerShape(3.dp)) {

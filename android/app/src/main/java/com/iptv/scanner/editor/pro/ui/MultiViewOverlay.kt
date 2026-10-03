@@ -444,7 +444,7 @@ private fun EmptyViewportHint(text: String, modifier: Modifier = Modifier) {
             Icons.Default.Add,
             contentDescription = null,
             tint = Color.White.copy(alpha = 0.5f),
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(48.dp)
         )
         Spacer(Modifier.height(4.dp))
         Text(

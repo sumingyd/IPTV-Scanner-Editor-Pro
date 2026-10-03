@@ -8,11 +8,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
@@ -198,7 +200,7 @@ class IptvRepository private constructor() {
 
     /** 更新频道字段。fields 是字段名到值的映射 */
     suspend fun updateChannel(idx: Int, fields: Map<String, String>): Result<Unit> {
-        val jsonStr = buildJsonObject(fields).toString()
+        val jsonStr = toJsonObject(fields).toString()
         return callPyTyped<OkResponse>("update_channel", idx, jsonStr).map { Unit }
     }
 
@@ -241,7 +243,7 @@ class IptvRepository private constructor() {
     }
 
     suspend fun updateSource(idx: Int, fields: Map<String, String>): Result<Unit> {
-        val jsonStr = buildJsonObject(fields).toString()
+        val jsonStr = toJsonObject(fields).toString()
         return callPyTyped<OkResponse>("update_source", idx, jsonStr).map { Unit }
     }
 
@@ -288,7 +290,7 @@ class IptvRepository private constructor() {
     }
 
     suspend fun updateEpgSource(idx: Int, fields: Map<String, String>): Result<Unit> {
-        val jsonStr = buildJsonObject(fields).toString()
+        val jsonStr = toJsonObject(fields).toString()
         return callPyTyped<OkResponse>("update_epg_source", idx, jsonStr).map { Unit }
     }
 
@@ -321,9 +323,7 @@ class IptvRepository private constructor() {
         return result.fold(
             onSuccess = { obj ->
                 try {
-                    val channels = obj["channels"]?.let {
-                        json.decodeFromString(ListSerializer(String.serializer()), it.toString())
-                    } ?: emptyList()
+                    val channels = obj["channels"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
                     Result.success(channels)
                 } catch (e: Throwable) {
                     Result.failure(e)
@@ -467,7 +467,7 @@ class IptvRepository private constructor() {
 
     /** 批量获取频道缩略图文件路径。返回 url -> file_path 映射 */
     suspend fun getThumbnailPaths(urls: List<String>): Result<Map<String, String>> {
-        val json = org.json.JSONArray(urls).toString()
+        val json = JsonArray(urls.map { JsonPrimitive(it) }).toString()
         return callPyTyped<ThumbnailPathsResponse>("get_thumbnail_paths", json).map { it.paths }
     }
 
@@ -484,7 +484,7 @@ class IptvRepository private constructor() {
     // -----------------------------------------------------------------
 
     /** 把 Map<String, String> 转为 JsonObject（用于 update_channel / update_source） */
-    private fun buildJsonObject(fields: Map<String, String>): JsonObject =
+    private fun toJsonObject(fields: Map<String, String>): JsonObject =
         buildJsonObject {
             fields.forEach { (k, v) -> put(k, JsonPrimitive(v)) }
         }

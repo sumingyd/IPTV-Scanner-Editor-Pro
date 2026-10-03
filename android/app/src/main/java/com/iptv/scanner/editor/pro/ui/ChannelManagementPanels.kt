@@ -340,7 +340,7 @@ private fun DuplicateGroupItem(
                     }
                     IconButton(
                         onClick = { onDelete(idx) },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = "删除",
                             tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))

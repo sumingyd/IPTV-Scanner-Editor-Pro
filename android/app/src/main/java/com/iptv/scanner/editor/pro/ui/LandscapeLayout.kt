@@ -105,13 +105,13 @@ private val ICON_SIZE = 22.dp
 private val ICON_BTN = 36.dp
 private val GESTURE_THRESHOLD = 30f
 
-// 酷9风格配色
-private val KU9_GRADIENT_START = Color(0xFF036D80) // 深青色
-private val KU9_GRADIENT_END = Color(0xFF052D49)   // 深蓝色
-private val KU9_ACCENT_GREEN = Color(0xFF70C439)   // 清新绿（数字选台/当前频道）
-private val KU9_ACCENT_CYAN = Color(0xFF00BCD4)    // 青色（加载动画/分组头）
-private val KU9_ICON_BG = Color(0x32FFFFFF)        // 半透明白色（图标背景）
-private val KU9_TIME_BG = Color(0x26000000)        // 半透明黑色（时间/网速背景）
+// 侧边栏风格配色
+private val SIDEBAR_GRADIENT_START = Color(0xFF036D80) // 深青色
+private val SIDEBAR_GRADIENT_END = Color(0xFF052D49)   // 深蓝色
+private val ACCENT_GREEN = Color(0xFF70C439)   // 清新绿（数字选台/当前频道）
+private val ACCENT_CYAN = Color(0xFF00BCD4)    // 青色（加载动画/分组头）
+private val ICON_BG = Color(0x32FFFFFF)        // 半透明白色（图标背景）
+private val TIME_BG = Color(0x26000000)        // 半透明黑色（时间/网速背景）
 
 private enum class GestureFeedbackType { BRIGHTNESS, VOLUME, SEEK }
 
@@ -419,7 +419,7 @@ private fun GestureFeedbackOverlay(
             icon,
             contentDescription = null,
             tint = oc.iconTint,
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(48.dp)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
@@ -452,12 +452,12 @@ private fun LandscapeSideBar(viewModel: AppViewModel, hasEpg: Boolean, sidebarWi
     val oc = rememberPlayerOverlayColors()
 
     val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-    val ku9Gradient = Brush.linearGradient(
-        colors = listOf(KU9_GRADIENT_START, KU9_GRADIENT_END),
+    val sidebarGradient = Brush.linearGradient(
+        colors = listOf(SIDEBAR_GRADIENT_START, SIDEBAR_GRADIENT_END),
         start = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY),
         end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, 0f)
     )
-    // 酷9风格：EPG折叠展示，默认不展开
+    // 侧边栏风格：EPG折叠展示，默认不展开
     var epgExpanded by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier
@@ -466,10 +466,10 @@ private fun LandscapeSideBar(viewModel: AppViewModel, hasEpg: Boolean, sidebarWi
             .padding(bottom = BOTTOM_BAR_HEIGHT)
     ) {
         if (isAndroid12Plus) {
-            Box(modifier = Modifier.matchParentSize().blur(20.dp).background(KU9_GRADIENT_START.copy(alpha = 0.40f)))
+            Box(modifier = Modifier.matchParentSize().blur(20.dp).background(SIDEBAR_GRADIENT_START.copy(alpha = 0.40f)))
         }
         Box(
-            modifier = Modifier.matchParentSize().background(ku9Gradient)
+            modifier = Modifier.matchParentSize().background(sidebarGradient)
         ) {
             if (hasEpg && epgExpanded) {
                 Row(modifier = Modifier.fillMaxSize()) {
@@ -524,17 +524,17 @@ private fun LandscapeChannelColumn(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AppViewModel.ChannelTab.values().forEach { tab ->
+            ChannelTab.values().forEach { tab ->
                 FilterChip(
                     selected = channelTab == tab,
                     onClick = { viewModel.setChannelsTab(tab) },
                     label = {
                         Text(
                             when (tab) {
-                                AppViewModel.ChannelTab.SUB -> "订阅"
-                                AppViewModel.ChannelTab.LOCAL -> "本地"
-                                AppViewModel.ChannelTab.FAV -> "收藏"
-                                AppViewModel.ChannelTab.HIST -> "历史"
+                                ChannelTab.SUB -> "订阅"
+                                ChannelTab.LOCAL -> "本地"
+                                ChannelTab.FAV -> "收藏"
+                                ChannelTab.HIST -> "历史"
                             },
                             fontSize = 10.sp
                         )
@@ -543,7 +543,7 @@ private fun LandscapeChannelColumn(
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
-            // 酷9风格：EPG折叠/展开切换按钮
+            // 侧边栏风格：EPG折叠/展开切换按钮
             if (onToggleEpg != null) {
                 IconButton(
                     onClick = onToggleEpg,
@@ -552,7 +552,7 @@ private fun LandscapeChannelColumn(
                     Icon(
                         Icons.Default.Schedule,
                         contentDescription = if (epgExpanded) "收起节目单" else "展开节目单",
-                        tint = if (epgExpanded) KU9_ACCENT_CYAN else oc.iconTint,
+                        tint = if (epgExpanded) ACCENT_CYAN else oc.iconTint,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -600,7 +600,7 @@ private fun LandscapeChannelColumn(
                         Surface(color = Color(0xCC000000)) {
                             Text(
                                 text = "$groupName (${channels.size})",
-                                color = KU9_ACCENT_CYAN,
+                                color = ACCENT_CYAN,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp)
@@ -614,7 +614,7 @@ private fun LandscapeChannelColumn(
                 val canCatchup = ch.catchup.isNotEmpty() && ch.catchup != "none"
                 Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
-                        .then(if (isCurrent) Modifier.background(KU9_ACCENT_GREEN.copy(alpha = 0.2f)) else Modifier)
+                        .then(if (isCurrent) Modifier.background(ACCENT_GREEN.copy(alpha = 0.2f)) else Modifier)
                         .clickable {
                             if (multiViewState.active) {
                                 viewModel.addChannelToMultiView(idx)
@@ -625,10 +625,10 @@ private fun LandscapeChannelColumn(
                         .padding(horizontal = 6.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 酷9风格：序号显示
+                    // 侧边栏风格：序号显示
                     Text(
                         text = "${idx + 1}",
-                        color = if (isCurrent) KU9_ACCENT_GREEN else oc.textSecondary,
+                        color = if (isCurrent) ACCENT_GREEN else oc.textSecondary,
                         fontSize = 10.sp,
                         modifier = Modifier.width(24.dp),
                         textAlign = TextAlign.End
@@ -636,7 +636,7 @@ private fun LandscapeChannelColumn(
                     Spacer(modifier = Modifier.width(4.dp))
                     if (ch.logo.isNotEmpty()) {
                         Box(
-                            modifier = Modifier.size(28.dp).clip(RoundedCornerShape(3.dp)).background(KU9_ICON_BG),
+                            modifier = Modifier.size(28.dp).clip(RoundedCornerShape(3.dp)).background(ICON_BG),
                             contentAlignment = Alignment.Center
                         ) {
                             AsyncImage(model = ch.logo, contentDescription = ch.name, modifier = Modifier.fillMaxSize().padding(1.dp), contentScale = ContentScale.Fit)
@@ -644,7 +644,7 @@ private fun LandscapeChannelColumn(
                         Spacer(modifier = Modifier.width(6.dp))
                     } else {
                         Box(
-                            modifier = Modifier.size(28.dp).clip(RoundedCornerShape(3.dp)).background(KU9_ICON_BG),
+                            modifier = Modifier.size(28.dp).clip(RoundedCornerShape(3.dp)).background(ICON_BG),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -656,7 +656,7 @@ private fun LandscapeChannelColumn(
                         }
                         Spacer(modifier = Modifier.width(6.dp))
                     }
-                    Text(text = ch.name, color = if (isCurrent) KU9_ACCENT_GREEN else oc.textPrimary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(text = ch.name, color = if (isCurrent) ACCENT_GREEN else oc.textPrimary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     if (canCatchup) {
                         Icon(Icons.Default.History, contentDescription = "可回看", tint = oc.iconTintActive, modifier = Modifier.size(12.dp))
                         Spacer(modifier = Modifier.width(3.dp))
@@ -841,14 +841,14 @@ private fun LandscapeBottomBar(
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                    // 酷9风格：时间显示（HH:mm E，半透明黑底圆角）
+                    // 侧边栏风格：时间显示（HH:mm E，半透明黑底圆角）
                     val timeText = remember(tick) {
                         val cal = java.util.Calendar.getInstance()
                         val timeFmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
                         val weekFmt = java.text.SimpleDateFormat("E", java.util.Locale.CHINESE)
                         "${timeFmt.format(cal.time)} ${weekFmt.format(cal.time)}"
                     }
-                    Surface(color = KU9_TIME_BG, shape = RoundedCornerShape(10.dp)) {
+                    Surface(color = TIME_BG, shape = RoundedCornerShape(10.dp)) {
                         Text(
                             text = timeText,
                             color = Color.White,

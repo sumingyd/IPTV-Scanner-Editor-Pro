@@ -7,7 +7,7 @@ import android.os.Build
 import android.util.Log
 
 /**
- * 开机自启动接收器（与酷9 BOOT_START 对齐）。
+ * 开机自启动接收器（与侧边栏 BOOT_START 对齐）。
  *
  * 接收 BOOT_COMPLETED 广播后，根据用户设置决定是否启动 MainActivity。
  * 在 Android 10+ 上，应用需在用户手动启动一次后才能接收 BOOT_COMPLETED。
@@ -29,6 +29,9 @@ class BootReceiver : BroadcastReceiver() {
         }
 
         Log.i(TAG, "Received boot completed broadcast")
+
+        // 安全初始化 UserPrefs（开机自启动时 Application.onCreate 可能未执行）
+        com.iptv.scanner.editor.pro.data.UserPrefs.init(context)
 
         // 读取用户设置：是否开机自启动
         val userPrefs = com.iptv.scanner.editor.pro.data.UserPrefs.getInstance()

@@ -188,8 +188,8 @@ Surface(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = when (mode) {
-                                AppViewModel.FileBrowserMode.PLAYLIST -> "选择播放列表文件"
-                                AppViewModel.FileBrowserMode.MEDIA -> "选择音视频文件"
+                                FileBrowserMode.PLAYLIST -> "选择播放列表文件"
+                                FileBrowserMode.MEDIA -> "选择音视频文件"
                             },
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -341,8 +341,8 @@ Surface(
                         val ext = file.extension.lowercase()
                         // 根据 mode 判断目标文件
                         val isTarget = when (mode) {
-                            AppViewModel.FileBrowserMode.PLAYLIST -> ext in setOf("m3u", "m3u8")
-                            AppViewModel.FileBrowserMode.MEDIA -> ext in MEDIA_EXTS
+                            FileBrowserMode.PLAYLIST -> ext in setOf("m3u", "m3u8")
+                            FileBrowserMode.MEDIA -> ext in MEDIA_EXTS
                         }
                         val isVideo = ext in VIDEO_EXTS
                         val isAudio = ext in AUDIO_EXTS
@@ -357,9 +357,9 @@ Surface(
                                         currentPath = file.absolutePath
                                     } else if (isTarget) {
                                         when (mode) {
-                                            AppViewModel.FileBrowserMode.PLAYLIST ->
+                                            FileBrowserMode.PLAYLIST ->
                                                 viewModel.importPlaylistFromFile(file.absolutePath)
-                                            AppViewModel.FileBrowserMode.MEDIA ->
+                                            FileBrowserMode.MEDIA ->
                                                 viewModel.playLocalVideo(file.absolutePath)
                                         }
                                     }

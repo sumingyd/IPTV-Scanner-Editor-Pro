@@ -53,7 +53,7 @@ fun SplashScreen(viewModel: AppViewModel) {
                 modifier = Modifier.systemBarsPadding().padding(24.dp)
             ) {
                 // 加载指示器（失败时不显示）
-                if (initState !is AppViewModel.InitState.Failed) {
+                if (initState !is InitState.Failed) {
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 3.dp,
@@ -73,8 +73,8 @@ fun SplashScreen(viewModel: AppViewModel) {
 
                 // 状态消息
                 val statusMessage = when (val state = initState) {
-                    is AppViewModel.InitState.Idle -> "准备初始化..."
-                    is AppViewModel.InitState.Initializing -> {
+                    is InitState.Idle -> "准备初始化..."
+                    is InitState.Initializing -> {
                         // 显示更详细的状态
                         val s = iptvStatus
                         when {
@@ -84,20 +84,20 @@ fun SplashScreen(viewModel: AppViewModel) {
                             else -> "加载完成，频道数：${s.channelsTotal}"
                         }
                     }
-                    is AppViewModel.InitState.Ready -> "加载完成"
-                    is AppViewModel.InitState.Failed -> "初始化失败：${state.message}"
+                    is InitState.Ready -> "加载完成"
+                    is InitState.Failed -> "初始化失败：${state.message}"
                 }
                 Text(
                     text = statusMessage,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (initState is AppViewModel.InitState.Failed)
+                    color = if (initState is InitState.Failed)
                         MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
                 // 失败时显示重试按钮
-                if (initState is AppViewModel.InitState.Failed) {
+                if (initState is InitState.Failed) {
                     Spacer(modifier = Modifier.height(20.dp))
                     Button(onClick = { viewModel.startInitialization() }) {
                         Text("重试")

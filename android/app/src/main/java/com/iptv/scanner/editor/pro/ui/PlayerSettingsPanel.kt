@@ -397,17 +397,17 @@ private fun PlayerSettingsRightColumn(viewModel: AppViewModel) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        FilterChip(selected = hdrMode == AppViewModel.HdrMode.DISABLE, onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.DISABLE) }, label = { Text("禁用") }, modifier = Modifier.tvFocusBorder())
-        FilterChip(selected = hdrMode == AppViewModel.HdrMode.AUTO, onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.AUTO) }, label = { Text("自动") }, modifier = Modifier.tvFocusBorder())
-        FilterChip(selected = hdrMode == AppViewModel.HdrMode.TONEMAP, onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.TONEMAP) }, label = { Text("色调映射") }, modifier = Modifier.tvFocusBorder())
-        FilterChip(selected = hdrMode == AppViewModel.HdrMode.PASSTHROUGH, onClick = { viewModel.setHdrMode(AppViewModel.HdrMode.PASSTHROUGH) }, label = { Text("直通") }, modifier = Modifier.tvFocusBorder())
+        FilterChip(selected = hdrMode == HdrMode.DISABLE, onClick = { viewModel.setHdrMode(HdrMode.DISABLE) }, label = { Text("禁用") }, modifier = Modifier.tvFocusBorder())
+        FilterChip(selected = hdrMode == HdrMode.AUTO, onClick = { viewModel.setHdrMode(HdrMode.AUTO) }, label = { Text("自动") }, modifier = Modifier.tvFocusBorder())
+        FilterChip(selected = hdrMode == HdrMode.TONEMAP, onClick = { viewModel.setHdrMode(HdrMode.TONEMAP) }, label = { Text("色调映射") }, modifier = Modifier.tvFocusBorder())
+        FilterChip(selected = hdrMode == HdrMode.PASSTHROUGH, onClick = { viewModel.setHdrMode(HdrMode.PASSTHROUGH) }, label = { Text("直通") }, modifier = Modifier.tvFocusBorder())
     }
     Spacer(modifier = Modifier.height(6.dp))
     val hdrDesc = when (hdrMode) {
-        AppViewModel.HdrMode.DISABLE -> "禁用 HDR：强制 SDR 输出。所有视频按 bt.709/bt.1886 渲染，HDR 视频可能高光过曝"
-        AppViewModel.HdrMode.AUTO -> "自动模式：检测设备 HDR 能力，支持则交给系统自动切换 HDR 显示（直通），不支持则色调映射到 SDR"
-        AppViewModel.HdrMode.TONEMAP -> "HDR→SDR 色调映射：HDR 视频映射到 bt.709/bt.1886。信任 HDR10+ 动态元数据，自动选择算法（HDR10+→st2094-40, HDR10/HLG→bt.2390）"
-        AppViewModel.HdrMode.PASSTHROUGH -> "HDR 直通：HDR 视频按 bt.2020/pq 输出。需要显示器支持 HDR，否则画面可能过暗或色彩异常"
+        HdrMode.DISABLE -> "禁用 HDR：强制 SDR 输出。所有视频按 bt.709/bt.1886 渲染，HDR 视频可能高光过曝"
+        HdrMode.AUTO -> "自动模式：检测设备 HDR 能力，支持则交给系统自动切换 HDR 显示（直通），不支持则色调映射到 SDR"
+        HdrMode.TONEMAP -> "HDR→SDR 色调映射：HDR 视频映射到 bt.709/bt.1886。信任 HDR10+ 动态元数据，自动选择算法（HDR10+→st2094-40, HDR10/HLG→bt.2390）"
+        HdrMode.PASSTHROUGH -> "HDR 直通：HDR 视频按 bt.2020/pq 输出。需要显示器支持 HDR，否则画面可能过暗或色彩异常"
     }
     Text(text = hdrDesc, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 4.dp))
     Spacer(modifier = Modifier.height(20.dp))
