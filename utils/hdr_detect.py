@@ -1,3 +1,4 @@
+from PySide6.QtGui import QGuiApplication, QWindow
 import subprocess
 import sys
 import logging
@@ -57,7 +58,6 @@ def is_android_hdr_enabled():
     # 方案2：通过 PySide6 Qt 检测（如果 pyjnius 不可用）
     if not result:
         try:
-            from PySide6.QtGui import QGuiApplication, QWindow
             if QGuiApplication.instance():
                 if hasattr(QWindow, 'isHDR'):
                     window = QWindow()
@@ -194,7 +194,6 @@ def _check_windows_hdr_qt():
     旧版本通过屏幕深度和格式间接判断。
     """
     try:
-        from PySide6.QtGui import QGuiApplication, QWindow
         if not QGuiApplication.instance():
             return None
 

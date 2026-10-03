@@ -4,9 +4,13 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
+from PySide6.QtCore import QPoint
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QMenu
 
 from core.log_manager import global_logger as logger
 from ui.styles import AppStyles
+from utils.platform_utils import is_android
 
 
 
@@ -15,20 +19,17 @@ class ControlPanelMixin:
 
     def _create_bottom_panel(self, show=True):
         """创建底部悬浮控制面板"""
-        logger.debug("_create_bottom_panel: 开始")
 
         self._create_panel(show=show)
 
-        logger.debug("_create_bottom_panel: 完成")
 
     def _create_panel(self, show=True):
         """创建底部控制面板（QDockWidget 停靠底部）"""
-        logger.debug("_create_panel: 开始")
         tr = self.language_manager.tr
 
         floating_container = QWidget()
         floating_container.setObjectName("panelContainer")
-        floating_container.setStyleSheet("background-color: transparent;")
+        floating_container.setStyleSheet("background-color: transparent; border: none;")
         floating_container.setMinimumHeight(120)
         floating_container.setMinimumWidth(360)
         floating_container.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
@@ -52,14 +53,12 @@ class ControlPanelMixin:
         if not show:
             self.floating_dock.hide()
 
-        logger.debug("_create_panel: 完成")
 
     def _set_info_label_icon(self, icon_label: QLabel, icon_name: str):
         """设置信息行前的小图标"""
         color = AppStyles.get_color('player_panel_text')
         icon_path = AppStyles.get_icon(icon_name, color, 16)
         if icon_path:
-            from PySide6.QtGui import QPixmap
             pixmap = QPixmap(icon_path)
             if not pixmap.isNull():
                 icon_label.setPixmap(pixmap)
@@ -68,7 +67,6 @@ class ControlPanelMixin:
 
     def _create_media_row(self):
         """创建媒体信息行"""
-        logger.debug("_create_media_row: 开始")
         tr = self.language_manager.tr
 
         self.media_row = QHBoxLayout()
@@ -143,11 +141,9 @@ class ControlPanelMixin:
 
         self._create_info_row()
 
-        logger.debug("_create_media_row: 完成")
 
     def _create_info_row(self):
         """创建节目信息行"""
-        logger.debug("_create_info_row: 开始")
         tr = self.language_manager.tr
 
         info_layout = QHBoxLayout()
@@ -196,12 +192,10 @@ class ControlPanelMixin:
         self.program_desc = QLabel(tr("open_playlist_or_import", "Open a playlist file or import channels to start watching"))
         self.program_desc.setObjectName("program_desc")
         self.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
-        self.program_desc.setAutoFillBackground(False)
-        self.program_desc.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.program_desc.setWordWrap(True)
         self.program_desc.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.program_desc.setFixedHeight(self.PROGRAM_DESC_HEIGHT)
-        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.program_desc.setMaximumHeight(self.PROGRAM_DESC_HEIGHT)
+        self.program_desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         # 空态引导 CTA：文案为引导语时可点击打开订阅；业务描述更新无需感知
         self.program_desc.setCursor(Qt.CursorShape.PointingHandCursor)
         self.program_desc.setToolTip(tr("tooltip_open_playlist_cta", "点击打开订阅文件"))
@@ -223,11 +217,9 @@ class ControlPanelMixin:
 
         self._create_control_row()
 
-        logger.debug("_create_info_row: 完成")
 
     def _create_control_row(self):
         """创建控制行"""
-        logger.debug("_create_control_row: 开始")
         tr = self.language_manager.tr
 
         self.control_row = QHBoxLayout()
@@ -235,12 +227,16 @@ class ControlPanelMixin:
 
         btn_color = AppStyles.get_color('player_panel_text')
         btn_icon_size = QSize(20, 20)
+        if is_android():
+            btn_icon_size = QSize(28, 28)
+            self.CTRL_BUTTON_WIDTH = max(self.CTRL_BUTTON_WIDTH, 48)
+            self.CTRL_BUTTON_HEIGHT = max(self.CTRL_BUTTON_HEIGHT, 48)
         self.prev_ch_button = QToolButton()
         self.prev_ch_button.setIcon(QIcon(AppStyles.get_icon('prev', btn_color)))  # type: ignore[arg-type]
         self.prev_ch_button.setIconSize(btn_icon_size)
         self.prev_ch_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.prev_ch_button.setStyleSheet(AppStyles.player_button_style())
-        self.prev_ch_button.clicked.connect(lambda: getattr(self, 'event_handler', None) and self.event_handler._switch_channel(-1))
+        self.prev_ch_button.clicked.connect(lambda: self._switch_channel_safe(-1))
         self.prev_ch_button.setToolTip(tr("panel_prev_ch", "上一频道"))
         self.control_row.addWidget(self.prev_ch_button)
 
@@ -258,7 +254,7 @@ class ControlPanelMixin:
         self.next_ch_button.setIconSize(btn_icon_size)
         self.next_ch_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.next_ch_button.setStyleSheet(AppStyles.player_button_style())
-        self.next_ch_button.clicked.connect(lambda: getattr(self, 'event_handler', None) and self.event_handler._switch_channel(1))
+        self.next_ch_button.clicked.connect(lambda: self._switch_channel_safe(1))
         self.next_ch_button.setToolTip(tr("panel_next_ch", "下一频道"))
         self.control_row.addWidget(self.next_ch_button)
 
@@ -302,7 +298,7 @@ class ControlPanelMixin:
         self.volume_button = QToolButton()
         self.volume_button.setIcon(QIcon(AppStyles.get_icon('volume', btn_color)))  # type: ignore[arg-type]
         self.volume_button.setIconSize(btn_icon_size)
-        self.volume_button.setFixedSize(36, 32)
+        self.volume_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.volume_button.setStyleSheet(AppStyles.player_button_style())
         self.volume_button.clicked.connect(self.toggle_mute)
         self.volume_button.setToolTip(tr("panel_volume", "音量"))
@@ -321,7 +317,7 @@ class ControlPanelMixin:
         self.exit_catchup_button.setIcon(QIcon(AppStyles.get_icon('exit_catchup', btn_color)))  # type: ignore[arg-type]
         self.exit_catchup_button.setIconSize(btn_icon_size)
 
-        self.exit_catchup_button.setFixedSize(36, 32)
+        self.exit_catchup_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.exit_catchup_button.setStyleSheet(AppStyles.player_button_style())
         self.exit_catchup_button.clicked.connect(self.exit_catchup)
         self.exit_catchup_button.setToolTip(tr("panel_exit_catchup", "退出回看"))
@@ -332,7 +328,7 @@ class ControlPanelMixin:
         self.speed_button.setIcon(QIcon(AppStyles.get_icon('speed', btn_color)))  # type: ignore[arg-type]
         self.speed_button.setIconSize(btn_icon_size)
         self.speed_button.setText("1.0x")
-        self.speed_button.setFixedSize(50, 32)
+        self.speed_button.setFixedSize(max(50, self.CTRL_BUTTON_WIDTH), self.CTRL_BUTTON_HEIGHT)
         self.speed_button.setStyleSheet(AppStyles.player_button_style())
         self.speed_button.clicked.connect(self.media_ctrl.show_speed_menu)
         self.speed_button.setToolTip(tr("panel_speed", "播放速度"))
@@ -340,34 +336,14 @@ class ControlPanelMixin:
         self.aspect_button = QToolButton()
         self.aspect_button.setIcon(QIcon(AppStyles.get_icon('aspect', btn_color)))  # type: ignore[arg-type]
         self.aspect_button.setIconSize(btn_icon_size)
-        self.aspect_button.setFixedSize(36, 32)
+        self.aspect_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
         self.aspect_button.setStyleSheet(AppStyles.player_button_style())
         self.aspect_button.clicked.connect(self.media_ctrl.show_aspect_menu)
         self.aspect_button.setToolTip(tr("panel_aspect", "画面比例"))
 
-        self.audio_track_button = QToolButton()
-        self.audio_track_button.setIcon(QIcon(AppStyles.get_icon('audio_track', btn_color)))  # type: ignore[arg-type]
-        self.audio_track_button.setIconSize(btn_icon_size)
-        self.audio_track_button.setToolTip(self.language_manager.tr("panel_audio_track", "Audio Track"))
-        self.audio_track_button.setFixedSize(36, 32)
-        self.audio_track_button.setStyleSheet(AppStyles.player_button_style())
-        self.audio_track_button.clicked.connect(self.media_ctrl.show_audio_track_menu)
-
-        self.sub_track_button = QToolButton()
-        self.sub_track_button.setIcon(QIcon(AppStyles.get_icon('subtitle', btn_color)))  # type: ignore[arg-type]
-        self.sub_track_button.setIconSize(btn_icon_size)
-        self.sub_track_button.setToolTip(self.language_manager.tr("panel_subtitle", "Subtitle"))
-        self.sub_track_button.setFixedSize(36, 32)
-        self.sub_track_button.setStyleSheet(AppStyles.player_button_style())
-        self.sub_track_button.clicked.connect(self.media_ctrl.show_sub_track_menu)
-
-        self.pip_button = QToolButton()
-        self.pip_button.setIcon(QIcon(AppStyles.get_icon('pip', btn_color)))  # type: ignore[arg-type]
-        self.pip_button.setIconSize(btn_icon_size)
-        self.pip_button.setFixedSize(self.CTRL_BUTTON_WIDTH, self.CTRL_BUTTON_HEIGHT)
-        self.pip_button.setStyleSheet(AppStyles.player_button_style())
-        self.pip_button.clicked.connect(self.pip_ctrl.toggle)
-        self.pip_button.setToolTip(tr("panel_pip", "画中画"))
+        # audio_track_button / sub_track_button / pip_button 已收入"更多"菜单
+        # （_create_more_menu 中 addAction 连接 show_audio_track_menu/show_sub_track_menu/pip_ctrl.toggle）
+        # 不再单独实例化，避免创建后未 addWidget 的死代码；类属性默认 None 保持兼容
 
         self._create_more_menu()
 
@@ -391,11 +367,14 @@ class ControlPanelMixin:
 
         self.floating_layout.addLayout(self.control_row)
 
-        logger.debug("_create_control_row: 完成")
+
+    def _switch_channel_safe(self, direction: int):
+        eh = getattr(self, 'event_handler', None)
+        if eh:
+            eh._switch_channel(direction)
 
     def _create_more_menu(self):
         """创建“更多”菜单：收纳次级控制按钮（倍速/比例/音轨/字幕/画中画/退出回看）"""
-        from PySide6.QtWidgets import QMenu
 
         self._more_menu = QMenu(self)
         self._more_menu.setStyleSheet(AppStyles.player_menu_bar_style())
@@ -413,7 +392,6 @@ class ControlPanelMixin:
 
     def _show_more_menu(self):
         """弹出“更多”菜单（向上弹出，避免被屏幕底部裁剪）"""
-        from PySide6.QtCore import QPoint
 
         menu = self._more_menu
         btn = self.more_button

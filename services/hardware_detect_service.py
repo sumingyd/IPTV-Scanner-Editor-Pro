@@ -34,8 +34,8 @@ class HardwareDetectService:
                 freq = psutil.cpu_freq()
                 if freq:
                     info['freq_ghz'] = round(freq.max / 1000.0, 2)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"get_cpu_info: {e}")
         except ImportError:
             info['cores'] = os.cpu_count() or 1
             info['physical_cores'] = info['cores']

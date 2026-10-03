@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt, Signal, QThread, QTimer
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from core.log_manager import global_logger as logger
+from utils.delay_constants import DelayMs
 
 
 class _EpgSearchWorker(QThread):
@@ -84,7 +85,7 @@ class EpgSearchDialog(FloatingDialog):
         from ui.theme_manager import safe_register_window
         safe_register_window(self)
 
-        QTimer.singleShot(0, self.search_input.setFocus)
+        QTimer.singleShot(DelayMs.NEXT_TICK, self.search_input.setFocus)
 
     def closeEvent(self, event):
         if getattr(self, '_worker', None):
@@ -203,8 +204,8 @@ class EpgSearchDialog(FloatingDialog):
                         from datetime import datetime
                         dt = datetime.fromisoformat(start)
                         time_str = dt.strftime('%H:%M')
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"_on_search_results: {e}")
                 parts = []
                 if time_str:
                     parts.append(time_str)

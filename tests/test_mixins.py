@@ -1,3 +1,4 @@
+from PySide6.QtWidgets import QListWidget
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -223,7 +224,6 @@ class TestThumbnailMixin:
     @patch('mixins.thumbnail_mixin.QPixmap')
     @patch('services.thumbnail_service.get_thumbnail_path', return_value='/tmp/thumb.jpg')
     def test_update_grid_thumbnail_with_match(self, mock_get_path, mock_pixmap_cls, mock_qicon):
-        from PySide6.QtWidgets import QListWidget
         mock_item = MagicMock()
         mock_item.data.return_value = 0
         mock_list = MagicMock()

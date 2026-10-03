@@ -17,6 +17,7 @@ from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from ui.epg_timeline_widget import EpgTimelineWidget, EpgChannelHeaderWidget, EpgTimeHeaderWidget
 from core.log_manager import global_logger as logger
+from utils.delay_constants import DelayMs
 
 
 class _ThemedCalendarWidget(QCalendarWidget):
@@ -42,7 +43,7 @@ class _ThemedCalendarWidget(QCalendarWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        QTimer.singleShot(50, self._apply_nav_icons)
+        QTimer.singleShot(DelayMs.UI_REFRESH, self._apply_nav_icons)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -89,8 +90,8 @@ class _TimelineLoadWorker(QThread):
                             p_end = datetime.fromisoformat(p.get('end', ''))
                             if p_start.date() <= self._selected_date <= p_end.date():
                                 programs.append(p)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"run: {e}")
                 else:
                     programs = all_programs
             except Exception as e:
@@ -143,8 +144,8 @@ class EpgTimelineDialog(FloatingDialog):
                         image: url({safe_icon});
                     }}
                 """)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_update_date_edit_icon: {e}")
 
 
     def _apply_theme(self):
@@ -253,7 +254,7 @@ class EpgTimelineDialog(FloatingDialog):
         self.date_edit.setFixedSize(140, 30)
         toolbar.addWidget(self.date_edit)
 
-        QTimer.singleShot(0, self._update_date_edit_icon)
+        QTimer.singleShot(DelayMs.NEXT_TICK, self._update_date_edit_icon)
 
         toolbar.addStretch(1)
 
@@ -364,8 +365,8 @@ class EpgTimelineDialog(FloatingDialog):
             next_path = AppStyles.get_icon('chevron_right', icon_color, 12)
             if prev_path and next_path:
                 self._calendar.set_nav_icons(QIcon(prev_path), QIcon(next_path))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_update_calendar_nav_icons: {e}")
 
     def _on_date_changed(self, qdate):
         self._load_data()
@@ -395,10 +396,10 @@ class EpgTimelineDialog(FloatingDialog):
                         if start_str:
                             d = datetime.fromisoformat(start_str).date()
                             dates.add(d)
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+                    except Exception as e:
+                        logger.debug(f"_get_epg_dates: {e}")
+        except Exception as e:
+            logger.debug(f"_get_epg_dates: {e}")
         return dates
 
     def _load_data(self):
@@ -448,9 +449,9 @@ class EpgTimelineDialog(FloatingDialog):
         self._update_corner_widget()
 
         self._mark_calendar_dates()
-        QTimer.singleShot(200, self._update_calendar_nav_icons)
+        QTimer.singleShot(DelayMs.STYLE_REAPPLY, self._update_calendar_nav_icons)
 
-        QTimer.singleShot(100, self._scroll_to_current_time)
+        QTimer.singleShot(DelayMs.LAYOUT_SETTLE, self._scroll_to_current_time)
 
     def _update_corner_widget(self):
         c = AppStyles._get_colors()
@@ -475,8 +476,8 @@ class EpgTimelineDialog(FloatingDialog):
             for d in epg_dates:
                 qd = QDate(d.year, d.month, d.day)
                 calendar.setDateTextFormat(qd, fmt)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_mark_calendar_dates: {e}")
 
     def _scroll_to_current_time(self):
         now_x = self.timeline_widget.get_current_time_x()
@@ -503,8 +504,8 @@ class EpgTimelineDialog(FloatingDialog):
         if self._load_worker and self._load_worker.isRunning():
             try:
                 self._load_worker.data_ready.disconnect(self._on_data_loaded)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"closeEvent: {e}")
             self._load_worker.abort()
             self._load_worker.wait(3000)
         if self._load_worker:

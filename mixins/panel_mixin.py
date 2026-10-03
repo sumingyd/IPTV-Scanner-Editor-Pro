@@ -1,4 +1,5 @@
 from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import QTimer
 from core.log_manager import global_logger as logger
 from core.application_state import app_state
 
@@ -106,7 +107,6 @@ class PanelMixin:
     def _restart_auto_hide_timer(self):
         if getattr(self, 'is_fullscreen', False) and not self.panel_vis.manually_hidden:
             if not hasattr(self, '_auto_hide_timer'):
-                from PySide6.QtCore import QTimer
                 self._auto_hide_timer = QTimer(self)
                 self._auto_hide_timer.setSingleShot(True)
                 self._auto_hide_timer.setInterval(self.AUTO_HIDE_INTERVAL_MS)

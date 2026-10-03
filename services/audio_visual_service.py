@@ -10,6 +10,7 @@ import numpy as np
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import QTimer, Qt, QRectF, QPointF
 from PySide6.QtGui import (
+
     QPen,
     QBrush,
     QPixmap,
@@ -188,12 +189,12 @@ class AudioPCMProvider:
             if proc is not None:
                 try:
                     proc.kill()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_decode_file: {e}")
                 try:
                     proc.wait(timeout=5)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_decode_file: {e}")
 
 
 def compute_spectrum(samples, fft_size=FFT_SIZE, num_bars=NUM_BARS):
@@ -424,8 +425,8 @@ class AudioVisualWidget(QWidget):
                 t = self._pc._get_mpv_property_double('time-pos')
                 if t is not None:
                     self._pcm.update_time_pos(t)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_tick: {e}")
         self._update_data()
         self.update()
 
@@ -1722,8 +1723,8 @@ class AudioVisualService:
             w = self._get_main_window()
             if w and hasattr(w, '_lyrics_widget') and w._lyrics_widget and w._lyrics_widget.isVisible():
                 w._lyrics_widget.raise_()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_raise_lyrics_above: {e}")
 
     def _auto_show_lyrics(self):
         try:
@@ -1753,8 +1754,8 @@ class AudioVisualService:
             if w and hasattr(w, '_lyrics_widget') and w._lyrics_widget:
                 w._lyrics_widget.stop()
                 w._lyrics_widget.hide()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_auto_hide_lyrics: {e}")
 
     def _get_main_window(self):
         if self._widget and self._widget.parent():
@@ -1834,19 +1835,17 @@ def extract_cover_art(file_path):
             for tag in audio.tags.values():
                 if hasattr(tag, 'data') and hasattr(tag, 'mime_type'):
                     if tag.mime_type and tag.mime_type.startswith('image/'):
-                        from PySide6.QtGui import QImage, QPixmap
                         img = QImage()
                         if img.loadFromData(tag.data):
                             return QPixmap.fromImage(img)
         if hasattr(audio, 'pictures'):
             for pic in audio.pictures:
                 if pic.data and pic.mime and pic.mime.startswith('image/'):
-                    from PySide6.QtGui import QImage, QPixmap
                     img = QImage()
                     if img.loadFromData(pic.data):
                         return QPixmap.fromImage(img)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"extract_cover_art: {e}")
     return None
 
 
@@ -1883,6 +1882,6 @@ def extract_lyrics(file_path):
                             text = str(item).strip()
                             if text:
                                 return text
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"extract_lyrics: {e}")
     return None

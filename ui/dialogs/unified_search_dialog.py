@@ -353,8 +353,8 @@ class UnifiedSearchDialog(FloatingDialog):
                         from datetime import datetime
                         dt = datetime.fromisoformat(start)
                         time_str = dt.strftime('%H:%M')
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"_render_results: {e}")
 
                 item_widget = QWidget()
                 item_layout = QHBoxLayout(item_widget)

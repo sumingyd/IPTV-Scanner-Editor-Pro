@@ -8,6 +8,7 @@
 import os
 
 from PySide6.QtCore import Qt, QTimer
+from utils.delay_constants import DelayMs
 from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
@@ -42,7 +43,7 @@ class ClipExportDialog(FloatingDialog):
         from ui.theme_manager import safe_register_window
         safe_register_window(self)
         # 初始化默认值
-        QTimer.singleShot(50, self._populate_current_position)
+        QTimer.singleShot(DelayMs.UI_REFRESH, self._populate_current_position)
 
     def reapply_styles(self):
         self._apply_theme()

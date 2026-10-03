@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QIcon
+from PySide6.QtGui import QPixmap
 try:
     from shiboken6 import isValid as _shiboken_isvalid
 except ImportError:
@@ -13,6 +14,7 @@ except ImportError:
 from core.log_manager import global_logger as logger
 from core.application_state import app_state
 from ui.styles import AppStyles
+from utils.delay_constants import DelayMs
 
 
 
@@ -26,7 +28,7 @@ class PlaylistPanelMixin:
 
         epg_container = QWidget()
         epg_container.setObjectName("panelContainer")
-        epg_container.setStyleSheet("background-color: transparent;")
+        epg_container.setStyleSheet("background-color: transparent; border: none;")
         epg_container.setMinimumWidth(200)
         self.epg_layout = QVBoxLayout(epg_container)
         self.epg_layout.setContentsMargins(0, 0, 0, 0)
@@ -41,7 +43,6 @@ class PlaylistPanelMixin:
         self.epg_title_icon.setStyleSheet("background: transparent; border: none;")
         epg_icon_path = AppStyles.get_icon('calendar', epg_icon_color)
         if epg_icon_path:
-            from PySide6.QtGui import QPixmap
             self.epg_title_icon.setPixmap(QPixmap(epg_icon_path))
         epg_title_row.addWidget(self.epg_title_icon)
         self.epg_title = QLabel(tr('epg_title', 'Program Guide'))
@@ -134,7 +135,7 @@ class PlaylistPanelMixin:
 
         playlist_container = QWidget()
         playlist_container.setObjectName("panelContainer")
-        playlist_container.setStyleSheet("background-color: transparent;")
+        playlist_container.setStyleSheet("background-color: transparent; border: none;")
         playlist_container.setMinimumWidth(200)
         self.playlist_layout = QVBoxLayout(playlist_container)
         self.playlist_layout.setContentsMargins(8, 8, 8, 8)
@@ -219,22 +220,7 @@ class PlaylistPanelMixin:
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             btn.setFixedHeight(20)
             btn.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-            btn.setStyleSheet(f"""
-                QToolButton {{
-                    color: {tab_icon_color};
-                    background: transparent;
-                    border: none;
-                    padding: 1px 3px;
-                    font-size: 11px;
-                }}
-                QToolButton:checked {{
-                    color: {AppStyles.get_color('accent')};
-                    font-weight: bold;
-                }}
-                QToolButton:hover {{
-                    color: {AppStyles.get_color('accent')};
-                }}
-            """)
+            btn.setStyleSheet(AppStyles.tab_button_style(tab_icon_color, AppStyles.get_color('accent')))
             btn.setToolTip(tooltip)
             btn.setCheckable(True)
             btn.setChecked(tab_idx == 0)
@@ -438,16 +424,16 @@ class PlaylistPanelMixin:
 
         if self.channel_list.viewMode() == QListWidget.ViewMode.IconMode:
             tab = 'sub' if index == 0 else 'local'
-            QTimer.singleShot(200, lambda: None if (_shiboken_isvalid and not _shiboken_isvalid(self)) else self._capture_visible_thumbnails(tab))
+            QTimer.singleShot(DelayMs.STYLE_REAPPLY, lambda: None if (_shiboken_isvalid and not _shiboken_isvalid(self)) else self._capture_visible_thumbnails(tab))
 
     def on_sub_group_changed(self, group_name):
         """订阅标签分组切换"""
         self._populate_channel_list_for(self.sub_channel_list, self._sub_channels, group_name)
         if self.sub_channel_list.viewMode() == QListWidget.ViewMode.IconMode:
-            QTimer.singleShot(200, lambda: None if (_shiboken_isvalid and not _shiboken_isvalid(self)) else self._capture_visible_thumbnails('sub'))
+            QTimer.singleShot(DelayMs.STYLE_REAPPLY, lambda: None if (_shiboken_isvalid and not _shiboken_isvalid(self)) else self._capture_visible_thumbnails('sub'))
 
     def on_local_group_changed(self, group_name):
         """本地标签分组切换"""
         self._populate_channel_list_for(self.local_channel_list, self._local_channels, group_name)
         if self.local_channel_list.viewMode() == QListWidget.ViewMode.IconMode:
-            QTimer.singleShot(200, lambda: None if (_shiboken_isvalid and not _shiboken_isvalid(self)) else self._capture_visible_thumbnails('local'))
+            QTimer.singleShot(DelayMs.STYLE_REAPPLY, lambda: None if (_shiboken_isvalid and not _shiboken_isvalid(self)) else self._capture_visible_thumbnails('local'))

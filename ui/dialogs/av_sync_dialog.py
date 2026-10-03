@@ -1,8 +1,8 @@
 """音视频同步监控对话框 - 实时显示 A/V 同步状态与历史趋势波形"""
 from collections import deque
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient, QFont
+from PySide6.QtCore import Qt, QTimer, QPointF
+from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient, QFont, QPolygonF
 from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QGroupBox, QSlider, QWidget, QCheckBox, QDoubleSpinBox,
@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from ui.floating_dialog import FloatingDialog
 from ui.styles import AppStyles
 from core.log_manager import global_logger as logger
+from utils.delay_constants import DelayMs
 
 
 class AVSyncWaveWidget(QWidget):
@@ -101,8 +102,6 @@ class AVSyncWaveWidget(QWidget):
             grad.setColorAt(0.5, QColor(accent.red(), accent.green(), accent.blue(), 40))
             grad.setColorAt(1.0, QColor(accent.red(), accent.green(), accent.blue(), 100))
 
-            from PySide6.QtGui import QPolygonF
-            from PySide6.QtCore import QPointF
             poly = QPolygonF()
             poly.append(QPointF(points[0][0], cy))
             for x, y in points:
@@ -159,7 +158,7 @@ class AVSyncDialog(FloatingDialog):
         self._ui_timer.setInterval(200)
         self._ui_timer.timeout.connect(self._refresh_values)
         self._ui_timer.start()
-        QTimer.singleShot(50, self._refresh_values)
+        QTimer.singleShot(DelayMs.UI_REFRESH, self._refresh_values)
         # 字幕自动同步定时器（每 500ms 检查一次）
         self._sub_sync_enabled = False
         self._sub_sync_timer = QTimer(self)

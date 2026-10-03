@@ -16,10 +16,12 @@ from PySide6.QtWidgets import (
     QInputDialog,
 )
 from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QComboBox
 
 from ui.floating_dialog import FloatingDialog
 from ui.styles import AppStyles
 from core.log_manager import global_logger as logger
+from utils.delay_constants import DelayMs
 
 
 class BookmarkDialog(FloatingDialog):
@@ -38,7 +40,7 @@ class BookmarkDialog(FloatingDialog):
         self._apply_theme()
         from ui.theme_manager import safe_register_window
         safe_register_window(self)
-        QTimer.singleShot(50, self._reload_all)
+        QTimer.singleShot(DelayMs.UI_REFRESH, self._reload_all)
 
     @property
     def _bookmark_ctrl(self) -> Optional[object]:
@@ -202,10 +204,9 @@ class BookmarkDialog(FloatingDialog):
         close_row.addWidget(close_btn)
         layout.addLayout(close_row)
 
-        QTimer.singleShot(60, self._bookmark_list.setFocus)
+        QTimer.singleShot(DelayMs.INPUT_DEBOUNCE, self._bookmark_list.setFocus)
 
     def _build_view_combo(self):
-        from PySide6.QtWidgets import QComboBox
         tr = self.window.language_manager.tr
         combo = QComboBox()
         combo.addItem(tr('bookmark_view_current', 'Current File'), 'current')
@@ -216,7 +217,7 @@ class BookmarkDialog(FloatingDialog):
 
     def showEvent(self, event):
         super().showEvent(event)
-        QTimer.singleShot(50, self._reload_all)
+        QTimer.singleShot(DelayMs.UI_REFRESH, self._reload_all)
 
     # ---------- 数据加载 ----------
     def _reload_all(self):
@@ -257,8 +258,8 @@ class BookmarkDialog(FloatingDialog):
                 try:
                     c = AppStyles._get_colors()
                     item.setForeground(QColor(c.get('accent')))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_reload_chapters: {e}")
                 self._chapter_list.setCurrentItem(item)
 
     def _reload_bookmarks(self):
@@ -327,8 +328,8 @@ class BookmarkDialog(FloatingDialog):
                 try:
                     c = AppStyles._get_colors()
                     item.setForeground(QColor(c.get('accent')))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_reload_bookmarks: {e}")
                 self._bookmark_list.setCurrentItem(item)
 
     @staticmethod
@@ -385,13 +386,13 @@ class BookmarkDialog(FloatingDialog):
         ctrl = self._bookmark_ctrl
         if ctrl and hasattr(ctrl, 'prev_chapter'):
             ctrl.prev_chapter()
-            QTimer.singleShot(200, self._reload_chapters)
+            QTimer.singleShot(DelayMs.STYLE_REAPPLY, self._reload_chapters)
 
     def _on_next_chapter(self):
         ctrl = self._bookmark_ctrl
         if ctrl and hasattr(ctrl, 'next_chapter'):
             ctrl.next_chapter()
-            QTimer.singleShot(200, self._reload_chapters)
+            QTimer.singleShot(DelayMs.STYLE_REAPPLY, self._reload_chapters)
 
     # ---------- 书签操作 ----------
     def _on_add_bookmark(self):

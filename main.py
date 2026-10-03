@@ -1,13 +1,16 @@
+from PySide6.QtCore import QHighDpiScaleFactorRoundingPolicy, QTimer, Qt, QtMsgType, qInstallMessageHandler
+from PySide6.QtGui import QColor, QIcon, QPixmap
+from PySide6.QtWidgets import QApplication, QSplashScreen
 import sys
 import os
 
 from utils.early_init import setup_environment
+from utils.delay_constants import DelayMs
 setup_environment()
 
 
 
 def _suppress_qfont_pointsize_warning(msg_type, context, msg):
-    from PySide6.QtCore import QtMsgType
     if msg_type == QtMsgType.QtWarningMsg and 'setPointSize' in msg and 'Point size <= 0' in msg:
         return
     if msg_type == QtMsgType.QtWarningMsg:
@@ -17,9 +20,6 @@ def _suppress_qfont_pointsize_warning(msg_type, context, msg):
 
 
 def main():
-    from PySide6.QtWidgets import QApplication, QSplashScreen
-    from PySide6.QtGui import QIcon, QPixmap, QColor
-    from PySide6.QtCore import Qt, qInstallMessageHandler
 
     qInstallMessageHandler(_suppress_qfont_pointsize_warning)
 
@@ -29,7 +29,6 @@ def main():
         )
     except (AttributeError, TypeError):
         try:
-            from PySide6.QtCore import QHighDpiScaleFactorRoundingPolicy
             QApplication.setHighDpiScaleFactorRoundingPolicy(
                 QHighDpiScaleFactorRoundingPolicy.PassThrough
             )
@@ -77,11 +76,10 @@ def main():
         splash.finish(player)
 
     if len(sys.argv) > 1:
-        from PySide6.QtCore import QTimer
         file_path = sys.argv[1]
         if os.path.isfile(file_path):
             if file_path.lower().endswith(('.m3u', '.m3u8', '.txt')):
-                QTimer.singleShot(800, lambda fp=file_path: player.settings_ops.open_specific_file(fp))
+                QTimer.singleShot(DelayMs.SPLASH_DISMISS, lambda fp=file_path: player.settings_ops.open_specific_file(fp))
             elif file_path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov',
                                              '.flv', '.wmv', '.ts', '.webm',
                                              '.mp3', '.flac', '.wav', '.aac', '.ogg', '.opus',
@@ -89,7 +87,7 @@ def main():
                                              '.dts', '.ac3', '.mid', '.midi')):
                 def _open_video_from_cmdline(fp=file_path):
                     player._add_local_video_and_track(fp)
-                QTimer.singleShot(800, _open_video_from_cmdline)
+                QTimer.singleShot(DelayMs.SPLASH_DISMISS, _open_video_from_cmdline)
 
     sys.exit(app.exec())
 

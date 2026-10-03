@@ -14,9 +14,14 @@ from PySide6.QtWidgets import (
     QFontComboBox,
     QColorDialog,
     QGroupBox,
+    QListWidgetItem,
+    QLineEdit,
+    QListWidget,
+    QProgressBar,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont
+from PySide6.QtCore import QThread
 
 from ui.floating_dialog import FloatingDialog
 from ui.styles import AppStyles
@@ -582,9 +587,7 @@ class SubtitleDownloadDialog(FloatingDialog):
         """)
 
     def _setup_ui(self):
-        from PySide6.QtWidgets import (
-            QLineEdit, QListWidget, QListWidgetItem, QProgressBar,
-        )
+
         tr = self.window.language_manager.tr
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -638,7 +641,6 @@ class SubtitleDownloadDialog(FloatingDialog):
 
     # ---------- 搜索 ----------
     def _do_search(self):
-        from PySide6.QtCore import QThread
         query = self.query_edit.text().strip()
         lang = self.lang_combo.currentData() or 'eng'
         self.result_list.clear()
@@ -683,7 +685,6 @@ class SubtitleDownloadDialog(FloatingDialog):
                 self.status_label.setText(tr('sub_no_results', '没有找到字幕'))
             return
         self.status_label.setText(tr('sub_results_count', '找到 {} 条结果').format(len(items)))
-        from PySide6.QtWidgets import QListWidgetItem
         for it in items:
             # 来源标识 + 语言 + 文件名 + 影片名 + 下载数 + 下载方式
             source = it.get('source', '?')
@@ -734,7 +735,6 @@ class SubtitleDownloadDialog(FloatingDialog):
         # 获取当前语言选择（SubtitleCat 下载需要）
         language = self.lang_combo.currentData() or 'all'
 
-        from PySide6.QtCore import QThread
 
         class _DLWorker(QThread):
             done = Signal(str)
@@ -790,8 +790,8 @@ class SubtitleDownloadDialog(FloatingDialog):
                     worker.requestInterruption()
                     worker.quit()
                     worker.wait(2000)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"closeEvent: {e}")
         from ui.theme_manager import safe_unregister_window
         safe_unregister_window(self)
         super().closeEvent(event)

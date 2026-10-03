@@ -1,3 +1,4 @@
+from PySide6.QtCore import QTimer
 from core.log_manager import global_logger as logger
 import re
 from datetime import datetime, timedelta, timezone
@@ -462,8 +463,8 @@ class CatchupController:
                     detected = detect_catchup_pattern(self.original_channel.get('url', ''))
                     if detected:
                         catchup_type, catchup_source = detected
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"catchup 类型检测失败: {e}")
 
             if not catchup_source and not catchup_type:
                 w.status_bar_show_message(w.language_manager.tr("catchup_not_supported", "This channel does not support catchup"))
@@ -528,8 +529,8 @@ class CatchupController:
             if self._cooldown_timer is not None:
                 try:
                     self._cooldown_timer.stop()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"停止冷却计时器失败: {e}")
                 self._cooldown_timer = None
             w._catchup_start_time = _time.time()
             w._catchup_start_progress = position
@@ -601,7 +602,6 @@ class CatchupController:
             return
         import time as _time
         remaining_ms = max(200, int((self.URL_REBUILD_COOLDOWN - (_time.time() - self._last_url_rebuild_time)) * 1000))
-        from PySide6.QtCore import QTimer
         self._cooldown_timer = QTimer(self.window)
         self._cooldown_timer.setSingleShot(True)
         self._cooldown_timer.timeout.connect(self._execute_pending_seek)

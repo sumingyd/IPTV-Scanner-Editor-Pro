@@ -12,8 +12,11 @@ import tempfile
 
 from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtWidgets import QProgressDialog, QMessageBox
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
 from core.log_manager import global_logger as logger
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import UiProtocol
+from utils.delay_constants import DelayMs
 
 
 def _get_platform_asset_name():
@@ -101,8 +104,8 @@ class UpdateCheckThread(QThread):
             try:
                 if loop:
                     loop.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"关闭事件循环失败: {e}")
 
     async def _get_latest_version(self):
         """从GitHub获取最新版本信息，返回 (版本号, 下载链接, Release页面链接)"""
@@ -202,8 +205,8 @@ class UpdateDownloadThread(QThread):
             try:
                 if loop:
                     loop.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"关闭事件循环失败: {e}")
 
     async def _download(self):
         """异步下载更新文件"""
@@ -331,8 +334,8 @@ class _InstallExtractThread(QThread):
 class UpdateController:
     """更新检查控制器 - 管理版本检查、下载和安装"""
 
-    def __init__(self, main_window: MainWindowProtocol):
-        self.window: MainWindowProtocol = main_window
+    def __init__(self, main_window: UiProtocol):
+        self.window: UiProtocol = main_window
         self._update_checking = False
         self._update_checked = False
         self._check_thread = None
@@ -528,7 +531,6 @@ class UpdateController:
             creationflags=subprocess.CREATE_NO_WINDOW
         )
 
-        from PySide6.QtWidgets import QApplication
         QApplication.quit()
 
     def _install_macos(self, filepath):
@@ -566,7 +568,6 @@ class UpdateController:
         logger.info(f"启动 shell 脚本更新: {script_path}")
         subprocess.Popen(['/bin/bash', script_path])
 
-        from PySide6.QtWidgets import QApplication
         QApplication.quit()
 
     def _install_linux(self, filepath):
@@ -602,7 +603,6 @@ class UpdateController:
         logger.info(f"启动 shell 脚本更新: {script_path}")
         subprocess.Popen(['/bin/bash', script_path])
 
-        from PySide6.QtWidgets import QApplication
         QApplication.quit()
 
     def _on_extract_error(self, message):
@@ -640,8 +640,7 @@ class UpdateController:
 
             self.window.status_bar.setStyleSheet(AppStyles.statusbar_error_style())
 
-            from PySide6.QtCore import QTimer
-            QTimer.singleShot(10000, self.window._reset_statusbar_style)
+            QTimer.singleShot(DelayMs.STATUS_RESET, self.window._reset_statusbar_style)
 
             logger.info(f"发现新版本: {latest_version} (当前版本: {current_version})")
 

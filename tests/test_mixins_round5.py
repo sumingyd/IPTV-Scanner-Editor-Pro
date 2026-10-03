@@ -56,7 +56,7 @@ class TestControlPanelMixin:
         mock_pixmap = MagicMock()
         mock_pixmap.isNull.return_value = False
         with patch('mixins.control_panel_mixin.AppStyles.get_icon', return_value='/fake/path.png'), \
-             patch('PySide6.QtGui.QPixmap', return_value=mock_pixmap):
+             patch('mixins.control_panel_mixin.QPixmap', return_value=mock_pixmap):
             self.host._set_info_label_icon(icon_label, 'tv')
         icon_label.setPixmap.assert_called_once()
 
@@ -65,7 +65,7 @@ class TestControlPanelMixin:
         mock_pixmap = MagicMock()
         mock_pixmap.isNull.return_value = True
         with patch('mixins.control_panel_mixin.AppStyles.get_icon', return_value='/fake/path.png'), \
-             patch('PySide6.QtGui.QPixmap', return_value=mock_pixmap):
+             patch('mixins.control_panel_mixin.QPixmap', return_value=mock_pixmap):
             self.host._set_info_label_icon(icon_label, 'tv')
         icon_label.setPixmap.assert_not_called()
 
@@ -130,7 +130,7 @@ class TestControlPanelMixin:
              patch('mixins.control_panel_mixin.AppStyles.player_slider_style', return_value=''), \
              patch('mixins.control_panel_mixin.AppStyles.player_volume_slider_style', return_value=''), \
              patch('mixins.control_panel_mixin.AppStyles.player_menu_bar_style', return_value=''), \
-             patch('PySide6.QtWidgets.QMenu'):
+             patch('mixins.control_panel_mixin.QMenu'):
             mock_btn.return_value = MagicMock()
             mock_slider.return_value = MagicMock()
             mock_cps.return_value = MagicMock()

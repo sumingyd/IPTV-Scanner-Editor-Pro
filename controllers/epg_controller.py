@@ -9,7 +9,7 @@ from PySide6.QtGui import QPainter, QFontMetrics, QFont
 from PySide6.QtCore import Qt, QTimer, QRect
 
 from core.log_manager import global_logger as logger
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import EpgProtocol
 from utils.thread_safety import safe_single_shot
 
 
@@ -110,8 +110,8 @@ class EPGItemDelegate(QStyledItemDelegate):
 class EPGController:
     """EPG节目单控制器 - 管理电子节目单的所有逻辑"""
 
-    def __init__(self, main_window: MainWindowProtocol):
-        self.window: MainWindowProtocol = main_window
+    def __init__(self, main_window: EpgProtocol):
+        self.window: EpgProtocol = main_window
         self._current_date = None
         self._last_epg_key = None
 
@@ -531,8 +531,8 @@ class EPGController:
                 start_display = ''
                 try:
                     start_display = datetime.fromisoformat(start_str).strftime('%H:%M')
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"解析 EPG 开始时间失败: {e}")
                 self.window.status_bar_show_message(tr('epg_upcoming', '节目尚未开始') + (f' ({start_display})' if start_display else ''))
 
     def update_epg_date_display(self):

@@ -1,3 +1,4 @@
+from PySide6.QtCore import QThread
 import threading
 from enum import Enum, auto
 from typing import Dict, Optional, Callable
@@ -135,7 +136,6 @@ class PanelVisibilityManager:
             if 'status_bar' in saved and hasattr(w, 'status_bar') and w.status_bar:
                 w.status_bar.setVisible(saved['status_bar'])
 
-        from PySide6.QtCore import QThread
         if QThread.currentThread() != w.thread():
             from utils.thread_safety import invoke_on_thread
             invoke_on_thread(w, _restore_widgets)
@@ -236,7 +236,6 @@ class PanelVisibilityManager:
                     from utils.thread_safety import invoke_on_thread
                     invoke_on_thread(w, lambda: (setattr(w, '_position_update_pending', False), w.update_floating_position()))
 
-        from PySide6.QtCore import QThread
         if QThread.currentThread() != w.thread():
             from utils.thread_safety import invoke_on_thread
             invoke_on_thread(w, _do_apply)

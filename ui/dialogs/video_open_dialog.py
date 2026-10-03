@@ -16,6 +16,7 @@ from PySide6.QtCore import Qt, QDir, QSize, QTimer
 from PySide6.QtGui import QAction
 from utils.platform_utils import is_windows
 from ..floating_dialog import FloatingDialog
+from utils.delay_constants import DelayMs
 
 
 _VIDEO_EXTS = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.ts', '.m2ts', '.webm')
@@ -115,7 +116,7 @@ class VideoOpenDialog(FloatingDialog):
         layout.addLayout(btn_row)
 
         self._refresh_list()
-        QTimer.singleShot(0, self._list.setFocus)
+        QTimer.singleShot(DelayMs.NEXT_TICK, self._list.setFocus)
 
     def closeEvent(self, event):
         from ui.theme_manager import safe_unregister_window

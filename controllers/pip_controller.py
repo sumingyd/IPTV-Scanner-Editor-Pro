@@ -4,21 +4,22 @@
 """
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPainter, QPen, QColor, QFont, QRegion
+from PySide6.QtGui import QPainter, QPen, QColor, QFont, QRegion, QPixmap
 from PySide6.QtCore import QRect
+from PySide6.QtWidgets import QApplication, QWidget
 
 from core.log_manager import global_logger as logger
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import PlaybackProtocol
 from utils.platform_utils import is_wayland, wayland_move, wayland_set_geometry
+from utils.delay_constants import DelayMs
 
 
 class PipButton:
-    """画中画圆形按钮（自定义绘制，无背景填充）"""
+    """画中画圆形按钮（自定义绘制，SVG 图标，无背景填充）"""
 
-    def __init__(self, label, size, parent, click_callback):
-        from PySide6.QtWidgets import QWidget
+    def __init__(self, icon_name, size, parent, click_callback):
         widget = QWidget(parent)
-        widget._label = label
+        widget._icon_name = icon_name
         widget._size = size
         widget._hovered = False
         widget._click_callback = click_callback
@@ -29,6 +30,19 @@ class PipButton:
         widget.setMouseTracking(True)
         circle = QRegion(QRect(0, 0, size, size), QRegion.RegionType.Ellipse)
         widget.setMask(circle)
+
+        def _load_pixmap(icon_name):
+            from ui.styles import AppStyles
+            icon_color = "#FFFFFF"
+            icon_size = int(size * 0.55)
+            path = AppStyles.get_icon(icon_name, icon_color, icon_size)
+            if path:
+                pm = QPixmap(path)
+                if not pm.isNull():
+                    return pm.scaled(icon_size, icon_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            return QPixmap()
+
+        widget._pixmap_cache = _load_pixmap(icon_name)
 
         def paint_event(self_widget, event):
             painter = QPainter(self_widget)
@@ -41,11 +55,11 @@ class PipButton:
                 pen = QPen(QColor(255, 255, 255, 150), 2)
             painter.setPen(pen)
             painter.drawEllipse(1, 1, self_widget._size - 2, self_widget._size - 2)
-            painter.setPen(QColor(255, 255, 255, 230))
-            font = QFont()
-            font.setPixelSize(int(self_widget._size * 0.4))
-            painter.setFont(font)
-            painter.drawText(QRect(0, 0, self_widget._size, self_widget._size), Qt.AlignmentFlag.AlignCenter, self_widget._label)
+            pm = self_widget._pixmap_cache
+            if not pm.isNull():
+                px = (self_widget._size - pm.width()) // 2
+                py = (self_widget._size - pm.height()) // 2
+                painter.drawPixmap(px, py, pm)
             painter.end()
 
         def enter_event(self_widget, event):
@@ -60,20 +74,22 @@ class PipButton:
             if event.button() == Qt.MouseButton.LeftButton:
                 self_widget._click_callback()
 
-        def set_label(self_widget, label):
-            self_widget._label = label
+        def set_icon(self_widget, icon_name):
+            if self_widget._icon_name != icon_name:
+                self_widget._icon_name = icon_name
+                self_widget._pixmap_cache = _load_pixmap(icon_name)
             self_widget.update()
 
         widget.paintEvent = lambda event: paint_event(widget, event)
         widget.enterEvent = lambda event: enter_event(widget, event)
         widget.leaveEvent = lambda event: leave_event(widget, event)
         widget.mousePressEvent = lambda event: mouse_press_event(widget, event)
-        widget.set_label = lambda label: set_label(widget, label)
+        widget.set_icon = lambda icon_name: set_icon(widget, icon_name)
 
         self._widget = widget
 
-    def set_label(self, label):
-        self._widget.set_label(label)
+    def set_icon(self, icon_name):
+        self._widget.set_icon(icon_name)
 
     def show(self):
         self._widget.show()
@@ -97,8 +113,8 @@ class PipButton:
 class PipController:
     """画中画控制器 - 管理 PiP 模式的所有状态和行为"""
 
-    def __init__(self, main_window: MainWindowProtocol):
-        self.window: MainWindowProtocol = main_window
+    def __init__(self, main_window: PlaybackProtocol):
+        self.window: PlaybackProtocol = main_window
 
         self._is_active = False
         self._pip_dragging = False
@@ -188,7 +204,6 @@ class PipController:
                 floating_panel.hide()
 
             pip_w, pip_h = 480, 270
-            from PySide6.QtWidgets import QApplication
             scr = self.window.screen()
             primary = QApplication.primaryScreen()
             if scr:
@@ -224,8 +239,8 @@ class PipController:
             if not self._pip_buttons:
                 self._create_overlay()
 
-            QTimer.singleShot(50, self._show_overlay)
-            QTimer.singleShot(50, self._update_video_geometry)
+            QTimer.singleShot(DelayMs.UI_REFRESH, self._show_overlay)
+            QTimer.singleShot(DelayMs.UI_REFRESH, self._update_video_geometry)
 
             pip_menu = getattr(self.window, '_pip_menu_action', None)
             if pip_menu:
@@ -281,9 +296,9 @@ class PipController:
                         pass
                 return _wrapper
 
-            QTimer.singleShot(100, _safe_call(self._restore_hidden_elements))
-            QTimer.singleShot(200, _safe_call(self.window.update_floating_position))
-            QTimer.singleShot(300, _safe_call(self.window._restart_auto_hide_timer))
+            QTimer.singleShot(DelayMs.LAYOUT_SETTLE, _safe_call(self._restore_hidden_elements))
+            QTimer.singleShot(DelayMs.STYLE_REAPPLY, _safe_call(self.window.update_floating_position))
+            QTimer.singleShot(DelayMs.VOLUME_HOLD, _safe_call(self.window._restart_auto_hide_timer))
             logger.info("已退出画中画模式")
         except Exception as e:
             logger.error(f"退出画中画模式失败: {e}")
@@ -314,7 +329,6 @@ class PipController:
             self._pip_exit_status_msg = ''
 
     def _create_overlay(self):
-        from PySide6.QtWidgets import QWidget
 
         if is_wayland():
             overlay_flags = Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint
@@ -329,10 +343,10 @@ class PipController:
         self._pip_overlay_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         btn_size = 44
-        self._pip_prev_btn = self._create_button("⏮", btn_size, self._on_prev_channel)
-        self._pip_play_btn = self._create_button("⏸", btn_size, self._on_toggle_play)
-        self._pip_next_btn = self._create_button("⏭", btn_size, self._on_next_channel)
-        self._pip_close_btn = self._create_button("✕", btn_size, self._exit)
+        self._pip_prev_btn = self._create_button("prev", btn_size, self._on_prev_channel)
+        self._pip_play_btn = self._create_button("pause", btn_size, self._on_toggle_play)
+        self._pip_next_btn = self._create_button("next", btn_size, self._on_next_channel)
+        self._pip_close_btn = self._create_button("close", btn_size, self._exit)
 
         self._pip_buttons = [self._pip_prev_btn, self._pip_play_btn, self._pip_next_btn, self._pip_close_btn]
         for btn in self._pip_buttons:
@@ -341,8 +355,8 @@ class PipController:
 
         self._pip_overlay_widget.hide()
 
-    def _create_button(self, text, btn_size, click_callback):
-        return PipButton(text, btn_size, None, click_callback)
+    def _create_button(self, icon_name, btn_size, click_callback):
+        return PipButton(icon_name, btn_size, None, click_callback)
 
     def _on_prev_channel(self):
         logger.debug("画中画: 点击上一个频道按钮")
@@ -368,9 +382,9 @@ class PipController:
             return
         pc = self.window.player_controller
         if pc and pc.is_playing:
-            self._pip_play_btn.set_label("⏸")
+            self._pip_play_btn.set_icon("pause")
         else:
-            self._pip_play_btn.set_label("▶")
+            self._pip_play_btn.set_icon("play")
 
     def handle_mouse_press(self, event):
         if not self._is_active:

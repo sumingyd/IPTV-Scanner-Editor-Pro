@@ -1,6 +1,11 @@
 """
 主窗口协议接口 - 定义所有控制器对主窗口的依赖契约
-控制器应依赖此 Protocol 而非具体的 IPTVPlayer 类
+按接口隔离原则拆分为 4 个窄协议：
+  - UiProtocol       : 窗口管理 / 通用 UI 工具 / 主题语言服务
+  - PlaybackProtocol : 播放控制 / 视频 EQ / 音量 / PiP
+  - ChannelProtocol  : 频道列表 / 分组 / 收藏
+  - EpgProtocol      : 节目单 / 回看 / 时移
+MainWindowProtocol 继承全部窄协议，保持对外 API 兼容。
 """
 
 from typing import Protocol, Any, Optional, List, Dict, TypedDict, Deque, Set, runtime_checkable, TYPE_CHECKING
@@ -24,9 +29,9 @@ else:
     _WidgetBase = Protocol
 
 
-@runtime_checkable
-class MainWindowProtocol(_WidgetBase):
-    """主窗口协议 - 控制器通过此协议访问主窗口"""
+
+class UiProtocol(_WidgetBase):
+    """UI / 窗口管理协议 — Qt 内置方法、通用 UI 工具、主题语言服务。"""
 
     # === Qt 内置方法 ===
     def setWindowTitle(self, title: str) -> None: ...
@@ -37,10 +42,12 @@ class MainWindowProtocol(_WidgetBase):
     def setMaximumSize(self, w: int, h: int) -> None: ...
     def resize(self, w: int, h: int) -> None: ...
     def move(self, *args) -> None: ...
+    def pos(self) -> Any: ...
     def show(self) -> None: ...
     def showNormal(self) -> None: ...
     def showMaximized(self) -> None: ...
     def showMinimized(self) -> None: ...
+    def hide(self) -> None: ...
     def close(self) -> None: ...
     def raise_(self) -> None: ...
     def setMouseTracking(self, enable: bool) -> None: ...
@@ -61,18 +68,10 @@ class MainWindowProtocol(_WidgetBase):
     def rect(self) -> Any: ...
     def mapFromGlobal(self, pos: Any) -> Any: ...
     def findChildren(self, type: Any) -> List[Any]: ...
+    def setWindowFlags(self, *args, **kwargs) -> None: ...
 
-    # === 业务方法 ===
+    # === 通用 UI 方法 ===
     def status_bar_show_message(self, message: str, timeout: int = 0) -> None: ...
-    def _populate_channel_list(self, *args, **kwargs) -> None: ...
-    def _populate_epg_list(self, *args, **kwargs) -> None: ...
-    def populate_channel_list(self, *args, **kwargs) -> None: ...
-    def populate_epg_list(self, *args, **kwargs) -> None: ...
-    def play_channel(self, *args, **kwargs) -> None: ...
-    def update_channel_info_on_selection(self) -> None: ...
-    def _set_progress_value(self, *args, **kwargs) -> None: ...
-    def _set_progress_range(self, *args, **kwargs) -> None: ...
-    def _cancel_source_timeout(self) -> None: ...
     def _on_mouse_activity(self) -> None: ...
     def _delayed_hide_floating_panels(self) -> None: ...
     def _show_floating_panels_on_enter(self) -> None: ...
@@ -83,16 +82,12 @@ class MainWindowProtocol(_WidgetBase):
     def _stop_auto_hide_timer(self) -> None: ...
     def _restart_auto_hide_timer(self) -> None: ...
     def _sync_panel_actions(self) -> None: ...
-    def toggle_mute(self) -> None: ...
-    def toggle_fullscreen(self) -> None: ...
-    def toggle_epg(self, checked=None) -> None: ...
     def toggle_playlist(self, checked=None) -> None: ...
     def toggle_floating_panel(self, checked=None) -> None: ...
     def toggle_hide_floating(self, checked=None) -> None: ...
+    def toggle_epg(self, checked=None) -> None: ...
+    def toggle_osd(self, *args, **kwargs) -> None: ...
     def reset_layout(self) -> None: ...
-    def _open_stream(self, *args, **kwargs) -> None: ...
-    def _open_video_file(self, *args, **kwargs) -> None: ...
-    def open_scan_ui(self) -> None: ...
     def _show_osd_feedback(self, *args, **kwargs) -> None: ...
     def setup_menu_bar(self) -> None: ...
     def _center_dialog_on_screen(self, *args, **kwargs) -> None: ...
@@ -104,34 +99,12 @@ class MainWindowProtocol(_WidgetBase):
     def _raise_floating_panels(self) -> None: ...
     def wheelEvent(self, event: Any) -> None: ...
     def mouseDoubleClickEvent(self, event: Any) -> None: ...
-
-    # === 频道/EPG 相关方法 ===
-    def _process_icon_load_batch(self) -> None: ...
-    def _on_channel_list_scrolled(self, *args, **kwargs) -> None: ...
-    def _is_local_file(self) -> bool: ...
-    def _get_epg_match_params(self) -> Any: ...
-    def _get_display_channel_name(self, channel: Dict[str, Any]) -> str: ...
-    def _check_program_change(self) -> None: ...
-    def _populate_channel_list_for(self, *args, **kwargs) -> None: ...
-    def select_channel(self, *args, **kwargs) -> None: ...
-    def start_catchup(self, *args, **kwargs) -> None: ...
-    def update_epg_date_display(self) -> None: ...
-
-    # === UI 更新方法 ===
     def _update_video_overlay_position(self) -> None: ...
     def _raise_overlay_above_video(self) -> None: ...
     def update_recent_files_menu(self) -> None: ...
-    def _apply_m3u_content(self, *args, **kwargs) -> None: ...
-    def _add_to_local_list(self, *args, **kwargs) -> None: ...
-    def toggle_osd(self, *args, **kwargs) -> None: ...
     def refresh_ui(self) -> None: ...
-    def _show_exit_timeshift_button(self) -> None: ...
-    def _start_live_timeshift_from_progress(self, *args, **kwargs) -> None: ...
-    def switch_to_previous_channel(self) -> None: ...
     def save_window_layout(self) -> None: ...
     def _reset_statusbar_style(self) -> None: ...
-
-    # === 设置/对话框方法 ===
     def open_channel_mapping(self) -> None: ...
     def player_settings(self) -> None: ...
     def _toggle_file_association(self) -> None: ...
@@ -141,42 +114,16 @@ class MainWindowProtocol(_WidgetBase):
     def show_usage_instructions(self) -> None: ...
     def show_about(self) -> None: ...
     def open_playlist(self) -> None: ...
+    def open_scan_ui(self) -> None: ...
     def save_as(self) -> None: ...
     def set_language(self, lang: str) -> None: ...
     def set_color_mode(self, mode: str) -> None: ...
     def set_visual_style(self, style: str) -> None: ...
-    def setWindowFlags(self, *args, **kwargs) -> None: ...
 
-    # === UI 控件 ===
+    # === 通用 UI 控件 ===
     status_bar: Optional[QStatusBar]
-    video_widget: Optional[QWidget]
-    video_placeholder: Optional[QWidget]
-    video_frame: Optional[QWidget]
-    channel_list: Optional[QListWidget]
-    channel_name: Optional[QLabel]
-    channel_logo: Optional[QLabel]
-    video_info: Optional[QLabel]
-    audio_info: Optional[QLabel]
-    network_info: Optional[QLabel]
-    current_program: Optional[QLabel]
-    program_desc: Optional[QLabel]
-    time_label: Optional[QLabel]
-    remain_label: Optional[QLabel]
-    program_progress: Optional[QProgressBar]
-    progress_start: Optional[QLabel]
-    progress_end: Optional[QLabel]
-    play_button: Optional[QPushButton]
-    volume_slider: Optional[QSlider]
-    volume_button: Optional[QPushButton]
-    speed_button: Optional[QPushButton]
-    exit_catchup_button: Optional[QPushButton]
-    group_combo: Optional[QComboBox]
-    playlist_tab: Optional[QTabWidget]
     floating_panel: Optional[QWidget]
     epg_panel: Optional[QWidget]
-    epg_content: Optional[QWidget]
-    epg_empty_label: Optional[QLabel]
-    epg_date_label: Optional[QLabel]
     epg_dock: Optional[QWidget]
     playlist_dock: Optional[QWidget]
     floating_dock: Optional[QWidget]
@@ -191,49 +138,20 @@ class MainWindowProtocol(_WidgetBase):
     _playlist_menu_action: Any
     _floating_menu_action: Any
     _fullscreen_menu_action: Any
-    audio_track_button: Optional[QPushButton]
-    sub_track_button: Optional[QPushButton]
-    aspect_button: Optional[QPushButton]
-    playlist_list_widget: Optional[QListWidget]
-    epg_list_widget: Optional[QListWidget]
-    playlist_new_url_edit: Optional[QLineEdit]
-    playlist_new_name_edit: Optional[QLineEdit]
-    _playlist_add_btn: Optional[QPushButton]
-    epg_new_url_edit: Optional[QLineEdit]
-    epg_new_name_edit: Optional[QLineEdit]
-    _epg_add_btn: Optional[QPushButton]
+    _hide_floating_action: Any
+    _server_action: Any
+    _global_search_shortcut: Any
     buffer_info: Optional[QLabel]
     catchup_indicator: Optional[QLabel]
-    epg_title: Optional[QLabel]
-    playlist_title: Optional[QLabel]
-    epg_prev_day: Optional[QPushButton]
-    epg_next_day: Optional[QPushButton]
-    sub_group_combo: Optional[QComboBox]
-    local_group_combo: Optional[QComboBox]
-    sub_channel_list: Optional[QListWidget]
-    local_channel_list: Optional[QListWidget]
     _video_overlay_label: Any
     _main_container: Optional[QWidget]
     recent_menu: Optional[QMenu]
-    _global_search_shortcut: Any
-    _hide_floating_action: Any
-    _server_action: Any
     playlist_panel: Optional[QWidget]
 
-    # === 状态变量 ===
+    # === 通用状态 ===
     current_channel: Optional[Dict[str, Any]]
-    channels: Optional[List[Dict[str, Any]]]
-    _local_channels: Optional[List[Dict[str, Any]]]
-    _sub_channels: Optional[List[Dict[str, Any]]]
     original_channel: Optional[Dict[str, Any]]
-    catchup_program: Optional[CatchupProgram]
-    _live_timeshift_seconds: float
-    current_epg_date: Optional[date]
     _osd_visible: bool
-    _progress_total_seconds: float
-    _progress_time_mode: str
-    _progress_program_start: Optional[datetime]
-    _progress_program_end: Optional[datetime]
     _initial_position_fixed: bool
     _floating_hidden: bool
     is_fullscreen: bool
@@ -241,11 +159,177 @@ class MainWindowProtocol(_WidgetBase):
     epg_visible: bool
     playlist_visible: bool
     floating_panel_visible: bool
-    _local_channels_dirty: bool
-    _last_media_info: Optional[Dict[str, Any]]
-    _last_info_key: Optional[str]
     _network_base_info: str
     last_catchup_state: bool
+
+    # === 通用服务/控制器引用 ===
+    language_manager: Any
+    config: Any
+    panel_vis: Any
+    player_controller: Any
+    play_state: Any
+    _theme_manager: Any
+    update_timer: Any
+    config_manager: Any
+    audio_visual: Any
+    settings_ops: Any
+    subscription_ctrl: Any
+    subscription_ui_ctrl: Any
+    update_ctrl: Any
+    favorites_ctrl: Any
+    multi_screen_ctrl: Any
+    progress_ctrl: Any
+    _thumbnail_service: Any
+    _scan_dialog: Any
+    scan_window: Any
+
+
+
+class PlaybackProtocol(UiProtocol):
+    """播放控制协议 — 播放/暂停/音量/全屏/PiP/进度。"""
+
+    # === 播放方法 ===
+    def play_channel(self, *args, **kwargs) -> None: ...
+    def toggle_mute(self) -> None: ...
+    def toggle_fullscreen(self) -> None: ...
+    def _open_stream(self, *args, **kwargs) -> None: ...
+    def _open_video_file(self, *args, **kwargs) -> None: ...
+    def switch_to_previous_channel(self) -> None: ...
+    def _set_progress_value(self, *args, **kwargs) -> None: ...
+    def _set_progress_range(self, *args, **kwargs) -> None: ...
+    def _cancel_source_timeout(self) -> None: ...
+    def _show_exit_timeshift_button(self) -> None: ...
+    def _start_live_timeshift_from_progress(self, *args, **kwargs) -> None: ...
+    def _set_exit_catchup_visible(self, *args, **kwargs) -> None: ...
+
+    # === 播放控件 ===
+    video_widget: Optional[QWidget]
+    video_placeholder: Optional[QWidget]
+    video_frame: Optional[QWidget]
+    play_button: Optional[QPushButton]
+    volume_slider: Optional[QSlider]
+    volume_button: Optional[QPushButton]
+    speed_button: Optional[QPushButton]
+    exit_catchup_button: Optional[QPushButton]
+    audio_track_button: Optional[QPushButton]
+    sub_track_button: Optional[QPushButton]
+    aspect_button: Optional[QPushButton]
+    time_label: Optional[QLabel]
+    remain_label: Optional[QLabel]
+    video_info: Optional[QLabel]
+    audio_info: Optional[QLabel]
+    network_info: Optional[QLabel]
+
+    # === 播放状态 ===
+    _last_media_info: Optional[Dict[str, Any]]
+    _last_info_key: Optional[str]
+    _progress_total_seconds: float
+    _progress_time_mode: str
+    _progress_program_start: Optional[datetime]
+    _progress_program_end: Optional[datetime]
+    _live_timeshift_seconds: float
+
+    # === 播放服务 ===
+    media_ctrl: Any
+    pip_ctrl: Any
+    playback_ctrl: Any
+    event_handler: Any
+
+    # === 播放对话框（惰性创建） ===
+    _audio_eq_dialog: Any
+    _video_eq_dialog: Any
+    _av_sync_dialog: Any
+    _subtitle_style_dialog: Any
+    _video_3d_dialog: Any
+    _stream_quality_dialog: Any
+    _network_enhance_dialog: Any
+    _burst_screenshot_dialog: Any
+    _playback_queue_dialog: Any
+    _lyrics_widget: Any
+
+
+
+class ChannelProtocol(UiProtocol):
+    """频道管理协议 — 频道列表/分组/收藏/本地列表。"""
+
+    # === 频道方法 ===
+    def _populate_channel_list(self, *args, **kwargs) -> None: ...
+    def populate_channel_list(self, *args, **kwargs) -> None: ...
+    def _populate_channel_list_for(self, *args, **kwargs) -> None: ...
+    def select_channel(self, *args, **kwargs) -> None: ...
+    def update_channel_info_on_selection(self) -> None: ...
+    def _process_icon_load_batch(self) -> None: ...
+    def _on_channel_list_scrolled(self, *args, **kwargs) -> None: ...
+    def _is_local_file(self) -> bool: ...
+    def _get_display_channel_name(self, channel: Dict[str, Any]) -> str: ...
+    def _apply_m3u_content(self, *args, **kwargs) -> None: ...
+    def _add_to_local_list(self, *args, **kwargs) -> None: ...
+
+    # === 频道控件 ===
+    channel_list: Optional[QListWidget]
+    channel_name: Optional[QLabel]
+    channel_logo: Optional[QLabel]
+    group_combo: Optional[QComboBox]
+    playlist_tab: Optional[QTabWidget]
+    playlist_list_widget: Optional[QListWidget]
+    sub_group_combo: Optional[QComboBox]
+    local_group_combo: Optional[QComboBox]
+    sub_channel_list: Optional[QListWidget]
+    local_channel_list: Optional[QListWidget]
+    playlist_new_url_edit: Optional[QLineEdit]
+    playlist_new_name_edit: Optional[QLineEdit]
+    _playlist_add_btn: Optional[QPushButton]
+    fav_channel_list: Any
+    fav_empty_label: Any
+    history_channel_list: Any
+    history_empty_label: Any
+
+    # === 频道状态 ===
+    channels: Optional[List[Dict[str, Any]]]
+    _local_channels: Optional[List[Dict[str, Any]]]
+    _sub_channels: Optional[List[Dict[str, Any]]]
+    _local_channels_dirty: bool
+    _icon_load_set: Optional[Set[Any]]
+    _icon_load_queue: Optional[Deque[Any]]
+    _icon_load_timer: Optional[QTimer]
+
+    # === 频道服务 ===
+    channel_ctrl: Any
+    channel_model: Any
+
+
+
+class EpgProtocol(UiProtocol):
+    """EPG / 回看协议 — 节目单/回看/时移。"""
+
+    # === EPG 方法 ===
+    def _populate_epg_list(self, *args, **kwargs) -> None: ...
+    def populate_epg_list(self, *args, **kwargs) -> None: ...
+    def update_epg_date_display(self) -> None: ...
+    def _get_epg_match_params(self) -> Any: ...
+    def _check_program_change(self) -> None: ...
+    def start_catchup(self, *args, **kwargs) -> None: ...
+
+    # === EPG 控件 ===
+    epg_content: Optional[QWidget]
+    epg_empty_label: Optional[QLabel]
+    epg_date_label: Optional[QLabel]
+    epg_list_widget: Optional[QListWidget]
+    epg_title: Optional[QLabel]
+    epg_prev_day: Optional[QPushButton]
+    epg_next_day: Optional[QPushButton]
+    epg_new_url_edit: Optional[QLineEdit]
+    epg_new_name_edit: Optional[QLineEdit]
+    _epg_add_btn: Optional[QPushButton]
+    current_program: Optional[QLabel]
+    program_desc: Optional[QLabel]
+    program_progress: Optional[QProgressBar]
+    progress_start: Optional[QLabel]
+    progress_end: Optional[QLabel]
+
+    # === EPG 状态 ===
+    current_epg_date: Optional[date]
+    catchup_program: Optional[CatchupProgram]
     _last_epg_refresh: float
     _pending_catchup_progress: float
     _target_catchup_progress: float
@@ -253,43 +337,15 @@ class MainWindowProtocol(_WidgetBase):
     _catchup_start_progress: float
     _timeshift_start_time: Optional[datetime]
     _epg_hidden_by_local_file: bool
-    _icon_load_set: Optional[Set[Any]]
-    _icon_load_queue: Optional[Deque[Any]]
-    _icon_load_timer: Optional[QTimer]
 
-    # === 服务/控制器引用 ===
-    language_manager: Any
-    player_controller: Any
-    play_state: Any
-    panel_vis: Any
-    config: Any
-    channel_model: Any
-    epg_parser: Any
-    channel_ctrl: Any
+    # === EPG 服务 ===
     epg_ctrl: Any
-    playback_ctrl: Any
     catchup_ctrl: Any
-    pip_ctrl: Any
-    media_ctrl: Any
-    event_handler: Any
-    subscription_ctrl: Any
-    subscription_ui_ctrl: Any
-    settings_ops: Any
-    update_ctrl: Any
-    favorites_ctrl: Any
+    epg_parser: Any
     epg_reminder_ctrl: Any
-    multi_screen_ctrl: Any
-    progress_ctrl: Any
-    _theme_manager: Any
-    update_timer: Any
 
-    _thumbnail_service: Any
-    _scan_dialog: Any
-    scan_window: Any
-    config_manager: Any
-    audio_visual: Any
 
-    fav_channel_list: Any
-    fav_empty_label: Any
-    history_channel_list: Any
-    history_empty_label: Any
+
+class MainWindowProtocol(PlaybackProtocol, ChannelProtocol, EpgProtocol):
+    """主窗口协议 — 完整接口，PlaybackProtocol + ChannelProtocol + EpgProtocol 的联合。"""
+    pass

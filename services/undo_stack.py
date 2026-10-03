@@ -182,8 +182,8 @@ class RemoveChannelCommand(Command):
         try:
             if 0 <= row < len(model.channels):
                 name = model.channels[row].get('name', '')
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"__init__: {e}")
         super().__init__(description or f"删除频道: {name}")
 
     def execute(self) -> bool:
@@ -213,8 +213,8 @@ class RemoveChannelCommand(Command):
                         self._model.beginResetRows()
                         self._model.channels.insert(self._row, ch)
                         self._model.endResetRows()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"undo: {e}")
                 return True
             return False
         except Exception as e:
@@ -272,16 +272,16 @@ class BatchCommand(Command):
                     for done in reversed(executed):
                         try:
                             done.undo()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"execute: {e}")
                     return False
             except Exception as e:
                 logger.error(f"BatchCommand execute 失败: {e}")
                 for done in reversed(executed):
                     try:
                         done.undo()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"execute: {e}")
                 return False
         return True
 

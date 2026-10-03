@@ -6,6 +6,7 @@ import os
 import time
 import warnings
 from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6.QtGui import QIcon
 try:
     from shiboken6 import isValid as _shiboken_is_valid
 except ImportError:
@@ -17,6 +18,7 @@ from services.scanner_service import ScannerController
 from ui.styles import AppStyles
 from ui.quality_bar import QualityBarDelegate
 from services.url_parser_service import URLRangeParser
+from utils.delay_constants import DelayMs
 
 from utils.resource_cleaner import register_cleanup
 from utils.general_utils import safe_connect_button
@@ -136,8 +138,8 @@ class UrlRangeInputWidget(QtWidgets.QWidget):
         try:
             from ui.styles import AppStyles
             menu.setStyleSheet(AppStyles.common_menu_style())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_show_history_popup: {e}")
         for url in self._history[-50:]:  # 最多显示 50 条
             action = menu.addAction(url if len(url) <= 120 else url[:117] + "...")
             action.setToolTip(url)
@@ -212,8 +214,8 @@ class ScanChannelDialog(FloatingDialog):
         try:
             settings = self.config.load_scan_engine_settings()
             engine = settings.get('engine', 'ffprobe')
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_get_validator_class: {e}")
         if engine == 'ffprobe':
             from services.ffprobe_validator_service import FfprobeStreamValidator
             return FfprobeStreamValidator
@@ -251,8 +253,8 @@ class ScanChannelDialog(FloatingDialog):
                     x = (sg.width() - self.width()) // 2 + sg.x()
                     y = (sg.height() - self.height()) // 2 + sg.y()
                     wayland_move(self, x, y)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"showEvent: {e}")
         super().showEvent(event)
 
     def mousePressEvent(self, event):
@@ -312,7 +314,6 @@ class ScanChannelDialog(FloatingDialog):
         from utils.general_utils import get_icon_path
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
-            from PySide6.QtGui import QIcon
             self.setWindowIcon(QIcon(ico_path))
         from utils.platform_utils import is_wayland
         if is_wayland():
@@ -2314,8 +2315,8 @@ class ScanChannelDialog(FloatingDialog):
         if tm:
             try:
                 tm.unregister_window(dialog)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_exec_themed_dialog: {e}")
 
     def _update_empty_hint(self):
         """更新空列表提示可见性"""
@@ -2415,7 +2416,7 @@ class ScanChannelDialog(FloatingDialog):
             'is_scanning': False
         })
 
-        QtCore.QTimer.singleShot(500, self._finalize_stop_scan)
+        QtCore.QTimer.singleShot(DelayMs.OSD_FADE, self._finalize_stop_scan)
 
     def _finalize_stop_scan(self):
         """延迟执行重量级停止清理（在主线程中安全执行）"""
@@ -2442,7 +2443,7 @@ class ScanChannelDialog(FloatingDialog):
 
             still_running = any(w.is_alive() for w in self.scanner.workers)
             if still_running:
-                QtCore.QTimer.singleShot(300, self._finalize_stop_scan)
+                QtCore.QTimer.singleShot(DelayMs.FINALIZE_STOP, self._finalize_stop_scan)
                 return
 
             self.scanner.workers = []
@@ -2453,8 +2454,8 @@ class ScanChannelDialog(FloatingDialog):
             if hasattr(self.scanner, '_mapping_executor') and self.scanner._mapping_executor:
                 try:
                     self.scanner._mapping_executor.shutdown(wait=False)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_finalize_stop_scan: {e}")
                 self.scanner._mapping_executor = None
 
             self.progress_manager.complete_progress(
@@ -2468,8 +2469,8 @@ class ScanChannelDialog(FloatingDialog):
             try:
                 ValidatorClass = self._get_validator_class()
                 ValidatorClass.reset_terminating()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_finalize_stop_scan: {e}")
 
     def _on_scan_clicked(self):
         """处理扫描按钮点击事件"""
@@ -2684,7 +2685,7 @@ class ScanChannelDialog(FloatingDialog):
             self.scanner.scan_state_manager.update_scan_state(self.scanner.scan_id, {
                 'is_validating': False
             })
-            QtCore.QTimer.singleShot(500, self._finalize_stop_validation)
+            QtCore.QTimer.singleShot(DelayMs.OSD_FADE, self._finalize_stop_validation)
 
     def _finalize_stop_validation(self):
         """延迟执行停止验证清理"""
@@ -2713,7 +2714,7 @@ class ScanChannelDialog(FloatingDialog):
 
             still_running = any(w.is_alive() for w in self.scanner.workers)
             if still_running:
-                QtCore.QTimer.singleShot(300, self._finalize_stop_validation)
+                QtCore.QTimer.singleShot(DelayMs.FINALIZE_STOP, self._finalize_stop_validation)
                 return
 
             self.scanner.workers = []
@@ -2725,8 +2726,8 @@ class ScanChannelDialog(FloatingDialog):
             try:
                 ValidatorClass = self._get_validator_class()
                 ValidatorClass.reset_terminating()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_finalize_stop_validation: {e}")
 
     def _on_channel_validated(self, index, valid, latency, resolution):
         """处理频道验证结果（_flush_pending_validations 已通过URL更新模型，此方法为辅助更新）"""
@@ -2745,8 +2746,8 @@ class ScanChannelDialog(FloatingDialog):
             score_info = StreamQualityScorer.score_from_channel(channel_info)
             channel_info['quality_score'] = score_info.get('total', 0)
             channel_info['quality_grade'] = score_info.get('grade', 'F')
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_on_channel_validated: {e}")
 
         self.model.update_channel(index, channel_info)
 
@@ -2755,8 +2756,8 @@ class ScanChannelDialog(FloatingDialog):
         self._set_browse_model()
         try:
             self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_on_validation_completed: {e}")
         # 智能重试：对检测为无效的频道进行重试验证
         if self.enable_retry_checkbox.isChecked():
             invalid_urls = []
@@ -2768,14 +2769,14 @@ class ScanChannelDialog(FloatingDialog):
                 self._validation_retry_urls = invalid_urls
                 self._validation_retry_count = 0
                 self._is_validation_retrying = True
-                QtCore.QTimer.singleShot(100, self._start_validation_retry)
+                QtCore.QTimer.singleShot(DelayMs.LAYOUT_SETTLE, self._start_validation_retry)
             else:
                 self.logger.info("检测有效性完成，所有频道均有效")
                 self.stats_label.setText(self.language_manager.tr("all_channels_valid", "All channels are valid"))
                 try:
                     self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_on_validation_completed: {e}")
         else:
             valid_count = sum(1 for ch in self.model.channels if ch.get('valid') is True)
             total = len(self.model.channels)
@@ -2786,8 +2787,8 @@ class ScanChannelDialog(FloatingDialog):
             )
             try:
                 self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_on_validation_completed: {e}")
 
     def _start_validation_retry(self):
         """对无效频道进行智能重试验证"""
@@ -3054,25 +3055,25 @@ class ScanChannelDialog(FloatingDialog):
 
         try:
             self.progress_manager.complete_progress(self.language_manager.tr('scan_completed', '扫描完成'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_on_scan_completed: {e}")
 
         try:
             self._reset_scan_buttons()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_on_scan_completed: {e}")
 
         try:
             self.btn_validate.setText(self.language_manager.tr("validate_button", "Validate"))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_on_scan_completed: {e}")
 
         if was_stopping:
             return
 
         if not is_retry:
             if self.enable_retry_checkbox.isChecked():
-                QtCore.QTimer.singleShot(100, self._handle_retry_scan)
+                QtCore.QTimer.singleShot(DelayMs.LAYOUT_SETTLE, self._handle_retry_scan)
         else:
             self._handle_retry_scan_completed()
 
@@ -3080,12 +3081,12 @@ class ScanChannelDialog(FloatingDialog):
         """处理验证重试扫描完成事件"""
         try:
             self.progress_manager.complete_progress(self.language_manager.tr('validate_completed', '检测完成'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_on_validation_retry_completed: {e}")
         try:
             self._reset_scan_buttons()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_on_validation_retry_completed: {e}")
 
         if getattr(self, '_is_stopping', False):
             self.logger.info("检测重试被用户停止")
@@ -3130,7 +3131,7 @@ class ScanChannelDialog(FloatingDialog):
                 self._is_validation_retrying = False
                 return
             self.logger.info(f"仍有 {len(remaining_invalid)} 个无效频道，继续智能重试(第{current_count + 1}/{max_retries}次)...")
-            QtCore.QTimer.singleShot(500, self._start_validation_retry)
+            QtCore.QTimer.singleShot(DelayMs.OSD_FADE, self._start_validation_retry)
         else:
             self._is_validation_retrying = False
             if remaining_invalid:
@@ -3387,8 +3388,8 @@ class ScanChannelDialog(FloatingDialog):
         for handler, name in self._cleanup_handlers:
             try:
                 unregister_cleanup(handler)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_unregister_cleanup_handlers: {e}")
         self._cleanup_handlers.clear()
 
     def _unregister_config_observers(self):
@@ -3398,8 +3399,8 @@ class ScanChannelDialog(FloatingDialog):
             unregister_config_observer("Network.*", self._on_network_config_changed)
             unregister_config_observer("ScanRetry.*", self._on_scan_retry_config_changed)
             unregister_config_observer("Language.current_language", self._on_language_config_changed)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_unregister_config_observers: {e}")
 
     def _handle_retry_scan(self):
         """处理重试扫描"""
@@ -3587,7 +3588,7 @@ class ScanChannelDialog(FloatingDialog):
             self.logger.info(f"还有{len(failed_channels)}个失败频道，继续重试 (第{retry_count + 1}次)")
             self.scan_state_manager.update_last_retry_valid_count(self.retry_id, current_valid_count)
             # 延迟启动下一次重试，让状态有时间更新
-            QtCore.QTimer.singleShot(500, self._handle_retry_scan)
+            QtCore.QTimer.singleShot(DelayMs.OSD_FADE, self._handle_retry_scan)
         else:
             if not failed_channels or len(failed_channels) == 0:
                 self.logger.info("没有更多失败频道需要重试，结束重试扫描")

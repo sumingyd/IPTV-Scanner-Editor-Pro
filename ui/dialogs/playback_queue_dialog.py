@@ -2,6 +2,7 @@
 from typing import Optional
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from ui.floating_dialog import FloatingDialog
+from utils.delay_constants import DelayMs
 from ui.styles import AppStyles
 from core.log_manager import global_logger as logger
 
@@ -50,7 +52,7 @@ class PlaybackQueueDialog(FloatingDialog):
         from ui.theme_manager import safe_register_window
         safe_register_window(self)
         # 启动后短暂延迟加载初始状态
-        QTimer.singleShot(80, self._reload_state)
+        QTimer.singleShot(DelayMs.QUEUE_RELOAD, self._reload_state)
 
     @property
     def _queue_ctrl(self) -> Optional[object]:
@@ -208,7 +210,7 @@ class PlaybackQueueDialog(FloatingDialog):
                 return
             result = fn(*args)
             # 调用后刷新状态（用于显示 A-B 状态等）
-            QTimer.singleShot(60, self._reload_state)
+            QTimer.singleShot(DelayMs.INPUT_DEBOUNCE, self._reload_state)
             return result
         except Exception as e:
             logger.debug(f"调用 queue_ctrl.{method_name} 失败: {e}")
@@ -224,7 +226,7 @@ class PlaybackQueueDialog(FloatingDialog):
         except Exception as e:
             logger.debug(f"切换队列模式失败: {e}")
         finally:
-            QTimer.singleShot(60, self._reload_state)
+            QTimer.singleShot(DelayMs.INPUT_DEBOUNCE, self._reload_state)
 
     def _on_item_double_clicked(self, item: QListWidgetItem):
         idx = self._list_widget.row(item)
@@ -234,14 +236,14 @@ class PlaybackQueueDialog(FloatingDialog):
         if 0 <= idx < len(channels):
             channel = channels[idx]
             try:
-                QTimer.singleShot(50, lambda: self.window.play_channel(channel))
+                QTimer.singleShot(DelayMs.UI_REFRESH, lambda: self.window.play_channel(channel))
             except Exception as e:
                 logger.debug(f"播放队列项失败: {e}")
 
     # ---------- 状态加载 ----------
     def showEvent(self, event):
         super().showEvent(event)
-        QTimer.singleShot(60, self._reload_state)
+        QTimer.singleShot(DelayMs.INPUT_DEBOUNCE, self._reload_state)
 
     def _reload_state(self):
         """重新加载所有状态显示"""
@@ -310,12 +312,11 @@ class PlaybackQueueDialog(FloatingDialog):
             item = QListWidgetItem(text)
             if is_current:
                 # 高亮当前项
-                from PySide6.QtGui import QColor
                 try:
                     c = AppStyles._get_colors()
                     item.setForeground(QColor(c.get('accent')))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_reload_list: {e}")
             self._list_widget.addItem(item)
             if is_current:
                 self._list_widget.setCurrentItem(item)

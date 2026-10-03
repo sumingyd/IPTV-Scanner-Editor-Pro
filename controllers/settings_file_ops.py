@@ -10,6 +10,7 @@ import re
 from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt, QTimer, QThread, Signal
 from PySide6.QtWidgets import (
+
     QFileDialog,
     QMessageBox,
     QComboBox,
@@ -38,6 +39,7 @@ from core.application_state import app_state
 from ui.styles import AppStyles
 from ui.floating_dialog import FloatingDialog
 from ui.theme_manager import get_theme_manager
+from utils.delay_constants import DelayMs
 from core.version import CURRENT_VERSION
 from services.m3u_parser import load_m3u_file
 from controllers.main_window_protocol import MainWindowProtocol
@@ -265,8 +267,8 @@ class SettingsFileOperations:
         if tm:
             try:
                 tm.unregister_window(dialog)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"注销窗口失败: {e}")
 
     def _create_settings_dialog(self):
         try:
@@ -628,7 +630,7 @@ class SettingsFileOperations:
         v.addWidget(widget)
         desc = QLabel(desc_text)
         desc.setWordWrap(True)
-        desc.setStyleSheet(f"color: {AppStyles._get_colors().get('mid', 'gray')}; font-size: 11px;")
+        desc.setStyleSheet(AppStyles.description_text_style())
         v.addWidget(desc)
         layout.addRow(label_text, container)
 
@@ -1113,7 +1115,7 @@ class SettingsFileOperations:
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setFixedHeight(1)
-        sep.setStyleSheet(f"background-color: {colors['mid']}; border: none;")
+        sep.setStyleSheet(AppStyles.separator_line_style())
         main_layout.addWidget(sep)
 
         text_edit = QTextEdit()
@@ -1124,16 +1126,7 @@ class SettingsFileOperations:
         text_edit.setWordWrapMode(QtGui.QTextOption.WrapMode.WordWrap)
         text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        text_edit.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {colors['alternate_base']};
-                color: {colors['window_text']};
-                border: 1px solid {colors['mid']};
-                border-radius: {AppStyles._get_style_border_radius()}px;
-                padding: 10px;
-                font-size: 13px;
-            }}
-        """)
+        text_edit.setStyleSheet(AppStyles.text_edit_info_style())
         main_layout.addWidget(text_edit, 1)
 
         button_layout = QHBoxLayout()
@@ -1158,8 +1151,8 @@ class SettingsFileOperations:
         if tm2:
             try:
                 tm2.unregister_window(dialog)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"注销窗口失败: {e}")
 
     @staticmethod
     def _convert_markdown_to_html(markdown):
@@ -1309,7 +1302,7 @@ class SettingsFileOperations:
                     try:
                         global_subscription_manager.load_single_epg(epg_url)
                         if hasattr(self.window, '_populate_epg_list') and callable(self.window._populate_epg_list):
-                            QTimer.singleShot(500, self.window._populate_epg_list)
+                            QTimer.singleShot(DelayMs.OSD_FADE, self.window._populate_epg_list)
                     except Exception as epg_err:
                         logger.warning(f"从本地文件头加载EPG失败: {epg_err}")
 
@@ -1557,7 +1550,6 @@ class SettingsFileOperations:
             # 避免用户误粘贴非URL内容（如命令行）后直接报底层异常。
             if '://' not in url and not (
                     url.startswith('/') or (len(url) >= 2 and url[1] == ':' and url[0].isalpha())):
-                from PySide6.QtWidgets import QMessageBox
                 QMessageBox.warning(
                     w, tr("open_stream", "打开串流"),
                     tr("invalid_url_prompt",
@@ -1594,7 +1586,6 @@ class SettingsFileOperations:
                     w.status_bar_show_message(tr("m3u_download_failed", "M3U列表下载失败"))
                 # 强制作为列表解析时，下载失败则提示用户，不回退到单流
                 if force_as_playlist:
-                    from PySide6.QtWidgets import QMessageBox
                     QMessageBox.warning(
                         w, tr("open_stream", "打开串流"),
                         tr("m3u_download_failed_prompt",
@@ -1615,7 +1606,6 @@ class SettingsFileOperations:
                     if force_as_playlist:
                         # 用户强制作为列表解析，但实际是 HLS 单流，提示用户
                         logger.info("检测到HLS Playlist，用户强制作为列表解析，提示用户并作为单流添加")
-                        from PySide6.QtWidgets import QMessageBox
                         QMessageBox.information(
                             w, tr("open_stream", "打开串流"),
                             tr("hls_not_playlist_prompt",

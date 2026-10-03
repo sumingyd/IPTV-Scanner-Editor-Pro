@@ -1,13 +1,16 @@
 from typing import Dict, Any, List, Optional
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
+from PySide6.QtCore import QSize
+from PySide6.QtWidgets import QApplication, QInputDialog, QListWidget, QListWidgetItem, QMessageBox
 from core.log_manager import global_logger as logger
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import ChannelProtocol
 
 
 class FavoritesController:
-    def __init__(self, main_window: MainWindowProtocol):
-        self.window: MainWindowProtocol = main_window
+    def __init__(self, main_window: ChannelProtocol):
+        self.window: ChannelProtocol = main_window
         self._service = None
 
     def init_service(self, config_manager):
@@ -61,9 +64,6 @@ class FavoritesController:
         list_widget.clear()
         if not self._service:
             return
-        from PySide6.QtWidgets import QListWidgetItem, QListWidget
-        from PySide6.QtCore import QSize
-        from PySide6 import QtWidgets
         from ui.styles import AppStyles
         w = self.window
         tr = w.language_manager.tr
@@ -80,7 +80,7 @@ class FavoritesController:
                     item_layout.setSpacing(8)
                     logo_label = QtWidgets.QLabel()
                     logo_label.setFixedSize(44, 32)
-                    logo_label.setStyleSheet("background-color: transparent; border: none;")
+                    logo_label.setStyleSheet(AppStyles.transparent_style())
                     logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     logo_label.setObjectName("channel_logo_label")
                     name_label = QtWidgets.QLabel(channel_name)
@@ -127,9 +127,6 @@ class FavoritesController:
         list_widget.clear()
         if not self._service:
             return
-        from PySide6.QtWidgets import QListWidgetItem, QListWidget
-        from PySide6.QtCore import QSize
-        from PySide6 import QtWidgets
         from ui.styles import AppStyles
         w = self.window
         tr = w.language_manager.tr
@@ -146,8 +143,8 @@ class FavoritesController:
                         from datetime import datetime
                         dt = datetime.fromisoformat(play_time)
                         time_str = dt.strftime('%m/%d %H:%M')
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"解析收藏播放时间失败: {e}")
                 display_name = f"{channel_name}  {time_str}" if time_str else channel_name
                 try:
                     item_widget = QtWidgets.QWidget()
@@ -156,7 +153,7 @@ class FavoritesController:
                     item_layout.setSpacing(8)
                     logo_label = QtWidgets.QLabel()
                     logo_label.setFixedSize(44, 32)
-                    logo_label.setStyleSheet("background-color: transparent; border: none;")
+                    logo_label.setStyleSheet(AppStyles.transparent_style())
                     logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     logo_label.setObjectName("channel_logo_label")
                     name_label = QtWidgets.QLabel(display_name)
@@ -310,7 +307,6 @@ class FavoritesController:
         menu.exec(list_widget.mapToGlobal(pos))
 
     def _edit_channel_info(self, channel, idx, source, list_widget):
-        from PySide6.QtWidgets import QInputDialog, QMessageBox
         w = self.window
         tr = w.language_manager.tr
         new_name, ok = QInputDialog.getText(
@@ -337,7 +333,6 @@ class FavoritesController:
         logger.info(f"编辑频道: {new_name}")
 
     def _move_channel_to_group(self, channel, idx, list_widget):
-        from PySide6.QtWidgets import QInputDialog
         w = self.window
         tr = w.language_manager.tr
         channels = getattr(w, '_local_channels', None) or []
@@ -510,7 +505,6 @@ class FavoritesController:
     def _copy_text(self, text):
         if not text:
             return
-        from PySide6.QtWidgets import QApplication
         QApplication.clipboard().setText(text)
         tr = self.window.language_manager.tr
         self.window.status_bar_show_message(tr('copied_to_clipboard', '已复制到剪贴板'))
@@ -522,7 +516,6 @@ class FavoritesController:
             return
         tr = w.language_manager.tr
         name = channels[idx].get('name', '')
-        from PySide6.QtWidgets import QMessageBox
         if QMessageBox.question(w, tr('confirm_delete', '确认删除'),
                 tr('confirm_delete_channel', '确定删除频道') + f' "{name}"?',
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -541,7 +534,6 @@ class FavoritesController:
         if not self._service:
             return
         tr = self.window.language_manager.tr
-        from PySide6.QtWidgets import QMessageBox
         if QMessageBox.question(self.window, tr('confirm_clear', '确认清空'),
                 tr('confirm_clear_history', '确定清空所有播放历史？此操作不可撤销。'),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -555,7 +547,6 @@ class FavoritesController:
         if not self._service:
             return
         tr = self.window.language_manager.tr
-        from PySide6.QtWidgets import QMessageBox
         if QMessageBox.question(self.window, tr('confirm_clear', '确认清空'),
                 tr('confirm_clear_favorites', '确定清空所有收藏？此操作不可撤销。'),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -567,7 +558,6 @@ class FavoritesController:
 
     def _add_channel_from_url(self, source):
         """从URL添加频道到本地列表"""
-        from PySide6.QtWidgets import QInputDialog
         tr = self.window.language_manager.tr
         url, ok = QInputDialog.getText(self.window, tr('add_channel', '添加频道'),
             tr('enter_channel_url', '请输入频道URL:'))

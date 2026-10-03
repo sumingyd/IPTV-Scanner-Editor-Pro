@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QSlider, QCheckBox, QComboBox, QGroupBox, QWidget,
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QInputDialog
 
 from ui.floating_dialog import FloatingDialog
 from ui.styles import AppStyles
@@ -243,8 +244,8 @@ class VideoEqualizerDialog(FloatingDialog):
                         self.shader_combo.addItem(
                             item['filename'], item['path']
                         )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_setup_ui: {e}")
         self.shader_combo.currentIndexChanged.connect(self._on_shader_changed)
         enhance_form.addRow(tr('shader_preset_label', 'AI 着色器'), self.shader_combo)
 
@@ -650,7 +651,6 @@ class VideoEqualizerDialog(FloatingDialog):
 
     def _on_save_custom_preset(self):
         """保存当前设置为自定义预设"""
-        from PySide6.QtWidgets import QInputDialog
         tr = self.window.language_manager.tr
         name, ok = QInputDialog.getText(
             self, tr('save_preset_title', '保存预设'),

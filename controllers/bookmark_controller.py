@@ -2,6 +2,7 @@
 from typing import Optional
 
 from PySide6.QtCore import QObject
+from PySide6.QtCore import QTimer
 
 from core.log_manager import global_logger as logger
 from utils.thread_safety import safe_single_shot
@@ -55,20 +56,15 @@ class BookmarkController(QObject):
                 if url:
                     import os
                     return os.path.basename(url.replace('file://', '').split('?')[0]) or url
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"提取书签文件名失败: {e}")
         return ''
 
     @staticmethod
     def _format_time(seconds: float) -> str:
         try:
-            s = int(seconds)
-            h = s // 3600
-            m = (s % 3600) // 60
-            sec = s % 60
-            if h > 0:
-                return f"{h:d}:{m:02d}:{sec:02d}"
-            return f"{m:d}:{sec:02d}"
+            from utils.general_utils import format_time
+            return format_time(seconds)
         except Exception:
             return "0:00"
 
@@ -129,7 +125,6 @@ class BookmarkController(QObject):
             resume_ctrl = getattr(self.window, 'resume_ctrl', None)
             if resume_ctrl and hasattr(resume_ctrl, 'set_skip_next_resume'):
                 resume_ctrl.set_skip_next_resume(url)
-            from PySide6.QtCore import QTimer
 
             def _play_channel_safe():
                 try:
@@ -157,7 +152,6 @@ class BookmarkController(QObject):
             self._pending_seek_url = None
             self._pending_seek_position = 0.0
             # 延迟 seek（等 mpv 真正开始播放）
-            from PySide6.QtCore import QTimer
 
             def _seek_safe():
                 try:

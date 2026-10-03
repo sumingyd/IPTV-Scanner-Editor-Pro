@@ -2,10 +2,12 @@ import os
 from typing import Dict, Any, Optional
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QTimer, Qt
+from PySide6.QtWidgets import QApplication
 from core.log_manager import global_logger as logger
 from controllers.main_window_protocol import MainWindowProtocol
 from ui.styles import AppStyles
 from services.fcc_service import FCCService
+from utils.delay_constants import DelayMs
 
 
 class PlaybackController:
@@ -46,7 +48,6 @@ class PlaybackController:
             ico_path = get_icon_path()
             if os.path.exists(ico_path):
                 icon = QIcon(ico_path)
-                from PySide6.QtWidgets import QApplication
                 screen = QApplication.primaryScreen()
                 dpr = screen.devicePixelRatio() if screen else 1.0
                 size = int(256 * dpr)
@@ -187,13 +188,13 @@ class PlaybackController:
                 from utils.thread_safety import invoke_on_thread
 
                 def _schedule_reset():
-                    QTimer.singleShot(300, _reset_switching)
+                    QTimer.singleShot(DelayMs.CHANNEL_CLICK, _reset_switching)
 
                 invoke_on_thread(self.window, _schedule_reset)
             except Exception as e:
                 logger.debug(f"invoke_on_thread 失败，使用 QTimer.singleShot 兜底: {e}")
                 try:
-                    QTimer.singleShot(300, _reset_switching)
+                    QTimer.singleShot(DelayMs.CHANNEL_CLICK, _reset_switching)
                 except Exception:
                     # 最后兜底：直接重置，避免标志永久锁定
                     self._is_switching = False
@@ -369,8 +370,9 @@ class PlaybackController:
             w._cancel_source_timeout()
             for btn in ('stop_button', 'speed_button', 'aspect_button',
                         'audio_track_button', 'sub_track_button', 'volume_slider'):
-                if hasattr(w, btn):
-                    getattr(w, btn).setEnabled(True)
+                obj = getattr(w, btn, None)
+                if obj is not None:
+                    obj.setEnabled(True)
             if hasattr(w, 'video_placeholder') and w.video_placeholder:
                 w.video_placeholder.hide()
             if hasattr(w, 'video_widget') and w.video_widget and w.video_frame:
@@ -424,8 +426,9 @@ class PlaybackController:
             if w.play_state.is_idle:
                 for btn in ('stop_button', 'speed_button', 'aspect_button',
                             'audio_track_button', 'sub_track_button'):
-                    if hasattr(w, btn):
-                        getattr(w, btn).setEnabled(False)
+                    obj = getattr(w, btn, None)
+                    if obj is not None:
+                        obj.setEnabled(False)
                 return
             if w.current_channel:
                 channel_name = w.current_channel.get('name', tr('unknown_channel', 'Unknown Channel'))

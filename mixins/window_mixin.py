@@ -1,4 +1,7 @@
 from PySide6.QtWidgets import QDialog
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QCheckBox, QMessageBox, QToolButton
 
 from core.log_manager import global_logger as logger
 from ui.styles import AppStyles
@@ -134,9 +137,6 @@ class WindowMixin:
             self._position_floating_docks()
 
     def _show_fullscreen_menu_button(self):
-        from PySide6.QtWidgets import QToolButton
-        from PySide6.QtCore import Qt
-        from PySide6.QtGui import QIcon
         if hasattr(self, '_fs_menu_btn') and self._fs_menu_btn:
             return
         self._fs_menu_btn = QToolButton(self)
@@ -264,7 +264,6 @@ class WindowMixin:
     def open_channel_mapping(self):
         try:
             from ui.dialogs.mapping_manager_dialog import MappingManagerDialog
-            from PySide6.QtCore import Qt
 
             dialog = MappingManagerDialog(self)
             dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -275,7 +274,6 @@ class WindowMixin:
             logger.error(f"打开频道映射管理器失败: {str(ex)}")
 
     def _center_dialog_on_screen(self, dialog):
-        from PySide6.QtWidgets import QApplication
         app = QApplication.instance()
         if app:
             screen = app.primaryScreen()
@@ -352,7 +350,6 @@ class WindowMixin:
                     super().closeEvent(event)
                 return
 
-        from PySide6.QtWidgets import QMessageBox, QCheckBox
         tr = self.language_manager.tr
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle(tr('close_confirm_title', '关闭确认'))

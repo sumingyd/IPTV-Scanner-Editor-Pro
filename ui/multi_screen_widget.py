@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QMimeData, QByteArray, QSize
 from PySide6.QtGui import QDrag, QPainter, QPen, QIcon
+from PySide6.QtWidgets import QMenu
 from ui.styles import AppStyles
 
 
@@ -239,7 +240,6 @@ class MultiScreenCell(QWidget):
         super().mousePressEvent(event)
 
     def _show_context_menu(self, global_pos):
-        from PySide6.QtWidgets import QMenu
         from ui.styles import AppStyles
         menu = QMenu(self)
         menu.setStyleSheet(AppStyles.player_menu_bar_style())

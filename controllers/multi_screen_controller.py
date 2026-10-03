@@ -1,5 +1,6 @@
 from typing import Dict, Optional, Any
 from PySide6.QtCore import QObject, QTimer
+from PySide6.QtWidgets import QApplication
 from core.log_manager import global_logger as logger
 from ui.multi_screen_widget import MultiScreenWidget
 
@@ -232,10 +233,9 @@ class MultiScreenController(QObject):
         cell = self._widget.get_cell(index) if self._widget else None
         if cell:
             try:
-                from PySide6.QtWidgets import QApplication
                 QApplication.processEvents()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"processEvents 失败: {e}")
 
     def _on_cell_clicked(self, index: int):
         logger.debug(f"多画面 cell {index} 被点击 (功能开发中)")

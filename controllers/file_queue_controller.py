@@ -9,6 +9,7 @@ except ImportError:
     _shiboken_isvalid = None
 
 from core.log_manager import global_logger as logger
+from utils.delay_constants import DelayMs
 
 
 class FileQueueController(QObject):
@@ -110,7 +111,7 @@ class FileQueueController(QObject):
             return
 
         # 延迟一点避免与 END_FILE 处理冲突
-        QTimer.singleShot(300, lambda: None if (_shiboken_isvalid and not _shiboken_isvalid(self)) else self._play_next_file(ended_url))
+        QTimer.singleShot(DelayMs.CHANNEL_CLICK, lambda: None if (_shiboken_isvalid and not _shiboken_isvalid(self)) else self._play_next_file(ended_url))
 
     def _play_next_file(self, ended_url: str):
         """播放下一个文件"""
@@ -142,12 +143,12 @@ class FileQueueController(QObject):
         # 更新 UI 选中项
         self._select_channel_in_list(next_idx)
         # 播放
-        QTimer.singleShot(100, lambda: self.window and self.window.play_channel(channel))
+        QTimer.singleShot(DelayMs.LAYOUT_SETTLE, lambda: self.window and self.window.play_channel(channel))
 
     def _replay_channel(self, channel: dict):
         """重新播放同一频道"""
         try:
-            QTimer.singleShot(100, lambda: self.window and self.window.play_channel(channel))
+            QTimer.singleShot(DelayMs.LAYOUT_SETTLE, lambda: self.window and self.window.play_channel(channel))
         except Exception as e:
             logger.debug(f"重新播放失败: {e}")
 
@@ -227,7 +228,7 @@ class FileQueueController(QObject):
         self._select_channel_in_list(idx)
         channel = channels[idx]
         self._notify_skip_resume(channel)
-        QTimer.singleShot(100, lambda: self.window and self.window.play_channel(channel))
+        QTimer.singleShot(DelayMs.LAYOUT_SETTLE, lambda: self.window and self.window.play_channel(channel))
 
     def play_previous(self):
         """播放上一个文件"""
@@ -244,7 +245,7 @@ class FileQueueController(QObject):
         self._select_channel_in_list(idx)
         channel = channels[idx]
         self._notify_skip_resume(channel)
-        QTimer.singleShot(100, lambda: self.window and self.window.play_channel(channel))
+        QTimer.singleShot(DelayMs.LAYOUT_SETTLE, lambda: self.window and self.window.play_channel(channel))
 
     # ---------- AB 循环 ----------
     def ab_loop_set_a(self) -> Optional[float]:

@@ -4,6 +4,7 @@ from typing import Optional
 from PySide6.QtCore import QObject, QTimer
 
 from core.log_manager import global_logger as logger
+from utils.delay_constants import DelayMs
 
 
 class ResumePlaybackController(QObject):
@@ -56,8 +57,8 @@ class ResumePlaybackController(QObject):
                 for ch in channels:
                     if isinstance(ch, dict) and ch.get('url') == url:
                         return ch.get('name', '') or ''
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"获取频道名失败: {e}")
         # 回退到文件名
         try:
             import os
@@ -99,7 +100,7 @@ class ResumePlaybackController(QObject):
                     self._do_seek(url, position)
                 except RuntimeError:
                     pass
-            QTimer.singleShot(400, _safe_seek)
+            QTimer.singleShot(DelayMs.RESUME_SEEK, _safe_seek)
         except Exception as e:
             logger.debug(f"自动恢复检查失败: {e}")
 
@@ -168,7 +169,7 @@ class ResumePlaybackController(QObject):
                 # 标记下次加载时恢复
                 self._skip_next_url = None
                 # 由于 play_channel 是异步的，延迟清除 restored_url
-                QTimer.singleShot(100, lambda: self.window.play_channel(channel))
+                QTimer.singleShot(DelayMs.LAYOUT_SETTLE, lambda: self.window.play_channel(channel))
                 # 在文件加载后由 _on_file_loaded 处理恢复
             else:
                 tr = self.window.language_manager.tr
@@ -190,12 +191,7 @@ class ResumePlaybackController(QObject):
     def _format_time(seconds: float) -> str:
         """格式化时间为 HH:MM:SS"""
         try:
-            s = int(seconds)
-            h = s // 3600
-            m = (s % 3600) // 60
-            sec = s % 60
-            if h > 0:
-                return f"{h:d}:{m:02d}:{sec:02d}"
-            return f"{m:d}:{sec:02d}"
+            from utils.general_utils import format_time
+            return format_time(seconds)
         except Exception:
             return f"{seconds:.1f}s"

@@ -4,9 +4,11 @@
 """
 
 from PySide6 import QtWidgets, QtCore
+from PySide6.QtWidgets import QApplication
 from typing import Optional, Callable
 from core.log_manager import global_logger
 from utils.singleton import Singleton
+from utils.delay_constants import DelayMs
 import threading
 
 logger = global_logger
@@ -17,13 +19,12 @@ def _is_main_thread() -> bool:
 
 
 def _run_on_main(func, *args):
-    from PySide6.QtWidgets import QApplication
     from utils.thread_safety import invoke_on_thread
     app = QApplication.instance()
     if app:
         invoke_on_thread(app, lambda: func(*args))
     else:
-        QtCore.QTimer.singleShot(0, lambda: func(*args))
+        QtCore.QTimer.singleShot(DelayMs.NEXT_TICK, lambda: func(*args))
 
 
 class ProgressManager(Singleton):
@@ -144,13 +145,13 @@ class ProgressManager(Singleton):
             message: 完成消息
         """
         if not _is_main_thread():
-            QtCore.QTimer.singleShot(0, lambda: self.complete_progress(message))
+            QtCore.QTimer.singleShot(DelayMs.NEXT_TICK, lambda: self.complete_progress(message))
             return
         if self._progress_bar:
             self._progress_bar.setValue(self._progress_bar.maximum())
 
             # 延迟隐藏进度条，让用户看到完成状态
-            QtCore.QTimer.singleShot(500, self.hide_progress)
+            QtCore.QTimer.singleShot(DelayMs.OSD_FADE, self.hide_progress)
 
         if message and self._status_bar:
             self._status_bar.showMessage(message, 3000)

@@ -1,3 +1,4 @@
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QSpinBox, QCheckBox, QPushButton, QComboBox
 from core.log_manager import global_logger as logger
 
 
@@ -64,8 +65,7 @@ class ServerMixin:
             logger.error(f"打开Server API失败: {e}")
 
     def _show_server_settings(self):
-        from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel,
-                                        QSpinBox, QCheckBox, QPushButton, QComboBox)
+
         from ui.styles import AppStyles
         from ui.floating_dialog import FloatingDialog
         tr = self.language_manager.tr
@@ -86,14 +86,13 @@ class ServerMixin:
         port = server.port if is_running else settings.get('port', 8080)
 
         status_label = QLabel()
-        _colors = AppStyles._get_colors()
         if is_running:
             token = get_auth_token()
             status_label.setText(f"● {tr('server_running', '服务运行中')}  http://localhost:{port}\n  {tr('server_auth_token', '认证码')}: {token}")
-            status_label.setStyleSheet(f"color: {_colors.get('success', '#4CAF50')}; font-weight: bold; font-size: 13px;")
+            status_label.setStyleSheet(AppStyles.status_label_style(True))
         else:
             status_label.setText(f"○ {tr('server_not_running', '服务未运行')}")
-            status_label.setStyleSheet(f"color: {_colors.get('warning', '#FF9800')}; font-weight: bold; font-size: 13px;")
+            status_label.setStyleSheet(AppStyles.status_label_style(False))
         layout.addWidget(status_label)
 
         layout.addSpacing(4)

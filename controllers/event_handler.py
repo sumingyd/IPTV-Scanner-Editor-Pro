@@ -5,6 +5,7 @@
 
 from core.log_manager import global_logger as logger
 from PySide6.QtCore import Qt, QEvent, QTimer
+from PySide6.QtWidgets import QApplication, QComboBox, QDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPlainTextEdit, QSpinBox, QTextEdit, QVBoxLayout, QWidget
 from controllers.main_window_protocol import MainWindowProtocol
 from utils.thread_safety import safe_single_shot
 
@@ -18,7 +19,7 @@ class EventHandler:
 
     def _adjust_volume(self, delta: int):
         """调整音量（增量/减量），委托给 media_controller"""
-        mc = getattr(self.window, 'update_ctrl', None)
+        mc = getattr(self.window, 'media_ctrl', None)
         if mc and hasattr(mc, '_set_volume'):
             vs = getattr(self.window, 'volume_slider', None)
             current = vs.value() if vs else 100
@@ -26,7 +27,6 @@ class EventHandler:
 
     def _is_main_window_focused(self) -> bool:
         """判断当前焦点是否在主窗口上（排除悬浮面板、对话框等）"""
-        from PySide6.QtWidgets import QApplication
         focus_widget = QApplication.focusWidget()
         if focus_widget is None:
             return self.window.isActiveWindow()
@@ -90,7 +90,6 @@ class EventHandler:
 
     def _is_input_widget_focused(self) -> bool:
         """判断当前焦点是否在输入控件上（编辑框、文本框等）"""
-        from PySide6.QtWidgets import QApplication, QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox
         focus_widget = QApplication.focusWidget()
         if focus_widget:
             if isinstance(focus_widget, (QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox)):
@@ -180,7 +179,6 @@ class EventHandler:
                         w.playback_ctrl.toggle_play()
                     return True
                 elif key == Qt.Key.Key_Escape:
-                    from PySide6.QtWidgets import QApplication, QDialog
                     active = QApplication.activeModalWidget()
                     if active and isinstance(active, QDialog):
                         return False
@@ -448,7 +446,6 @@ class EventHandler:
             w._shortcut_overlay = None
             return
 
-        from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout
         from ui.styles import AppStyles
 
         tr = w.language_manager.tr
@@ -487,20 +484,11 @@ class EventHandler:
             ("?", tr("sc_help_hint", "本速查浮层")),
         ]
 
-        c = AppStyles._get_colors()
+
         overlay = QWidget(w, Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
         overlay.setObjectName("shortcutOverlay")
         overlay.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        overlay.setStyleSheet(f"""
-            QWidget#shortcutOverlay {{
-                background-color: {c.get('tooltip_base')};
-                border: 1px solid {c.get('mid')};
-                border-radius: 8px;
-            }}
-            QLabel {{ background: transparent; border: none; color: {c.get('tooltip_text')}; font-size: 14px; }}
-            QLabel[role="key"] {{ color: {c.get('accent')}; font-weight: 600; }}
-            QLabel[role="title"] {{ color: {c.get('window_text')}; font-size: 16px; font-weight: 700; }}
-        """)
+        overlay.setStyleSheet(AppStyles.shortcut_overlay_style())
 
         layout = QVBoxLayout(overlay)
         layout.setContentsMargins(16, 12, 16, 12)
@@ -589,7 +577,6 @@ class EventHandler:
     def showEvent(self, event):
         """窗口首次显示后，延迟定位悬浮窗"""
         if hasattr(self.window, 'showEvent'):
-            from PySide6.QtWidgets import QMainWindow
             QMainWindow.showEvent(self.window, event)
 
         has_panels = (hasattr(self.window, 'epg_dock') and self.window.epg_dock and
@@ -603,7 +590,6 @@ class EventHandler:
     def _deferred_position_docks(self):
         """延迟到事件循环下一帧执行定位（确保主窗口geometry已稳定）"""
         try:
-            from PySide6.QtWidgets import QApplication
             app = QApplication.instance()
             if app:
                 app.processEvents()
@@ -647,7 +633,6 @@ class EventHandler:
             return
         if hasattr(self.window, 'changeEvent'):
             try:
-                from PySide6.QtWidgets import QMainWindow
                 QMainWindow.changeEvent(self.window, event)
             except (AttributeError, TypeError):
                 pass
@@ -686,7 +671,6 @@ class EventHandler:
 
     def _schedule_position_update(self):
         if not hasattr(self, '_position_timer'):
-            from PySide6.QtCore import QTimer
             self._position_timer = QTimer(self.window)
             self._position_timer.setSingleShot(True)
             self._position_timer.setInterval(16)
@@ -933,18 +917,17 @@ class EventHandler:
         try:
             from server.app import set_main_window
             set_main_window(None)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"清理 server main_window 引用失败: {e}")
         try:
             from server.context import ServerContext
             ServerContext._instance = None
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"清理 ServerContext 失败: {e}")
 
         # 8. 退出应用
         event.accept()
 
-        from PySide6.QtWidgets import QApplication
         try:
             QApplication.instance().quit()
         except Exception as e:

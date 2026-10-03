@@ -1,3 +1,4 @@
+from PySide6.QtCore import QTimer
 from datetime import datetime, timedelta
 
 from core.log_manager import global_logger as logger
@@ -148,7 +149,6 @@ class ProgressMixin:
         if hasattr(self, '_slider_debounce_timer') and self._slider_debounce_timer is not None:
             self._slider_debounce_timer.stop()
         else:
-            from PySide6.QtCore import QTimer
             self._slider_debounce_timer = QTimer(self)
             self._slider_debounce_timer.setSingleShot(True)
             self._slider_debounce_timer.timeout.connect(self._do_progress_slider_released)

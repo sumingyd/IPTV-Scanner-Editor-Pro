@@ -13,7 +13,7 @@ from core.log_manager import global_logger as logger
 from core.config_manager import ConfigManager
 from core.subscription_manager import global_subscription_manager
 from utils.general_utils import get_display_channel_name
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import EpgProtocol
 
 
 class SubscriptionWorker(QThread):
@@ -42,8 +42,8 @@ class SubscriptionWorker(QThread):
 class SubscriptionController:
     """订阅控制器 - 管理所有订阅源相关的逻辑"""
 
-    def __init__(self, main_window: MainWindowProtocol):
-        self.window: MainWindowProtocol = main_window
+    def __init__(self, main_window: EpgProtocol):
+        self.window: EpgProtocol = main_window
         self._subscription_checked = False
         self._workers = []
         self._last_header_epg_url = None
@@ -313,7 +313,6 @@ class SubscriptionController:
                 logger.debug(f"订阅源 '{source.get('name', '')}' 需要更新: {need_update}")
                 self.handle_playlist_subscription(need_update, playlist_url, i)
 
-                from PySide6.QtCore import QThread
                 from utils.thread_safety import invoke_on_thread
                 if QThread.currentThread() != self.window.thread():
                     invoke_on_thread(self.window, self.window._do_on_playlist_updated_in_main_thread)

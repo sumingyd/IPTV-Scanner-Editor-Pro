@@ -4,6 +4,7 @@ import os
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame
+from PySide6.QtGui import QIcon
 import asyncio
 import platform
 import sys
@@ -55,7 +56,6 @@ class AboutDialog(FloatingDialog):
         # 图标居中显示
         logo_label = QtWidgets.QLabel()
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        from PySide6.QtGui import QIcon
         from utils.general_utils import get_icon_path
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
@@ -81,7 +81,6 @@ class AboutDialog(FloatingDialog):
 
             tv_icon_path = AppStyles.get_icon('tv', AppStyles.get_color('window_text'), 48)
             if tv_icon_path:
-                from PySide6.QtGui import QIcon
                 logo_label.setPixmap(QIcon(tv_icon_path).pixmap(128, 128))
             logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_label.setStyleSheet("background-color: transparent;")

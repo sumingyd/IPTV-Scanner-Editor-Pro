@@ -1,3 +1,6 @@
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtWidgets import QApplication, QMenu
 import os
 import sys
 import logging
@@ -100,13 +103,10 @@ def set_default_channel_logo(label, width: int = 100, height: int = 36) -> None:
     当频道无 logo 或处于未选择状态时调用，避免显示 emoji 占位符。
     兼容 PyInstaller 打包和开发环境。
     """
-    from PySide6.QtGui import QIcon, QPixmap
-    from PySide6.QtCore import Qt
 
     ico_path = get_icon_path()
     label.setPixmap(QPixmap())  # 先清除旧图
     if os.path.exists(ico_path):
-        from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
         dpr = screen.devicePixelRatio() if screen else 1.0
         # 请求 2x 分辨率像素，让 Qt 从 ICO 选最清晰帧
@@ -127,7 +127,6 @@ def set_default_channel_logo(label, width: int = 100, height: int = 36) -> None:
     from ui.styles import AppStyles
     tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('window_text', '#ffffff'), 48)
     if tv_icon_path:
-        from PySide6.QtGui import QIcon
         label.setPixmap(QIcon(tv_icon_path).pixmap(label.width() or 48, label.height() or 48))
     else:
         label.setText("")
@@ -493,8 +492,6 @@ def redact_url(url: str) -> str:
 
 def setup_i18n_context_menu(widget, language_manager=None):
     """为 QLineEdit/QPlainTextEdit 设置国际化右键菜单，适配暗色/日间主题。"""
-    from PySide6.QtWidgets import QMenu
-    from PySide6.QtCore import Qt
     try:
         from ui.styles import AppStyles
     except Exception:
@@ -520,7 +517,6 @@ def setup_i18n_context_menu(widget, language_manager=None):
             can_redo = widget.isRedoAvailable() if hasattr(widget, 'isRedoAvailable') else False
         clipboard_text = ''
         try:
-            from PySide6.QtWidgets import QApplication
             clipboard_text = QApplication.clipboard().text()
         except Exception:
             pass

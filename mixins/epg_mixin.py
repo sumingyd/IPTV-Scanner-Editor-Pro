@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMenu
+from PySide6.QtWidgets import QApplication
 from datetime import datetime
 
 from ui.styles import AppStyles
@@ -103,7 +104,6 @@ class EpgMixin:
     def _epg_copy_text(self, text):
         if not text:
             return
-        from PySide6.QtWidgets import QApplication
         QApplication.clipboard().setText(text)
         tr = self.language_manager.tr
         self.status_bar_show_message(tr('copied_to_clipboard', '已复制到剪贴板'))

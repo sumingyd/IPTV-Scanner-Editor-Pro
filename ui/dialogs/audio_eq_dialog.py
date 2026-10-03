@@ -5,10 +5,12 @@ from PySide6.QtWidgets import (
     QGridLayout, QProgressBar,
 )
 from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import QTimer as _QTimer
 
 from ui.floating_dialog import FloatingDialog
 from ui.styles import AppStyles
 from core.log_manager import global_logger as logger
+from utils.delay_constants import DelayMs
 
 
 class ChannelVUMeter(QWidget):
@@ -141,8 +143,8 @@ class AudioEqualizerDialog(FloatingDialog):
         if pc and hasattr(pc, 'file_loaded'):
             try:
                 pc.file_loaded.connect(self._on_file_loaded)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"__init__: {e}")
 
     def reapply_styles(self):
         self._apply_theme()
@@ -390,9 +392,8 @@ class AudioEqualizerDialog(FloatingDialog):
         super().showEvent(event)
         if not self._devices_loaded:
             try:
-                from PySide6.QtCore import QTimer as _QTimer
-                _QTimer.singleShot(100, self._load_audio_devices)
-                _QTimer.singleShot(200, self._refresh_channels)
+                _QTimer.singleShot(DelayMs.LAYOUT_SETTLE, self._load_audio_devices)
+                _QTimer.singleShot(DelayMs.STYLE_REAPPLY, self._refresh_channels)
             except Exception:
                 self._load_audio_devices()
                 self._refresh_channels()
@@ -618,8 +619,8 @@ class AudioEqualizerDialog(FloatingDialog):
         if pc and hasattr(pc, 'stop_channel_monitor'):
             try:
                 pc.stop_channel_monitor()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_stop_monitor: {e}")
 
     def _update_channel_levels(self):
         """定时更新声道 VU 电平表"""
@@ -717,8 +718,7 @@ class AudioEqualizerDialog(FloatingDialog):
     def _on_file_loaded(self):
         """频道切换完成后自动刷新声道 VU 电平表"""
         # 延迟 500ms 等待音频参数就绪
-        from PySide6.QtCore import QTimer as _QTimer
-        _QTimer.singleShot(500, self._refresh_channels)
+        _QTimer.singleShot(DelayMs.OSD_FADE, self._refresh_channels)
 
     def _show_osd(self, text: str):
         if hasattr(self.window, '_show_osd_feedback'):
@@ -731,8 +731,8 @@ class AudioEqualizerDialog(FloatingDialog):
         if pc and hasattr(pc, 'file_loaded'):
             try:
                 pc.file_loaded.disconnect(self._on_file_loaded)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"closeEvent: {e}")
         from ui.theme_manager import safe_unregister_window
         safe_unregister_window(self)
         super().closeEvent(event)

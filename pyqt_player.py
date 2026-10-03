@@ -26,10 +26,13 @@ from PySide6.QtGui import (  # noqa: E402
 )
 
 from PySide6.QtGui import QShortcut  # noqa: E402
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtWidgets import QApplication, QApplication as _QApp, QLabel, QSplashScreen
 
 from core.log_manager import global_logger as logger  # noqa: E402
 from core.language_manager import LanguageManager  # noqa: E402
 from ui.styles import AppStyles  # noqa: E402
+from utils.delay_constants import DelayMs  # noqa: E402
 
 
 from controllers import (  # noqa: E402
@@ -130,7 +133,6 @@ class VideoOverlayBadge(QWidget):
         icon_color = c['window']
         icon_path = AppStyles.get_icon(icon_name, icon_color, 14)
         if icon_path:
-            from PySide6.QtGui import QPixmap
             px = QPixmap(icon_path)
             if not px.isNull():
                 self._icon_pixmap = px.scaled(
@@ -215,7 +217,7 @@ class IPTVPlayer(
     RECONNECT_DELAY_MS = 2000
     SLIDER_DEBOUNCE_MS = 100
     CHANNEL_CLICK_DELAY_MS = 300
-    PROGRAM_DESC_HEIGHT = 54
+    PROGRAM_DESC_HEIGHT = 48
     CHANNEL_LOGO_WIDTH = 100
     CHANNEL_LOGO_HEIGHT = 36
     CTRL_BUTTON_WIDTH = 36
@@ -487,7 +489,6 @@ class IPTVPlayer(
         from utils.general_utils import get_icon_path
         ico_path = get_icon_path()
         if os.path.exists(ico_path):
-            from PySide6.QtGui import QIcon
             self.setWindowIcon(QIcon(ico_path))
 
         x, y, width, height, _ = self.config.load_window_layout(
@@ -634,7 +635,6 @@ class IPTVPlayer(
 
     def _update_splash(self, message):
         try:
-            from PySide6.QtWidgets import QSplashScreen
             app = QApplication.instance()
             for widget in app.topLevelWidgets():
                 if isinstance(widget, QSplashScreen):
@@ -649,7 +649,6 @@ class IPTVPlayer(
 
     def _initialize_in_order(self):
         """按照顺序执行初始化流程"""
-        logger.debug("_initialize_in_order: 开始")
 
         # 1. 菜单栏、工具栏
         self._update_splash("Loading UI...")
@@ -660,7 +659,6 @@ class IPTVPlayer(
         self._create_status_bar()
         # 4. 播放器
         self._update_splash("Initializing player...")
-        from PySide6.QtWidgets import QApplication as _QApp
         _QApp.instance().processEvents()
         self._init_player()
         # 5. 定时器
@@ -698,7 +696,7 @@ class IPTVPlayer(
         self._ui_initialized = True
 
         # 12. 窗口首次绘制后：定位悬浮窗并显示面板（一次延迟即可）
-        QTimer.singleShot(150, self._deferred_initial_position)
+        QTimer.singleShot(DelayMs.DEFERRED_INIT, self._deferred_initial_position)
 
         # 13. 延迟加载数据，确保不阻塞首帧渲染
         def load_data_with_delay():
@@ -712,7 +710,6 @@ class IPTVPlayer(
         logger.debug(f"使用自适应延迟: {adaptive_delay}ms")
         QTimer.singleShot(adaptive_delay, load_data_with_delay)
 
-        logger.debug("_initialize_in_order: 完成")
 
     def _update_channel_list_ui(self):
         try:
@@ -730,25 +727,20 @@ class IPTVPlayer(
 
     def _init_video_components(self):
         """初始化视频相关组件"""
-        logger.debug("_init_video_components: 开始")
 
         # 第一步：创建菜单栏
         self._create_menu_bar()
 
-        logger.debug("_init_video_components: 完成")
 
     def _create_menu_bar(self):
         """创建菜单栏"""
-        logger.debug("_create_menu_bar: 开始")
 
         # 菜单栏
         self.setup_menu_bar(skip_recent_files=True)
 
-        logger.debug("_create_menu_bar: 完成")
 
     def _create_video_area(self):
         """创建视频区域"""
-        logger.debug("_create_video_area: 开始")
 
         # 上半部分布局
         self.top_layout = QHBoxLayout()
@@ -768,7 +760,6 @@ class IPTVPlayer(
         self.video_placeholder.setStyleSheet(AppStyles.player_video_placeholder_style())
         if os.path.exists(ico_path):
             icon = QIcon(ico_path)
-            from PySide6.QtWidgets import QApplication
             screen = QApplication.primaryScreen()
             dpr = screen.devicePixelRatio() if screen else 1.0
             size = int(256 * dpr)
@@ -808,11 +799,9 @@ class IPTVPlayer(
         self.top_layout.addWidget(self.video_frame, 1)
         self.content_layout.addLayout(self.top_layout, 1)
 
-        logger.debug("_create_video_area: 完成")
 
     def _create_status_bar(self):
         """创建状态栏"""
-        logger.debug("_create_status_bar: 开始")
 
         # 状态栏
         self.status_bar = QStatusBar()
@@ -820,25 +809,22 @@ class IPTVPlayer(
         self.status_bar.setStyleSheet(AppStyles.statusbar_style())
 
         # 永久信息块
-        from PySide6.QtWidgets import QLabel
         self._status_channel_label = QLabel("")
         self._status_time_label = QLabel("")
-        self._status_channel_label.setStyleSheet("color: palette(text); padding: 0 8px;")
-        self._status_time_label.setStyleSheet("color: palette(text); padding: 0 8px;")
+        self._status_channel_label.setStyleSheet(AppStyles.status_channel_label_style())
+        self._status_time_label.setStyleSheet(AppStyles.status_channel_label_style())
         self.status_bar.addPermanentWidget(self._status_channel_label)
         self.status_bar.addPermanentWidget(self._status_time_label)
 
         self.status_bar_show_message(self.language_manager.tr("ready", "Ready"))
 
-        logger.debug("_create_status_bar: 完成")
 
     def _init_player(self):
-        logger.debug("_init_player: 开始")
 
         self.player_controller = MpvPlayerController(self.video_widget)
         if hasattr(self, '_audio_visual_widget') and self._audio_visual_widget:
             self.player_controller.audio_visual._widget = self._audio_visual_widget
-        if hasattr(self, '_audio_visual_widget') and self._audio_visual_widget:
+
             self._audio_visual_widget._pc = self.player_controller
         self.player_controller.play_state_changed.connect(self.playback_ctrl.handle_play_state_change)
         self.player_controller.live_media_info_updated.connect(self.on_live_media_info_updated)
@@ -951,18 +937,15 @@ class IPTVPlayer(
         self.epg_reminder_ctrl.init_service(self.config)
         self._setup_system_tray()
 
-        logger.debug("_init_player: 完成")
 
     def _create_timer(self):
         """创建定时器"""
-        logger.debug("_create_timer: 开始")
 
 
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_floating_panel_info)
         self.player_controller.playback_position_updated.connect(self._on_playback_position_updated)
 
-        logger.debug("_create_timer: 完成")
 
     def _install_event_filters(self):
         """安装事件过滤器（幂等：多次调用只生效一次）"""
@@ -970,7 +953,6 @@ class IPTVPlayer(
             logger.debug("_install_event_filters: 已安装，跳过")
             return
         self._event_filters_installed = True
-        logger.debug("_install_event_filters: 开始")
 
         # 安装事件过滤器
         if self.video_frame:
@@ -986,23 +968,18 @@ class IPTVPlayer(
         if app:
             app.installEventFilter(self)
 
-        logger.debug("_install_event_filters: 完成")
 
     def _populate_channel_list(self, source='subscription'):
         """填充频道列表（带EPG刷新）"""
-        logger.debug("_populate_channel_list: 开始")
         self.populate_channel_list(source=source)
         self._populate_epg_list()
-        logger.debug("_populate_channel_list: 完成")
 
     def _populate_epg_list(self):
         """填充EPG列表"""
-        logger.debug("_populate_epg_list: 开始")
 
         # 延迟填充EPG列表，等待EPG数据下载完成
         self.populate_epg_list()
 
-        logger.debug("_populate_epg_list: 完成")
 
     def _deferred_initial_position(self):
         """窗口首次渲染后的延迟定位：
@@ -1041,7 +1018,6 @@ class IPTVPlayer(
 
     def _update_recent_files_menu(self):
         """初始化最近打开文件菜单"""
-        logger.debug("_update_recent_files_menu: 开始")
 
         # 初始化最近打开文件菜单
         self.update_recent_files_menu()
@@ -1050,7 +1026,6 @@ class IPTVPlayer(
         self._initialization_complete = True
         self._restart_auto_hide_timer()
 
-        logger.debug("_update_recent_files_menu: 完成")
 
     def update_status_bar(self, message):
         """更新状态栏消息"""

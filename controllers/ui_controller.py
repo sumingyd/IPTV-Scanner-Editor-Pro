@@ -8,6 +8,10 @@ import re
 from typing import Dict, Any
 from datetime import timedelta
 from PySide6.QtCore import QTimer
+from PySide6 import QtWidgets
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QAction, QActionGroup, QIcon, QKeySequence, QPixmap, QShortcut
+from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QLabel, QListWidget, QMenuBar, QSlider, QToolButton
 from controllers.main_window_protocol import MainWindowProtocol
 
 
@@ -878,9 +882,6 @@ class UIController:
 
     def _reapply_side_panel_styles(self):
         from ui.styles import AppStyles
-        from PySide6.QtCore import QSize
-        from PySide6 import QtWidgets
-        from PySide6.QtGui import QIcon
 
         try:
             if hasattr(self.window, 'epg_title'):
@@ -888,7 +889,6 @@ class UIController:
                 epg_icon_color = AppStyles.get_color('player_panel_text')
                 epg_icon_path = AppStyles.get_icon('calendar', epg_icon_color)
                 if epg_icon_path and hasattr(self.window, 'epg_title_icon'):
-                    from PySide6.QtGui import QPixmap
                     self.window.epg_title_icon.setPixmap(QPixmap(epg_icon_path))
             if hasattr(self.window, 'playlist_title'):
                 self.window.playlist_title.setStyleSheet(AppStyles.player_playlist_title_style())
@@ -967,30 +967,12 @@ class UIController:
                     icon_path = AppStyles.get_icon(icon_name, btn_color, 14)
                     if icon_path:
                         btn.setIcon(QIcon(icon_path))
-                    btn.setStyleSheet(f"""
-                        QToolButton {{
-                            color: {btn_color};
-                            background: transparent;
-                            border: none;
-                            padding: 1px 3px;
-                            font-size: 11px;
-                        }}
-                        QToolButton:checked {{
-                            color: {accent};
-                            font-weight: bold;
-                        }}
-                        QToolButton:hover {{
-                            color: {accent};
-                        }}
-                    """)
+                    btn.setStyleSheet(AppStyles.tab_button_style(btn_color, accent))
         except Exception as e:
             logger.error(f"重新应用侧边栏样式失败: {e}")
 
     def _reapply_floating_panel_styles(self):
         from ui.styles import AppStyles
-        from PySide6.QtWidgets import QToolButton, QSlider, QComboBox, QFrame, QLabel
-        from PySide6.QtGui import QIcon, QPixmap
-        from PySide6.QtCore import Qt
 
         try:
             if not hasattr(self.window, 'floating_panel'):
@@ -1020,7 +1002,7 @@ class UIController:
                         pixmap = QPixmap(icon_path)
                         if not pixmap.isNull():
                             icon_label.setPixmap(pixmap)
-                    icon_label.setStyleSheet("background: transparent; border: none;")
+                    icon_label.setStyleSheet(AppStyles.transparent_style())
 
             if hasattr(self.window, 'channel_logo'):
                 self.window.channel_logo.setStyleSheet(AppStyles.player_channel_logo_style())
@@ -1030,8 +1012,7 @@ class UIController:
                 self.window.current_program.setStyleSheet(AppStyles.player_program_style())
             if hasattr(self.window, 'program_desc'):
                 self.window.program_desc.setStyleSheet(AppStyles.player_program_desc_style())
-                self.window.program_desc.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-                self.window.program_desc.setAutoFillBackground(False)
+
             if hasattr(self.window, 'time_label'):
                 self.window.time_label.setStyleSheet(AppStyles.player_time_badge_style())
             if hasattr(self.window, 'remain_label'):
@@ -1058,8 +1039,7 @@ class UIController:
                 'prev_ch_button': 'prev', 'next_ch_button': 'next',
                 'volume_button': None,
                 'speed_button': 'speed', 'aspect_button': 'aspect',
-                'audio_track_button': 'audio_track', 'sub_track_button': 'subtitle',
-                'pip_button': 'pip', 'fullscreen_button': 'fullscreen',
+                'fullscreen_button': 'fullscreen',
                 'backward_button': 'backward',
                 'exit_catchup_button': 'exit_catchup',
             }
@@ -1116,10 +1096,6 @@ class UIController:
 
     def _on_logo_cache_loaded(self, url, pixmap):
         """台标加载完成的回调"""
-        from PySide6.QtWidgets import QListWidget
-        from PySide6.QtCore import Qt
-        from PySide6.QtGui import QIcon
-        from PySide6 import QtWidgets
 
         logger.debug(f"台标加载完成: {url[:50]}..., pixmap有效: {not pixmap.isNull()}")
 
@@ -1182,8 +1158,6 @@ class UIController:
 
     def setup_menu_bar(self, skip_recent_files=False):
         """设置菜单栏"""
-        from PySide6.QtWidgets import QMenuBar
-        from PySide6.QtGui import QAction
         from ui.styles import AppStyles
 
         if hasattr(self.window, '_custom_menu_bar') and self.window._custom_menu_bar:
@@ -1235,7 +1209,6 @@ class UIController:
             # ===== Edit 菜单（撤销/重做） =====
             edit_menu = menu_bar.addMenu(tr("menu_edit", "Edit"))
             if edit_menu:
-                from PySide6.QtGui import QKeySequence, QShortcut
                 undo_stack = getattr(self.window, 'undo_stack', None)
                 # 撤销动作
                 undo_action = QAction(tr("menu_undo", "Undo\tCtrl+Z"), self.window)
@@ -1517,7 +1490,6 @@ class UIController:
             english.triggered.connect(lambda: self.window.set_language("en"))
             language_menu.addAction(english)
 
-            from PySide6.QtGui import QActionGroup
             lang_group = QActionGroup(self.window)
             lang_group.setExclusive(True)
             lang_group.addAction(chinese)
@@ -1619,10 +1591,6 @@ class UIController:
         self._register_global_shortcuts()
 
     def _register_global_shortcuts(self):
-        from PySide6.QtGui import QKeySequence
-        from PySide6.QtGui import QShortcut
-        from PySide6.QtCore import Qt
-        from PySide6.QtWidgets import QApplication
         app = QApplication.instance()
         if not app:
             return
@@ -1632,8 +1600,8 @@ class UIController:
             try:
                 old.setEnabled(False)
                 old.deleteLater()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"清理旧 widget 失败: {e}")
 
 
 
@@ -1664,7 +1632,6 @@ class UIController:
             if start <= now <= end:
                 return
             if start < now and channel.get('catchup_source', ''):
-                from PySide6.QtCore import QTimer
                 from utils.thread_safety import safe_single_shot
                 safe_single_shot(500, w, lambda: w.catchup_ctrl.start_catchup(program))
         except Exception as e:

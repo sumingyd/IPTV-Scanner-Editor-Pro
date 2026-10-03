@@ -1,5 +1,7 @@
 from core.log_manager import global_logger as logger
 from PySide6 import QtCore, QtWidgets
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QGuiApplication, QIcon
 from ui.styles import AppStyles
 from utils.singleton import Singleton
 from utils.platform_utils import is_windows, is_macos, is_android
@@ -35,13 +37,12 @@ class ThemeManager(Singleton, QtCore.QObject):
             return
         self._last_detected_mode = AppStyles._detect_system_color_mode()
         try:
-            from PySide6.QtGui import QGuiApplication
             style_hints = QGuiApplication.styleHints()
             style_hints.colorSchemeChanged.connect(self._check_system_theme_change)
             self._system_theme_style_hints = style_hints
             return
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_start_system_theme_watcher: {e}")
         self._system_theme_timer = QtCore.QTimer(self)
         self._system_theme_timer.timeout.connect(self._check_system_theme_change)
         self._system_theme_timer.start(3000)
@@ -53,8 +54,8 @@ class ThemeManager(Singleton, QtCore.QObject):
         if self._system_theme_style_hints is not None:
             try:
                 self._system_theme_style_hints.colorSchemeChanged.disconnect(self._check_system_theme_change)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_stop_system_theme_watcher: {e}")
             self._system_theme_style_hints = None
 
     def _check_system_theme_change(self):
@@ -133,7 +134,9 @@ class ThemeManager(Singleton, QtCore.QObject):
             return
         if is_macos():
             if AppStyles._visual_style == 'frosted':
-                window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                from utils.mac_blur_helper import MacBlurHelper
+                if not MacBlurHelper.apply(window, material="sidebar"):
+                    window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
             return
         if not is_windows():
             return
@@ -147,8 +150,8 @@ class ThemeManager(Singleton, QtCore.QObject):
                     hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
                     ctypes.byref(dark), ctypes.sizeof(dark)
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_enable_dwm_blur: {e}")
             try:
                 DWMWA_SYSTEMBACKDROP_TYPE = 38
                 DWMSBT_MAINVIEW = 2
@@ -157,15 +160,17 @@ class ThemeManager(Singleton, QtCore.QObject):
                     hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
                     ctypes.byref(value), ctypes.sizeof(value)
                 )
-            except Exception:
-                pass
-        except Exception:
-            pass
+            except Exception as e:
+                logger.debug(f"_enable_dwm_blur: {e}")
+        except Exception as e:
+            logger.debug(f"_enable_dwm_blur: {e}")
 
     def _disable_dwm_blur(self, window):
         if is_android():
             return
         if is_macos():
+            from utils.mac_blur_helper import MacBlurHelper
+            MacBlurHelper.remove(window)
             return
         if not is_windows():
             return
@@ -180,8 +185,8 @@ class ThemeManager(Singleton, QtCore.QObject):
                     hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
                     ctypes.byref(value), ctypes.sizeof(value)
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"_disable_dwm_blur: {e}")
             try:
                 class ACCENT_POLICY(ctypes.Structure):
                     _fields_ = [
@@ -201,13 +206,11 @@ class ThemeManager(Singleton, QtCore.QObject):
                 accent = ACCENT_POLICY(0, 0, 0, 0)
                 data = WINDOWCOMPOSITIONATTRIBDATA(WCA_ACCENT_POLICY, ctypes.pointer(accent), ctypes.sizeof(accent))
                 ctypes.windll.user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
-            except Exception:
-                pass
-        except Exception:
-            pass
+            except Exception as e:
+                logger.debug(f"_disable_dwm_blur: {e}")
+        except Exception as e:
+            logger.debug(f"_disable_dwm_blur: {e}")
 
-    def _is_windows(self):
-        return is_windows()
 
     def _reapply_main_window_components(self, window):
         """对主窗口的各区域组件逐一重刷样式，确保Dock/面板/标题栏/菜单栏都更新"""
@@ -257,8 +260,6 @@ class ThemeManager(Singleton, QtCore.QObject):
             window_ctrl = getattr(window, 'window_ctrl', None)
             if not window_ctrl:
                 return
-            from PySide6.QtGui import QIcon
-            from PySide6.QtCore import QSize
             btn_color = AppStyles._get_colors().get('window_text')
             icon_size = QSize(14, 14)
             btn_style = window_ctrl._title_btn_style()
@@ -391,6 +392,8 @@ class ThemeManager(Singleton, QtCore.QObject):
             QtWidgets.QFrame: lambda w: None if hasattr(w, 'style_type') else None,
         }
         spin_style = AppStyles.common_spin_box_style() if hasattr(AppStyles, 'common_spin_box_style') else None
+        if spin_style:
+            spin_style = AppStyles.normalize_font_sizes(spin_style)
 
         all_widgets = parent.findChildren(QtWidgets.QWidget)
         for widget in all_widgets:
@@ -402,14 +405,17 @@ class ThemeManager(Singleton, QtCore.QObject):
                 try:
                     style = style_func(widget)
                     if style:
-                        widget.setStyleSheet(AppStyles.normalize_font_sizes(style))
-                except Exception:
-                    pass
+                        new_style = AppStyles.normalize_font_sizes(style)
+                        if widget.styleSheet() != new_style:
+                            widget.setStyleSheet(new_style)
+                except Exception as e:
+                    logger.debug(f"_update_child_widgets: {e}")
             elif widget_type is QtWidgets.QSpinBox and spin_style:
                 try:
-                    widget.setStyleSheet(AppStyles.normalize_font_sizes(spin_style))
-                except Exception:
-                    pass
+                    if widget.styleSheet() != spin_style:
+                        widget.setStyleSheet(spin_style)
+                except Exception as e:
+                    logger.debug(f"_update_child_widgets: {e}")
 
 
     def get_current_theme(self) -> str:
@@ -492,12 +498,12 @@ def get_theme_manager() -> ThemeManager:
 def safe_register_window(window):
     try:
         get_theme_manager().register_window(window)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"safe_register_window: {e}")
 
 
 def safe_unregister_window(window):
     try:
         get_theme_manager().unregister_window(window)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"safe_unregister_window: {e}")

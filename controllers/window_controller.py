@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QLineEd
 from PySide6.QtCore import Qt, QPoint, QSize
 from PySide6.QtGui import QIcon
 from ui.styles import AppStyles
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import UiProtocol
 from utils.platform_utils import is_wayland, wayland_move
 
 
@@ -19,8 +19,8 @@ class WindowController:
         colors = AppStyles._get_colors()
         return f"QPushButton {{ min-width: 40px; max-width: 40px; height: 28px; color: {colors['window_text']}; }}"
 
-    def __init__(self, main_window: MainWindowProtocol):
-        self.window: MainWindowProtocol = main_window
+    def __init__(self, main_window: UiProtocol):
+        self.window: UiProtocol = main_window
         self._dragging = False
         self._drag_offset = None
         self._stay_on_top_active = False
@@ -57,12 +57,12 @@ class WindowController:
         if os.path.exists(ico_path):
             pixmap = QIcon(ico_path).pixmap(16, 16)
             self._title_icon_label.setPixmap(pixmap)
-            self._title_icon_label.setStyleSheet("background: transparent;")
+            self._title_icon_label.setStyleSheet(AppStyles.transparent_background_style())
         else:
             tv_icon_path = AppStyles.get_icon('tv', AppStyles._get_colors().get('accent', '#0078d4'), 16)
             if tv_icon_path:
                 self._title_icon_label.setPixmap(QIcon(tv_icon_path).pixmap(16, 16))
-            self._title_icon_label.setStyleSheet("background: transparent;")
+            self._title_icon_label.setStyleSheet(AppStyles.transparent_background_style())
 
         # 窗口标题
         self._title_label = QLabel(window_title)

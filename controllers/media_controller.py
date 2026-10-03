@@ -1,4 +1,7 @@
 """
+from PySide6.QtCore import QPoint, QTimer
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QApplication, QFileDialog, QMenu
 媒体控制控制器 - 负责右键菜单、截图、音轨/字幕、倍速/画面比例等媒体相关控制
 从 pyqt_player.py 提取的独立模块
 """
@@ -7,8 +10,12 @@ import os
 import re
 
 from core.log_manager import global_logger as logger
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import PlaybackProtocol
+from controllers.context_menu_controller import ContextMenuController
+from controllers.preset_controller import PresetController
+from controllers.lyrics_controller import LyricsController
 from utils.thread_safety import safe_single_shot
+from utils.delay_constants import DelayMs
 
 
 class MediaController:
@@ -17,1740 +24,299 @@ class MediaController:
     SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 5.0]
     ASPECT_CYCLE = ['default', '16:9', '4:3', 'stretch', 'fill']
 
-    def __init__(self, main_window: MainWindowProtocol):
-        self.window: MainWindowProtocol = main_window
+    def __init__(self, main_window: PlaybackProtocol):
+        self.window: PlaybackProtocol = main_window
         self._current_aspect_idx = 0
 
-    @property
     def is_osd_visible(self):
         return getattr(self.window, '_osd_visible', False)
 
+
     def show_video_context_menu(self, pos):
-        from PySide6.QtWidgets import QMenu
-        from ui.styles import AppStyles
-        tr = self.window.language_manager.tr
-        menu = QMenu(self.window)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
-
-        pc = self.window.player_controller
-        is_playing = pc and (pc.is_playing or getattr(pc, 'is_paused', False))
-
-        # ---- 核心播放控制 ----
-        if is_playing:
-            play_pause_text = tr("ctx_pause", "Pause") if not getattr(pc, 'is_paused', False) else tr("ctx_play", "Play")
-            menu.addAction(play_pause_text, lambda *a: self.window.playback_ctrl.toggle_play())
-            menu.addAction(tr("ctx_stop", "Stop"), lambda *a: self.window.playback_ctrl.stop_playback())
-
-            menu.addSeparator()
-
-            menu.addAction(tr("ctx_prev_channel", "Previous Channel"), lambda *a: self.window.event_handler._switch_channel(-1))
-            menu.addAction(tr("ctx_next_channel", "Next Channel"), lambda *a: self.window.event_handler._switch_channel(1))
-
-            menu.addSeparator()
-
-        # ---- 倍速/音量/比例 子菜单 ----
-        speed_menu = menu.addMenu(tr("ctx_speed", "Speed"))
-        speed_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        try:
-            current_speed = pc.get_speed() if pc and pc.is_playing else 1.0
-        except Exception:
-            current_speed = 1.0
-        for s in self.SPEED_STEPS:
-            label = f"{s}x" + (" ✓" if abs(current_speed - s) < 0.01 else "")
-            speed_menu.addAction(label, lambda *a, speed=s: self._set_speed(speed))
-
-        volume_menu = menu.addMenu(tr("ctx_volume", "Volume"))
-        volume_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        try:
-            current_vol = pc.get_volume() if pc and pc.is_playing else 80
-            is_muted = pc.get_mute() if pc and pc.is_playing else False
-        except Exception:
-            current_vol = 80
-            is_muted = False
-        mute_text = tr("ctx_unmute", "Unmute") if is_muted else tr("ctx_mute", "Mute")
-        volume_menu.addAction(mute_text, lambda *a: self.window.toggle_mute())
-        volume_menu.addSeparator()
-        for v in (0, 25, 50, 75, 100, 125, 150):
-            label = f"{v}%" + (" ✓" if not is_muted and abs(current_vol - v) < 2 else "")
-            volume_menu.addAction(label, lambda *a, vol=v: self._set_volume(vol))
-
-        aspect_menu = menu.addMenu(tr("ctx_aspect_ratio", "Aspect Ratio"))
-        aspect_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        aspect_labels = {
-            'default': tr("ctx_aspect_default", "Default"),
-            '16:9': '16:9',
-            '4:3': '4:3',
-            'stretch': tr("ctx_aspect_stretch", "Stretch"),
-            'fill': tr("ctx_aspect_fill", "Fill"),
-        }
-        current_ratio = self.ASPECT_CYCLE[self._current_aspect_idx]
-        for ratio in self.ASPECT_CYCLE:
-            label = aspect_labels.get(ratio, ratio) + (" ✓" if ratio == current_ratio else "")
-            aspect_menu.addAction(label, lambda *a, r=ratio: self._set_aspect(r))
-
-        # ---- 播放中：音频与字幕 / 工具 子菜单 ----
-        if is_playing:
-            menu.addSeparator()
-
-            # 音频与字幕
-            audio_sub_menu = menu.addMenu(tr("ctx_audio_subtitle", "Audio & Subtitle"))
-            audio_sub_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-            audio_track_menu = audio_sub_menu.addMenu(tr("ctx_audio_track", "Audio Track"))
-            audio_track_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-            self._populate_audio_menu(audio_track_menu)
-            sub_track_menu = audio_sub_menu.addMenu(tr("ctx_subtitle", "Subtitle"))
-            sub_track_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-            self._populate_subtitle_menu(sub_track_menu)
-            audio_sub_menu.addSeparator()
-            audio_sub_menu.addAction(tr("ctx_audio_eq", "Audio Equalizer..."), lambda *a: self._show_audio_eq_dialog())
-            audio_sub_menu.addAction(tr("ctx_video_eq", "Video Equalizer..."), lambda *a: self._show_video_eq_dialog())
-
-            # 工具
-            tools_menu = menu.addMenu(tr("ctx_tools", "Tools"))
-            tools_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-            tools_menu.addAction(tr("ctx_screenshot", "Screenshot\tS"), lambda *a: self._take_screenshot())
-            tools_menu.addAction(tr("ctx_burst_screenshot", "Burst Screenshot..."), lambda *a: self._show_burst_screenshot_dialog())
-            tools_menu.addSeparator()
-            tools_menu.addAction(tr("ctx_bookmarks", "Bookmarks & Chapters..."), lambda *a: self._show_bookmark_dialog())
-            tools_menu.addAction(tr("ctx_av_sync", "A/V Sync Monitor..."), lambda *a: self._show_av_sync_dialog())
-            tools_menu.addAction(tr("ctx_stream_quality", "Stream Quality..."), lambda *a: self._show_stream_quality_dialog())
-            tools_menu.addAction(tr("ctx_3d_video", "3D / 360° Video..."), lambda *a: self._show_3d_dialog())
-            tools_menu.addSeparator()
-            tools_menu.addAction(tr("ctx_playback_queue", "Playback Queue..."), lambda *a: self._show_playback_queue_dialog())
-            tools_menu.addAction(tr("ctx_resume_list", "Resume Positions..."), lambda *a: self._show_resume_list_dialog())
-            tools_menu.addAction(tr("ctx_network_enhance", "Network Enhance..."), lambda *a: self._show_network_enhance_dialog())
-
-            # HDR 模式子菜单
-            self._populate_hdr_submenu(menu)
-
-        if is_playing and self._is_audio_only():
-            vis_menu = menu.addMenu(tr("ctx_audio_visual", "音频可视化"))
-            vis_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-            self._populate_visual_menu(vis_menu)
-
-            lyrics_menu = menu.addMenu(tr("ctx_lyrics", "歌词"))
-            lyrics_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-            self._populate_lyrics_menu(lyrics_menu)
-
-        menu.addSeparator()
-
-        menu.addAction(tr("ctx_fullscreen", "Fullscreen\tF11"), lambda *a: self.window.toggle_fullscreen())
-        pip_action = menu.addAction(tr("ctx_pip", "Picture-in-Picture\tP"), lambda *a: self.window.pip_ctrl.toggle())
-        pip_action.setEnabled(is_playing)
-
-        menu.addSeparator()
-
-        view_menu = menu.addMenu(tr("ctx_view", "View"))
-        view_menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        epg_action = view_menu.addAction(tr("ctx_epg", "EPG List\tE"))
-        epg_action.setCheckable(True)
-        epg_action.setChecked(self.window.epg_visible)
-        epg_action.triggered.connect(lambda *a: self.window.toggle_epg())
-        playlist_action = view_menu.addAction(tr("ctx_playlist", "Playlist\tL"))
-        playlist_action.setCheckable(True)
-        playlist_action.setChecked(self.window.playlist_visible)
-        playlist_action.triggered.connect(lambda *a: self.window.toggle_playlist())
-        panel_action = view_menu.addAction(tr("ctx_control_panel", "Control Panel\tM"))
-        panel_action.setCheckable(True)
-        panel_action.setChecked(self.window.floating_panel_visible)
-        panel_action.triggered.connect(lambda *a: self.window.toggle_floating_panel())
-        view_menu.addSeparator()
-        view_menu.addAction(tr("ctx_hide_panels", "Hide Floating Panels\tY"), lambda *a: self.window.toggle_hide_floating())
-        view_menu.addAction(tr("ctx_reset_layout", "Reset Layout"), lambda *a: self.window.reset_layout())
-
-        menu.addSeparator()
-
-        menu.addAction(tr("ctx_open_stream", "Open Stream\tCtrl+U"), lambda *a: self.window._open_stream())
-        menu.addAction(tr("ctx_open_video", "Open Video\tCtrl+Shift+O"), lambda *a: self.window._open_video_file())
-        menu.addSeparator()
-        menu.addAction(tr("ctx_scan", "Scan & Organize"), lambda *a: self.window.open_scan_ui())
-
-
-        menu.exec(self.window.video_frame.mapToGlobal(pos))
+        return self._context_menu.show_video_context_menu(pos)
 
     def take_screenshot(self):
-        self._take_screenshot()
+        return self._context_menu.take_screenshot()
 
     def _take_screenshot(self):
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing:
-            return
-        # 纯音频频道没有视频帧，截图会失败
-        if hasattr(pc, '_has_video_track') and not pc._has_video_track():
-            self.window.status_bar_show_message(
-                self.window.language_manager.tr('screenshot_no_video',
-                                                '当前频道无视频画面，无法截图'))
-            return
-        try:
-            from datetime import datetime
-            from PySide6.QtWidgets import QApplication
-            from PySide6.QtGui import QPixmap
-
-            screenshot_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'screenshots')
-            os.makedirs(screenshot_dir, exist_ok=True)
-
-            channel_name = ''
-            current = self.window.current_channel
-            if current:
-                channel_name = current.get('name', '')
-                channel_name = re.sub(r'[\\/:*?"<>|]', '_', channel_name)
-
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"{channel_name}_{timestamp}.png" if channel_name else f"screenshot_{timestamp}.png"
-            filepath = os.path.join(screenshot_dir, filename)
-
-            pc.send_command(['screenshot-to-file', filepath, 'video'])
-
-            def _copy_to_clipboard():
-                try:
-                    clipboard = QApplication.clipboard()
-                    pixmap = QPixmap(filepath)
-                    if not pixmap.isNull():
-                        clipboard.setPixmap(pixmap)
-                except Exception as e:
-                    logger.debug(f"截图复制到剪贴板失败: {e}")
-
-            from PySide6.QtCore import QTimer
-            QTimer.singleShot(500, _copy_to_clipboard)
-
-            self.window.status_bar_show_message(
-                f"{self.window.language_manager.tr('screenshot_saved', 'Screenshot saved')}: {filename}")
-        except Exception as e:
-            logger.error(f"截图失败: {e}")
+        return self._context_menu._take_screenshot()
 
     def _populate_audio_menu(self, menu):
-        menu.clear()
-        pc = self.window.player_controller
-        tr = self.window.language_manager.tr
-        if not pc or not pc.is_playing:
-            act = menu.addAction(tr('ctx_no_audio_track', 'No Audio Tracks'))
-            act.setEnabled(False)
-            return
-        tracks = pc.get_track_list('audio')
-        current_id = pc.get_current_track('audio')
-        if not tracks:
-            act = menu.addAction(tr('ctx_no_audio_track', 'No Audio Tracks'))
-            act.setEnabled(False)
-        else:
-            actions = []
-            for t in tracks:
-                label = t.get('title') or t.get('lang') or tr('ctx_audio_track_n', 'Track {}').format(t['id'])
-                if t.get('lang') and t.get('title') and t['lang'] != t['title']:
-                    label = f"{t['title']} ({t['lang']})"
-                act = menu.addAction(label)
-                act.setCheckable(True)
-                act.setChecked(t['id'] == current_id)
-                actions.append((act, t['id'], label))
-            for act, tid, label in actions:
-                act.triggered.connect(
-                    lambda checked, tid=tid, label=label, actions=actions: self._on_audio_track_selected(tid, label, actions)
-                )
+        return self._context_menu._populate_audio_menu(menu)
 
     def _on_audio_track_selected(self, track_id, label, actions):
-        pc = self.window.player_controller
-        if not pc:
-            return
-        success = pc.set_track('audio', track_id)
-        if success:
-            for act, tid, _ in actions:
-                act.setChecked(tid == track_id)
-            tr = self.window.language_manager.tr
-            osd_text = tr('osd_audio_track', 'Audio: {}').format(label)
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(osd_text)
-        else:
-            tr = self.window.language_manager.tr
-            fallback_id = self._try_fallback_track(pc, 'audio', track_id)
-            if fallback_id is not None:
-                fallback_label = ''
-                for act, tid, lbl in actions:
-                    if tid == fallback_id:
-                        fallback_label = lbl
-                        act.setChecked(True)
-                    else:
-                        act.setChecked(False)
-                osd_text = tr('osd_audio_track_fallback', 'Audio track unavailable, switched to: {}').format(fallback_label)
-                if hasattr(self.window, '_show_osd_feedback'):
-                    self.window._show_osd_feedback(osd_text)
-            else:
-                osd_text = tr('osd_audio_track_failed', 'Audio track switch failed')
-                if hasattr(self.window, '_show_osd_feedback'):
-                    self.window._show_osd_feedback(osd_text)
+        return self._context_menu._on_audio_track_selected(track_id, label, actions)
 
     def _populate_subtitle_menu(self, menu):
-        menu.clear()
-        pc = self.window.player_controller
-        tr = self.window.language_manager.tr
-        if not pc or not pc.is_playing:
-            act = menu.addAction(tr('ctx_no_subtitle', 'No Subtitle'))
-            act.setEnabled(False)
-            return
-        current_id = pc.get_current_track('sub')
-        tracks = pc.get_track_list('sub')
-        sub_actions = []
-        no_sub = menu.addAction(tr("ctx_no_subtitle", "No Subtitle"))
-        no_sub.setCheckable(True)
-        no_sub.setChecked(current_id is None or current_id == 0)
-        sub_actions.append((no_sub, 0, tr("ctx_no_subtitle", "No Subtitle")))
-        if tracks:
-            menu.addSeparator()
-            for t in tracks:
-                label = t.get('title') or t.get('lang') or tr('ctx_subtitle_track_n', 'Sub {}').format(t['id'])
-                if t.get('lang') and t.get('title') and t['lang'] != t['title']:
-                    label = f"{t['title']} ({t['lang']})"
-                act = menu.addAction(label)
-                act.setCheckable(True)
-                act.setChecked(t['id'] == current_id)
-                sub_actions.append((act, t['id'], label))
-        for act, tid, label in sub_actions:
-            act.triggered.connect(
-                lambda checked, tid=tid, label=label, actions=sub_actions: self._on_sub_track_selected(tid, label, actions)
-            )
-        menu.addSeparator()
-        menu.addAction(tr("ctx_load_subtitle", "Load Subtitle..."), lambda *a: self._load_external_subtitle())
-        menu.addAction(tr("ctx_download_subtitle", "Download Subtitle..."), lambda *a: self._download_subtitle())
-        menu.addAction(tr("ctx_subtitle_style", "Subtitle Style..."), lambda *a: self._show_subtitle_style_dialog())
-        menu.addSeparator()
-        # 字幕可见性切换
-        sub_visible = pc.get_sub_visibility() if hasattr(pc, 'get_sub_visibility') else True
-        vis_act = menu.addAction(tr("ctx_sub_visibility", "Show Subtitle"))
-        vis_act.setCheckable(True)
-        vis_act.setChecked(sub_visible)
-        vis_act.triggered.connect(lambda *a: self._toggle_sub_visibility())
-        # 字幕延迟/缩放/位置快捷调整
-        delay_menu = menu.addMenu(tr("ctx_sub_delay", "Subtitle Delay"))
-        delay_menu.addAction('-0.5s', lambda *a: self._adjust_sub_delay(-0.5))
-        delay_menu.addAction('-0.1s', lambda *a: self._adjust_sub_delay(-0.1))
-        delay_menu.addAction('+0.1s', lambda *a: self._adjust_sub_delay(0.1))
-        delay_menu.addAction('+0.5s', lambda *a: self._adjust_sub_delay(0.5))
-        scale_menu = menu.addMenu(tr("ctx_sub_scale", "Subtitle Scale"))
-        scale_menu.addAction('-0.1', lambda *a: self._adjust_sub_scale(-0.1))
-        scale_menu.addAction('+0.1', lambda *a: self._adjust_sub_scale(0.1))
-        scale_menu.addAction('1.0', lambda *a: self._set_sub_scale(1.0))
-        pos_menu = menu.addMenu(tr("ctx_sub_pos", "Subtitle Position"))
-        pos_menu.addAction(tr("ctx_sub_pos_up", "Up"), lambda *a: self._adjust_sub_pos(5))
-        pos_menu.addAction(tr("ctx_sub_pos_down", "Down"), lambda *a: self._adjust_sub_pos(-5))
-        pos_menu.addAction(tr("ctx_sub_pos_reset", "Reset"), lambda *a: self._set_sub_pos(100))
+        return self._context_menu._populate_subtitle_menu(menu)
 
     def _on_sub_track_selected(self, track_id, label, actions):
-        pc = self.window.player_controller
-        if not pc:
-            return
-        if track_id == 0:
-            pc.set_track('sub', 'no')
-            for act, tid, _ in actions:
-                act.setChecked(tid == 0)
-            tr = self.window.language_manager.tr
-            osd_text = tr('osd_subtitle_track', 'Subtitle: {}').format(label)
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(osd_text)
-            return
-        success = pc.set_track('sub', track_id)
-        if success:
-            for act, tid, _ in actions:
-                act.setChecked(tid == track_id)
-            tr = self.window.language_manager.tr
-            osd_text = tr('osd_subtitle_track', 'Subtitle: {}').format(label)
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(osd_text)
-        else:
-            tr = self.window.language_manager.tr
-            fallback_id = self._try_fallback_track(pc, 'sub', track_id)
-            if fallback_id is not None:
-                fallback_label = ''
-                for act, tid, lbl in actions:
-                    if tid == fallback_id:
-                        fallback_label = lbl
-                        act.setChecked(True)
-                    else:
-                        act.setChecked(False)
-                osd_text = tr('osd_sub_track_fallback', 'Subtitle track unavailable, switched to: {}').format(fallback_label)
-                if hasattr(self.window, '_show_osd_feedback'):
-                    self.window._show_osd_feedback(osd_text)
-            else:
-                osd_text = tr('osd_subtitle_track_failed', 'Subtitle track switch failed')
-                if hasattr(self.window, '_show_osd_feedback'):
-                    self.window._show_osd_feedback(osd_text)
+        return self._context_menu._on_sub_track_selected(track_id, label, actions)
 
     def _try_fallback_track(self, pc, track_type, failed_id):
-        try:
-            tracks = pc.get_track_list(track_type)
-            if not tracks:
-                return None
-            current = pc.get_current_track(track_type)
-            for t in tracks:
-                if t['id'] != failed_id and t['id'] != current:
-                    if pc.set_track(track_type, t['id']):
-                        logger.info(f"轨道降级切换: {track_type} 从 {failed_id} 降级到 {t['id']}")
-                        return t['id']
-            if current and current != failed_id:
-                return current
-        except Exception as e:
-            logger.debug(f"轨道降级切换失败: {e}")
-        return None
+        return self._context_menu._try_fallback_track(pc, track_type, failed_id)
 
-    def _menu_anchor(self, attr: str):
-        """菜单锚点：次级按钮已收入“更多”菜单，统一锚定到 more_button"""
-        more = getattr(self.window, 'more_button', None)
-        if more is not None:
-            return more
-        return getattr(self.window, attr, None)
+    def _menu_anchor(self, attr):
+        return self._context_menu._menu_anchor(attr)
 
     def _exec_menu_upward(self, menu, btn):
-        """在按钮上方弹出菜单（控制栏位于底部，向下弹出会被屏幕裁剪）"""
-        from PySide6.QtCore import QPoint
-        menu.adjustSize()
-        top_left = btn.mapToGlobal(btn.rect().topLeft())
-        y = top_left.y() - menu.sizeHint().height() - 4
-        if y < 0:
-            y = btn.mapToGlobal(btn.rect().bottomLeft()).y()
-        menu.exec(QPoint(top_left.x(), y))
+        return self._context_menu._exec_menu_upward(menu, btn)
 
     def show_audio_track_menu(self):
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing:
-            return
-        from PySide6.QtWidgets import QMenu
-        from ui.styles import AppStyles
-        menu = QMenu(self.window)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        self._populate_audio_menu(menu)
-        btn = self._menu_anchor('audio_track_button')
-        if btn:
-            self._exec_menu_upward(menu, btn)
+        return self._context_menu.show_audio_track_menu()
 
     def show_sub_track_menu(self):
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing:
-            return
-        from PySide6.QtWidgets import QMenu
-        from ui.styles import AppStyles
-        menu = QMenu(self.window)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        self._populate_subtitle_menu(menu)
-        btn = self._menu_anchor('sub_track_button')
-        if btn:
-            self._exec_menu_upward(menu, btn)
+        return self._context_menu.show_sub_track_menu()
 
     def show_speed_menu(self):
-        from PySide6.QtWidgets import QMenu
-        from ui.styles import AppStyles
-        tr = self.window.language_manager.tr
-        menu = QMenu(self.window)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        pc = self.window.player_controller
-        try:
-            current_speed = pc.get_speed() if pc and pc.is_playing else 1.0
-        except Exception:
-            current_speed = 1.0
-        for s in self.SPEED_STEPS:
-            label = f"{s}x" + (" ✓" if abs(current_speed - s) < 0.01 else "")
-            menu.addAction(label, lambda *a, speed=s: self._set_speed(speed))
-        btn = self._menu_anchor('speed_button')
-        if btn:
-            self._exec_menu_upward(menu, btn)
+        return self._context_menu.show_speed_menu()
 
     def show_aspect_menu(self):
-        from PySide6.QtWidgets import QMenu
-        from ui.styles import AppStyles
-        tr = self.window.language_manager.tr
-        menu = QMenu(self.window)
-        menu.setStyleSheet(AppStyles.player_menu_bar_style())
-        aspect_labels = {
-            'default': tr("ctx_aspect_default", "Default"),
-            '16:9': '16:9',
-            '4:3': '4:3',
-            'stretch': tr("ctx_aspect_stretch", "Stretch"),
-            'fill': tr("ctx_aspect_fill", "Fill"),
-        }
-        current_ratio = self.ASPECT_CYCLE[self._current_aspect_idx]
-        for ratio in self.ASPECT_CYCLE:
-            label = aspect_labels.get(ratio, ratio) + (" ✓" if ratio == current_ratio else "")
-            menu.addAction(label, lambda *a, r=ratio: self._set_aspect(r))
-        btn = self._menu_anchor('aspect_button')
-        if btn:
-            self._exec_menu_upward(menu, btn)
+        return self._context_menu.show_aspect_menu()
 
     def _load_external_subtitle(self):
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing:
-            return
-        from PySide6.QtWidgets import QFileDialog
-        tr = self.window.language_manager.tr
-        file_path, _ = QFileDialog.getOpenFileName(
-            self.window, tr("ctx_load_subtitle", "Load Subtitle..."), '',
-            tr("ctx_subtitle_files", "Subtitle Files") + " (*.srt *.ass *.ssa *.sub *.idx *.vtt *.lrc);;" + tr("ctx_all_files", "All Files") + " (*)"
-        )
-        if file_path:
-            if pc.add_subtitle_file(file_path):
-                self.window._show_osd_feedback(f"{tr('ctx_subtitle', 'Subtitle')}: {file_path.split('/')[-1].split(chr(92))[-1]}")
+        return self._context_menu._load_external_subtitle()
 
-    # ---------- 字幕样式与控制（菜单入口） ----------
     def _show_subtitle_style_dialog(self):
-        """打开字幕样式对话框"""
-        try:
-            from ui.dialogs.subtitle_style_dialog import SubtitleStyleDialog
-            if not hasattr(self.window, '_subtitle_style_dialog') or not self.window._subtitle_style_dialog:
-                self.window._subtitle_style_dialog = SubtitleStyleDialog(self.window)
-            self.window._subtitle_style_dialog.show()
-            self.window._subtitle_style_dialog.raise_()
-            self.window._subtitle_style_dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开字幕样式对话框失败: {e}")
+        return self._context_menu._show_subtitle_style_dialog()
 
     def _download_subtitle(self):
-        """打开字幕下载对话框"""
-        try:
-            from ui.dialogs.subtitle_style_dialog import SubtitleDownloadDialog
-            # 当前播放的视频文件路径
-            video_path = ''
-            pc = self.window.player_controller
-            if pc and pc.is_playing:
-                cur = getattr(pc, 'current_url', '') or getattr(pc, '_current_url', '')
-                if cur and not cur.startswith(('http', 'rtp', 'udp', 'rtmp', 'rtsp')):
-                    video_path = cur
-            dialog = SubtitleDownloadDialog(self.window, video_file_path=video_path)
-            dialog.show()
-            dialog.raise_()
-            dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开字幕下载对话框失败: {e}")
+        return self._context_menu._download_subtitle()
 
     def _toggle_sub_visibility(self):
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'toggle_sub_visibility'):
-            return
-        new_state = pc.toggle_sub_visibility()
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            osd_text = tr('osd_sub_visible', 'Subtitle: On') if new_state else tr('osd_sub_hidden', 'Subtitle: Off')
-            self.window._show_osd_feedback(osd_text)
+        return self._context_menu._toggle_sub_visibility()
 
-    def _adjust_sub_delay(self, delta: float):
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'adjust_sub_delay'):
-            return
-        new_delay = pc.adjust_sub_delay(delta)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_sub_delay', 'Subtitle Delay')}: {new_delay:+.3f}s")
+    def _adjust_sub_delay(self, delta):
+        return self._context_menu._adjust_sub_delay(delta)
 
-    def _adjust_sub_scale(self, delta: float):
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'adjust_sub_scale'):
-            return
-        new_scale = pc.adjust_sub_scale(delta)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_sub_scale', 'Subtitle Scale')}: {new_scale:.2f}x")
+    def _adjust_sub_scale(self, delta):
+        return self._context_menu._adjust_sub_scale(delta)
 
-    def _set_sub_scale(self, scale: float):
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'set_sub_scale'):
-            return
-        pc.set_sub_scale(scale)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_sub_scale', 'Subtitle Scale')}: {scale:.2f}x")
+    def _set_sub_scale(self, scale):
+        return self._context_menu._set_sub_scale(scale)
 
-    def _adjust_sub_pos(self, delta: int):
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'get_sub_pos') or not hasattr(pc, 'set_sub_pos'):
-            return
-        new_pos = max(0, min(100, pc.get_sub_pos() + delta))
-        pc.set_sub_pos(new_pos)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_sub_pos', 'Subtitle Position')}: {new_pos}")
+    def _adjust_sub_pos(self, delta):
+        return self._context_menu._adjust_sub_pos(delta)
 
-    def _set_sub_pos(self, pos: int):
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'set_sub_pos'):
-            return
-        pc.set_sub_pos(pos)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_sub_pos', 'Subtitle Position')}: {pos}")
+    def _set_sub_pos(self, pos):
+        return self._context_menu._set_sub_pos(pos)
 
     def toggle_subtitle_visibility(self):
-        """供快捷键调用"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing:
-            return
-        self._toggle_sub_visibility()
+        return self._context_menu.toggle_subtitle_visibility()
 
-    def adjust_subtitle_delay(self, delta: float):
-        """供快捷键调用"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing:
-            return
-        self._adjust_sub_delay(delta)
+    def adjust_subtitle_delay(self, delta):
+        return self._context_menu.adjust_subtitle_delay(delta)
 
-    def adjust_subtitle_scale(self, delta: float):
-        """供快捷键调用"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing:
-            return
-        self._adjust_sub_scale(delta)
+    def adjust_subtitle_scale(self, delta):
+        return self._context_menu.adjust_subtitle_scale(delta)
 
-    # ---------- 视频图像调整 ----------
     def _show_video_eq_dialog(self):
-        """打开视频图像调整对话框"""
-        try:
-            from ui.dialogs.video_eq_dialog import VideoEqualizerDialog
-            if not hasattr(self.window, '_video_eq_dialog') or not self.window._video_eq_dialog:
-                self.window._video_eq_dialog = VideoEqualizerDialog(self.window)
-            self.window._video_eq_dialog.show()
-            self.window._video_eq_dialog.raise_()
-            self.window._video_eq_dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开视频 EQ 对话框失败: {e}")
+        return self._context_menu._show_video_eq_dialog()
 
-    def adjust_video_eq(self, key: str, delta: float):
-        """相对调整图像参数（供快捷键调用）
-        key: brightness/contrast/saturation/hue/gamma（int 步进）
-              sharpness（float 步进）
-        """
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'adjust_video_eq'):
-            return
-        new_v = pc.adjust_video_eq(key, delta)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            label_key = f'osd_video_{key}'
-            if key == 'sharpness':
-                self.window._show_osd_feedback(f"{tr(label_key, 'Sharpness')}: {new_v:+.2f}")
-            else:
-                self.window._show_osd_feedback(f"{tr(label_key, key.capitalize())}: {int(new_v):+d}")
+    def adjust_video_eq(self, key, delta):
+        return self._context_menu.adjust_video_eq(key, delta)
 
-    def cycle_video_rotate(self, step: int = 90):
-        """循环切换画面旋转角度（0→90→180→270→0）"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'get_video_rotate'):
-            return
-        cur = pc.get_video_rotate()
-        new_degree = (cur + step) % 360
-        pc.set_video_rotate(new_degree)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_video_rotate', 'Rotate')}: {new_degree}°")
+    def cycle_video_rotate(self, step):
+        return self._context_menu.cycle_video_rotate(step)
 
     def toggle_video_flip(self):
-        """循环切换画面翻转模式（无→水平→垂直→双向→无）"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'get_video_flip'):
-            return
-        cur = pc.get_video_flip() or ''
-        order = ['', 'horizontal', 'vertical', 'both']
-        try:
-            idx = order.index(cur)
-        except ValueError:
-            idx = -1
-        new_mode = order[(idx + 1) % len(order)]
-        pc.set_video_flip(new_mode)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            label_map = {
-                '': tr('video_eq_flip_none', 'None'),
-                'horizontal': tr('video_eq_flip_horizontal', 'Horizontal'),
-                'vertical': tr('video_eq_flip_vertical', 'Vertical'),
-                'both': tr('video_eq_flip_both', 'Both'),
-            }
-            self.window._show_osd_feedback(f"{tr('osd_video_flip', 'Flip')}: {label_map.get(new_mode, new_mode)}")
+        return self._context_menu.toggle_video_flip()
 
     def apply_video_eq_on_load(self):
-        """在文件加载时应用已保存的视频 EQ 配置
-        由播放器在加载新文件后调用；若启用 reset_on_new_file 则重置
-        """
-        try:
-            cfg = self.window.config.load_video_eq()
-        except Exception:
-            return
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'apply_video_eq'):
-            return
-        if cfg.get('reset_on_new_file', False):
-            pc.reset_video_eq()
-            pc.set_video_rotate(0)
-            pc.set_video_flip('')
-            pc.clear_video_crop()
-            # 重置运动补偿和分辨率提升
-            if hasattr(pc, 'clear_motion_compensation'):
-                pc.clear_motion_compensation()
-            if hasattr(pc, 'clear_super_resolution'):
-                pc.clear_super_resolution()
-            return
-        # 应用保存的图像参数
-        eq = {k: cfg.get(k, 0) for k in ('brightness', 'contrast', 'saturation', 'hue', 'gamma', 'sharpness')}
-        eq['video_rotate'] = cfg.get('video_rotate', 0)
-        eq['video_flip'] = cfg.get('video_flip', '')
-        pc.apply_video_eq(eq)
-        # 应用运动补偿
-        mc_strength = cfg.get('motion_comp', 'off')
-        mc_fps = int(cfg.get('motion_comp_fps', 60))
-        if mc_strength and mc_strength != 'off' and hasattr(pc, 'set_motion_compensation'):
-            pc.set_motion_compensation(mc_strength, mc_fps)
-        # 应用分辨率提升
-        sr_scale = cfg.get('superres_scale', 'off')
-        sr_detail = int(cfg.get('superres_detail', 0))
-        if (sr_scale and sr_scale != 'off') or sr_detail > 0:
-            if hasattr(pc, 'set_super_resolution'):
-                pc.set_super_resolution(sr_scale if sr_scale else 'off', sr_detail)
-        # 应用用户着色器
-        shader_preset = cfg.get('shader_preset', 'off')
-        if shader_preset and shader_preset != 'off' and hasattr(pc, 'set_user_shader'):
-            pc.set_user_shader(shader_preset)
+        return self._context_menu.apply_video_eq_on_load()
 
-    # ---------- 运动补偿 / 分辨率提升 / 用户着色器 ----------
-    def set_motion_compensation(self, strength: str, target_fps: int = 60):
-        """设置运动补偿"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'set_motion_compensation'):
-            return
-        pc.set_motion_compensation(strength, target_fps)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            strength_labels = {
-                'off': tr('mc_off', '关闭'),
-                'low': tr('mc_low', '轻度'),
-                'medium': tr('mc_medium', '中度'),
-                'high': tr('mc_high', '强力'),
-            }
-            label = strength_labels.get(strength, strength)
-            if strength == 'off':
-                self.window._show_osd_feedback(f"{tr('osd_motion_comp', '运动补偿')}: {label}")
-            else:
-                self.window._show_osd_feedback(f"{tr('osd_motion_comp', '运动补偿')}: {label} {target_fps}fps")
+    def set_motion_compensation(self, strength, target_fps):
+        return self._context_menu.set_motion_compensation(strength, target_fps)
 
-    def set_super_resolution(self, scale_algo: str, detail_enhance: int = 0):
-        """设置分辨率提升"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'set_super_resolution'):
-            return
-        pc.set_super_resolution(scale_algo, detail_enhance)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            scale_labels = {
-                'off': tr('sr_off', '关闭'),
-                'bilinear': tr('sr_bilinear', '双线性'),
-                'bicubic': tr('sr_bicubic', '双三次'),
-                'lanczos': tr('sr_lanczos', 'Lanczos'),
-                'spline': tr('sr_spline', '样条'),
-                'ewa_lanczos': tr('sr_ewa_lanczos', 'EWA Lanczos'),
-                'ewa_lanczossharp': tr('sr_ewa_lanczossharp', 'EWA Lanczos Sharp'),
-            }
-            parts = []
-            if scale_algo and scale_algo != 'off':
-                parts.append(scale_labels.get(scale_algo, scale_algo))
-            if detail_enhance > 0:
-                parts.append(f"{tr('sr_detail', '细节')} {detail_enhance}")
-            if parts:
-                self.window._show_osd_feedback(f"{tr('osd_super_res', '分辨率提升')}: {', '.join(parts)}")
-            else:
-                self.window._show_osd_feedback(f"{tr('osd_super_res', '分辨率提升')}: {tr('sr_off', '关闭')}")
+    def set_super_resolution(self, scale_algo, detail_enhance):
+        return self._context_menu.set_super_resolution(scale_algo, detail_enhance)
 
-    def set_user_shader(self, preset: str):
-        """设置用户着色器
+    def set_user_shader(self, preset):
+        return self._context_menu.set_user_shader(preset)
 
-        :param preset: 'off' / 'ravu' / 'fsrcnnx' / 'anime4k' / 'krig' / 'ssim' / 'esrgan' / 'adaptive_sharpen' / 自定义路径
-        """
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'set_user_shader'):
-            return
-        success = pc.set_user_shader(preset)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            if preset == 'off':
-                self.window._show_osd_feedback(
-                    f"{tr('osd_shader', '着色器')}: {tr('shader_off', '关闭')}"
-                )
-            elif not success:
-                # 着色器文件未找到，区分于主动关闭
-                self.window._show_osd_feedback(
-                    f"{tr('osd_shader', '着色器')}: {tr('shader_not_found', '文件未找到，请放入 shaders/ 目录')}"
-                )
-            else:
-                shader_labels = {
-                    'ravu': 'RAVU', 'fsrcnnx': 'FSRCNNX',
-                    'anime4k': 'Anime4K', 'krig': 'KrigBilateral',
-                    'ssim': 'SSim', 'esrgan': 'ESRGAN',
-                    'adaptive_sharpen': 'Adaptive Sharpen',
-                }
-                label = shader_labels.get(preset, preset)
-                self.window._show_osd_feedback(
-                    f"{tr('osd_shader', '着色器')}: {label}"
-                )
+    def apply_smart_preset(self, preset_name):
+        return self._preset.apply_smart_preset(preset_name)
 
-    def apply_smart_preset(self, preset_name: str):
-        """应用智能预设
+    def toggle_scene_detect(self, enabled):
+        return self._context_menu.toggle_scene_detect(enabled)
 
-        :param preset_name: 'auto' / 'performance' / 'quality' / 'anime' / 'sports'
-        """
-        try:
-            from services.hardware_detect_service import get_hardware_detect_service
-            hw = get_hardware_detect_service()
-            if preset_name == 'auto':
-                settings = hw.get_recommended_settings()
-            elif preset_name == 'performance':
-                settings = {
-                    'motion_comp': 'off', 'motion_comp_fps': 60,
-                    'superres_scale': 'bilinear', 'superres_detail': 0,
-                    'shader_preset': 'off',
-                }
-            elif preset_name == 'quality':
-                settings = {
-                    'motion_comp': 'medium', 'motion_comp_fps': 60,
-                    'superres_scale': 'ewa_lanczossharp', 'superres_detail': 40,
-                    'shader_preset': 'auto',
-                }
-            elif preset_name == 'anime':
-                settings = {
-                    'motion_comp': 'low', 'motion_comp_fps': 60,
-                    'superres_scale': 'ewa_lanczos', 'superres_detail': 20,
-                    'shader_preset': 'anime4k',
-                }
-            elif preset_name == 'sports':
-                settings = {
-                    'motion_comp': 'high', 'motion_comp_fps': 60,
-                    'superres_scale': 'lanczos', 'superres_detail': 30,
-                    'shader_preset': 'off',
-                }
-            else:
-                return
-            # 应用各项设置
-            self.set_motion_compensation(
-                settings['motion_comp'], settings['motion_comp_fps']
-            )
-            self.set_super_resolution(
-                settings['superres_scale'], settings['superres_detail']
-            )
-            shader = settings.get('shader_preset', 'off')
-            if shader == 'auto':
-                # auto 模式：检查是否有可用着色器
-                pc = self.window.player_controller
-                if pc and hasattr(pc, 'list_available_shaders'):
-                    available = pc.list_available_shaders()
-                    if available:
-                        shader = available[0]['preset']
-                    else:
-                        shader = 'off'
-                else:
-                    shader = 'off'
-            self.set_user_shader(shader)
-            # 保存到配置
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                preset_labels = {
-                    'auto': tr('preset_auto', '智能推荐'),
-                    'performance': tr('preset_performance', '性能优先'),
-                    'quality': tr('preset_quality', '画质优先'),
-                    'anime': tr('preset_anime', '动画优化'),
-                    'sports': tr('preset_sports', '体育直播'),
-                }
-                label = preset_labels.get(preset_name, preset_name)
-                self.window._show_osd_feedback(
-                    f"{tr('osd_smart_preset', '智能预设')}: {label}"
-                )
-        except Exception as e:
-            logger.error(f"应用智能预设失败: {e}")
+    def _on_scene_changed(self, params, scene_type):
+        return self._context_menu._on_scene_changed(params, scene_type)
 
-    # ---------- 第三阶段：智能场景检测 ----------
+    def _apply_scene_params(self, params, scene_type):
+        return self._context_menu._apply_scene_params(params, scene_type)
 
-    def toggle_scene_detect(self, enabled: bool) -> bool:
-        """开关智能场景检测"""
-        try:
-            from services.scene_detect_service import get_scene_detect_service
-            svc = get_scene_detect_service()
-            if enabled:
-                pc = self.window.player_controller
-                if not pc or not pc.is_playing:
-                    return False
-                svc.start(pc, callback=self._on_scene_changed)
-                tr = self.window.language_manager.tr
-                if hasattr(self.window, '_show_osd_feedback'):
-                    self.window._show_osd_feedback(
-                        tr('scene_detect_on', '智能场景检测已启用')
-                    )
-                return True
-            else:
-                svc.stop()
-                tr = self.window.language_manager.tr
-                if hasattr(self.window, '_show_osd_feedback'):
-                    self.window._show_osd_feedback(
-                        tr('scene_detect_off', '智能场景检测已关闭')
-                    )
-                return True
-        except Exception as e:
-            logger.error(f"切换场景检测失败: {e}")
-            return False
+    def get_scene_detect_status(self):
+        return self._context_menu.get_scene_detect_status()
 
-    def _on_scene_changed(self, params: dict, scene_type: str):
-        """场景检测回调：在主线程应用参数"""
-        try:
-            safe_single_shot(0, self.window, lambda: self._apply_scene_params(params, scene_type))
-        except Exception as e:
-            logger.debug(f"场景检测回调调度失败: {e}")
+    def list_custom_presets(self):
+        return self._preset.list_custom_presets()
 
-    def _apply_scene_params(self, params: dict, scene_type: str):
-        """应用场景检测推荐的参数"""
-        try:
-            mc_strength = params.get('motion_comp', 'off')
-            mc_fps = int(params.get('motion_comp_fps', 60))
-            sr_scale = params.get('superres_scale', 'off')
-            sr_detail = int(params.get('superres_detail', 0))
-            shader = params.get('shader_preset', 'off')
-            scene_label = params.get('scene_label', scene_type)
-            self.set_motion_compensation(mc_strength, mc_fps)
-            self.set_super_resolution(sr_scale, sr_detail)
-            self.set_user_shader(shader)
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(
-                    f"{tr('scene_detect_label', '场景检测')}: {scene_label}"
-                )
-        except Exception as e:
-            logger.error(f"应用场景参数失败: {e}")
+    def save_custom_preset(self, name, settings, description):
+        return self._preset.save_custom_preset(name, settings, description)
 
-    def get_scene_detect_status(self) -> dict:
-        """获取场景检测状态"""
-        try:
-            from services.scene_detect_service import get_scene_detect_service
-            svc = get_scene_detect_service()
-            return {
-                'enabled': svc.enabled,
-                'scene_type': svc.last_scene_type,
-                'params': svc.last_params,
-            }
-        except Exception:
-            return {'enabled': False, 'scene_type': 'unknown', 'params': {}}
+    def delete_custom_preset(self, name):
+        return self._preset.delete_custom_preset(name)
 
-    # ---------- 第三阶段：预设管理 ----------
+    def apply_custom_preset(self, name):
+        return self._preset.apply_custom_preset(name)
 
-    def list_custom_presets(self) -> list:
-        """列出所有预设"""
-        try:
-            from services.preset_manager_service import get_preset_manager
-            pm = get_preset_manager()
-            return pm.list_presets(include_builtin=True)
-        except Exception as e:
-            logger.error(f"列出预设失败: {e}")
-            return []
+    def bind_channel_preset(self, channel_name, preset_name):
+        return self._preset.bind_channel_preset(channel_name, preset_name)
 
-    def save_custom_preset(self, name: str, settings: dict,
-                           description: str = '') -> bool:
-        """保存自定义预设"""
-        try:
-            from services.preset_manager_service import get_preset_manager
-            pm = get_preset_manager()
-            return pm.save_preset(name, settings, description)
-        except Exception as e:
-            logger.error(f"保存预设失败: {e}")
-            return False
+    def get_channel_preset(self, channel_name):
+        return self._preset.get_channel_preset(channel_name)
 
-    def delete_custom_preset(self, name: str) -> bool:
-        """删除自定义预设"""
-        try:
-            from services.preset_manager_service import get_preset_manager
-            pm = get_preset_manager()
-            return pm.delete_preset(name)
-        except Exception as e:
-            logger.error(f"删除预设失败: {e}")
-            return False
+    def export_presets(self, file_path):
+        return self._preset.export_presets(file_path)
 
-    def apply_custom_preset(self, name: str):
-        """应用指定预设"""
-        try:
-            from services.preset_manager_service import get_preset_manager
-            pm = get_preset_manager()
-            settings = pm.get_preset(name)
-            if not settings:
-                logger.warning(f"预设 '{name}' 不存在")
-                return
-            pc = self.window.player_controller
-            if pc and pc.is_playing:
-                # 应用图像参数
-                eq_keys = ('brightness', 'contrast', 'saturation', 'hue',
-                           'gamma', 'sharpness', 'video_rotate', 'video_flip')
-                eq = {k: settings[k] for k in eq_keys if k in settings}
-                if eq:
-                    pc.apply_video_eq(eq)
-                # 应用运动补偿
-                mc_strength = settings.get('motion_comp', 'off')
-                mc_fps = int(settings.get('motion_comp_fps', 60))
-                if hasattr(pc, 'set_motion_compensation'):
-                    pc.set_motion_compensation(mc_strength, mc_fps)
-                # 应用分辨率提升
-                sr_scale = settings.get('superres_scale', 'off')
-                sr_detail = int(settings.get('superres_detail', 0))
-                if hasattr(pc, 'set_super_resolution'):
-                    pc.set_super_resolution(sr_scale, sr_detail)
-                # 应用着色器
-                shader = settings.get('shader_preset', 'off')
-                if hasattr(pc, 'set_user_shader'):
-                    pc.set_user_shader(shader)
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(
-                    f"{tr('preset_applied', '预设已应用')}: {name}"
-                )
-        except Exception as e:
-            logger.error(f"应用预设失败: {e}")
+    def import_presets(self, file_path, overwrite):
+        return self._preset.import_presets(file_path, overwrite)
 
-    def bind_channel_preset(self, channel_name: str, preset_name: str) -> bool:
-        """绑定频道到预设"""
-        try:
-            from services.preset_manager_service import get_preset_manager
-            pm = get_preset_manager()
-            return pm.bind_channel_preset(channel_name, preset_name)
-        except Exception as e:
-            logger.error(f"绑定频道预设失败: {e}")
-            return False
-
-    def get_channel_preset(self, channel_name: str):
-        """获取频道绑定的预设名"""
-        try:
-            from services.preset_manager_service import get_preset_manager
-            pm = get_preset_manager()
-            return pm.get_channel_preset(channel_name)
-        except Exception:
-            return None
-
-    def export_presets(self, file_path: str) -> bool:
-        """导出预设到文件"""
-        try:
-            from services.preset_manager_service import get_preset_manager
-            pm = get_preset_manager()
-            return pm.export_presets(file_path)
-        except Exception as e:
-            logger.error(f"导出预设失败: {e}")
-            return False
-
-    def import_presets(self, file_path: str, overwrite: bool = False) -> int:
-        """从文件导入预设"""
-        try:
-            from services.preset_manager_service import get_preset_manager
-            pm = get_preset_manager()
-            count = pm.import_presets(file_path, overwrite)
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback') and count > 0:
-                self.window._show_osd_feedback(
-                    f"{tr('presets_imported', '已导入')} {count} {tr('presets_count', '个预设')}"
-                )
-            return count
-        except Exception as e:
-            logger.error(f"导入预设失败: {e}")
-            return 0
-
-    # ---------- 音频系统增强 ----------
     def _show_audio_eq_dialog(self):
-        """打开音频调整对话框"""
-        try:
-            from ui.dialogs.audio_eq_dialog import AudioEqualizerDialog
-            if not hasattr(self.window, '_audio_eq_dialog') or not self.window._audio_eq_dialog:
-                self.window._audio_eq_dialog = AudioEqualizerDialog(self.window)
-            self.window._audio_eq_dialog.show()
-            self.window._audio_eq_dialog.raise_()
-            self.window._audio_eq_dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开音频 EQ 对话框失败: {e}")
+        return self._context_menu._show_audio_eq_dialog()
 
-    def adjust_audio_delay(self, delta: float):
-        """相对调整音频延迟（供快捷键调用）"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'adjust_audio_delay'):
-            return
-        new_v = pc.adjust_audio_delay(delta)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_audio_delay', 'Audio Delay')}: {new_v:+.3f}s")
+    def adjust_audio_delay(self, delta):
+        return self._context_menu.adjust_audio_delay(delta)
 
-    def adjust_audio_pitch(self, delta: float):
-        """相对调整音调补偿（供快捷键调用）"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'adjust_audio_pitch'):
-            return
-        new_v = pc.adjust_audio_pitch(delta)
-        tr = self.window.language_manager.tr
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_audio_pitch', 'Pitch')}: {new_v:.2f}")
+    def adjust_audio_pitch(self, delta):
+        return self._context_menu.adjust_audio_pitch(delta)
 
-    def set_channel_volumes(self, volumes: dict):
-        """设置逐声道音量"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'set_channel_volumes'):
-            return
-        pc.set_channel_volumes(volumes)
+    def set_channel_volumes(self, volumes):
+        return self._context_menu.set_channel_volumes(volumes)
 
-    def get_audio_channel_info(self) -> dict:
-        """获取当前音频声道信息"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'get_audio_channel_info'):
-            return {}
-        return pc.get_audio_channel_info()
+    def get_audio_channel_info(self):
+        return self._context_menu.get_audio_channel_info()
 
     def start_channel_monitor(self):
-        """启动声道活动状态监控"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'start_channel_monitor'):
-            return
-        pc.start_channel_monitor()
+        return self._context_menu.start_channel_monitor()
 
     def stop_channel_monitor(self):
-        """停止声道活动状态监控"""
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'stop_channel_monitor'):
-            return
-        pc.stop_channel_monitor()
+        return self._context_menu.stop_channel_monitor()
 
-    def get_channel_levels(self) -> dict:
-        """获取各声道 RMS 电平"""
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing or not hasattr(pc, 'get_channel_levels'):
-            return {}
-        return pc.get_channel_levels()
+    def get_channel_levels(self):
+        return self._context_menu.get_channel_levels()
 
     def apply_audio_eq_on_load(self):
-        """在文件加载时应用已保存的音频 EQ 配置"""
-        try:
-            cfg = self.window.config.load_audio_eq()
-        except Exception:
-            return
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'apply_audio_eq'):
-            return
-        if cfg.get('reset_on_new_file', False):
-            pc.reset_audio_eq()
-            return
-        pc.apply_audio_eq(cfg)
+        return self._context_menu.apply_audio_eq_on_load()
 
-    # ---------- 播放队列与控制 ----------
     def _show_playback_queue_dialog(self):
-        """打开播放队列与控制对话框"""
-        try:
-            from ui.dialogs.playback_queue_dialog import PlaybackQueueDialog
-            if not hasattr(self.window, '_playback_queue_dialog') or not self.window._playback_queue_dialog:
-                self.window._playback_queue_dialog = PlaybackQueueDialog(self.window)
-            self.window._playback_queue_dialog.show()
-            self.window._playback_queue_dialog.raise_()
-            self.window._playback_queue_dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开播放队列对话框失败: {e}")
+        return self._context_menu._show_playback_queue_dialog()
 
     def _show_resume_list_dialog(self):
-        """打开断点续播列表对话框"""
-        try:
-            rc = getattr(self.window, 'resume_ctrl', None)
-            if rc and hasattr(rc, 'show_resume_list_dialog'):
-                rc.show_resume_list_dialog()
-        except Exception as e:
-            logger.error(f"打开断点续播列表对话框失败: {e}")
+        return self._context_menu._show_resume_list_dialog()
 
     def _show_network_enhance_dialog(self):
-        """打开网络流媒体增强对话框"""
-        try:
-            from ui.dialogs.network_enhance_dialog import NetworkEnhanceDialog
-            if not hasattr(self.window, '_network_enhance_dialog') or not self.window._network_enhance_dialog:
-                self.window._network_enhance_dialog = NetworkEnhanceDialog(self.window)
-            self.window._network_enhance_dialog.show()
-            self.window._network_enhance_dialog.raise_()
-            self.window._network_enhance_dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开网络流媒体增强对话框失败: {e}")
+        return self._context_menu._show_network_enhance_dialog()
 
     def _show_burst_screenshot_dialog(self):
-        """打开连拍截图对话框"""
-        try:
-            from ui.dialogs.burst_screenshot_dialog import BurstScreenshotDialog
-            if not hasattr(self.window, '_burst_screenshot_dialog') or not self.window._burst_screenshot_dialog:
-                self.window._burst_screenshot_dialog = BurstScreenshotDialog(self.window)
-            self.window._burst_screenshot_dialog.show()
-            self.window._burst_screenshot_dialog.raise_()
-            self.window._burst_screenshot_dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开连拍截图对话框失败: {e}")
+        return self._context_menu._show_burst_screenshot_dialog()
 
     def _show_bookmark_dialog(self):
-        """打开书签/章节对话框"""
-        try:
-            bc = getattr(self.window, 'bookmark_ctrl', None)
-            if bc and hasattr(bc, 'show_bookmark_dialog'):
-                bc.show_bookmark_dialog()
-        except Exception as e:
-            logger.error(f"打开书签对话框失败: {e}")
+        return self._context_menu._show_bookmark_dialog()
 
     def _show_av_sync_dialog(self):
-        """打开音视频同步监控对话框"""
-        try:
-            from ui.dialogs.av_sync_dialog import AVSyncDialog
-            if not hasattr(self.window, '_av_sync_dialog') or not self.window._av_sync_dialog:
-                self.window._av_sync_dialog = AVSyncDialog(self.window)
-            self.window._av_sync_dialog.show()
-            self.window._av_sync_dialog.raise_()
-            self.window._av_sync_dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开 A/V 同步监控对话框失败: {e}")
+        return self._context_menu._show_av_sync_dialog()
 
     def _show_stream_quality_dialog(self):
-        """打开流质量检测对话框"""
-        try:
-            from ui.dialogs.stream_quality_dialog import StreamQualityDialog
-            if not hasattr(self.window, '_stream_quality_dialog') or not self.window._stream_quality_dialog:
-                self.window._stream_quality_dialog = StreamQualityDialog(self.window)
-            self.window._stream_quality_dialog.show()
-            self.window._stream_quality_dialog.raise_()
-            self.window._stream_quality_dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开流质量检测对话框失败: {e}")
+        return self._context_menu._show_stream_quality_dialog()
 
     def _show_3d_dialog(self):
-        """打开 3D / 360° 视频对话框"""
-        try:
-            from ui.dialogs.video_3d_dialog import Video3DDialog
-            if not hasattr(self.window, '_video_3d_dialog') or not self.window._video_3d_dialog:
-                self.window._video_3d_dialog = Video3DDialog(self.window)
-            self.window._video_3d_dialog.show()
-            self.window._video_3d_dialog.raise_()
-            self.window._video_3d_dialog.activateWindow()
-        except Exception as e:
-            logger.error(f"打开 3D/360 对话框失败: {e}")
-
-    # ---------- HDR 模式切换 ----------
-    _HDR_MODES = (
-        ('disable',    'hdr_disable'),
-        ('auto',       'hdr_auto'),
-        ('scrgb',      'hdr_scrgb'),
-        ('passthrough','hdr_passthrough'),
-        ('tonemap',    'hdr_tonemap'),
-    )
+        return self._context_menu._show_3d_dialog()
 
     def _populate_hdr_submenu(self, parent_menu):
-        """构造 HDR 模式子菜单"""
-        from PySide6.QtWidgets import QMenu
-        from ui.styles import AppStyles
-        tr = self.window.language_manager.tr
-        pc = self.window.player_controller
-        hdr_menu = parent_menu.addMenu(tr("ctx_hdr_mode", "HDR Mode"))
-        hdr_menu.setStyleSheet(AppStyles.player_menu_bar_style())
+        return self._context_menu._populate_hdr_submenu(parent_menu)
 
-        # 顶部：显示当前视频 HDR 类型
-        current_hdr_type = ''
-        if pc and pc.is_playing:
-            try:
-                info = pc.get_live_media_info() if hasattr(pc, 'get_live_media_info') else None
-                if info:
-                    from services.mpv_player_service import MpvPlayerController
-                    current_hdr_type = MpvPlayerController.detect_hdr_type(
-                        info.get('colormatrix', ''),
-                        info.get('gamma', ''),
-                        info.get('sig_peak', 0),
-                        info.get('video_format', ''),
-                        info.get('color_primaries', '')
-                    )
-            except Exception:
-                current_hdr_type = ''
-        if current_hdr_type:
-            label_action = hdr_menu.addAction(
-                f"{tr('hdr_current_video', 'Current')}: {current_hdr_type}")
-            label_action.setEnabled(False)
-            # DV 基础层警告：libmpv 无法解码 DV RPU 增强层，只能播放 HDR10 基础层
-            if current_hdr_type == 'DV':
-                dv_warn = hdr_menu.addAction(
-                    f"  ⚠ {tr('dv_base_layer_warning', 'Dolby Vision: playing HDR10 base layer only')}")
-                dv_warn.setEnabled(False)
-            hdr_menu.addSeparator()
-
-        # 当前模式
-        current_mode = 'disable'
-        if pc and hasattr(pc, '_playback_settings'):
-            current_mode = pc._playback_settings.get('hdr_output_mode', 'disable')
-
-        # 5 个模式选项
-        for mode, key in self._HDR_MODES:
-            label = tr(key, mode)
-            act = hdr_menu.addAction(label, lambda checked=False, m=mode: self._set_hdr_mode(m))
-            act.setCheckable(True)
-            act.setChecked(mode == current_mode)
-
-    def _set_hdr_mode(self, mode: str):
-        """切换 HDR 输出模式（需要重新初始化 mpv）"""
-        try:
-            pc = self.window.player_controller
-            if not pc or not hasattr(pc, 'reinit_for_hdr_change'):
-                return
-            # 持久化到配置文件
-            try:
-                if self.window.config:
-                    settings = self.window.config.load_playback_settings()
-                    settings['hdr_output_mode'] = mode
-                    self.window.config.save_playback_settings(settings)
-            except Exception as e:
-                logger.warning(f"保存 HDR 模式失败: {e}")
-            # 调用 player_controller 切换（会硬重启 mpv）
-            pc.reinit_for_hdr_change(mode)
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(
-                    f"{tr('osd_hdr_mode', 'HDR Mode')}: {tr(f'hdr_{mode}', mode)}")
-        except Exception as e:
-            logger.error(f"切换 HDR 模式失败: {e}")
+    def _set_hdr_mode(self, mode):
+        return self._context_menu._set_hdr_mode(mode)
 
     def add_bookmark_now(self):
-        """快捷键调用：在当前位置添加书签"""
-        try:
-            bc = getattr(self.window, 'bookmark_ctrl', None)
-            if bc and hasattr(bc, 'add_bookmark'):
-                bc.add_bookmark('')
-        except Exception as e:
-            logger.debug(f"添加书签失败: {e}")
+        return self._context_menu.add_bookmark_now()
 
     def chapter_next(self):
-        """快捷键调用：跳转到下一章"""
-        try:
-            bc = getattr(self.window, 'bookmark_ctrl', None)
-            if bc and hasattr(bc, 'next_chapter'):
-                bc.next_chapter()
-        except Exception as e:
-            logger.debug(f"下一章失败: {e}")
+        return self._context_menu.chapter_next()
 
     def chapter_prev(self):
-        """快捷键调用：跳转到上一章"""
-        try:
-            bc = getattr(self.window, 'bookmark_ctrl', None)
-            if bc and hasattr(bc, 'prev_chapter'):
-                bc.prev_chapter()
-        except Exception as e:
-            logger.debug(f"上一章失败: {e}")
+        return self._context_menu.chapter_prev()
 
     def get_queue_controller(self):
-        return getattr(self.window, 'file_queue_ctrl', None)
+        return self._context_menu.get_queue_controller()
 
     def cycle_queue_mode(self):
-        """循环切换队列模式"""
-        qc = self.get_queue_controller()
-        if not qc:
-            return
-        try:
-            new_mode = qc.cycle_queue_mode()
-            tr = self.window.language_manager.tr
-            labels = {
-                'none': tr('playback_queue_mode_none', 'No Loop'),
-                'single': tr('playback_queue_mode_single', 'Loop Single File'),
-                'all': tr('playback_queue_mode_all', 'Loop List'),
-                'shuffle': tr('playback_queue_mode_shuffle', 'Shuffle'),
-            }
-            osd_text = f"{tr('osd_queue_mode', 'Queue Mode')}: {labels.get(new_mode, new_mode)}"
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(osd_text)
-        except Exception as e:
-            logger.debug(f"循环切换队列模式失败: {e}")
+        return self._context_menu.cycle_queue_mode()
 
     def toggle_shuffle(self):
-        """切换随机播放开关"""
-        qc = self.get_queue_controller()
-        if not qc:
-            return
-        try:
-            is_on = qc.toggle_shuffle()
-            tr = self.window.language_manager.tr
-            key = 'osd_shuffle_on' if is_on else 'osd_shuffle_off'
-            osd_text = tr(key, 'Shuffle: On' if is_on else 'Shuffle: Off')
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(osd_text)
-        except Exception as e:
-            logger.debug(f"切换随机播放失败: {e}")
+        return self._context_menu.toggle_shuffle()
 
     def play_next_file(self):
-        """播放下一个文件"""
-        qc = self.get_queue_controller()
-        if not qc:
-            return
-        try:
-            qc.play_next()
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(tr('osd_play_next', 'Next File'))
-        except Exception as e:
-            logger.debug(f"播放下一文件失败: {e}")
+        return self._context_menu.play_next_file()
 
     def play_previous_file(self):
-        """播放上一个文件"""
-        qc = self.get_queue_controller()
-        if not qc:
-            return
-        try:
-            qc.play_previous()
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(tr('osd_play_prev', 'Previous File'))
-        except Exception as e:
-            logger.debug(f"播放上一文件失败: {e}")
+        return self._context_menu.play_previous_file()
 
     def ab_loop_set_a(self):
-        """设置 A-B 循环 A 点"""
-        qc = self.get_queue_controller()
-        if not qc:
-            return
-        try:
-            pos = qc.ab_loop_set_a()
-            if pos is None:
-                return
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(f"{tr('osd_ab_loop_a', 'A Point')}: {pos:.2f}s")
-        except Exception as e:
-            logger.debug(f"设置 A 点失败: {e}")
+        return self._context_menu.ab_loop_set_a()
 
     def ab_loop_set_b(self):
-        """设置 A-B 循环 B 点"""
-        qc = self.get_queue_controller()
-        if not qc:
-            return
-        try:
-            pos = qc.ab_loop_set_b()
-            if pos is None:
-                return
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(f"{tr('osd_ab_loop_b', 'B Point')}: {pos:.2f}s")
-        except Exception as e:
-            logger.debug(f"设置 B 点失败: {e}")
+        return self._context_menu.ab_loop_set_b()
 
     def ab_loop_clear(self):
-        """清除 A-B 循环"""
-        qc = self.get_queue_controller()
-        if not qc:
-            return
-        try:
-            qc.ab_loop_clear()
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(tr('osd_ab_loop_cleared', 'A-B Loop cleared'))
-        except Exception as e:
-            logger.debug(f"清除 A-B 循环失败: {e}")
+        return self._context_menu.ab_loop_clear()
 
     def frame_step(self):
-        """前进一帧"""
-        qc = self.get_queue_controller()
-        if not qc:
-            return
-        try:
-            qc.frame_step()
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(f"{tr('osd_frame_step', 'Frame')} >>")
-        except Exception as e:
-            logger.debug(f"前进一帧失败: {e}")
+        return self._context_menu.frame_step()
 
     def frame_back_step(self):
-        """后退一帧"""
-        qc = self.get_queue_controller()
-        if not qc:
-            return
-        try:
-            qc.frame_back_step()
-            tr = self.window.language_manager.tr
-            if hasattr(self.window, '_show_osd_feedback'):
-                self.window._show_osd_feedback(f"<< {tr('osd_frame_step', 'Frame')}")
-        except Exception as e:
-            logger.debug(f"后退一帧失败: {e}")
+        return self._context_menu.frame_back_step()
 
     def adjust_speed(self, delta):
-        pc = self.window.player_controller
-        if not pc:
-            return
-        current = pc.get_speed()
-        new_speed = round(max(0.1, min(10.0, current + delta)), 1)
-        pc.set_speed(new_speed)
-        speed_btn = self.window.speed_button
-        if speed_btn:
-            speed_btn.setText(f"{new_speed}x")
-        if not self.is_osd_visible:
-            self.window._show_osd_feedback(f"{self.window.language_manager.tr('osd_speed', 'Speed')}: {new_speed}x")
+        return self._context_menu.adjust_speed(delta)
 
     def cycle_speed(self):
-        pc = self.window.player_controller
-        if not pc:
-            return
-        current = pc.get_speed()
-        idx = 0
-        for i, s in enumerate(self.SPEED_STEPS):
-            if abs(current - s) < 0.01:
-                idx = i
-                break
-        next_idx = (idx + 1) % len(self.SPEED_STEPS)
-        new_speed = self.SPEED_STEPS[next_idx]
-        pc.set_speed(new_speed)
-        speed_btn = self.window.speed_button
-        if speed_btn:
-            speed_btn.setText(f"{new_speed}x")
-        if not self.is_osd_visible:
-            self.window._show_osd_feedback(f"{self.window.language_manager.tr('osd_speed', 'Speed')}: {new_speed}x")
+        return self._context_menu.cycle_speed()
 
     def cycle_aspect_ratio(self):
-        pc = self.window.player_controller
-        if not pc:
-            return
-        self._current_aspect_idx = (self._current_aspect_idx + 1) % len(self.ASPECT_CYCLE)
-        ratio = self.ASPECT_CYCLE[self._current_aspect_idx]
-        pc.set_aspect_ratio(ratio)
-        tr = self.window.language_manager.tr
-        labels = {
-            'default': tr('ctx_aspect_default', 'Default'),
-            '16:9': '16:9',
-            '4:3': '4:3',
-            'stretch': tr('ctx_aspect_stretch', 'Stretch'),
-            'fill': tr('ctx_aspect_fill', 'Fill')
-        }
-        aspect_btn = getattr(self.window, 'aspect_button', None)
-        if aspect_btn:
-            aspect_btn.setText(labels.get(ratio, tr('ctx_aspect_default', 'Default')))
-        if hasattr(self.window, '_show_osd_feedback'):
-            osd_text = f"{tr('osd_aspect_ratio', 'Aspect')}: {labels.get(ratio, tr('ctx_aspect_default', 'Default'))}"
-            self.window._show_osd_feedback(osd_text)
-        self._save_aspect_ratio(ratio)
+        return self._context_menu.cycle_aspect_ratio()
 
     def _save_aspect_ratio(self, ratio):
-        try:
-            self.window.config.set_value('Player', 'aspect_ratio', ratio)
-            self.window.config.save_config()
-        except Exception as e:
-            logger.debug(f"保存画面比例设置失败: {e}")
+        return self._context_menu._save_aspect_ratio(ratio)
 
     def restore_aspect_ratio(self):
-        try:
-            ratio = self.window.config.get_value('Player', 'aspect_ratio', 'default') or 'default'
-            if ratio in self.ASPECT_CYCLE:
-                self._current_aspect_idx = self.ASPECT_CYCLE.index(ratio)
-            else:
-                self._current_aspect_idx = 0
-                ratio = 'default'
-            pc = self.window.player_controller
-            if pc:
-                pc.set_aspect_ratio(ratio)
-            tr = self.window.language_manager.tr
-            labels = {
-                'default': tr('ctx_aspect_default', 'Default'),
-                '16:9': '16:9',
-                '4:3': '4:3',
-                'stretch': tr('ctx_aspect_stretch', 'Stretch'),
-                'fill': tr('ctx_aspect_fill', 'Fill')
-            }
-            aspect_btn = getattr(self.window, 'aspect_button', None)
-            if aspect_btn:
-                aspect_btn.setText(labels.get(ratio, tr('ctx_aspect_default', 'Default')))
-        except Exception as e:
-            logger.debug(f"恢复画面比例失败: {e}")
+        return self._context_menu.restore_aspect_ratio()
 
     def _set_speed(self, speed):
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing:
-            return
-        try:
-            pc.set_speed(speed)
-        except Exception:
-            return
-        speed_btn = self.window.speed_button
-        if speed_btn:
-            speed_btn.setText(f"{speed}x")
-        if not self.is_osd_visible:
-            self.window._show_osd_feedback(f"{self.window.language_manager.tr('osd_speed', 'Speed')}: {speed}x")
+        return self._context_menu._set_speed(speed)
 
     def _set_volume(self, volume):
-        pc = self.window.player_controller
-        if not pc:
-            return
-        try:
-            pc.set_volume(volume)
-        except Exception:
-            return
-        volume_slider = self.window.volume_slider
-        if volume_slider:
-            volume_slider.setValue(volume)
-        playback_ctrl = getattr(self.window, 'playback_ctrl', None)
-        if playback_ctrl:
-            playback_ctrl._update_volume_icon(volume)
-        if not self.is_osd_visible:
-            self.window._show_osd_feedback(f"{self.window.language_manager.tr('osd_volume', 'Volume')}: {volume}%")
+        return self._context_menu._set_volume(volume)
 
     def _set_aspect(self, ratio):
-        pc = self.window.player_controller
-        if not pc:
-            return
-        try:
-            pc.set_aspect_ratio(ratio)
-        except Exception:
-            return
-        if ratio in self.ASPECT_CYCLE:
-            self._current_aspect_idx = self.ASPECT_CYCLE.index(ratio)
-        tr = self.window.language_manager.tr
-        labels = {
-            'default': tr('ctx_aspect_default', 'Default'),
-            '16:9': '16:9',
-            '4:3': '4:3',
-            'stretch': tr('ctx_aspect_stretch', 'Stretch'),
-            'fill': tr('ctx_aspect_fill', 'Fill')
-        }
-        aspect_btn = getattr(self.window, 'aspect_button', None)
-        if aspect_btn:
-            aspect_btn.setText(labels.get(ratio, tr('ctx_aspect_default', 'Default')))
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_aspect_ratio', 'Aspect')}: {labels.get(ratio, tr('ctx_aspect_default', 'Default'))}")
-        self._save_aspect_ratio(ratio)
+        return self._context_menu._set_aspect(ratio)
 
     def update_catchup_indicator(self):
-        try:
-            indicator = getattr(self.window, 'catchup_indicator', None)
-            if not indicator:
-                return
-
-            is_timeshift = self.window.play_state.is_timeshift
-            is_catchup = self.window.play_state.is_catchup
-
-            if is_timeshift:
-                indicator.setText(self.window.language_manager.tr('timeshift_watching', '正在时移观看'))
-                indicator.show()
-            elif is_catchup and not is_timeshift:
-                indicator.setText(self.window.language_manager.tr('catchup_playing_label', '正在回看'))
-                indicator.show()
-            elif self.window.current_channel and (
-                self.window.current_channel.get('catchup_source', '')
-                or self.window.current_channel.get('catchup', '')
-            ):
-                indicator.setText(self.window.language_manager.tr('catchup_available', '可回放'))
-                indicator.show()
-            elif self.window.current_channel:
-                # Fallback：catchup 字段为空时，即时从 URL 检测可回看模式（PLTV/TVOD、SNM/TVOD）
-                ch_url = self.window.current_channel.get('url', '')
-                if ch_url:
-                    from services.m3u_parser import safe_detect_catchup_source
-                    if safe_detect_catchup_source(ch_url):
-                        indicator.setText(self.window.language_manager.tr('catchup_available', '可回放'))
-                        indicator.show()
-                        return
-                indicator.hide()
-            else:
-                indicator.hide()
-        except Exception as e:
-            logger.debug(f"更新回看指示器失败: {e}")
+        return self._context_menu.update_catchup_indicator()
 
     def _is_audio_only(self):
-        pc = self.window.player_controller
-        if not pc or not pc.is_playing:
-            return False
-        if hasattr(pc, 'audio_visual') and pc.audio_visual:
-            return pc.audio_visual.is_audio_only
-        return False
+        return self._context_menu._is_audio_only()
 
     def _populate_visual_menu(self, menu):
-        from services.audio_visual_service import AUDIO_VISUAL_STYLES, STYLE_KEYS
-        pc = self.window.player_controller
-        tr = self.window.language_manager.tr
-        current_style = 'none'
-        if pc and hasattr(pc, 'audio_visual') and pc.audio_visual:
-            current_style = pc.audio_visual.current_style
-
-        for key in STYLE_KEYS:
-            style = AUDIO_VISUAL_STYLES[key]
-            label = tr(style['name_key'], style['name_default'])
-            if key == current_style:
-                label += " ✓"
-            menu.addAction(label, lambda *a, k=key: self._set_visual_style(k))
-
-        menu.addSeparator()
-
-        random_label = tr("audio_vis_random", "随机效果")
-        if current_style == 'random':
-            random_label += " ✓"
-        menu.addAction(random_label, lambda *a: self._set_visual_style('random'))
-
-        menu.addSeparator()
-
-        off_style = AUDIO_VISUAL_STYLES['none']
-        off_label = tr(off_style['name_key'], off_style['name_default'])
-        if current_style == 'none':
-            off_label += " ✓"
-        menu.addAction(off_label, lambda *a: self._set_visual_style('none'))
+        return self._context_menu._populate_visual_menu(menu)
 
     def _set_visual_style(self, style_key):
-        pc = self.window.player_controller
-        if not pc or not hasattr(pc, 'audio_visual') or not pc.audio_visual:
-            return
-        tr = self.window.language_manager.tr
-        if style_key == 'random':
-            pc.audio_visual.apply_random_style()
-        else:
-            pc.audio_visual.apply_visual_style(style_key)
-        pc.audio_visual.save_current_style()
-        display = pc.audio_visual.get_style_display_name(pc.audio_visual.current_style, self.window.language_manager)
-        if hasattr(self.window, '_show_osd_feedback'):
-            self.window._show_osd_feedback(f"{tr('osd_audio_visual', '音频可视化')}: {display}")
+        return self._context_menu._set_visual_style(style_key)
 
     def _populate_lyrics_menu(self, menu):
-        tr = self.window.language_manager.tr
-        show_label = tr("ctx_show_lyrics", "显示歌词")
-        menu.addAction(show_label, lambda *a: self._toggle_lyrics(True))
-        hide_label = tr("ctx_hide_lyrics", "隐藏歌词")
-        menu.addAction(hide_label, lambda *a: self._toggle_lyrics(False))
-        menu.addSeparator()
-        load_label = tr("ctx_load_lyrics", "加载外部歌词...")
-        menu.addAction(load_label, lambda *a: self._load_external_lyrics())
+        return self._lyrics._populate_lyrics_menu(menu)
 
     def _toggle_lyrics(self, show):
-        if not hasattr(self.window, '_lyrics_widget') or not self.window._lyrics_widget:
-            self._create_lyrics_widget()
-        lw = self.window._lyrics_widget
-        if show:
-            vf = self.window.video_frame
-            if vf:
-                lw.setGeometry(0, 0, vf.width(), vf.height())
-            lw.show()
-            lw.raise_()
-            lw.start()
-            self._refresh_lyrics()
-        else:
-            lw.stop()
-            lw.hide()
+        return self._lyrics._toggle_lyrics(show)
 
     def _create_lyrics_widget(self):
-        from ui.lyrics_widget import LyricsWidget
-        lw = LyricsWidget(self.window.video_frame)
-        lw.hide()
-        self.window._lyrics_widget = lw
+        return self._lyrics._create_lyrics_widget()
 
     def _refresh_lyrics(self):
-        if not hasattr(self.window, '_lyrics_widget') or not self.window._lyrics_widget:
-            return
-        ch = self.window.current_channel
-        if not ch:
-            return
-        url = ch.get('url', '')
-        if not url:
-            return
-        from services.audio_visual_service import extract_lyrics
-        lyrics = extract_lyrics(url)
-        if lyrics:
-            self.window._lyrics_widget.set_lyrics(lyrics, is_lrc='[' in lyrics)
-        else:
-            tr = self.window.language_manager.tr
-            self.window._lyrics_widget.set_lyrics(tr("no_lyrics", "未找到内嵌歌词"), is_lrc=False)
+        return self._lyrics._refresh_lyrics()
 
     def _load_external_lyrics(self):
-        from PySide6.QtWidgets import QFileDialog
-        tr = self.window.language_manager.tr
-        file_path, _ = QFileDialog.getOpenFileName(
-            self.window, tr("ctx_load_lyrics", "加载外部歌词..."), '',
-            tr("lyrics_files", "歌词文件") + " (*.lrc *.txt);;" + tr("all_files", "所有文件") + " (*)"
-        )
-        if file_path:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    lyrics = f.read()
-                if not hasattr(self.window, '_lyrics_widget') or not self.window._lyrics_widget:
-                    self._create_lyrics_widget()
-                is_lrc = file_path.lower().endswith('.lrc') or '[' in lyrics
-                self.window._lyrics_widget.set_lyrics(lyrics, is_lrc=is_lrc)
-                self.window._lyrics_widget.show()
-                self.window._lyrics_widget.raise_()
-                self.window._lyrics_widget.start()
-            except Exception:
-                pass
+        return self._lyrics._load_external_lyrics()
+

@@ -1,5 +1,6 @@
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QColor
 from core.log_manager import LogManager
 from models.channel_mappings import mapping_manager
 from utils.error_handler import show_error, show_warning, show_info, show_confirm
@@ -309,7 +310,6 @@ class MappingManagerDialog(FloatingDialog):
         self.mapping_table.resizeColumnsToContents()
         if row == 0:
             from ui.styles import AppStyles
-            from PySide6.QtGui import QColor
             tr = self.language_manager.tr if self.language_manager else (lambda k, d='': d)
             self.mapping_table.setRowCount(1)
             self.mapping_table.setSpan(0, 0, 1, 4)

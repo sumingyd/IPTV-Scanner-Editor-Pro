@@ -1,3 +1,5 @@
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 from utils.platform_utils import is_macos, is_android
 
 
@@ -8,8 +10,6 @@ class TrayMixin:
             self._system_tray = None
             self._is_hidden_to_tray = False
             return
-        from PySide6.QtWidgets import QSystemTrayIcon, QMenu
-        from PySide6.QtGui import QIcon
         import os
         project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         icon_candidates = []
@@ -47,7 +47,6 @@ class TrayMixin:
         self._is_hidden_to_tray = False
 
     def _on_tray_activated(self, reason):
-        from PySide6.QtWidgets import QSystemTrayIcon
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self._tray_show_window()
 

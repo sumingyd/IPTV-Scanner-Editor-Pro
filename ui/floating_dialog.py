@@ -4,7 +4,9 @@ from PySide6 import QtWidgets
 from PySide6.QtGui import QPainter, QColor, QPainterPath, QCursor, QIcon, QBitmap
 from PySide6.QtCore import Qt, QRectF, QSize
 import PySide6.QtCore as QtCore
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QPushButton
 from utils.platform_utils import is_windows, is_macos, is_android, is_linux, is_wayland, wayland_move
+from utils.delay_constants import DelayMs
 
 
 def _hide_from_taskbar(window):
@@ -23,22 +25,13 @@ def _hide_from_taskbar(window):
 
 
 def _parse_hex_color(hex_str, default=(0, 0, 0)):
-    if hex_str and hex_str.startswith('#') and len(hex_str) == 7:
-        return int(hex_str[1:3], 16), int(hex_str[3:5], 16), int(hex_str[5:7], 16)
-    if hex_str and hex_str.startswith('rgba('):
-        try:
-            inner = hex_str[5:].rstrip(')')
-            parts = [p.strip() for p in inner.split(',')]
-            return int(parts[0]), int(parts[1]), int(parts[2])
-        except Exception:
-            pass
-    if hex_str and hex_str.startswith('rgb('):
-        try:
-            inner = hex_str[4:].rstrip(')')
-            parts = [p.strip() for p in inner.split(',')]
-            return int(parts[0]), int(parts[1]), int(parts[2])
-        except Exception:
-            pass
+    try:
+        from ui.styles import color_to_qcolor
+        c = color_to_qcolor(hex_str)
+        if c.isValid():
+            return c.red(), c.green(), c.blue()
+    except Exception:
+        pass
     return default
 
 
@@ -112,11 +105,15 @@ class FloatingDockWidget(QDockWidget):
             if AppStyles._visual_style != 'frosted':
                 if self._dwm_blur_enabled:
                     self._dwm_blur_enabled = False
+                from utils.mac_blur_helper import MacBlurHelper
+                MacBlurHelper.remove(self)
                 return
             if self._dwm_blur_enabled:
                 return
             self._dwm_blur_enabled = True
-            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            from utils.mac_blur_helper import MacBlurHelper
+            if not MacBlurHelper.apply(self, material="menu"):
+                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         except Exception:
             pass
 
@@ -422,6 +419,20 @@ class FloatingDialog(QDialog):
         self._centered = False
 
     # ------------------------------------------------------------------
+    # 主题样式钩子（DRY）：子类只需覆写 _extra_theme_css() 返回差异 CSS
+    # ------------------------------------------------------------------
+    def _extra_theme_css(self) -> str:
+        """子类覆写此方法返回差异 CSS；默认返回空字符串。"""
+        return ""
+
+    def reapply_styles(self):
+        self._apply_theme()
+
+    def _apply_theme(self):
+        from ui.styles import AppStyles
+        self.setStyleSheet(AppStyles.popup_dialog_style() + self._extra_theme_css())
+
+    # ------------------------------------------------------------------
     # 标准按钮区范式
     #   表单确认类: [取消] [确定]                     右对齐
     #   设置调节类: [恢复默认] ... [应用] [完成]       默认值居左、主操作居右
@@ -436,7 +447,6 @@ class FloatingDialog(QDialog):
 
     @classmethod
     def _make_dialog_button(cls, text, role='normal'):
-        from PySide6.QtWidgets import QPushButton
         btn = QPushButton(text)
         if role in ('primary', 'apply'):
             btn.style_type = 'apply'
@@ -447,7 +457,6 @@ class FloatingDialog(QDialog):
 
     def build_confirm_buttons(self, on_ok, ok_text=None, cancel_text=None):
         """标准表单确认式按钮区：[取消] [确定]，右对齐。返回 (widget, ok_btn, cancel_btn)"""
-        from PySide6.QtWidgets import QHBoxLayout, QWidget
         ok_text = ok_text or self._tr('ok', '确定')
         cancel_text = cancel_text or self._tr('cancel', '取消')
         bar = QWidget()
@@ -467,7 +476,6 @@ class FloatingDialog(QDialog):
     def build_settings_buttons(self, on_reset, on_apply, on_done,
                                reset_text=None, apply_text=None, done_text=None):
         """标准设置调节式按钮区：[恢复默认] | 弹性 | [应用] [完成]。返回 (widget, reset_btn, apply_btn, done_btn)"""
-        from PySide6.QtWidgets import QHBoxLayout, QWidget
         reset_text = reset_text or self._tr('reset_defaults', '恢复默认')
         apply_text = apply_text or self._tr('apply', '应用')
         done_text = done_text or self._tr('done', '完成')
@@ -499,7 +507,6 @@ class FloatingDialog(QDialog):
         if not self._centered:
             self._centered = True
             try:
-                from PySide6.QtWidgets import QApplication
                 app = QApplication.instance()
                 if app:
                     screen = app.primaryScreen()
@@ -514,11 +521,11 @@ class FloatingDialog(QDialog):
                 pass
         # 修复首次显示时文字重叠的问题（无边框透明窗口常见问题）
         # 延迟强制重新计算所有子布局并重绘
-        QtCore.QTimer.singleShot(0, self._fix_first_paint)
+        QtCore.QTimer.singleShot(DelayMs.NEXT_TICK, self._fix_first_paint)
         if is_windows():
             # Windows 分层窗口额外保险：再延迟一帧触发一次尺寸抖动，
             # 确保 QFormLayout + 嵌套 QWidget 容器的 sizeHint 完全生效
-            QtCore.QTimer.singleShot(50, self._fix_first_paint)
+            QtCore.QTimer.singleShot(DelayMs.UI_REFRESH, self._fix_first_paint)
         if is_linux() and self.parent():
             try:
                 parent_handle = self.parent().windowHandle()
@@ -600,11 +607,15 @@ class FloatingDialog(QDialog):
             if AppStyles._visual_style != 'frosted':
                 if self._dwm_blur_enabled:
                     self._dwm_blur_enabled = False
+                from utils.mac_blur_helper import MacBlurHelper
+                MacBlurHelper.remove(self)
                 return
             if self._dwm_blur_enabled:
                 return
             self._dwm_blur_enabled = True
-            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            from utils.mac_blur_helper import MacBlurHelper
+            if not MacBlurHelper.apply(self, material="menu"):
+                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         except Exception:
             pass
 

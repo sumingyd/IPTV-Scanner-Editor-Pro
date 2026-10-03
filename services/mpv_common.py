@@ -81,8 +81,8 @@ def _log_file_diag(path, prefix=""):
             logger.warning(f"{prefix}文件存在但加载失败: {path} (大小: {size / 1024 / 1024:.2f} MB)")
         else:
             logger.warning(f"{prefix}文件不存在: {path}")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"_log_file_diag: {e}")
 
 
 def _is_mpv_available():
@@ -151,8 +151,8 @@ def _ensure_libmpv_loaded():
     if is_linux() or is_android():
         try:
             locale.setlocale(locale.LC_NUMERIC, "C")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_ensure_libmpv_loaded: {e}")
 
     # Windows onefile 模式：先将 DLL 从 _MEIPASS 提取到 exe 同级目录，
     # 避免 _MEIPASS 临时目录中大文件加载不稳定的问题
@@ -500,8 +500,8 @@ def get_property_node(handle, name):
         value = _parse_mpv_node(node)
         try:
             libmpv.mpv_free_node_contents(ctypes.byref(node))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"get_property_node: {e}")
         return value
     except Exception as e:
         logger.debug(f"get_property_node error: {e}")
@@ -533,8 +533,8 @@ def destroy_mpv(handle):
     if handle and libmpv:
         try:
             libmpv.mpv_destroy(handle)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"destroy_mpv: {e}")
 
 
 def terminate_destroy_mpv(handle):
@@ -544,8 +544,8 @@ def terminate_destroy_mpv(handle):
         except Exception:
             try:
                 libmpv.mpv_destroy(handle)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"terminate_destroy_mpv: {e}")
 
 
 def set_property_string(handle, name, value):
@@ -763,8 +763,8 @@ def render_context_report_swap(render_ctx):
     if libmpv and render_ctx:
         try:
             libmpv.mpv_render_context_report_swap(render_ctx)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"render_context_report_swap: {e}")
 
 
 def render_context_set_update_callback(render_ctx, callback, user_data=None):
@@ -784,5 +784,5 @@ def render_context_free(render_ctx):
     if libmpv and render_ctx:
         try:
             libmpv.mpv_render_context_free(render_ctx)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"render_context_free: {e}")

@@ -1,12 +1,13 @@
+from PySide6.QtWidgets import QSystemTrayIcon
 from typing import Dict, Any, List
 from core.log_manager import global_logger as logger
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import UiProtocol
 from ui.dialogs.reminder_popup import ReminderPopup
 
 
 class EpgReminderController:
-    def __init__(self, main_window: MainWindowProtocol):
-        self.window: MainWindowProtocol = main_window
+    def __init__(self, main_window: UiProtocol):
+        self.window: UiProtocol = main_window
         self._service = None
         self._active_popups: List[ReminderPopup] = []
 
@@ -99,7 +100,6 @@ class EpgReminderController:
         return list(self._active_popups)
 
     def _show_reminder_notification(self, channel_name: str, program_title: str):
-        from PySide6.QtWidgets import QSystemTrayIcon
         w = self.window
         try:
             tray = getattr(w, '_system_tray', None)

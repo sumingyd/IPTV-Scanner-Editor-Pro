@@ -3,6 +3,7 @@ import copy
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QMessageBox
 from core.log_manager import global_logger as logger
 from core.application_state import app_state
 
@@ -126,7 +127,6 @@ class FileOpsMixin:
                 pass
 
             if list_error == 'permission':
-                from PySide6.QtWidgets import QMessageBox
                 QMessageBox.warning(
                     self, tr("open_video", "打开视频"),
                     tr("no_permission_folder", "无权限访问该文件夹"),
@@ -134,7 +134,6 @@ class FileOpsMixin:
                 return
 
             if not video_files:
-                from PySide6.QtWidgets import QMessageBox
                 QMessageBox.information(
                     self, tr("open_video", "打开视频"),
                     tr("no_media_in_folder", "所选文件夹中未找到支持的音视频文件"),

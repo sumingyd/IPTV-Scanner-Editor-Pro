@@ -14,7 +14,7 @@ from PySide6 import QtWidgets
 from core.application_state import app_state
 from core.log_manager import global_logger as logger
 from utils.general_utils import get_display_channel_name
-from controllers.main_window_protocol import MainWindowProtocol
+from controllers.main_window_protocol import ChannelProtocol
 from services.stream_quality_scorer import StreamQualityScorer
 from ui.quality_bar import QualityBarWidget
 from utils.thread_safety import safe_single_shot
@@ -23,8 +23,8 @@ from utils.thread_safety import safe_single_shot
 class ChannelController:
     """频道列表控制器 - 管理频道信息显示和分组切换"""
 
-    def __init__(self, main_window: MainWindowProtocol):
-        self.window: MainWindowProtocol = main_window
+    def __init__(self, main_window: ChannelProtocol):
+        self.window: ChannelProtocol = main_window
 
     def on_group_changed(self, group_name: str):
         """处理分组切换事件"""
@@ -122,7 +122,7 @@ class ChannelController:
                     else:
                         item_widget = QtWidgets.QWidget()
                         item_widget.style_type = 'channel_item'
-                        item_widget.setStyleSheet("background-color: transparent; border: none;")
+                        item_widget.setStyleSheet(AppStyles.transparent_style())
                         outer_layout = QtWidgets.QVBoxLayout(item_widget)
                         outer_layout.setContentsMargins(5, 2, 5, 2)
                         outer_layout.setSpacing(0)
@@ -133,7 +133,7 @@ class ChannelController:
 
                         logo_label = QtWidgets.QLabel()
                         logo_label.setFixedSize(44, 32)
-                        logo_label.setStyleSheet("background-color: transparent; border: none;")
+                        logo_label.setStyleSheet(AppStyles.transparent_style())
                         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                         logo_label.setObjectName("channel_logo_label")
 

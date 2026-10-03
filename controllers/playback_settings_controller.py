@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, QTimer
 
 from core.log_manager import global_logger as logger
 from core.playback_settings_store import PlaybackSettingsStore
+from utils.delay_constants import DelayMs
 
 
 class PlaybackSettingsController(QObject):
@@ -94,10 +95,10 @@ class PlaybackSettingsController(QObject):
                     pc.set_audio_delay(float(settings['audio_delay']))
                 # 字幕轨
                 if 'sub_track' in settings and settings['sub_track']:
-                    QTimer.singleShot(200, lambda: self._set_track('sub', settings['sub_track']))
+                    QTimer.singleShot(DelayMs.STYLE_REAPPLY, lambda: self._set_track('sub', settings['sub_track']))
                 # 音轨
                 if 'audio_track' in settings and settings['audio_track']:
-                    QTimer.singleShot(200, lambda: self._set_track('audio', settings['audio_track']))
+                    QTimer.singleShot(DelayMs.STYLE_REAPPLY, lambda: self._set_track('audio', settings['audio_track']))
                 logger.debug(f"已应用播放设置: {url[:60]}")
             finally:
                 self._applying = False
@@ -177,8 +178,8 @@ class PlaybackSettingsController(QObject):
             cur = getattr(self.window, 'current_channel', None)
             if cur and isinstance(cur, dict) and cur.get('url') == url:
                 return cur.get('name', '') or ''
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"获取当前频道名失败: {e}")
         return ''
 
     def _on_position_save(self, url: str, position: float, duration: float):

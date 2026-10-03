@@ -16,6 +16,7 @@ from typing import Optional
 from PySide6.QtCore import Qt, QRectF, QSize
 from PySide6.QtGui import QPainter, QColor, QLinearGradient, QPalette
 from PySide6.QtWidgets import QWidget, QStyledItemDelegate, QStyle
+from PySide6.QtWidgets import QApplication, QSizePolicy, QStyleOptionViewItem, QToolTip
 
 # 自定义数据角色：用于 delegate 从 QModelIndex 取评分
 QUALITY_SCORE_ROLE = Qt.ItemDataRole.UserRole + 100
@@ -76,7 +77,6 @@ class QualityBarWidget(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.setStyleSheet("background: transparent;")
         self.setMinimumHeight(BAR_HEIGHT)
-        from PySide6.QtWidgets import QSizePolicy
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         # 设置 objectName 以便通过 findChild 查找并动态更新评分
         self.setObjectName("quality_bar")
@@ -164,7 +164,6 @@ class QualityBarDelegate(QStyledItemDelegate):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         # 1. 绘制选中/悬停背景（复用 QStyle）
-        from PySide6.QtWidgets import QApplication
         style = option.widget.style() if option.widget else QApplication.style()
         # 绘制 control 背景（包含选中态）
         opt = self._copy_option(option)
@@ -229,7 +228,6 @@ class QualityBarDelegate(QStyledItemDelegate):
 
     def _copy_option(self, option):
         # 拷贝一份 option，避免修改原始对象
-        from PySide6.QtWidgets import QStyleOptionViewItem
         opt = QStyleOptionViewItem(option)
         # 清空 text，让基类不重复绘制（我们手动画）
         opt.text = ''
@@ -251,7 +249,6 @@ class QualityBarDelegate(QStyledItemDelegate):
             grade = index.data(QUALITY_GRADE_ROLE) or ''
             tip = _score_to_tooltip(score, grade)
             if tip:
-                from PySide6.QtWidgets import QToolTip
                 QToolTip.showText(event.globalPos(), tip, view)
                 return True
         return super().helpEvent(event, view, option, index)

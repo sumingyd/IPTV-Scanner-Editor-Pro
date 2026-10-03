@@ -21,6 +21,7 @@ from ui.styles import AppStyles
 from controllers.ui_controller import UIController
 from services.mpv_player_service import MpvPlayerController
 from core.log_manager import global_logger as logger
+from utils.delay_constants import DelayMs
 
 
 class StreamQualityDialog(FloatingDialog):
@@ -42,7 +43,7 @@ class StreamQualityDialog(FloatingDialog):
         self._timer.setInterval(1000)
         self._timer.timeout.connect(self._refresh)
         self._timer.start()
-        QTimer.singleShot(50, self._refresh)
+        QTimer.singleShot(DelayMs.UI_REFRESH, self._refresh)
 
     # ---------- UI ----------
     def reapply_styles(self):
@@ -320,8 +321,8 @@ class StreamQualityDialog(FloatingDialog):
         try:
             if hasattr(pc, '_get_mpv_property_string'):
                 return pc._get_mpv_property_string(prop) or ''
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_read_mpv_string: {e}")
         return ''
 
     def _read_mpv_double(self, pc, prop: str) -> float:
@@ -330,8 +331,8 @@ class StreamQualityDialog(FloatingDialog):
             if hasattr(pc, '_get_mpv_property_double'):
                 v = pc._get_mpv_property_double(prop)
                 return float(v) if v is not None else 0.0
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"_read_mpv_double: {e}")
         return 0.0
 
     # ---------- 生命周期 ----------

@@ -16,6 +16,7 @@
 from PySide6.QtCore import QObject, QTimer
 
 from core.log_manager import global_logger as logger
+from utils.delay_constants import DelayMs
 
 
 # 直播流协议前缀（这些协议不应用跳过片头片尾）
@@ -91,7 +92,7 @@ class SkipIntroOutroController(QObject):
                     self._duration_retry_count = 0
                 self._duration_retry_count += 1
                 if self._duration_retry_count <= 5:
-                    QTimer.singleShot(1000, self._on_file_loaded)
+                    QTimer.singleShot(DelayMs.MEDIA_INFO, self._on_file_loaded)
                 else:
                     self._duration_retry_count = 0
                 return

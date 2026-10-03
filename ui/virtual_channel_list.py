@@ -1,6 +1,7 @@
 from typing import Dict, Any, List, Optional, Callable
 from PySide6.QtWidgets import QListWidget, QListWidgetItem
 from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6 import QtWidgets
 from core.log_manager import global_logger as logger
 
 
@@ -44,8 +45,8 @@ class VirtualChannelListProxy:
             self._loaded_count = len(channels)
             try:
                 self._list_widget.verticalScrollBar().valueChanged.disconnect(self._on_scroll)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"set_channels: {e}")
 
     def _load_more(self, count: int):
         if not self._all_channels or self._loaded_count >= len(self._all_channels):
@@ -53,7 +54,6 @@ class VirtualChannelListProxy:
         end = min(self._loaded_count + count, len(self._all_channels))
         from ui.styles import AppStyles
         name_style = AppStyles.player_channel_list_name_style()
-        from PySide6 import QtWidgets
 
         for idx in range(self._loaded_count, end):
             channel = self._all_channels[idx]

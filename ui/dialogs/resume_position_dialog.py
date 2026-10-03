@@ -17,6 +17,7 @@ from PySide6.QtGui import QColor
 
 from ui.floating_dialog import FloatingDialog
 from ui.styles import AppStyles
+from utils.delay_constants import DelayMs
 from core.log_manager import global_logger as logger
 
 
@@ -37,7 +38,7 @@ class ResumeListDialog(FloatingDialog):
         self._apply_theme()
         from ui.theme_manager import safe_register_window
         safe_register_window(self)
-        QTimer.singleShot(50, self._reload_list)
+        QTimer.singleShot(DelayMs.UI_REFRESH, self._reload_list)
 
     @property
     def _resume_ctrl(self) -> Optional[object]:
@@ -127,7 +128,7 @@ class ResumeListDialog(FloatingDialog):
 
     def showEvent(self, event):
         super().showEvent(event)
-        QTimer.singleShot(50, self._reload_list)
+        QTimer.singleShot(DelayMs.UI_REFRESH, self._reload_list)
 
     # ---------- 数据加载 ----------
     def _reload_list(self):
@@ -177,8 +178,8 @@ class ResumeListDialog(FloatingDialog):
                 try:
                     c = AppStyles._get_colors()
                     item.setForeground(QColor(c.get('accent')))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"_reload_list: {e}")
             self._list_widget.addItem(item)
             if is_current:
                 self._list_widget.setCurrentItem(item)
