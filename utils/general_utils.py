@@ -1,6 +1,14 @@
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtWidgets import QApplication, QMenu
+try:
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QIcon, QPixmap
+    from PySide6.QtWidgets import QApplication, QMenu
+    _HAS_QT = True
+except ImportError:
+    # Android（p4a 共享包）/ 无 GUI 环境没有 PySide6；
+    # 本模块被 server 初始化路径导入，必须保持可导入。
+    # Qt 类型仅被桌面端 GUI 辅助函数使用。
+    _HAS_QT = False
+    Qt = QIcon = QPixmap = QApplication = QMenu = None
 import os
 import sys
 import logging

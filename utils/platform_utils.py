@@ -1,5 +1,11 @@
-from PySide6.QtCore import QPoint, QStandardPaths
-from PySide6.QtGui import QGuiApplication
+try:
+    from PySide6.QtCore import QPoint, QStandardPaths
+    from PySide6.QtGui import QGuiApplication
+    _HAS_QT = True
+except ImportError:
+    # Android（p4a 共享包）/ 无 GUI 环境没有 PySide6；
+    # 本模块被 server 初始化路径导入，必须保持可导入
+    _HAS_QT = False
 import os
 import sys
 import logging
@@ -339,7 +345,7 @@ def get_subprocess_creation_flags():
 
 def get_screen_dpi_scale():
     try:
-        if QGuiApplication.instance():
+        if _HAS_QT and QGuiApplication.instance():
             screen = QGuiApplication.primaryScreen()
             if screen:
                 return screen.devicePixelRatio()

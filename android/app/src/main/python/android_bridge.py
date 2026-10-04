@@ -361,126 +361,6 @@ def _find_admin_dir():
             return candidate
     return None
 
-
-_server_started = False
-_server_loop = None
-_server_task = None
-
-
-def start_server(host='0.0.0.0', port=8080):
-    global _server_started, _server_loop, _server_task
-    if _server_started:
-        return
-    _server_started = True
-
-    _log('start_server begin')
-    _setup_android_paths()
-    _log('paths setup done')
-
-    _setup_android_logging()
-    _log('logging setup done')
-
-    logger = logging.getLogger('android_bridge')
-    logger.info('Starting IPTV server on Android...')
-    _log('importing modules...')
-
-    import asyncio
-    from server.context import ServerContext
-    from server.routes import create_app
-    from server.app import get_server
-    from aiohttp import web
-    _log('modules imported')
-
-    data_dir = os.environ.get('IPTV_DATA_DIR', os.path.expanduser('~'))
-    config_dir = data_dir if os.path.basename(data_dir) == 'ISEP' else os.path.join(data_dir, 'ISEP')
-    os.makedirs(config_dir, exist_ok=True)
-    # 不使用 os.chdir（全局状态，多线程不安全）
-    # 改为设置 IPTV_CONFIG_DIR 环境变量，各模块通过此变量定位配置
-    os.environ['IPTV_CONFIG_DIR'] = config_dir
-    _log(f'config_dir={config_dir}')
-
-    _log('initializing ServerContext...')
-    ServerContext.get_instance(main_window=None)
-    _log('ServerContext initialized')
-
-    _log('creating app...')
-    app = create_app()
-    _log('app created')
-
-    admin_dir = _find_admin_dir()
-    if admin_dir:
-        _register_admin_routes_fallback(app, admin_dir)
-        logger.info(f'Admin UI served from: {admin_dir}')
-        _log(f'admin UI registered from: {admin_dir}')
-    else:
-        logger.warning('Admin UI directory not found, /admin/ will not be available')
-        _log('Admin UI directory not found!', 'W')
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    _server_loop = loop
-    _log('event loop created')
-
-    async def _run():
-        _log('runner.setup()...')
-        runner = web.AppRunner(app)
-        await runner.setup()
-        _log('runner.setup() done')
-        _log('site.start()...')
-        site = web.TCPSite(runner, host, port)
-        await site.start()
-        _log(f'IPTV server running at http://{host}:{port}')
-        logger.info(f'IPTV server running at http://{host}:{port}')
-        # 标记 IPTVServer 为运行中，使首页状态显示正确
-        svr = get_server()
-        if svr:
-            svr._running = True
-            svr._start_time = time.time()
-        try:
-            while True:
-                await asyncio.sleep(3600)
-        except asyncio.CancelledError:
-            pass
-        finally:
-            await runner.cleanup()
-
-    try:
-        _server_task = loop.create_task(_run())
-        loop.run_until_complete(_server_task)
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        _log(f'server crashed: {e}', 'E')
-        logger.error(f'server crashed: {e}', exc_info=True)
-        raise
-    finally:
-        loop.close()
-        _server_loop = None
-
-
-def stop_server():
-    """停止内置 HTTP 服务器（start_server 启动的实例）。
-
-    注意：此函数仅停止 start_server() 启动的服务器。
-    start_admin_server() 启动的管理服务器用 stop_admin_server() 停止。
-    """
-    global _server_started, _server_loop, _server_task
-    if not _server_started:
-        return
-    _server_started = False
-    try:
-        loop = _server_loop
-        if loop and loop.is_running():
-            if _server_task is not None:
-                loop.call_soon_threadsafe(_server_task.cancel)
-            else:
-                loop.call_soon_threadsafe(loop.stop)
-    except Exception as e:
-        _log(f'stop_server 失败: {e}', 'W')
-    _server_task = None
-    _log('stop_server: server stop requested')
-
-
 _MIME_TYPES = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -660,11 +540,12 @@ def init_context(ext_files_dir='', files_dir='', log_level='info', native_lib_di
             _inited = True
             return 'OK'
         except Exception as e:
-            _log(f'init_context failed: {e}', 'E')
             import traceback
             traceback.print_exc()
-            logger.exception('init_context failed')
-            return _err('操作失败')
+            _log(f'init_context failed: {e}', 'E')
+            _ab_logger.exception('init_context failed')
+            # 错误信息带回 Kotlin 端 logcat（'操作失败' 无法定位根因）
+            return _err(f'init_context failed: {e}')
 
 
 def _get_ctx():
@@ -728,9 +609,9 @@ def get_channels_json(page=1, size=100, group='', search='', valid_filter='', so
         elif source_filter == 'sub':
             filtered = [c for c in filtered if c.get('source', '')]
         total = len(filtered)
-        # 分页
+        # 分页（单页上限放宽：Kotlin 端 loadChannels 依赖大页一次性拉取做本地过滤）
         page = max(1, int(page))
-        size = max(1, min(int(size), 500))
+        size = max(1, min(int(size), 10_000))
         start = (page - 1) * size
         end = start + size
         page_channels = filtered[start:end]
@@ -1954,27 +1835,6 @@ def generate_thumbnail_bg(url):
         _log(f'generate_thumbnail_bg: error: {e}')
         logger.exception('generate_thumbnail_bg failed')
         return _err(str(e))
-
-
-# -------------------------------------------------------------------
-# 阶段 0 spike 兼容入口（保持 ComposeSpikeActivity 不破坏）
-# 真正的入口已改名为 init_context / get_status_json / get_channels_json
-# -------------------------------------------------------------------
-
-def spike_init():
-    """spike 兼容包装，转调 init_context()"""
-    return init_context()
-
-
-def spike_get_status_json():
-    """spike 兼容包装，转调 get_status_json()"""
-    return get_status_json()
-
-
-def spike_get_channels_json(limit=10):
-    """spike 兼容包装，转调 get_channels_json(1, limit)"""
-    return get_channels_json(1, int(limit))
-
 
 # -----------------------------------------------------------------
 # 局域网管理服务器（TV 端遥控器输入不便，手机浏览器扫码管理）

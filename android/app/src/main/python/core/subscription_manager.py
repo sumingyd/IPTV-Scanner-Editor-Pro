@@ -1,5 +1,3 @@
-from PySide6.QtCore import QThread
-from PySide6.QtWidgets import QApplication
 import os
 import time as _time
 import threading
@@ -698,9 +696,20 @@ class SubscriptionManager(Singleton):
         """通知所有注册的更新回调（确保在主线程执行）"""
         with self._epg_lock:
             callbacks = list(self._update_callbacks)
+        # PySide6 仅桌面端存在；Android（p4a 共享包）上无 GUI，直接同步执行回调。
+        # 延迟导入避免模块级依赖 PySide6（commit e179d8a6 曾上提导致 Android init 崩溃）。
+        try:
+            from PySide6.QtCore import QThread
+            from PySide6.QtWidgets import QApplication
+            has_qt = True
+        except ImportError:
+            has_qt = False
         for callback in callbacks:
             try:
                 # 如果当前在子线程，通过 QMetaObject.invokeMethod 调度到主线程
+                if not has_qt:
+                    callback()
+                    continue
                 main_thread = QApplication.instance().thread() if QApplication.instance() else None
                 if main_thread and QThread.currentThread() != main_thread:
                     from utils.thread_safety import invoke_on_thread
