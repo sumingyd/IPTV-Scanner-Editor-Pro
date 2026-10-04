@@ -80,7 +80,7 @@ class MpvHdr:
                         from utils.hdr_detect import is_linux_hdr_enabled
                         return is_linux_hdr_enabled()
                 except Exception as _e:
-                    global_logger.debug(f"unexpected error: {_e}")
+                    logger.debug(f"unexpected error: {_e}")
                 return False
 
             # hdr_mode == 'disable' 时，HDR 视频仍需 tonemap 到 SDR
@@ -269,7 +269,7 @@ class MpvHdr:
                 if is_windows_hdr_enabled():
                     return 'srgb'
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         return 'bt.1886'
 
     def _reset_hdr_params(self):

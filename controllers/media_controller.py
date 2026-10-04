@@ -27,6 +27,9 @@ class MediaController:
     def __init__(self, main_window: PlaybackProtocol):
         self.window: PlaybackProtocol = main_window
         self._current_aspect_idx = 0
+        self._context_menu = ContextMenuController(self)
+        self._preset = PresetController(self)
+        self._lyrics = LyricsController(self)
 
     def is_osd_visible(self):
         return getattr(self.window, '_osd_visible', False)

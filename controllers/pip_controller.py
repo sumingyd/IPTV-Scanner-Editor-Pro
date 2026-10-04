@@ -265,7 +265,7 @@ class PipController:
             self._is_active = False
             self._hide_overlay()
 
-            self.window.setMinimumSize(0, 0)
+            self.window.setMinimumSize(800, 600)
             self.window.setMaximumSize(16777215, 16777215)
 
             self.window.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, False)

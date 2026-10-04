@@ -49,7 +49,7 @@ class CacheProgressSlider(QSlider):
         try:
             from ui.styles import AppStyles
             colors = AppStyles._get_colors()
-            color_str = colors.get('cache_progress', 'rgba(76,175,80,0.39)')
+            color_str = colors.get('player_cache_bar', 'rgba(76,175,80,0.39)')
             self.set_cache_color(color_str)
         except Exception:
             self._cache_color = QColor(76, 175, 80, 100)

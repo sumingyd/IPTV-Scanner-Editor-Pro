@@ -60,6 +60,12 @@ class TrayMixin:
             if dock:
                 dock.show()
                 dock.setFloating(True)
+        # 隐藏到托盘时若正在播放而暂停，恢复窗口后继续播放
+        if getattr(self, '_was_playing_before_tray', False):
+            pc = getattr(self, 'player_controller', None)
+            if pc:
+                pc.play()
+            self._was_playing_before_tray = False
 
     def _tray_quit(self):
         self._force_quit = True
@@ -75,12 +81,12 @@ class TrayMixin:
                 pc.play()
 
     def _tray_prev_channel(self):
-        if hasattr(self, '_switch_channel'):
-            self._switch_channel(-1)
+        if hasattr(self, '_switch_channel_safe'):
+            self._switch_channel_safe(-1)
 
     def _tray_next_channel(self):
-        if hasattr(self, '_switch_channel'):
-            self._switch_channel(1)
+        if hasattr(self, '_switch_channel_safe'):
+            self._switch_channel_safe(1)
 
     def _tray_toggle_mute(self):
         if hasattr(self, 'toggle_mute'):

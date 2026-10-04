@@ -379,15 +379,21 @@ class ControlPanelMixin:
         self._more_menu = QMenu(self)
         self._more_menu.setStyleSheet(AppStyles.player_menu_bar_style())
         mc = self.media_ctrl
-        self._more_menu.addAction(self.language_manager.tr("panel_speed", "播放速度"), mc.show_speed_menu)
-        self._more_menu.addAction(self.language_manager.tr("panel_aspect", "画面比例"), mc.show_aspect_menu)
-        self._more_menu.addAction(self.language_manager.tr("panel_audio_track", "音轨"), mc.show_audio_track_menu)
-        self._more_menu.addAction(self.language_manager.tr("panel_subtitle", "字幕"), mc.show_sub_track_menu)
-        self._more_menu.addAction(self.language_manager.tr("panel_pip", "画中画"), self.pip_ctrl.toggle)
+        for key, fallback, slot in (
+            ("panel_speed", "播放速度", mc.show_speed_menu),
+            ("panel_aspect", "画面比例", mc.show_aspect_menu),
+            ("panel_audio_track", "音轨", mc.show_audio_track_menu),
+            ("panel_subtitle", "字幕", mc.show_sub_track_menu),
+            ("panel_pip", "画中画", self.pip_ctrl.toggle),
+        ):
+            act = self._more_menu.addAction(self.language_manager.tr(key, fallback), slot)
+            # 记录 (key, fallback) 供语言切换时刷新文案
+            act.setData((key, fallback))
         self._more_menu.addSeparator()
         self._more_catchup_action = self._more_menu.addAction(
             self.language_manager.tr("panel_exit_catchup", "退出回看"), self.exit_catchup
         )
+        self._more_catchup_action.setData(("panel_exit_catchup", "退出回看"))
         self._more_catchup_action.setVisible(False)
 
     def _show_more_menu(self):

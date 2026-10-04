@@ -1,5 +1,5 @@
 """主窗口/菜单栏/状态栏样式方法。"""
-from ui.styles_base import StylesBase
+from ui.styles_base import StylesBase, color_to_hex
 
 
 class StylesWindow(StylesBase):
@@ -369,7 +369,6 @@ class StylesWindow(StylesBase):
         r = AppStyles._get_style_border_radius()
         style = AppStyles._visual_style
         ff = AppStyles._get_style_font_family()
-        from ui.styles_base import color_to_hex
         sb_bg = colors['player_panel']
         if style == 'frosted':
             sb_bg = color_to_hex(colors['player_panel'])
@@ -537,7 +536,6 @@ class StylesWindow(StylesBase):
         colors = AppStyles._get_colors()
         r = AppStyles._get_style_border_radius()
         style = AppStyles._visual_style
-        from ui.styles_base import color_to_hex
         sb_bg = colors['player_panel']
         if style == 'frosted':
             sb_bg = color_to_hex(colors['player_panel'])

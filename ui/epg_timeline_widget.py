@@ -300,7 +300,9 @@ class EpgTimelineWidget(QWidget):
 
 
 class EpgChannelHeaderWidget(QWidget):
-    ROW_HEIGHT = 36
+    # 频道列行高必须与节目区 EpgTimelineWidget.ROW_HEIGHT 一致，否则左右并排
+    # 滚动时频道名与节目块逐行错位（两部件由对话框按同一滚动值同步）。
+    ROW_HEIGHT = EpgTimelineWidget.ROW_HEIGHT
 
     def __init__(self, parent=None):
         super().__init__(parent)

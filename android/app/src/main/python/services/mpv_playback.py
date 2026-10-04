@@ -1,6 +1,43 @@
 """MpvPlayback — 从 MpvPlayerController 提取的子控制器。"""
 
+import ctypes
+import os
+
 from core.log_manager import global_logger as logger
+from utils.platform_utils import (
+    is_windows, is_macos, is_linux, is_android, get_android_data_dir,
+)
+from services.mpv_common import (
+    mpv_event,
+    mpv_event_end_file,
+    mpv_event_log_message,
+    mpv_event_property,
+    MPV_EVENT_NONE,
+    MPV_EVENT_END_FILE,
+    MPV_EVENT_FILE_LOADED,
+    MPV_EVENT_PROPERTY_CHANGE,
+    MPV_EVENT_LOG_MESSAGE,
+    MPV_FORMAT_STRING,
+    MPV_FORMAT_FLAG,
+    MPV_END_FILE_REASON_EOF,
+    MPV_END_FILE_REASON_ERROR,
+    MPV_END_FILE_REASON_STOP,
+    MPV_END_FILE_REASON_QUIT,
+    get_property_string as _mpv_get_property_string,
+    get_property_int as _mpv_get_property_int,
+    get_property_double as _mpv_get_property_double,
+    create_mpv_handle,
+    initialize_mpv,
+    destroy_mpv,
+    terminate_destroy_mpv,
+    set_property_string as _mpv_set_property_string,
+    set_property_int64 as _mpv_set_property_int64,
+    set_option_string as _mpv_set_option_string,
+    send_command as _mpv_send_command,
+    observe_property as _mpv_observe_property,
+    get_property_node as _mpv_get_property_node,
+    DEFAULT_USER_AGENT,
+)
 
 
 class MpvPlayback:
@@ -31,7 +68,7 @@ class MpvPlayback:
                 if fs_str:
                     file_size = int(fs_str)
             except Exception as _e:
-                global_logger.debug(f"unexpected error: {_e}")
+                logger.debug(f"unexpected error: {_e}")
             is_4k = (w >= 3840 or h >= 2160)
             is_hdr = False
             try:
@@ -42,7 +79,7 @@ class MpvPlayback:
                           'hlg' in gamma or 'arib-std-b67' in gamma or
                           'dovi' in vf or 'dvhe' in vf or 'dvh1' in vf or 'dav1' in vf)
             except Exception as _e:
-                global_logger.debug(f"unexpected error: {_e}")
+                logger.debug(f"unexpected error: {_e}")
             is_large_file = file_size > 10 * 1024 * 1024 * 1024 or (duration > 3600 and is_4k)
             if not is_4k and not is_hdr and not is_large_file:
                 return
@@ -92,7 +129,7 @@ class MpvPlayback:
             mpv_font = font_family.split(",")[0].strip("' \"")
             self._facade._set_mpv_string('osd-font', mpv_font)
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
 
     def _capture_thumbnail(self):
         if not self._facade.is_playing or not self._facade.current_url:
@@ -131,7 +168,7 @@ class MpvPlayback:
                     from services.mpv_common import send_command as _async_send
                     _async_send(handle, ['screenshot-to-file', filepath, 'video'])
                 except Exception as _e:
-                    global_logger.debug(f"unexpected error: {_e}")
+                    logger.debug(f"unexpected error: {_e}")
             threading.Thread(target=_do_screenshot, daemon=True).start()
             QTimer.singleShot(1500, lambda: self._facade._check_thumbnail_saved(filepath) if not self._facade._terminated else None)
         except Exception as e:
@@ -190,7 +227,7 @@ class MpvPlayback:
             except (socket.timeout, socket.error, OSError) as e:
                 return f"网络不可达: {host}:{port} ({e})"
             except Exception as e:
-                global_logger.debug(f"_check_path_reachability_sync 未知异常: {e}")
+                logger.debug(f"_check_path_reachability_sync 未知异常: {e}")
             return None
         return None
 
@@ -201,7 +238,7 @@ class MpvPlayback:
             if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
                 self._facade._safe_emit(self._facade.thumbnail_captured, self._facade.current_url)
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
 
     def _detect_bdmv_path(path):
         if not path or not os.path.isdir(path):
@@ -260,14 +297,14 @@ class MpvPlayback:
                     from services.mpv_gl_widget import MpvGLWidget
                     _skip_wid = isinstance(self._facade.video_widget, MpvGLWidget)
                 except Exception as _e:
-                    global_logger.debug(f"unexpected error: {_e}")
+                    logger.debug(f"unexpected error: {_e}")
 
             if not _skip_wid:
                 try:
                     from PySide6.QtWidgets import QApplication
                     QApplication.processEvents()
                 except Exception as _e:
-                    global_logger.debug(f"unexpected error: {_e}")
+                    logger.debug(f"unexpected error: {_e}")
 
                 if is_linux():
                     self._facade.logger.info(
@@ -648,7 +685,7 @@ class MpvPlayback:
         if u.startswith('http://') or u.startswith('https://'):
             return 'HTTP'
         if u.startswith('file://') or ('://' not in url):
-            if MpvPlayerController._is_network_drive(url):
+            if MpvPlayback._is_network_drive(url):
                 return 'NET-FILE'
             return 'FILE'
         return '未知'
@@ -677,6 +714,7 @@ class MpvPlayback:
         w, h = self._facade._get_video_resolution()
         return w >= 3840 or h >= 2160
 
+    @staticmethod
     def _is_network_drive(path):
         if not is_windows():
             path_lower = path.lower()
@@ -894,13 +932,13 @@ class MpvPlayback:
                             if not text:
                                 continue
                             if level in ('error', 'fatal'):
-                                global_logger.error(f"[mpv:{prefix}] {text}")
+                                logger.error(f"[mpv:{prefix}] {text}")
                             elif level == 'warn':
-                                global_logger.warning(f"[mpv:{prefix}] {text}")
+                                logger.warning(f"[mpv:{prefix}] {text}")
                             else:
-                                global_logger.debug(f"[mpv:{prefix}] {text}")
+                                logger.debug(f"[mpv:{prefix}] {text}")
                         except Exception as _e:
-                            global_logger.debug(f"处理 mpv 日志消息失败: {_e}")
+                            logger.debug(f"处理 mpv 日志消息失败: {_e}")
 
         except Exception as e:
             self._facade.logger.error(f"处理 mpv 事件失败：{str(e)}")
@@ -1229,7 +1267,7 @@ class MpvPlayback:
                 self._facade.send_command(['stop'])
 
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
 
     def get_aspect_ratio(self) -> str:
         """读取当前画面比例（与 set_aspect_ratio 配对，用于播放设置持久化）"""
@@ -1265,7 +1303,7 @@ class MpvPlayback:
                         buffer_end = first.get('end', 0)
                         cache_duration = buffer_end - buffer_start
                 except Exception as _e:
-                    global_logger.debug(f"unexpected error: {_e}")
+                    logger.debug(f"unexpected error: {_e}")
             if cache_duration <= 0:
                 cache_dur = self._facade._get_mpv_property_double('demuxer-cache-duration') or 0
                 if cache_dur > 0:
@@ -1315,7 +1353,7 @@ class MpvPlayback:
                         cache_duration = first.get('end', 0) - first.get('start', 0)
                     buffering = cache_state.get('eof', False) is False and cache_state.get('underrun', False)
                 except Exception as _e:
-                    global_logger.debug(f"unexpected error: {_e}")
+                    logger.debug(f"unexpected error: {_e}")
             if cache_duration <= 0:
                 dur = self._facade._get_mpv_property_double('demuxer-cache-duration') or 0
                 if dur > 0:
@@ -1895,7 +1933,7 @@ class MpvPlayback:
             from utils.hdr_detect import clear_hdr_cache
             clear_hdr_cache()
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         saved_url = self._facade.current_url
         saved_position = 0.0
         was_playing = self._facade.is_playing and not self._facade.is_paused
@@ -1903,7 +1941,7 @@ class MpvPlayback:
             try:
                 saved_position = self._facade._get_mpv_property_double('time-pos') or 0.0
             except Exception as _e:
-                global_logger.debug(f"unexpected error: {_e}")
+                logger.debug(f"unexpected error: {_e}")
         self._facade.stop()
         for timer_attr in ['_media_info_timer', '_live_info_timer', 'event_timer']:
             timer = getattr(self, timer_attr, None)
@@ -1911,7 +1949,7 @@ class MpvPlayback:
                 try:
                     timer.stop()
                 except Exception as _e:
-                    global_logger.debug(f"unexpected error: {_e}")
+                    logger.debug(f"unexpected error: {_e}")
         # 在销毁旧 mpv_handle 前释放 macOS render context，避免 GL 资源泄漏
         if is_macos() and hasattr(self._facade.video_widget, 'cleanup'):
             try:
@@ -1925,7 +1963,7 @@ class MpvPlayback:
             try:
                 _mpv_send_command(handle, ['quit'])
             except Exception as _e:
-                global_logger.debug(f"unexpected error: {_e}")
+                logger.debug(f"unexpected error: {_e}")
             with self._facade._lock:
                 terminate_destroy_mpv(handle)
         self._facade._mpv_initialized = False
@@ -1949,7 +1987,7 @@ class MpvPlayback:
                     try:
                         file_loaded = self._facade._get_mpv_property_double('time-pos') is not None
                     except Exception as _e:
-                        global_logger.debug(f"unexpected error: {_e}")
+                        logger.debug(f"unexpected error: {_e}")
                     if file_loaded:
                         self._facade.send_command(['seek', str(pos), 'absolute'])
                     elif seek_retries[0] < 5:
@@ -2209,7 +2247,7 @@ class MpvPlayback:
                 try:
                     self._facade.video_widget.cleanup()
                 except Exception as _e:
-                    global_logger.debug(f"unexpected error: {_e}")
+                    logger.debug(f"unexpected error: {_e}")
 
             for timer_attr in ['_media_info_timer', '_live_info_timer', 'event_timer']:
                 timer = getattr(self, timer_attr, None)
@@ -2217,7 +2255,7 @@ class MpvPlayback:
                     try:
                         timer.stop()
                     except Exception as _e:
-                        global_logger.debug(f"unexpected error: {_e}")
+                        logger.debug(f"unexpected error: {_e}")
 
             with self._facade._lock:
                 handle = self._facade.mpv_handle
@@ -2256,7 +2294,7 @@ class MpvPlayback:
                 from services.fcc_service import _close_udp_socket
                 _close_udp_socket()
             except Exception as _e:
-                global_logger.debug(f"unexpected error: {_e}")
+                logger.debug(f"unexpected error: {_e}")
 
             self._facade.logger.info("MPV播放器已完全终止")
         except Exception as e:

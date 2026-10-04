@@ -146,6 +146,34 @@ class LanguageManager(Singleton):
             if hasattr(main_window, 'playlist_tab'):
                 main_window.playlist_tab.setTabText(0, self.tr('subscription_tab', 'Subscription'))
                 main_window.playlist_tab.setTabText(1, self.tr('local_tab', 'Local'))
+            # 常驻可见的四个列表切换按钮（QTabBar 已隐藏，仅这些按钮上屏）
+            tab_btns = getattr(main_window, '_playlist_tab_btns', None)
+            if tab_btns:
+                tab_keys = ('subscription_tab', 'local_tab', 'favorites_tab', 'history_tab')
+                for i, btn in enumerate(tab_btns):
+                    if i < len(tab_keys):
+                        text = self.tr(tab_keys[i], btn.text())
+                        btn.setText(text)
+                        btn.setToolTip(text)
+            # 底部"更多"菜单（创建时已记录 (key, fallback)）
+            more_menu = getattr(main_window, '_more_menu', None)
+            if more_menu:
+                for act in more_menu.actions():
+                    data = act.data()
+                    if isinstance(data, (tuple, list)) and len(data) == 2:
+                        act.setText(self.tr(data[0], data[1]))
+            # 自定义标题栏按钮 tooltip
+            window_ctrl = getattr(main_window, 'window_ctrl', None)
+            if window_ctrl:
+                for attr, key in (
+                    ('_stay_on_top_btn', 'tooltip_stay_on_top'),
+                    ('_minimize_btn', 'tooltip_minimize'),
+                    ('_maximize_btn', 'tooltip_maximize'),
+                    ('_close_btn', 'tooltip_close'),
+                ):
+                    btn = getattr(window_ctrl, attr, None)
+                    if btn:
+                        btn.setToolTip(self.tr(key, btn.toolTip()))
             for empty_attr in ['sub_empty_label', 'local_empty_label']:
                 el = getattr(main_window, empty_attr, None)
                 if el:

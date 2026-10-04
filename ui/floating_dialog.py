@@ -507,16 +507,20 @@ class FloatingDialog(QDialog):
         if not self._centered:
             self._centered = True
             try:
-                app = QApplication.instance()
-                if app:
-                    screen = app.primaryScreen()
-                    if screen:
-                        sg = screen.availableGeometry()
-                        self.adjustSize()
-                        ds = self.size()
-                        x = (sg.width() - ds.width()) // 2 + sg.x()
-                        y = (sg.height() - ds.height()) // 2 + sg.y()
-                        wayland_move(self, x, y)
+                # 优先用父窗口/自身所在屏幕，避免多显示器下弹到主屏
+                screen = self.screen() or (
+                    self.parent().screen() if self.parent() else None
+                )
+                if screen is None:
+                    app = QApplication.instance()
+                    screen = app.primaryScreen() if app else None
+                if screen:
+                    sg = screen.availableGeometry()
+                    self.adjustSize()
+                    ds = self.size()
+                    x = (sg.width() - ds.width()) // 2 + sg.x()
+                    y = (sg.height() - ds.height()) // 2 + sg.y()
+                    wayland_move(self, x, y)
             except Exception:
                 pass
         # 修复首次显示时文字重叠的问题（无边框透明窗口常见问题）

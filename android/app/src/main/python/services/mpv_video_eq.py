@@ -17,7 +17,7 @@ class MpvVideoEq:
             self._facade.send_command(['vf', 'remove', '@iptv_deint'])
             self._facade.logger.info("反交错滤镜已移除")
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
 
     def _enable_deinterlace_filter(self):
         """启用 yadif bob 反交错滤镜（mode=1，50i→50p，保持运动流畅）
@@ -33,14 +33,14 @@ class MpvVideoEq:
         try:
             self._facade.send_command(['vf', 'remove', '@iptv_deint'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         ret = self._facade.send_command(['vf', 'add', '@iptv_deint:yadif=mode=1'])
         if ret != 0:
             cur_hwdec = ''
             try:
                 cur_hwdec = self._facade._get_mpv_property_string('hwdec') or ''
             except Exception as _e:
-                global_logger.debug(f"unexpected error: {_e}")
+                logger.debug(f"unexpected error: {_e}")
             self._facade.logger.warning(
                 f"yadif bob 反交错滤镜添加失败(ret={ret})，当前 hwdec='{cur_hwdec}'。"
                 f"若为原生硬解(auto)，请在播放设置中改为 copy-back(auto-copy) 或软解(no)"
@@ -96,7 +96,7 @@ class MpvVideoEq:
             try:
                 self._facade.send_command(['vf', 'remove', label])
             except Exception as _e:
-                global_logger.debug(f"unexpected error: {_e}")
+                logger.debug(f"unexpected error: {_e}")
         return True
 
     def clear_video_crop(self) -> bool:
@@ -221,7 +221,7 @@ class MpvVideoEq:
         try:
             self._facade.send_command(['vf', 'remove', '@iptv_crop'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         if w <= 0 or h <= 0:
             return True
         # crop=w:h:x:y
@@ -244,7 +244,7 @@ class MpvVideoEq:
         try:
             self._facade.send_command(['vf', 'remove', '@iptv_flip'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         if not mode:
             return True
         if mode == 'horizontal':

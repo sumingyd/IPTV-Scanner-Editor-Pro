@@ -1,5 +1,7 @@
 """MpvShader — 从 MpvPlayerController 提取的子控制器。"""
 
+import os
+
 from core.log_manager import global_logger as logger
 
 
@@ -128,7 +130,7 @@ class MpvShader:
                     result['strength'] = 'medium'
                 break
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         return result
 
     def get_super_resolution(self) -> dict:
@@ -167,7 +169,7 @@ class MpvShader:
                             result['active'] = True
                     break
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         return result
 
     def get_user_shader(self) -> str:
@@ -217,7 +219,7 @@ class MpvShader:
         try:
             self._facade.send_command(['vf', 'remove', '@iptv_mc'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
 
         if strength not in self._facade._MC_PRESETS:
             strength = 'off'
@@ -251,7 +253,7 @@ class MpvShader:
             try:
                 cur_hwdec = self._facade._get_mpv_property_string('hwdec') or ''
             except Exception as _e:
-                global_logger.debug(f"unexpected error: {_e}")
+                logger.debug(f"unexpected error: {_e}")
             self._facade.logger.warning(
                 f"运动补偿滤镜添加失败(ret={ret})，strength='{strength}'，fps={fps}，"
                 f"当前 hwdec='{cur_hwdec}'。"
@@ -304,7 +306,7 @@ class MpvShader:
         try:
             self._facade.send_command(['vf', 'remove', '@iptv_sr'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
 
         detail = max(0, min(100, int(detail_enhance)))
         if detail > 0:
@@ -330,7 +332,7 @@ class MpvShader:
                 try:
                     cur_hwdec = self._facade._get_mpv_property_string('hwdec') or ''
                 except Exception as _e:
-                    global_logger.debug(f"unexpected error: {_e}")
+                    logger.debug(f"unexpected error: {_e}")
                 self._facade.logger.warning(
                     f"细节增强滤镜添加失败(ret={ret})，detail={detail}，"
                     f"当前 hwdec='{cur_hwdec}'。"

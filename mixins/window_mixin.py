@@ -104,20 +104,24 @@ class WindowMixin:
         if hasattr(self, 'epg_dock') and self.epg_dock:
             if not self.epg_dock.isFloating():
                 self.epg_dock.setFloating(True)
-            if not hasattr(self, '_epg_dock_w') or self._epg_dock_w <= 0:
-                self._epg_dock_w = self.epg_dock.width()
-            self.epg_dock.move(mw_x + gap, side_top)
+            wayland_move(self.epg_dock, mw_x + gap, side_top)
             self.epg_dock.setMinimumHeight(max(150, side_h))
 
-            self.epg_dock.setFixedWidth(self._epg_dock_w)
+            # 宽度以当前值为基准固定：用户拖宽/拖窄后不被重置回首次捕获值
+            epg_w = self.epg_dock.width()
+            if epg_w > 0:
+                self._epg_dock_w = epg_w
+                self.epg_dock.setFixedWidth(epg_w)
 
         if hasattr(self, 'playlist_dock') and self.playlist_dock:
             if not self.playlist_dock.isFloating():
                 self.playlist_dock.setFloating(True)
-            if not hasattr(self, '_playlist_dock_w') or self._playlist_dock_w <= 0:
-                self._playlist_dock_w = self.playlist_dock.width()
-            pl_w = self._playlist_dock_w
-            self.playlist_dock.move(mw_x + mw_w - pl_w - gap, side_top)
+            pl_w = self.playlist_dock.width()
+            if pl_w <= 0:
+                pl_w = getattr(self, '_playlist_dock_w', 0) or pl_w
+            if pl_w > 0:
+                self._playlist_dock_w = pl_w
+            wayland_move(self.playlist_dock, mw_x + mw_w - pl_w - gap, side_top)
             self.playlist_dock.setMinimumHeight(max(150, side_h))
 
             self.playlist_dock.setFixedWidth(pl_w)
@@ -129,7 +133,7 @@ class WindowMixin:
             self.floating_dock.setMinimumWidth(max(fl_w, 360))
             fl_x = mw_x + (mw_w - self.floating_dock.width()) // 2
             fl_y = mw_y + mw_h - control_panel_h - status_bar_h - gap
-            self.floating_dock.move(fl_x, fl_y)
+            wayland_move(self.floating_dock, fl_x, fl_y)
 
     def toggle_dock_layout_lock(self):
         self._dock_layout_unlocked = not getattr(self, '_dock_layout_unlocked', False)
@@ -274,16 +278,18 @@ class WindowMixin:
             logger.error(f"打开频道映射管理器失败: {str(ex)}")
 
     def _center_dialog_on_screen(self, dialog):
-        app = QApplication.instance()
-        if app:
-            screen = app.primaryScreen()
-            if screen:
-                screen_geometry = screen.availableGeometry()
-                dialog.adjustSize()
-                dialog_size = dialog.size()
-                x = (screen_geometry.width() - dialog_size.width()) // 2 + screen_geometry.x()
-                y = (screen_geometry.height() - dialog_size.height()) // 2 + screen_geometry.y()
-                wayland_move(dialog, x, y)
+        # 优先用主窗口所在屏幕，避免多显示器下弹到主屏
+        screen = self.screen() if hasattr(self, 'screen') else None
+        if screen is None:
+            app = QApplication.instance()
+            screen = app.primaryScreen() if app else None
+        if screen:
+            screen_geometry = screen.availableGeometry()
+            dialog.adjustSize()
+            dialog_size = dialog.size()
+            x = (screen_geometry.width() - dialog_size.width()) // 2 + screen_geometry.x()
+            y = (screen_geometry.height() - dialog_size.height()) // 2 + screen_geometry.y()
+            wayland_move(dialog, x, y)
 
     def showEvent(self, event):
         if hasattr(self, 'event_handler') and self.event_handler:

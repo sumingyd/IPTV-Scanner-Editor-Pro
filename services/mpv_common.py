@@ -7,6 +7,12 @@ import threading
 from core.log_manager import global_logger as logger
 from utils.platform_utils import find_libmpv_path, find_libmpv_paths, get_libmpv_filename, is_windows, is_macos, is_linux, is_android
 
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
+
 _mpv_loaded = False
 _env_initialized = False
 

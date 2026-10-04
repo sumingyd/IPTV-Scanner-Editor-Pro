@@ -17,7 +17,7 @@ class MpvAudioEq:
         try:
             self._facade.send_command(['af', 'remove', '@iptv_eq'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         # 全为 0 时不再添加
         if all(abs(g) < 0.01 for g in gains):
             return True
@@ -134,7 +134,7 @@ class MpvAudioEq:
                             return [max(-12.0, min(12.0, float(p))) for p in parts]
                     break
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         return [0.0] * 10
 
     def get_audio_eq_all(self) -> dict:
@@ -179,7 +179,7 @@ class MpvAudioEq:
                 if all_meta and isinstance(all_meta, dict):
                     data = all_meta.get('iptv_stats') or all_meta.get('@iptv_stats') or {}
                 if not data and all_meta is not None:
-                    global_logger.debug(
+                    logger.debug(
                         f"af-metadata full: {all_meta}"
                     )
             if not data or not isinstance(data, dict):
@@ -197,12 +197,12 @@ class MpvAudioEq:
                         except (ValueError, TypeError):
                             pass
             if not result:
-                global_logger.debug(
+                logger.debug(
                     f"af-metadata keys: {list(data.keys()) if data else 'empty'}"
                 )
             return result
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
             return {}
 
     def reset_audio_eq(self):
@@ -214,7 +214,7 @@ class MpvAudioEq:
         try:
             self._facade.send_command(['af', 'remove', '@iptv_eq'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
 
     def set_audio_channels(self, ch: str) -> bool:
         """设置音频声道布局（auto/mono/1.0/2.0/2.1/3.0/4.0/5.0/5.1/6.0/6.1/7.0/7.1）"""
@@ -266,7 +266,7 @@ class MpvAudioEq:
         try:
             self._facade.send_command(['af', 'remove', '@iptv_stats'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         return self._facade.send_command(
             ['af', 'add', '@iptv_stats:lavfi=[astats=metadata=1:reset=1]']
         ) == 0
@@ -278,5 +278,5 @@ class MpvAudioEq:
         try:
             self._facade.send_command(['af', 'remove', '@iptv_stats'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
 

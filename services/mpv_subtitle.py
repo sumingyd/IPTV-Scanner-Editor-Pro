@@ -108,7 +108,7 @@ class MpvSubtitle:
             iv = self._facade._get_mpv_property_string('sub-italic')
             result['italic'] = (iv == 'yes')
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         return result
 
     def get_sub_visibility(self) -> bool:

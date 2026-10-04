@@ -1,6 +1,7 @@
 """图标/SVG 生成方法。"""
+import os
 from typing import Optional
-from ui.styles_base import StylesBase
+from ui.styles_base import StylesBase, _SVG_TMPDIR, color_to_hex
 
 
 class StylesIcons(StylesBase):

@@ -1,5 +1,5 @@
 """对话框/列表/表格样式方法。"""
-from ui.styles_base import StylesBase
+from ui.styles_base import StylesBase, rgba_to_blended_hex
 
 
 class StylesDialog(StylesBase):

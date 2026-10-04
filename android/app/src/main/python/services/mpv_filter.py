@@ -101,7 +101,7 @@ class MpvFilter:
                 result['active'] = True
                 break
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         return result
 
     def get_loop_file(self) -> str:
@@ -137,7 +137,7 @@ class MpvFilter:
         try:
             self._facade.send_command(['vf', 'remove', '@iptv_360'])
         except Exception as _e:
-            global_logger.debug(f"unexpected error: {_e}")
+            logger.debug(f"unexpected error: {_e}")
         # 全 0 视角等同于无滤镜
         if yaw == 0.0 and pitch == 0.0 and roll == 0.0:
             return True

@@ -36,7 +36,14 @@ from services.mpv_common import (
     get_property_node as _mpv_get_property_node,
 )
 
-from services.mpv_common import _ensure_env_initialized
+from services.mpv_common import _ensure_env_initialized, DEFAULT_USER_AGENT
+from services.mpv_playback import MpvPlayback
+from services.mpv_hdr import MpvHdr
+from services.mpv_video_eq import MpvVideoEq
+from services.mpv_audio_eq import MpvAudioEq
+from services.mpv_filter import MpvFilter
+from services.mpv_subtitle import MpvSubtitle
+from services.mpv_shader import MpvShader
 
 try:
     _ensure_env_initialized()
@@ -73,13 +80,6 @@ AUDIO_CODEC_MAP = {
     'ac-3': 'AC-3', 'dtsc': 'DTS', 'dtse': 'DTS-HD Master Audio',
     'truehd': 'TrueHD',
 }
-
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/120.0.0.0 Safari/537.36"
-)
-
 
 def _load_playback_settings():
     settings = {
@@ -169,6 +169,13 @@ class MpvPlayerController(QObject):
         self._terminated = False
         from services.audio_visual_service import AudioVisualService
         self.audio_visual = AudioVisualService(self)
+        self._playback = MpvPlayback(self)
+        self._hdr = MpvHdr(self)
+        self._video_eq = MpvVideoEq(self)
+        self._audio_eq = MpvAudioEq(self)
+        self._filter = MpvFilter(self)
+        self._subtitle = MpvSubtitle(self)
+        self._shader = MpvShader(self)
 
     def _ensure_mpv_initialized(self):
         return self._playback._ensure_mpv_initialized()

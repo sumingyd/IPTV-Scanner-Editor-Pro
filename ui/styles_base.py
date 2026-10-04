@@ -1,6 +1,6 @@
 """AppStyles 核心引擎 - 主题/颜色/图标/装饰基础方法。"""
-from PySide6.QtCore import QCoreApplication, QGuiApplication, Qt
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtCore import QCoreApplication, Qt
+from PySide6.QtGui import QColor, QGuiApplication, QPalette
 import os
 
 import tempfile
