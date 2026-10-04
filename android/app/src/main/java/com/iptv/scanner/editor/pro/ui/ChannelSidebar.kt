@@ -104,7 +104,6 @@ import com.iptv.scanner.editor.pro.data.ReminderItem
 import com.iptv.scanner.editor.pro.data.UserPrefs
 import com.iptv.scanner.editor.pro.data.IptvChannel
 import com.iptv.scanner.editor.pro.mpv.MPVView
-import com.iptv.scanner.editor.pro.mpv.MPVTextureView
 import com.iptv.scanner.editor.pro.mpv.MPVViewLike
 import com.iptv.scanner.editor.pro.player.PlayerType
 import com.iptv.scanner.editor.pro.player.ProgressHelper

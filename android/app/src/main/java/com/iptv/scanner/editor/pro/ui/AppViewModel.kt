@@ -150,11 +150,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     internal val userPrefs = UserPrefs.getInstance().also { it.init(app) }
     internal val fccService = FccService()
 
-    // 辅助类：从 AppViewModel 拆分出的独立业务模块
-    internal val scanHelper = ScanHelper(repository, viewModelScope, userPrefs)
-    internal val mappingHelper = MappingHelper(repository, viewModelScope)
-    internal val updateHelper = UpdateHelper(app, repository, viewModelScope)
-
 // 播放器架构：MPV / ExoPlayer 两内核可切换，每种内核都支持硬解/软解
 //
 // - mpvSingleton：MpvController 单例（MPVLib.create 只能调一次，需复用）
