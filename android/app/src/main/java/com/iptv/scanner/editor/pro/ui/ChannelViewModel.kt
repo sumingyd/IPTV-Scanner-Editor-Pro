@@ -849,6 +849,8 @@ internal fun AppViewModel.toggleFavorite(): Boolean {
     val idx = _currentIdx.value
     if (idx < 0) return false
     val added = userPrefs.toggleFavorite(idx)
+    // 双写 URL 版本：订阅重载后按 URL 重锚定，idx 漂移不会错位
+    _channels.value.getOrNull(idx)?.let { userPrefs.toggleFavoriteUrl(it.url) }
     _favorites.value = userPrefs.getFavorites()
     showOsd(if (added) "已收藏" else "已取消收藏")
     return added
@@ -856,23 +858,28 @@ internal fun AppViewModel.toggleFavorite(): Boolean {
 
 internal fun AppViewModel.addToQueue(idx: Int) {
     userPrefs.addToQueue(idx)
+    // 双写 URL 版本（与收藏/历史同一重锚定机制）
+    _channels.value.getOrNull(idx)?.let { userPrefs.addToQueueUrl(it.url) }
     _queue.value = userPrefs.getQueue()
     showOsd("已加入队列")
 }
 
 internal fun AppViewModel.removeFromQueue(idx: Int) {
     userPrefs.removeFromQueue(idx)
+    _channels.value.getOrNull(idx)?.let { userPrefs.removeFromQueueUrl(it.url) }
     _queue.value = userPrefs.getQueue()
 }
 
 internal fun AppViewModel.clearHistory() {
     userPrefs.clearHistory()
+    userPrefs.setHistoryUrls(emptyList())
     _history.value = emptyList()
     showOsd("历史已清空")
 }
 
 internal fun AppViewModel.clearQueue() {
     userPrefs.clearQueue()
+    userPrefs.setQueueUrls(emptyList())
     _queue.value = emptyList()
     showOsd("队列已清空")
 }

@@ -190,7 +190,8 @@ internal fun AppViewModel.openPlaylistFromUri(uri: String, name: String) {
         showOsd("打开播放列表", name)
         try {
             val added = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                repository.addSource(name, uri)
+                // addSource(url, name)：url 必须是内容 URI，name 是显示名
+                repository.addSource(uri, name)
             }
             if (added.isSuccess) {
                 addRecentFile(uri, name, "playlist")
@@ -916,10 +917,13 @@ internal fun AppViewModel.buildFullBackup(pyConfigJson: String): String {
         // Python 配置（订阅源 + EPG 源）
         put("playlist_sources", pyConfig.optJSONArray("playlist_sources") ?: JSONArray())
         put("epg_sources", pyConfig.optJSONArray("epg_sources") ?: JSONArray())
-        // UserPrefs 配置（收藏/历史/队列）
+        // UserPrefs 配置（收藏/历史/队列；URL 版为持久真相源，idx 版向后兼容）
         put("favorites", JSONArray(userPrefs.getFavorites().toList()))
+        put("favorites_urls", JSONArray(userPrefs.getFavoriteUrls().toList()))
         put("history", JSONArray(userPrefs.getHistory()))
+        put("history_urls", JSONArray(userPrefs.getHistoryUrls()))
         put("queue", JSONArray(userPrefs.getQueue()))
+        put("queue_urls", JSONArray(userPrefs.getQueueUrls()))
         // 播放器设置
         put("player_vo", userPrefs.getVo())
         put("player_hwdec", userPrefs.getHwdec())
@@ -939,14 +943,26 @@ internal suspend fun AppViewModel.restoreFullBackup(json: String): Result<Unit> 
         val pyResult = repository.importConfig(pyConfig.toString())
         if (pyResult.isFailure) return pyResult
 
-        // 恢复 UserPrefs
+        // 恢复 UserPrefs（URL 版优先：频道重排后仍能按 URL 匹配）
+        backup.optJSONArray("favorites_urls")?.let { arr ->
+            val set = (0 until arr.length()).mapNotNull { arr.optString(it, "").takeIf { s -> s.isNotEmpty() } }.toSet()
+            userPrefs.setFavoriteUrls(set)
+        }
         backup.optJSONArray("favorites")?.let { arr ->
             val set = (0 until arr.length()).mapNotNull { arr.optInt(it, -1).takeIf { i -> i >= 0 } }.toSet()
             userPrefs.setFavorites(set)
         }
+        backup.optJSONArray("history_urls")?.let { arr ->
+            val list = (0 until arr.length()).mapNotNull { arr.optString(it, "").takeIf { s -> s.isNotEmpty() } }
+            userPrefs.setHistoryUrls(list)
+        }
         backup.optJSONArray("history")?.let { arr ->
             val list = (0 until arr.length()).mapNotNull { arr.optInt(it, -1).takeIf { i -> i >= 0 } }
             userPrefs.setHistory(list)
+        }
+        backup.optJSONArray("queue_urls")?.let { arr ->
+            val list = (0 until arr.length()).mapNotNull { arr.optString(it, "").takeIf { s -> s.isNotEmpty() } }
+            userPrefs.setQueueUrls(list)
         }
         backup.optJSONArray("queue")?.let { arr ->
             val list = (0 until arr.length()).mapNotNull { arr.optInt(it, -1).takeIf { i -> i >= 0 } }

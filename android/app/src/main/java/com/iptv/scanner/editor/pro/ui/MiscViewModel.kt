@@ -749,7 +749,8 @@ internal fun AppViewModel.startAvSyncSampling() {
         while (isActive) {
             // 仅 MPV 播放器支持属性读取
             val mpv = mpvSingleton
-            val avdiff = mpv.getPropertyDouble("avdiff") ?: 0.0
+            // A/V 同步偏移的正确 mpv 属性是 total-avsync-change（"avdiff" 不存在，恒返回 0）
+            val avdiff = mpv.getPropertyDouble("total-avsync-change") ?: 0.0
             val aPts = mpv.getPropertyDouble("audio-pts") ?: 0.0
             val vPts = mpv.getPropertyDouble("video-pts") ?: 0.0
             val aDelay = mpv.getPropertyDouble("audio-delay") ?: 0.0

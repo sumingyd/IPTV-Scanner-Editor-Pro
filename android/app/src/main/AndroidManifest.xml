@@ -8,6 +8,8 @@
 <!-- 音频可视化（Visualizer 只需 MODIFY_AUDIO_SETTINGS，不需要 RECORD_AUDIO） -->
 <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- EPG 节目提醒系统通知（Android 13+ 运行时授权） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="29" />

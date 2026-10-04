@@ -448,6 +448,10 @@ internal fun AppViewModel.checkReminders() {
         notifiedReminderIds.add(triggered.id)
         _triggeredReminder.value = triggered
         Log.i(AppViewModel.TAG, "reminder triggered: ${triggered.programTitle} (ch=${triggered.channelName})")
+        // 后台兜底：应用不在前台时由系统通知提醒（前台仍有应用内弹窗）
+        com.iptv.scanner.editor.pro.EpgReminderNotifier.notifyProgramStart(
+            getApplication(), triggered.channelName, triggered.programTitle
+        )
     }
 
     // 3) 持久化清理结果

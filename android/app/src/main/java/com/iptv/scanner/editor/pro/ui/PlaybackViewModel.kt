@@ -252,38 +252,99 @@ internal fun AppViewModel.startBackgroundStatusRefresh() {
 
 internal fun AppViewModel.loadChannels() {
     viewModelScope.launch {
-        // 加载全部频道（不分页，方便本地过滤；分页由 UI 的 LazyColumn 处理）
-        val result = repository.getChannels(page = 1, size = 10_000)
-        result.fold(
-            onSuccess = { page ->
-                // 保存当前播放的 URL，防止频道列表更新后 currentChannel 变 null
-                val savedUrl = currentPlaybackUrl
-                val savedIdx = _currentIdx.value
-                _channels.value = page.channels
-                // 如果当前正在播放，尝试在新列表中找到对应频道
-                if (savedIdx >= 0 && savedUrl.isNotEmpty()) {
-                    val newIdx = page.channels.indexOfFirst { it.url == savedUrl }
-                    if (newIdx >= 0 && newIdx != savedIdx) {
-                        _currentIdx.value = newIdx
-                        Log.i(AppViewModel.TAG, "loadChannels: current idx updated $savedIdx -> $newIdx")
-                    } else if (newIdx < 0) {
-                        // URL 不在新列表中，保持原 idx 不变（避免显示未选择频道）
-                        Log.w(AppViewModel.TAG, "loadChannels: current channel URL not found in new list, keeping idx $savedIdx")
+        // 分页拉取全部频道（bridge 端有单页上限，逐页取完以便本地过滤；
+        // 翻页展示由 UI 的 LazyColumn 处理）
+        val loaded = mutableListOf<IptvChannel>()
+        var pageNo = 1
+        var total = Int.MAX_VALUE
+        var failed = false
+        while (loaded.size < total) {
+            repository.getChannels(page = pageNo, size = 1_000).fold(
+                onSuccess = { page ->
+                    total = page.total
+                    loaded.addAll(page.channels)
+                    if (page.channels.isEmpty()) {
+                        // 空页兜底：服务端 total 与实际不一致时防死循环
+                        total = loaded.size
                     }
+                    pageNo++
+                },
+                onFailure = { e ->
+                    Log.e(AppViewModel.TAG, "loadChannels failed: ${e.message}")
+                    failed = true
                 }
-                // 提取分组（保持 M3U 顺序，去重）
-                val groupList = page.channels
-                    .map { it.group }
-                    .filter { it.isNotEmpty() }
-                    .distinct()
-                _groups.value = groupList
-                Log.i(AppViewModel.TAG, "Loaded ${page.channels.size} channels, ${groupList.size} groups")
-            },
-            onFailure = { e ->
-                Log.e(AppViewModel.TAG, "loadChannels failed: ${e.message}")
+            )
+            if (failed) break
+        }
+        if (!failed) {
+            // 保存当前播放的 URL，防止频道列表更新后 currentChannel 变 null
+            val savedUrl = currentPlaybackUrl
+            val savedIdx = _currentIdx.value
+            _channels.value = loaded
+            // 如果当前正在播放，尝试在新列表中找到对应频道
+            if (savedIdx >= 0 && savedUrl.isNotEmpty()) {
+                val newIdx = loaded.indexOfFirst { it.url == savedUrl }
+                if (newIdx >= 0 && newIdx != savedIdx) {
+                    _currentIdx.value = newIdx
+                    Log.i(AppViewModel.TAG, "loadChannels: current idx updated $savedIdx -> $newIdx")
+                } else if (newIdx < 0) {
+                    // URL 不在新列表中，保持原 idx 不变（避免显示未选择频道）
+                    Log.w(AppViewModel.TAG, "loadChannels: current channel URL not found in new list, keeping idx $savedIdx")
+                }
             }
-        )
+            // 提取分组（保持 M3U 顺序，去重）
+            val groupList = loaded
+                .map { it.group }
+                .filter { it.isNotEmpty() }
+                .distinct()
+            _groups.value = groupList
+            Log.i(AppViewModel.TAG, "Loaded ${loaded.size} channels, ${groupList.size} groups")
+            // 收藏/历史/队列按 URL 重锚定（订阅重载后 idx 漂移会错位）
+            reanchorUserListsToChannels()
+        }
     }
+}
+
+/**
+ * 按 URL 重锚定收藏/历史/队列的 idx。
+ *
+ * URL 版存储是持久真相源（订阅源更新/频道增删后仍可匹配）；
+ * idx 版 StateFlow 仅作展示缓存。旧数据只有 idx 版时一次性迁移
+ * （用当前列表尽力转换），此后每次切换频道/收藏都会双写 URL 版。
+ */
+internal fun AppViewModel.reanchorUserListsToChannels() {
+    val all = _channels.value
+    if (all.isEmpty()) return
+    val urlToIdx = HashMap<String, Int>(all.size * 2)
+    all.forEachIndexed { i, c -> urlToIdx.putIfAbsent(c.url, i) }
+
+    // 1) 收藏
+    val favUrls = userPrefs.getFavoriteUrls().toMutableSet()
+    val legacyFavIdxs = userPrefs.getFavorites()
+    if (favUrls.isEmpty() && legacyFavIdxs.isNotEmpty()) {
+        legacyFavIdxs.forEach { idx -> all.getOrNull(idx)?.let { favUrls.add(it.url) } }
+        userPrefs.setFavoriteUrls(favUrls)
+    }
+    _favorites.value = all.mapIndexed { i, c -> if (c.url in favUrls) i else null }
+        .filterNotNull().toSet()
+
+    // 2) 历史（保持时间倒序：URL 列表本身就是倒序）
+    val histUrls = userPrefs.getHistoryUrls().toMutableList()
+    val legacyHist = userPrefs.getHistory()
+    if (histUrls.isEmpty() && legacyHist.isNotEmpty()) {
+        legacyHist.forEach { idx -> all.getOrNull(idx)?.let { histUrls.add(it.url) } }
+        userPrefs.setHistoryUrls(histUrls)
+    }
+    _history.value = histUrls.mapNotNull { urlToIdx[it] }
+
+    // 3) 队列
+    val queueUrls = userPrefs.getQueueUrls().toMutableList()
+    val legacyQueue = userPrefs.getQueue()
+    if (queueUrls.isEmpty() && legacyQueue.isNotEmpty()) {
+        legacyQueue.forEach { idx -> all.getOrNull(idx)?.let { queueUrls.add(it.url) } }
+        userPrefs.setQueueUrls(queueUrls)
+    }
+    _queue.value = queueUrls.mapNotNull { urlToIdx[it] }
 }
 
 internal fun AppViewModel.deleteChannel(idx: Int) {
@@ -360,6 +421,9 @@ internal fun AppViewModel.loadUserPrefs() {
     _reminders.value = userPrefs.getReminders()
     _resumeList.value = userPrefs.getResumeList()
     _allBookmarks.value = userPrefs.getAllBookmarks()
+    // 频道列表若已就绪则按 URL 重锚定（loadChannels 与本函数异步竞态，
+    // 两个方向都要兜底保证最终一致）
+    reanchorUserListsToChannels()
     // 启动提醒定时检查（与 PC 端 QTimer 10 秒间隔对齐）
     startReminderCheck()
     // 启动续播位置自动保存（10 秒间隔，与 Web 端 autoSaveResume 对齐）
@@ -451,6 +515,9 @@ internal fun AppViewModel.playChannel(idx: Int, silent: Boolean = false) {
         // 先应用频道专属设置（vo/hwdec），避免 loadfile 后再重建 VO 触发二次 loadfile
         applyChannelSettingsIfNeeded(idx)
         mpv.playFile(channel.url)
+        // 超时换源必须在等待加载前启动：加载成功后定时器到点检查
+        // fileLoaded 为 true 自动空转；卡死时才能触发换源
+        startTimeoutSwitchSource(idx)
         mpv.fileLoaded.first { it }
 
         if (!silent && !_landscapeSidebarVisible.value) {
@@ -470,8 +537,9 @@ internal fun AppViewModel.playChannel(idx: Int, silent: Boolean = false) {
         refreshCurrentBookmarks()
 
         loadPlaybackSettingsFromStore(channel.url)
-        startTimeoutSwitchSource(idx)
         userPrefs.addToHistory(idx)
+        // 双写 URL 版本：订阅重载后按 URL 重锚定，idx 漂移不会错位
+        userPrefs.addToHistoryUrl(channel.url)
         _history.value = userPrefs.getHistory()
         userPrefs.setLastChannelUrl(channel.url)
         fetchEpgForCurrent()
@@ -912,6 +980,14 @@ internal fun AppViewModel.addChannelToMultiView(channelIdx: Int): Int {
 
     // 副画面：创建/复用 SubPlayer 并播放
     try {
+        // 副画面基于 ExoPlayer，不支持 udp/rtp 组播源（主画面的 mpv 才支持）；
+        // 提前拦截给出明确提示，而不是让用户看到无解释的"播放错误"
+        val scheme = channel.url.trim().lowercase().substringBefore("://")
+        if (scheme in setOf("udp", "rtp", "igmp")) {
+            showOsd("多画面", "副画面不支持组播源(udp/rtp)，请用 http/https 频道")
+            Log.w(AppViewModel.TAG, "addChannelToMultiView: multicast url rejected: ${channel.url}")
+            return -1
+        }
         val subPlayer = getOrCreateSubPlayer(targetIdx)
         Log.i(AppViewModel.TAG, "addChannelToMultiView: targetIdx=$targetIdx, subPlayer=${subPlayer.hashCode()}, exoPlayer=${subPlayer.getExoPlayer()?.hashCode()}")
         subPlayer.play(channel.url)
