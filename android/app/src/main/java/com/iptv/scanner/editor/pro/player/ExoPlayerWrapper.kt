@@ -67,6 +67,13 @@ class ExoPlayerWrapper(
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private fun isMainThread() = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
 
+    /** 音频焦点：与 MpvController 同一套抢占暂停/回播语义 */
+    private val audioFocus = AudioFocusHelper(context).also { h ->
+        h.onPause = { setPause(true) }
+        h.onResume = { setPause(false) }
+        h.isPaused = { paused.value }
+    }
+
     // -----------------------------------------------------------------
     // 可观察状态（与 MpvController StateFlow 对齐）
     // -----------------------------------------------------------------
@@ -336,6 +343,7 @@ class ExoPlayerWrapper(
         currentUrl = url
         _eofReached.value = false
         _fileLoaded.value = false
+        audioFocus.request()
         if (!isMainThread()) {
             mainHandler.post { playFileOnMainThread(url) }
             return
@@ -383,6 +391,7 @@ class ExoPlayerWrapper(
         _fileLoaded.value = false
         _paused.value = true
         _timePos.value = 0.0
+        audioFocus.abandon()
         if (!isMainThread()) {
             mainHandler.post { player?.stop() }
             return

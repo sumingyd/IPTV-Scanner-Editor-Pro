@@ -104,7 +104,6 @@ import com.iptv.scanner.editor.pro.data.ReminderItem
 import com.iptv.scanner.editor.pro.data.UserPrefs
 import com.iptv.scanner.editor.pro.data.IptvChannel
 import com.iptv.scanner.editor.pro.mpv.MPVView
-import com.iptv.scanner.editor.pro.mpv.MPVTextureView
 import com.iptv.scanner.editor.pro.mpv.MPVViewLike
 import com.iptv.scanner.editor.pro.player.PlayerType
 import com.iptv.scanner.editor.pro.player.ProgressHelper
@@ -240,6 +239,11 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val landscapeSidebarVisible by viewModel.landscapeSidebarVisible.collectAsState()
     val multiViewState by viewModel.multiViewState.collectAsState()
 
+    // 横竖屏判定（供 BACK 处理使用；横屏 TV 风格无首页 UI）
+    val isLandscape =
+        androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     // 系统返回键处理：侧边栏→退出多画面→返回首页→退出确认
     BackHandler(enabled = true) {
         when {
@@ -257,7 +261,13 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
                 viewModel.exitMultiView()
             }
             !showHome -> {
-                viewModel.showHomeScreen()
+                // 竖屏有首页可回；横屏（TV 风格）不渲染首页 UI，
+                // 直接弹退出确认给用户明确反馈，避免第一按毫无响应
+                if (isLandscape) {
+                    viewModel.showExitConfirm()
+                } else {
+                    viewModel.showHomeScreen()
+                }
             }
             else -> {
                 if (exitConfirmOpen) {
@@ -712,7 +722,7 @@ viewModel.mpv.setMute(savedMute)
         // TV 端频道列表（侧边栏风格左侧面板：分组 + 频道 + EPG + 描述）
         if (tvUnifiedPanelOpen) {
             val origDensity = androidx.compose.ui.platform.LocalDensity.current
-            val dpiScale = (configuration.screenHeightDp / 720f).coerceIn(0.55f, 1f)
+            val dpiScale = (configuration.screenHeightDp / 720f).coerceIn(0.70f, 1f)
             val scaledDensity = androidx.compose.ui.unit.Density(origDensity.density * dpiScale, origDensity.fontScale)
             androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides scaledDensity) {
                 TvUnifiedPanel(viewModel = viewModel)

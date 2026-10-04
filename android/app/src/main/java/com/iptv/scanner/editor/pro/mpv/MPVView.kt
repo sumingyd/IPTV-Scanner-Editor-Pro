@@ -468,8 +468,11 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             val currentPath = try { MPVLib.getPropertyString("path") } catch (_: Exception) { "" }
             if (!currentPath.isNullOrEmpty()) {
                 Log.i(TAG, "surfaceCreated: re-loading current path=$currentPath to restore render")
+                // pause 是核心属性、跨 loadfile 保持：先读后还原，
+                // 用户暂停时旋转不应被强制续播（新文件分支的 pause=false 才是播放意图）
+                val wasPaused = try { MPVLib.getPropertyBoolean("pause") } catch (_: Exception) { false }
                 MPVLib.command(arrayOf("loadfile", currentPath))
-                MPVLib.setPropertyBoolean("pause", false)
+                MPVLib.setPropertyBoolean("pause", wasPaused == true)
             } else {
                 Log.i(TAG, "surfaceCreated: no pending filePath, waiting for external playFile")
             }

@@ -358,10 +358,33 @@ class MpvController : MPVLib.EventObserver, Player, MpvControllerHost {
     // -----------------------------------------------------------------
     // 播放控制（委托 MpvPlaybackController）
     // -----------------------------------------------------------------
-    override fun playFile(url: String) = playbackController.playFile(url)
+    /** 音频焦点助手：绑定到 attach 的 View 上下文后生效（见 ensureAudioFocus） */
+    private var audioFocusHelper: com.iptv.scanner.editor.pro.player.AudioFocusHelper? = null
+
+    private fun ensureAudioFocus(): com.iptv.scanner.editor.pro.player.AudioFocusHelper? {
+        if (audioFocusHelper == null) {
+            val ctx = mpvView?.asView()?.context?.applicationContext ?: return null
+            audioFocusHelper =
+                com.iptv.scanner.editor.pro.player.AudioFocusHelper(ctx).also { h ->
+                    h.onPause = { playbackController.setPause(true) }
+                    h.onResume = { playbackController.setPause(false) }
+                    h.isPaused = { paused.value }
+                }
+        }
+        return audioFocusHelper
+    }
+
+    override fun playFile(url: String) {
+        ensureAudioFocus()?.request()
+        playbackController.playFile(url)
+    }
+
     fun markNeedPreStop() = playbackController.markNeedPreStop()
     fun getPath(): String = playbackController.getPath()
-    override fun stop() = playbackController.stop()
+    override fun stop() {
+        audioFocusHelper?.abandon()
+        playbackController.stop()
+    }
     override fun togglePause() = playbackController.togglePause()
     override fun setPause(p: Boolean) = playbackController.setPause(p)
     override fun seekTo(seconds: Double) = playbackController.seekTo(seconds)

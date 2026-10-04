@@ -314,7 +314,7 @@ private fun ViewportCell(
                     IconButton(
                         onClick = onToggleMute,
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(36.dp)
                             .tvFocusBorder()
                     ) {
                         Icon(
@@ -330,7 +330,7 @@ private fun ViewportCell(
                     IconButton(
                         onClick = onClose,
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(36.dp)
                             .tvFocusBorder()
                     ) {
                         Icon(
@@ -419,7 +419,7 @@ private fun SubViewportContent(
                 strokeWidth = 2.dp,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .size(28.dp)
+                    .size(36.dp)
             )
         }
 
@@ -465,7 +465,7 @@ private fun ErrorViewportHint(channelName: String, errorMessage: String, modifie
             Icons.Default.Error,
             contentDescription = null,
             tint = Color.Red.copy(alpha = 0.8f),
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(36.dp)
         )
         Spacer(Modifier.height(4.dp))
         Text(

@@ -115,6 +115,19 @@ class MainActivityCompose : ComponentActivity() {
         // 注入 PiP 回调（ViewModel 不能直接调用 Activity 方法）
         viewModel.onEnterPip = { enterPipManual() }
 
+        // Android 13+ 通知运行时授权：EPG 节目提醒的后台系统通知依赖它；
+        // 拒绝后仅影响后台提醒，应用内弹窗不受影响
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            registerForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+            ) { granted ->
+                Log.i(TAG, "POST_NOTIFICATIONS granted=$granted")
+            }.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+
         setContent {
             val themeMode by viewModel.themeMode.collectAsState()
             IptvTheme(themeMode = themeMode) {
@@ -206,20 +219,23 @@ class MainActivityCompose : ComponentActivity() {
                     val x = ev.x
                     val y = ev.y
 
+                    val sidebarOpen = viewModel.landscapeSidebarVisible.value
+                    val menuOpen = viewModel.menuPanelOpen.value
+                    val anyPanelOpen = sidebarOpen || menuOpen
+
                     if (multiActive) {
                         // ---- 多画面模式 ----
-                        // 右上角退出按钮区域：直接退出多画面
-                        if (x > w - EXIT_BUTTON_WIDTH && y < EXIT_BUTTON_HEIGHT) {
+                        // 面板打开时触控交给 Compose（列表滚动等）
+                        if (anyPanelOpen) return super.dispatchTouchEvent(ev)
+                        // 右上角退出按钮区域：Compose 按钮未覆盖处的兜底退出区
+                        if (!moved && x > w - EXIT_BUTTON_WIDTH && y < EXIT_BUTTON_HEIGHT) {
                             Log.v(TAG, "MultiView: exit button tapped")
                             viewModel.exitMultiView()
                             return true
                         }
-                        // 面板打开时触控交给 Compose（列表滚动等）
-                        val anyPanelOpen = viewModel.tvUnifiedPanelOpen.value ||
-                                viewModel.landscapeSidebarVisible.value ||
-                                viewModel.menuPanelOpen.value
-                        Log.v(TAG, "MultiView touch: x=$x, y=$y, anyPanelOpen=$anyPanelOpen, moved=$moved, isLongPress=$isLongPress")
-                        if (anyPanelOpen) return super.dispatchTouchEvent(ev)
+                        val state = viewModel.multiViewState.value
+                        val idx = computeMultiViewportIndex(x, y, w, h, state.layout)
+                        val viewport = state.viewports.getOrNull(idx)
                         if (moved) {
                             // 上下滑动切换频道
                             if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && kotlin.math.abs(dy) > SLIDE_THRESHOLD) {
@@ -227,32 +243,36 @@ class MainActivityCompose : ComponentActivity() {
                             }
                             return true
                         }
-                        // 计算视口索引
-                        val state = viewModel.multiViewState.value
-                        val idx = computeMultiViewportIndex(x, y, w, h, state.layout)
-                        Log.v(TAG, "MultiView tap: idx=$idx, focused=${state.focusedViewport}, layout=${state.layout}")
-                        if (idx >= 0) {
-                            viewModel.setFocusedViewport(idx)
-                            val viewport = state.viewports.getOrNull(idx)
-                            Log.v(TAG, "MultiView viewport: idx=$idx, isEmpty=${viewport?.isEmpty}, isPrimary=${viewport?.isPrimary}")
-                            if (isLongPress && viewport != null && viewport.isPrimary) {
-                                // 长按主画面：打开主菜单（可退出多画面）
-                                Log.v(TAG, "MultiView: long press primary, opening menu")
+                        if (isLongPress && viewport != null) {
+                            // 长按逻辑 Compose 无对应实现，仍由 Activity 处理：
+                            // 长按主画面开主菜单；长按有频道的副画面移除频道
+                            Log.v(TAG, "MultiView long press: idx=$idx, isPrimary=${viewport.isPrimary}, isEmpty=${viewport.isEmpty}")
+                            if (viewport.isPrimary) {
                                 viewModel.toggleMenuPanel()
-                            } else if (isLongPress && viewport != null && !viewport.isEmpty && !viewport.isPrimary) {
-                                // 长按有频道的副画面：移除频道（清空）
+                            } else if (!viewport.isEmpty) {
                                 viewModel.removeFromMultiView(idx)
-                            } else if (!isLongPress && viewport != null && viewport.isEmpty && !viewport.isPrimary) {
-                                // 单击空副画面：打开统一面板添加频道
-                                Log.v(TAG, "MultiView: opening TvUnifiedPanel for empty viewport $idx")
-                                viewModel.toggleTvUnifiedPanel()
                             }
+                            return true
                         }
-                        return true
+                        if (!isLongPress && viewport != null && viewport.isEmpty && !viewport.isPrimary) {
+                            // 单击空副画面：打开统一面板添加频道（Compose onClick 只做聚焦）
+                            Log.v(TAG, "MultiView: opening TvUnifiedPanel for empty viewport $idx")
+                            viewModel.toggleTvUnifiedPanel()
+                            return true
+                        }
+                        // 其余单击（聚焦视口/静音/关闭/退出按钮）交由 Compose onClick 处理：
+                        // DOWN 已通过文末 super 送达 Compose，UP 放行即完成点击
+                        return super.dispatchTouchEvent(ev)
                     }
 
                     // ---- 非多画面模式 ----
+                    val controlsVisible = viewModel.controlsVisible.value
                     if (moved) {
+                        // 面板打开时滚动手势交给面板内列表，不做切台判定
+                        // （修复：面板列表滚动被误判为滑动切台且 UP 被吞）
+                        if (anyPanelOpen) return super.dispatchTouchEvent(ev)
+                        // 控制条可见时，底栏区域的拖动（进度滑杆等）交给 Compose
+                        if (controlsVisible && y > h * BOTTOM_REGION_BOUND) return super.dispatchTouchEvent(ev)
                         // 上下滑动切换频道
                         if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && kotlin.math.abs(dy) > SLIDE_THRESHOLD) {
                             if (dy < 0) viewModel.prevChannel() else viewModel.nextChannel()
@@ -260,15 +280,7 @@ class MainActivityCompose : ComponentActivity() {
                         }
                         return super.dispatchTouchEvent(ev)
                     }
-                    val sidebarOpen = viewModel.landscapeSidebarVisible.value
-                    val menuOpen = viewModel.menuPanelOpen.value
-                    val isLeftZone = x < w * LEFT_REGION_BOUND
-                    val isRightZone = x > w * RIGHT_REGION_BOUND
-                    val isBottomZone = y > h * BOTTOM_REGION_BOUND
-                    if (isBottomZone && !sidebarOpen && !menuOpen) {
-                        viewModel.toggleControls()
-                        return true
-                    }
+                    // ---- 单击（tap）----
                     if (sidebarOpen) {
                         if (x < w * SIDEBAR_CLOSE_BOUND) return super.dispatchTouchEvent(ev)
                         viewModel.setLandscapeSidebarVisible(false)
@@ -279,6 +291,17 @@ class MainActivityCompose : ComponentActivity() {
                         viewModel.toggleMenuPanel()
                         return true
                     }
+                    if (y > h * BOTTOM_REGION_BOUND) {
+                        if (controlsVisible) {
+                            // 控制条可见：底栏按钮（停止/退出回看）与滑杆交给 Compose
+                            // （修复：底栏按钮被"收起控制层"截胡）
+                            return super.dispatchTouchEvent(ev)
+                        }
+                        viewModel.toggleControls()
+                        return true
+                    }
+                    val isLeftZone = x < w * LEFT_REGION_BOUND
+                    val isRightZone = x > w * RIGHT_REGION_BOUND
                     if (isLeftZone) {
                         viewModel.setLandscapeSidebarVisible(true)
                         return true
@@ -394,9 +417,13 @@ class MainActivityCompose : ComponentActivity() {
                 viewModel.exitCatchup()
                 return true
             }
-            // 竖屏播放器模式（非首页），BACK 返回首页（视频继续播放）
+            // 播放器模式返回首页（竖屏有首页可回；横屏无首页 UI，直接弹退出确认）
             if (!viewModel.showHome.value) {
-                viewModel.showHomeScreen()
+                if (isLandscapeMode()) {
+                    viewModel.showExitConfirm()
+                } else {
+                    viewModel.showHomeScreen()
+                }
                 return true
             }
             // 首页模式下，显示退出确认对话框（立即退出 / 进入 PiP）

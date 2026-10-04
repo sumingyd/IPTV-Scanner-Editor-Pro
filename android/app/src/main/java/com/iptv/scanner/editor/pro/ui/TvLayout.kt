@@ -159,10 +159,13 @@ fun TvPlayerLayout(
         }
     }
 
-    // DPI自适应缩放：以TV横屏720dp高度为基准，手机横屏高度不足时缩小UI
+    // DPI自适应缩放：以TV横屏720dp高度为基准，手机横屏高度不足时缩小UI。
+    // 下限 0.55→0.70：0.55 时 Material 48dp 最小触控目标实际仅 ~26dp、
+    // 28dp 图标按钮 ~15dp，触控体验不可用；0.70 下视频区缩小有限但
+    // 触控目标恢复到可点范围（TV 端 screenHeightDp≥720 不受影响）。
     val configuration = LocalConfiguration.current
     val origDensity = LocalDensity.current
-    val dpiScale = (configuration.screenHeightDp / 720f).coerceIn(0.55f, 1f)
+    val dpiScale = (configuration.screenHeightDp / 720f).coerceIn(0.70f, 1f)
     val scaledDensity = Density(origDensity.density * dpiScale, origDensity.fontScale)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -534,12 +537,12 @@ private fun TvBottomBar(
                         }
                         if (showExitCatchup) {
                             Spacer(modifier = Modifier.width(4.dp))
-                            IconButton(onClick = { viewModel.exitCatchup() }, modifier = Modifier.size(28.dp).tvFocusBorder()) {
+                            IconButton(onClick = { viewModel.exitCatchup() }, modifier = Modifier.size(36.dp).tvFocusBorder()) {
                                 Icon(Icons.AutoMirrored.Filled.Backspace, "退出回看", tint = oc.accent, modifier = Modifier.size(16.dp))
                             }
                         }
                         Spacer(modifier = Modifier.width(2.dp))
-                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(28.dp).tvFocusBorder()) {
+                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(36.dp).tvFocusBorder()) {
                             Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(16.dp))
                         }
                     }
