@@ -266,6 +266,7 @@ internal fun AppViewModel.reloadEpgSources() {
             preloadEpgForAllChannels()
             if (_currentIdx.value >= 0) fetchEpgForCurrent()
             fetchEpgForChannel(_currentIdx.value)
+            loadEpgSources()
         }
             .onFailure { showOsd("EPG 重载失败", it.message ?: "") }
     }
