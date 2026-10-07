@@ -263,8 +263,8 @@ internal val _listSourceTab = MutableStateFlow(ListSourceTab.SUBSCRIPTION)
 val listSourceTab: StateFlow<ListSourceTab> = _listSourceTab.asStateFlow()
 
 /** 竖屏首页/播放器模式切换：true=首页（浏览），false=播放器界面
- * TV 模式无首页，始终为 false，避免 playChannel 走 pendingSwitchPlayUrl 分支导致黑屏 */
-internal val _showHome = MutableStateFlow(!UiModeDetector.detect(app).isTV)
+ * 初始始终为 true：竖屏先显示首页，横屏/TV 分支不检查 showHome 不受影响 */
+internal val _showHome = MutableStateFlow(true)
 val showHome: StateFlow<Boolean> = _showHome.asStateFlow()
 
 /** 切换到播放器界面（选择频道/打开文件后调用） */
