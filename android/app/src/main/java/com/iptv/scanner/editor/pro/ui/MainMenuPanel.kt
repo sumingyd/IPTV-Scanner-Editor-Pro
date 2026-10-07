@@ -323,11 +323,11 @@ fun MainMenuPanel(viewModel: AppViewModel) {
         // DPI自适应缩放（与TvPlayerLayout一致）
         val configuration = LocalConfiguration.current
         val origDensity = LocalDensity.current
-        val dpiScale = (configuration.screenHeightDp / 720f).coerceIn(0.55f, 1f)
+        val dpiScale = (configuration.screenHeightDp / 720f).coerceIn(0.70f, 1f)
         val scaledDensity = Density(origDensity.density * dpiScale, origDensity.fontScale)
 
         var leftSelectedIdx by remember { mutableStateOf(0) }
-        var activeColumn by remember { mutableStateOf(1) } // 0=左列, 1=右列
+        var activeColumn by remember { mutableStateOf(0) } // 0=左列(分组), 1=右列(条目)
         val safeLeftIdx = if (currentSection != null) leftSelectedIdx.coerceIn(0, currentSection.entries.lastIndex) else 0
         val menuFocusRequester = remember { FocusRequester() }
         LaunchedEffect(Unit) { menuFocusRequester.requestFocus() }
@@ -338,7 +338,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 if (event.type == KeyEventType.KeyDown) {
                     when (event.key) {
                         Key.DirectionDown -> {
-                            if (activeColumn == 1) {
+                            if (activeColumn == 0) {
                                 selectedSectionIdx = (safeIdx + 1) % sections.size
                             } else if (currentSection != null && currentSection.entries.isNotEmpty()) {
                                 leftSelectedIdx = (safeLeftIdx + 1) % currentSection.entries.size
@@ -346,27 +346,27 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                             true
                         }
                         Key.DirectionUp -> {
-                            if (activeColumn == 1) {
+                            if (activeColumn == 0) {
                                 selectedSectionIdx = (safeIdx - 1 + sections.size) % sections.size
                             } else if (currentSection != null && currentSection.entries.isNotEmpty()) {
                                 leftSelectedIdx = (safeLeftIdx - 1 + currentSection.entries.size) % currentSection.entries.size
                             }
                             true
                         }
-                        Key.DirectionLeft -> {
-                            if (activeColumn == 1 && currentSection != null && currentSection.entries.isNotEmpty()) {
-                                activeColumn = 0
-                                true
-                            } else false
-                        }
                         Key.DirectionRight -> {
-                            if (activeColumn == 0) {
+                            if (activeColumn == 0 && currentSection != null && currentSection.entries.isNotEmpty()) {
                                 activeColumn = 1
                                 true
                             } else false
                         }
+                        Key.DirectionLeft -> {
+                            if (activeColumn == 1) {
+                                activeColumn = 0
+                                true
+                            } else false
+                        }
                         Key.DirectionCenter, Key.Enter -> {
-                            if (activeColumn == 0 && currentSection != null && currentSection.entries.isNotEmpty()) {
+                            if (activeColumn == 1 && currentSection != null && currentSection.entries.isNotEmpty()) {
                                 currentSection.entries.getOrNull(safeLeftIdx)?.onClick()
                                 true
                             } else false
@@ -377,7 +377,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             }
         ) {
             Surface(
-                color = Color(0x80222222),
+                color = Color(0xE6222222),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -387,7 +387,42 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                     .focusable()
             ) {
                 Row(modifier = Modifier.wrapContentWidth()) {
-                    // 左列：子菜单（当前选中section的entries）
+                    // 左列：主菜单（section titles）
+                    LazyColumn(
+                        modifier = Modifier.fillMaxHeight().width(130.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)
+                    ) {
+                        itemsIndexed(sections) { idx, section ->
+                            val isSelected = idx == safeIdx
+                            val isLeftActive = activeColumn == 0 && isSelected
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) Color(0xFF2979FF) else Color.Transparent)
+                                    .clickable {
+                                        activeColumn = 0
+                                        selectedSectionIdx = idx
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = section.title,
+                                    color = if (isSelected) Color.White else Color(0xE6FFFFFF),
+                                    fontSize = 16.sp,
+                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                    // 列间分隔线
+                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color(0x40FFFFFF)))
+
+                    // 右列：子菜单（当前选中section的entries）
                     if (currentSection != null && currentSection.entries.isNotEmpty()) {
                         LazyColumn(
                             modifier = Modifier.fillMaxHeight().width(150.dp),
@@ -397,7 +432,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                                 items = currentSection.entries,
                                 key = { idx, entry -> currentSection.title + "_" + entry.title + "_" + idx }
                             ) { idx, entry ->
-                                val isLeftSelected = activeColumn == 0 && idx == safeLeftIdx
+                                val isRightSelected = activeColumn == 1 && idx == safeLeftIdx
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -405,13 +440,13 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(
                                             when {
-                                                isLeftSelected -> Color(0xFF2979FF)
+                                                isRightSelected -> Color(0xFF2979FF)
                                                 entry.highlight -> Color(0x402979FF)
                                                 else -> Color.Transparent
                                             }
                                         )
                                         .clickable {
-                                            activeColumn = 0
+                                            activeColumn = 1
                                             leftSelectedIdx = idx
                                             entry.onClick()
                                         }
@@ -420,7 +455,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                                 ) {
                                     Text(
                                         text = entry.title,
-                                        color = if (isLeftSelected || entry.highlight) Color.White else Color(0xE6FFFFFF),
+                                        color = if (isRightSelected || entry.highlight) Color.White else Color(0xE6FFFFFF),
                                         fontSize = 15.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -436,41 +471,6 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                                         )
                                     }
                                 }
-                            }
-                        }
-                        // 列间分隔线
-                        Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color(0x40FFFFFF)))
-                    }
-
-                    // 右列：主菜单（section titles）
-                    LazyColumn(
-                        modifier = Modifier.fillMaxHeight().width(130.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)
-                    ) {
-                        itemsIndexed(sections) { idx, section ->
-                            val isSelected = idx == safeIdx
-                            val isRightActive = activeColumn == 1 && isSelected
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isSelected) Color(0xFF2979FF) else Color.Transparent)
-                                    .clickable {
-                                        activeColumn = 1
-                                        selectedSectionIdx = idx
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = section.title,
-                                    color = if (isSelected) Color.White else Color(0xE6FFFFFF),
-                                    fontSize = 16.sp,
-                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
                             }
                         }
                     }

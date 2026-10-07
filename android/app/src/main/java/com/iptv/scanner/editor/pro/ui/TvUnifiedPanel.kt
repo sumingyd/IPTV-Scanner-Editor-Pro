@@ -69,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -290,11 +291,19 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     // -----------------------------------------------------------------
                     // 分组+频道+EPG 合并为一个圆角矩形
                     // -----------------------------------------------------------------
+                    val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
                     Box(
                         modifier = Modifier.fillMaxHeight()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0x80222222))
                     ) {
+                        if (isAndroid12Plus) {
+                            Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(10.dp)).blur(15.dp).background(Color(0x88333333)))
+                        }
+                        Box(
+                            modifier = Modifier.fillMaxHeight()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isAndroid12Plus) Color(0xE6222222) else Color(0xF0222222))
+                        ) {
                         Row(modifier = Modifier.fillMaxHeight()) {
                             // 第一列：分组列表
                             if (showGroups) {
@@ -369,6 +378,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                                     }
                                 }
                             }
+                        }
                         }
                     }
                 }
@@ -654,7 +664,7 @@ private fun GroupItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (selected) ACCENT_CYAN.copy(alpha = 0.2f) else Color.Transparent)
+            .background(if (selected) ACCENT_GREEN.copy(alpha = 0.2f) else Color.Transparent)
             .tvFocusBorder()
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -665,12 +675,12 @@ private fun GroupItemRow(
             modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
-                .background(if (selected) ACCENT_CYAN else MaterialTheme.colorScheme.outline)
+                .background(if (selected) ACCENT_GREEN else MaterialTheme.colorScheme.outline)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = label,
-            color = if (selected) ACCENT_CYAN else MaterialTheme.colorScheme.onSurface,
+            color = if (selected) ACCENT_GREEN else MaterialTheme.colorScheme.onSurface,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
             maxLines = 1,
@@ -925,7 +935,7 @@ private fun TvChannelItem(
             Text(
                 text = channel.name,
                 color = if (isPlaying) Color.White else MaterialTheme.colorScheme.onSurface,
-                fontSize = 15.sp,
+                fontSize = 17.sp,
                 fontWeight = if (isPlaying) FontWeight.Medium else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

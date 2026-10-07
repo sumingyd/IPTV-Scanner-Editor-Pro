@@ -406,7 +406,7 @@ private fun TvBottomBar(
             Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)).blur(15.dp).background(Color(0x88333333)))
         }
         Surface(
-            color = if (isAndroid12Plus) Color(0xCC333333) else Color(0xD0333333),
+            color = if (isAndroid12Plus) Color(0xE6333333) else Color(0xF0333333),
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -443,7 +443,19 @@ private fun TvBottomBar(
                         fontSize = 20.sp, fontWeight = FontWeight.Bold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.weight(1f))
+                    // 当前节目名（酷9风格：频道名后紧跟节目名）
+                    if (currentProgram != null && currentProgram.title.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = currentProgram.title,
+                            color = oc.textSecondary,
+                            fontSize = 15.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                     if (statusTag != null) {
                         Surface(color = statusTag.second.copy(alpha = 0.25f), shape = RoundedCornerShape(4.dp)) {
                             Text(text = statusTag.first, color = statusTag.second, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
@@ -464,30 +476,14 @@ private fun TvBottomBar(
                     }
                 }
 
-                // 第2行：当前节目名 + 时间范围 + 进度条 + 时间戳 + 距结束 + 按钮（始终显示）
+                // 第2行：时间范围 + 进度条 + 时间戳 + 距结束 + 按钮（始终显示）
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                         // 日期
                         val dateText = remember(tick) { dateFmt.format(java.util.Date(tick)) }
                         Text(text = dateText, color = oc.textSecondary, fontSize = 12.sp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        // 当前节目名
-                        if (currentProgram != null && currentProgram.title.isNotEmpty()) {
-                            Text(
-                                text = currentProgram.title,
-                                color = oc.textPrimary,
-                                fontSize = 15.sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                        } else {
-                            Text(
-                                text = "精彩节目",
-                                color = ACCENT_CYAN,
-                                fontSize = 15.sp,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+                        Spacer(modifier = Modifier.weight(1f))
                         if (currentProgram != null && currentProgram.stopTs > 0) {
                             Spacer(modifier = Modifier.width(8.dp))
                             val timeRange = remember(currentProgram) {
@@ -610,6 +606,16 @@ internal fun buildTvMediaBadges(mpv: com.iptv.scanner.editor.pro.player.Player, 
     // 分辨率
     if (videoWidth > 0 && videoHeight > 0) {
         result.add(when { videoWidth >= 3800 -> "4K"; videoWidth >= 1900 -> "1080P"; videoWidth >= 1200 -> "720P"; else -> "${videoHeight}P" })
+    }
+    // 视频比特率
+    val videoBitrate = try { mpv.getPropertyInt("video-bitrate") } catch (_: Exception) { null }
+    if (videoBitrate != null && videoBitrate > 0) {
+        val kbps = videoBitrate / 1000
+        if (kbps >= 1000) {
+            result.add("%.1fMbps".format(kbps / 1000.0))
+        } else {
+            result.add("${kbps}kbps")
+        }
     }
     // HDR
     val gamma = mediaInfo["videoGamma"]
