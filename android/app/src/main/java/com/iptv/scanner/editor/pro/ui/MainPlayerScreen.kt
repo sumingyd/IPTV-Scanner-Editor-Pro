@@ -340,10 +340,11 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
 
     // 横屏/TV 模式：启动时若无频道加载且无面板打开，自动弹出频道列表面板供用户选择
     // 修复：关闭自动续播后横屏启动直接进入空白播放页面的问题
+    // 使用 landscapeSidebarVisible（与触控分区一致），避免 tvUnifiedPanelOpen 造成双重侧边栏
     val currentIdx by viewModel.currentIdx.collectAsState()
     LaunchedEffect(isLandscape, fileLoaded, currentIdx, anyPanelOpen) {
         if (isLandscape && currentIdx < 0 && !fileLoaded && !anyPanelOpen && !multiViewState.active) {
-            viewModel.toggleTvUnifiedPanel()
+            viewModel.setLandscapeSidebarVisible(true)
         }
     }
 
