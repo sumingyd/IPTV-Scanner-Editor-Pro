@@ -970,10 +970,10 @@ class MpvPlayback:
             return
         self._facade._media_info_scheduled = True
 
-        if hasattr(self, '_live_info_timer') and self._facade._live_info_timer:
+        if hasattr(self._facade, '_live_info_timer') and self._facade._live_info_timer:
             self._facade._live_info_timer.stop()
 
-        if hasattr(self, '_media_info_timer') and self._facade._media_info_timer:
+        if hasattr(self._facade, '_media_info_timer') and self._facade._media_info_timer:
             self._facade._media_info_timer.stop()
             self._facade._media_info_timer.deleteLater()
         self._facade._media_info_timer = QTimer()
@@ -1183,7 +1183,7 @@ class MpvPlayback:
                 self._facade._set_mpv_string('http-proxy', '')
 
     def _start_live_info_timer(self):
-        if hasattr(self, '_live_info_timer') and self._facade._live_info_timer:
+        if hasattr(self._facade, '_live_info_timer') and self._facade._live_info_timer:
             self._facade._live_info_timer.timeout.disconnect()
             self._facade._live_info_timer.stop()
             self._facade._live_info_timer.deleteLater()
@@ -1193,14 +1193,14 @@ class MpvPlayback:
         self._facade._live_info_timer.start(500)
 
     def _stop_live_info_timer(self):
-        if hasattr(self, '_live_info_timer') and self._facade._live_info_timer:
+        if hasattr(self._facade, '_live_info_timer') and self._facade._live_info_timer:
             self._facade._live_info_timer.stop()
 
     def _update_live_info(self):
         if self._facade._terminated or not self._facade.mpv_handle:
             return
 
-        self._facade._static_info_counter = getattr(self, '_static_info_counter', 0) + 1
+        self._facade._static_info_counter = getattr(self._facade, '_static_info_counter', 0) + 1
         if self._facade._static_info_counter >= self._facade._STATIC_INFO_REFRESH_TICKS:
             self._facade._static_info_counter = 0
             info = self._facade.get_live_media_info()
@@ -1836,7 +1836,7 @@ class MpvPlayback:
             if hasattr(self, 'event_timer') and self._facade.event_timer and not self._facade.event_timer.isActive():
                 self._facade.event_timer.start(100)
 
-            if hasattr(self, '_media_info_timer') and self._facade._media_info_timer:
+            if hasattr(self._facade, '_media_info_timer') and self._facade._media_info_timer:
                 self._facade._media_info_timer.stop()
 
             self._facade._media_info_scheduled = False
@@ -2215,9 +2215,9 @@ class MpvPlayback:
                 if self._facade.mpv_handle and not self._facade._terminated:
                     _mpv_send_command(self._facade.mpv_handle, ['stop'])
 
-            if hasattr(self, '_media_info_timer') and self._facade._media_info_timer:
+            if hasattr(self._facade, '_media_info_timer') and self._facade._media_info_timer:
                 self._facade._media_info_timer.stop()
-            if hasattr(self, '_live_info_timer') and self._facade._live_info_timer:
+            if hasattr(self._facade, '_live_info_timer') and self._facade._live_info_timer:
                 self._facade._live_info_timer.stop()
 
             self._facade.is_playing = False

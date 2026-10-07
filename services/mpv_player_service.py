@@ -141,6 +141,15 @@ class MpvPlayerController(QObject):
     # 本地文件结束时需保存播放位置：参数 (url, position_sec, duration_sec)
     local_file_position_to_save = Signal(str, float, float)
 
+    _MC_PRESETS = {
+        'off': None,
+        'low': 'mi_mode=blend',
+        'medium': 'mi_mode=mci:mc_mode=obmc:me=dsr',
+        'high': 'mi_mode=mci:mc_mode=aobmc:me=hexbs',
+    }
+
+    _STATIC_INFO_REFRESH_TICKS = 10
+
     def __init__(self, video_widget, channel_model=None):
         super().__init__()
         self.logger = global_logger
@@ -241,23 +250,19 @@ class MpvPlayerController(QObject):
     def _is_network_url(self, url):
         return self._playback._is_network_url(url)
 
-    @staticmethod
-    def _is_network_drive(path):
+    def _is_network_drive(self, path):
         return self._playback._is_network_drive(path)
 
-    @staticmethod
-    def _check_path_reachability_sync(url):
+    def _check_path_reachability_sync(self, url):
         return self._playback._check_path_reachability_sync(url)
 
     def _check_path_reachability(self, url):
         return self._playback._check_path_reachability(url)
 
-    @staticmethod
-    def _fix_unc_path(path):
+    def _fix_unc_path(self, path):
         return self._playback._fix_unc_path(path)
 
-    @staticmethod
-    def _detect_bdmv_path(path):
+    def _detect_bdmv_path(self, path):
         return self._playback._detect_bdmv_path(path)
 
     def _normalize_url(self, url):
@@ -374,12 +379,10 @@ class MpvPlayerController(QObject):
     def _check_thumbnail_saved(self, filepath):
         return self._playback._check_thumbnail_saved(filepath)
 
-    @staticmethod
-    def get_thumbnail_path(url):
+    def get_thumbnail_path(self, url):
         return self._playback.get_thumbnail_path(url)
 
-    @staticmethod
-    def _guess_protocol(url):
+    def _guess_protocol(self, url):
         return self._playback._guess_protocol(url)
 
     def _get_mpv_property_string(self, property_name):
@@ -766,8 +769,7 @@ class MpvPlayerController(QObject):
     def update_osd_theme(self):
         return self._playback.update_osd_theme()
 
-    @staticmethod
-    def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float,
+    def detect_hdr_type(self, colormatrix: str, gamma: str, sig_peak: float,
                         video_format: str = '', primaries: str = '') -> str:
         return self._hdr.detect_hdr_type(colormatrix, gamma, sig_peak, video_format, primaries)
 
