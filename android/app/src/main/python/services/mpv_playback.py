@@ -2,6 +2,7 @@
 
 import ctypes
 import os
+import threading
 
 from PySide6.QtCore import QTimer
 from core.log_manager import global_logger as logger
@@ -197,7 +198,7 @@ class MpvPlayback:
             return None
         return result[0]
 
-    def _check_path_reachability_sync(url):
+    def _check_path_reachability_sync(self, url):
         """快速检查 HTTP/HTTPS 主机是否可达。
 
         返回 None 表示可达或无法判断，返回错误字符串表示不可达。
@@ -241,6 +242,7 @@ class MpvPlayback:
         except Exception as _e:
             logger.debug(f"unexpected error: {_e}")
 
+    @staticmethod
     def _detect_bdmv_path(path):
         if not path or not os.path.isdir(path):
             return None
@@ -628,7 +630,7 @@ class MpvPlayback:
             except Exception as e:
                 self._facade.logger.debug(f"HDR诊断读取失败: {e}")
 
-            self._facade.event_timer = QTimer(self)
+            self._facade.event_timer = QTimer()
             self._facade.event_timer.timeout.connect(self._facade._process_events)
             self._facade.event_timer.start(100)
 
@@ -644,7 +646,7 @@ class MpvPlayback:
                 self._facade.mpv_handle = None
             return False
 
-    def _fix_unc_path(path):
+    def _fix_unc_path(self, path):
         if not path:
             return path
         if not is_windows():
@@ -667,7 +669,7 @@ class MpvPlayback:
         except Exception:
             return 0, 0
 
-    def _guess_protocol(url):
+    def _guess_protocol(self, url):
         if not url:
             return '未知'
         u = url.lower()
@@ -969,13 +971,13 @@ class MpvPlayback:
             return
         self._facade._media_info_scheduled = True
 
-        if hasattr(self, '_live_info_timer') and self._facade._live_info_timer:
+        if hasattr(self._facade, '_live_info_timer') and self._facade._live_info_timer:
             self._facade._live_info_timer.stop()
 
-        if hasattr(self, '_media_info_timer') and self._facade._media_info_timer:
+        if hasattr(self._facade, '_media_info_timer') and self._facade._media_info_timer:
             self._facade._media_info_timer.stop()
             self._facade._media_info_timer.deleteLater()
-        self._facade._media_info_timer = QTimer(self)
+        self._facade._media_info_timer = QTimer()
         self._facade._media_info_timer.singleShot(1000, self._facade._start_live_info_timer)
 
         QTimer.singleShot(3000, self._facade._capture_thumbnail)
@@ -1182,24 +1184,24 @@ class MpvPlayback:
                 self._facade._set_mpv_string('http-proxy', '')
 
     def _start_live_info_timer(self):
-        if hasattr(self, '_live_info_timer') and self._facade._live_info_timer:
+        if hasattr(self._facade, '_live_info_timer') and self._facade._live_info_timer:
             self._facade._live_info_timer.timeout.disconnect()
             self._facade._live_info_timer.stop()
             self._facade._live_info_timer.deleteLater()
         self._facade._static_info_counter = self._facade._STATIC_INFO_REFRESH_TICKS
-        self._facade._live_info_timer = QTimer(self)
+        self._facade._live_info_timer = QTimer()
         self._facade._live_info_timer.timeout.connect(self._facade._update_live_info)
         self._facade._live_info_timer.start(500)
 
     def _stop_live_info_timer(self):
-        if hasattr(self, '_live_info_timer') and self._facade._live_info_timer:
+        if hasattr(self._facade, '_live_info_timer') and self._facade._live_info_timer:
             self._facade._live_info_timer.stop()
 
     def _update_live_info(self):
         if self._facade._terminated or not self._facade.mpv_handle:
             return
 
-        self._facade._static_info_counter = getattr(self, '_static_info_counter', 0) + 1
+        self._facade._static_info_counter = getattr(self._facade, '_static_info_counter', 0) + 1
         if self._facade._static_info_counter >= self._facade._STATIC_INFO_REFRESH_TICKS:
             self._facade._static_info_counter = 0
             info = self._facade.get_live_media_info()
@@ -1639,7 +1641,7 @@ class MpvPlayback:
     def get_speed(self):
         return self._facade._current_speed
 
-    def get_thumbnail_path(url):
+    def get_thumbnail_path(self, url):
         if not url:
             return None
         import hashlib
@@ -1835,7 +1837,7 @@ class MpvPlayback:
             if hasattr(self, 'event_timer') and self._facade.event_timer and not self._facade.event_timer.isActive():
                 self._facade.event_timer.start(100)
 
-            if hasattr(self, '_media_info_timer') and self._facade._media_info_timer:
+            if hasattr(self._facade, '_media_info_timer') and self._facade._media_info_timer:
                 self._facade._media_info_timer.stop()
 
             self._facade._media_info_scheduled = False
@@ -2214,9 +2216,9 @@ class MpvPlayback:
                 if self._facade.mpv_handle and not self._facade._terminated:
                     _mpv_send_command(self._facade.mpv_handle, ['stop'])
 
-            if hasattr(self, '_media_info_timer') and self._facade._media_info_timer:
+            if hasattr(self._facade, '_media_info_timer') and self._facade._media_info_timer:
                 self._facade._media_info_timer.stop()
-            if hasattr(self, '_live_info_timer') and self._facade._live_info_timer:
+            if hasattr(self._facade, '_live_info_timer') and self._facade._live_info_timer:
                 self._facade._live_info_timer.stop()
 
             self._facade.is_playing = False
