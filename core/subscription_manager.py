@@ -422,49 +422,60 @@ class SubscriptionManager(Singleton):
         import requests
         from utils.http_session import get as _http_get
 
-        try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': '*/*'
-            }
-            
-            logger.info(f"正在下载EPG数据: {epg_url}")
-            response = _http_get(epg_url, timeout=30, headers=headers, allow_redirects=True)
-            response.raise_for_status()
-            
-            content = response.content
-
-            # requests 在 Content-Encoding: gzip 时已自动解压，
-            # 仅对 URL 以 .gz 结尾且内容仍带有 gzip 魔术字节的情况手动解压
-            content_encoding = response.headers.get('Content-Encoding', '')
-            url_is_gz = epg_url.lower().endswith('.gz')
-            already_decompressed = 'gzip' in content_encoding.lower()
-            if url_is_gz and not already_decompressed and len(content) >= 2 and content[0] == 0x1f and content[1] == 0x8b:
-                import gzip
-                from io import BytesIO
-                with gzip.GzipFile(fileobj=BytesIO(content)) as f:
-                    content = f.read()
-            
-            try:
-                epg_content = content.decode('utf-8')
-            except UnicodeDecodeError:
-                try:
-                    epg_content = content.decode('gbk')
-                except UnicodeDecodeError:
-                    logger.error("无法解码EPG文件内容")
-                    return {}
-            
-            if not epg_content.strip():
-                return {}
-            
-            return self._parse_epg_content(epg_content)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': '*/*'
+        }
         
-        except requests.exceptions.RequestException as e:
-            logger.error(f"EPG数据下载失败: {e}")
-            return {}
-        except Exception as e:
-            logger.error(f"加载EPG数据失败: {e}")
-            return {}
+        max_retries = 3
+        last_error = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                logger.info(f"正在下载EPG数据: {epg_url}" + (f" (第{attempt}次尝试)" if attempt > 1 else ""))
+                response = _http_get(epg_url, timeout=300, headers=headers, allow_redirects=True)
+                response.raise_for_status()
+                
+                content = response.content
+
+                content_encoding = response.headers.get('Content-Encoding', '')
+                url_is_gz = epg_url.lower().endswith('.gz')
+                already_decompressed = 'gzip' in content_encoding.lower()
+                if url_is_gz and not already_decompressed and len(content) >= 2 and content[0] == 0x1f and content[1] == 0x8b:
+                    import gzip
+                    from io import BytesIO
+                    with gzip.GzipFile(fileobj=BytesIO(content)) as f:
+                        content = f.read()
+                
+                try:
+                    epg_content = content.decode('utf-8')
+                except UnicodeDecodeError:
+                    try:
+                        epg_content = content.decode('gbk')
+                    except UnicodeDecodeError:
+                        logger.error("无法解码EPG文件内容")
+                        return {}
+                
+                if not epg_content.strip():
+                    return {}
+                
+                logger.info(f"EPG数据下载成功: {len(content)} 字节")
+                return self._parse_epg_content(epg_content)
+            
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                logger.warning(f"EPG数据下载失败(第{attempt}次): {e}")
+                if attempt < max_retries:
+                    import time
+                    time.sleep(3)
+            except Exception as e:
+                last_error = e
+                logger.error(f"加载EPG数据失败(第{attempt}次): {e}")
+                if attempt < max_retries:
+                    import time
+                    time.sleep(3)
+        
+        logger.error(f"EPG数据下载最终失败(共{max_retries}次): {last_error}")
+        return {}
     
     def _parse_epg_content(self, content: str) -> dict:
         """解析EPG内容

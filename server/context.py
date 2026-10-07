@@ -868,7 +868,11 @@ class ServerContext:
                     if epg_url_from_m3u:
                         logger.info(f"M3U 源 {redact_url(src_url)} 包含 EPG 地址: {redact_url(epg_url_from_m3u)}")
                         try:
-                            self.load_single_epg(epg_url_from_m3u)
+                            if hasattr(self, '_epg_parser') and self._epg_parser:
+                                self._epg_parser.load_single_epg(epg_url_from_m3u)
+                            else:
+                                from core.subscription_manager import SubscriptionManager
+                                SubscriptionManager().load_single_epg(epg_url_from_m3u)
                         except Exception as epg_e:
                             logger.warning(f"加载 M3U 内嵌 EPG 失败: {epg_e}")
                     # 更新该源的 last_update 时间戳（无论是否解析到频道，HTTP 拉取已成功）
