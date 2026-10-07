@@ -10,6 +10,7 @@ import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DecoderAudioRenderer
 
 class Mp2AudioRenderer(
+    private val appContext: android.content.Context,
     eventHandler: Handler,
     eventListener: AudioRendererEventListener,
     audioSink: AudioSink
@@ -26,7 +27,23 @@ class Mp2AudioRenderer(
     }
 
     override fun createDecoder(format: Format, cryptoConfig: CryptoConfig?): Mp2Decoder {
-        return Mp2Decoder(format.sampleRate, format.channelCount)
+        return Mp2Decoder(appContext, format.sampleRate, format.channelCount)
+    }
+
+    private var renderCalls = 0L
+
+    override fun render(positionUs: Long, elapsedRealtimeUs: Long) {
+        renderCalls++
+        if (renderCalls % 100 == 1L) {
+            try {
+                android.util.Log.i("Mp2AudioRenderer", "render call #$renderCalls")
+                val dir = appContext.getExternalFilesDir(null)
+                val f = java.io.File(dir, "mp2_diag.log")
+                val ts = java.text.SimpleDateFormat("MM-dd HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+                f.appendText("$ts render#$renderCalls\n")
+            } catch (_: Exception) {}
+        }
+        super.render(positionUs, elapsedRealtimeUs)
     }
 
     override fun getOutputFormat(decoder: Mp2Decoder): Format {

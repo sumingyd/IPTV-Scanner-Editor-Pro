@@ -67,6 +67,17 @@ class ExoPlayerWrapper(
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private fun isMainThread() = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
 
+    /** MP2 音频链路兜底：音频时钟 50s 未启动（Mp2Decoder 无 PCM 产出）时回调，由上层切换 MPV 内核 */
+    var onStalledAudio: (() -> Unit)? = null
+    private var audioClockStartedForCurrentPlay = false
+    private val stalledAudioCheckRunnable = Runnable {
+        if (!audioClockStartedForCurrentPlay) {
+            Log.e(TAG, "AUDIO clock never started (Mp2 audio stalled), requesting kernel fallback")
+            diagLog("MP2 audio stalled: audio clock never started, fallback")
+            onStalledAudio?.invoke()
+        }
+    }
+
     /** 音频焦点：与 MpvController 同一套抢占暂停/回播语义 */
     private val audioFocus = AudioFocusHelper(context).also { h ->
         h.onPause = { setPause(true) }
@@ -191,6 +202,24 @@ class ExoPlayerWrapper(
 
     override fun getAudioSessionId(): Int {
         return try { player?.audioSessionId ?: 0 } catch (_: Exception) { 0 }
+    }
+
+
+    // -----------------------------------------------------------------
+    // 诊断文件日志（EMUI logd 限流吞应用日志，写文件保证可回溯）
+    // -----------------------------------------------------------------
+    private val diagLock = Any()
+    private fun diagLog(msg: String) {
+        try {
+            synchronized(diagLock) {
+                val dir = context.getExternalFilesDir(null) ?: return
+                val f = java.io.File(dir, "exoplayer_diag.log")
+                if (f.length() > 512 * 1024) f.delete()
+                val ts = java.text.SimpleDateFormat("MM-dd HH:mm:ss.SSS", java.util.Locale.US)
+                    .format(java.util.Date())
+                f.appendText("$ts $msg\n")
+            }
+        } catch (_: Exception) {}
     }
 
     private fun ensurePlayer() {
@@ -322,8 +351,130 @@ class ExoPlayerWrapper(
                         override fun onVideoSizeChanged(videoSize: VideoSize) {
                             _videoWidth.value = videoSize.width
                             _videoHeight.value = videoSize.height
+                            Log.i(TAG, "onVideoSizeChanged: ${videoSize.width}x${videoSize.height}")
+                        }
+
+                        override fun onRenderedFirstFrame() {
+                            Log.i(TAG, "VIDEO first frame rendered")
                         }
                     })
+                // 视频管线诊断（AnalyticsListener 携带解码器/帧计数细节）
+                p.addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+                    override fun onVideoEnabled(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        decoderCounters: androidx.media3.exoplayer.DecoderCounters
+                    ) {
+                        Log.i(TAG, "VIDEO enabled"); diagLog("VIDEO enabled")
+                    }
+
+                    override fun onRenderedFirstFrame(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        output: Any,
+                        renderTimeMs: Long
+                    ) {
+                        Log.i(TAG, "VIDEO first frame rendered to $output"); diagLog("VIDEO first frame")
+                    }
+
+                    override fun onVideoInputFormatChanged(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        format: androidx.media3.common.Format,
+                        decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
+                    ) {
+                        Log.i(TAG, "VIDEO input format: ${format.sampleMimeType} ${format.width}x${format.height}"); diagLog("format: ${format.sampleMimeType} ${format.width}x${format.height}")
+                    }
+
+                    override fun onDroppedVideoFrames(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        droppedFrames: Int,
+                        elapsedMs: Long
+                    ) {
+                        Log.w(TAG, "VIDEO dropped frames: $droppedFrames in ${elapsedMs}ms")
+                    }
+
+                    override fun onIsLoadingChanged(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        isLoading: Boolean
+                    ) {
+                        Log.i(TAG, "LOADER isLoading=$isLoading"); diagLog("isLoading=$isLoading")
+                    }
+
+                    override fun onLoadError(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        loadEventInfo: androidx.media3.exoplayer.source.LoadEventInfo,
+                        mediaLoadData: androidx.media3.exoplayer.source.MediaLoadData,
+                        error: java.io.IOException,
+                        wasCanceled: Boolean
+                    ) {
+                        Log.e(TAG, "LOADER error: ${error.javaClass.simpleName}: ${error.message}"); diagLog("LOAD ERROR: ${error.javaClass.simpleName}: ${error.message}")
+                    }
+
+                    override fun onLoadCompleted(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        loadEventInfo: androidx.media3.exoplayer.source.LoadEventInfo,
+                        mediaLoadData: androidx.media3.exoplayer.source.MediaLoadData
+                    ) {
+                        Log.i(TAG, "LOADER completed: bytes=${loadEventInfo.bytesLoaded}"); diagLog("loadCompleted bytes=${loadEventInfo.bytesLoaded}")
+                    }
+
+                    override fun onUpstreamDiscarded(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        mediaLoadData: androidx.media3.exoplayer.source.MediaLoadData
+                    ) {
+                        Log.w(TAG, "LOADER upstream discarded")
+                    }
+
+                    override fun onAudioEnabled(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        audioCounters: androidx.media3.exoplayer.DecoderCounters
+                    ) {
+                        Log.i(TAG, "AUDIO enabled"); diagLog("AUDIO enabled")
+                    }
+
+                    override fun onAudioDisabled(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        audioCounters: androidx.media3.exoplayer.DecoderCounters
+                    ) {
+                        Log.w(TAG, "AUDIO disabled: rendered=${audioCounters.renderedOutputBufferCount}")
+                        diagLog("AUDIO disabled rendered=${audioCounters.renderedOutputBufferCount}")
+                    }
+
+                    override fun onAudioDecoderInitialized(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        decoderName: String,
+                        initializedTimestampMs: Long,
+                        initializationDurationMs: Long
+                    ) {
+                        Log.i(TAG, "AUDIO decoder initialized: $decoderName")
+                        diagLog("AUDIO decoder: $decoderName (${initializationDurationMs}ms)")
+                    }
+
+                    override fun onAudioPositionAdvancing(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        playoutStartSystemTimeMs: Long
+                    ) {
+                        audioClockStartedForCurrentPlay = true
+                        mainHandler.removeCallbacks(stalledAudioCheckRunnable)
+                        Log.i(TAG, "AUDIO position advancing"); diagLog("AUDIO position advancing")
+                    }
+
+                    override fun onAudioInputFormatChanged(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        format: androidx.media3.common.Format,
+                        decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
+                    ) {
+                        Log.i(TAG, "AUDIO format: ${format.sampleMimeType} rate=${format.sampleRate} ch=${format.channelCount}")
+                        diagLog("AUDIO format: ${format.sampleMimeType} rate=${format.sampleRate} ch=${format.channelCount}")
+                    }
+
+                    override fun onAudioUnderrun(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        bufferSize: Int,
+                        bufferSizeBytes: Long,
+                        elapsedBufferTimeMs: Long
+                    ) {
+                        Log.w(TAG, "AUDIO underrun"); diagLog("AUDIO underrun")
+                    }
+                })
                 }
             Log.i(TAG, "ExoPlayer initialized, hwdec=$hardwareDecodeEnabled")
             // 确保初始音量正确设置
@@ -344,6 +495,10 @@ class ExoPlayerWrapper(
         _eofReached.value = false
         _fileLoaded.value = false
         audioFocus.request()
+        // MP2 音频兜底检查：正常播放时音频时钟数秒内启动
+        audioClockStartedForCurrentPlay = false
+        mainHandler.removeCallbacks(stalledAudioCheckRunnable)
+        mainHandler.postDelayed(stalledAudioCheckRunnable, 50_000L)
         if (!isMainThread()) {
             mainHandler.post { playFileOnMainThread(url) }
             return
@@ -358,21 +513,25 @@ class ExoPlayerWrapper(
             return
         }
         try {
-            Log.i(TAG, "playFile: $url")
+            Log.i(TAG, "playFile: $url"); diagLog("playFile: $url")
             val mediaItem = MediaItem.Builder().setUri(Uri.parse(url)).build()
             p.setMediaItem(mediaItem)
             p.prepare()
             p.playWhenReady = true
             _paused.value = false
             _mediaTitle.value = url.substringAfterLast('/').substringBefore('?')
-            // 诊断：延迟检查音轨和音量状态
-            mainHandler.postDelayed({
+            // 诊断：周期采样播放状态（pos/渲染帧数随时间变化，定位时钟或释放问题）
+            for (i in 1..6) mainHandler.postDelayed({
                 try {
                     val audioGroups = p.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+                    val vCounters = p.videoDecoderCounters
                     Log.i(TAG, "EXO audio diag: volume=${p.volume}, audioSessionId=${p.audioSessionId}, " +
                         "audioGroups=${audioGroups.size}, " +
                         "selected=${audioGroups.count { it.isSelected }}, " +
-                        "isPlaying=${p.isPlaying}, playWhenReady=${p.playWhenReady}")
+                        "isPlaying=${p.isPlaying}, playWhenReady=${p.playWhenReady}, " +
+                        "playbackState=${p.playbackState}, pos=${p.currentPosition}ms, " +
+                        "renderedOut=${vCounters?.renderedOutputBufferCount}, droppedBuf=${vCounters?.droppedBufferCount}")
+                    diagLog("diag: state=${p.playbackState} pos=${p.currentPosition} rendered=${vCounters?.renderedOutputBufferCount} isPlaying=${p.isPlaying}")
                     audioGroups.forEachIndexed { i, g ->
                         Log.i(TAG, "  audioGroup[$i]: selected=${g.isSelected}, length=${g.length}, " +
                             "supported=${(0 until g.length).map { g.isTrackSupported(it) }}")
@@ -380,7 +539,7 @@ class ExoPlayerWrapper(
                 } catch (e: Exception) {
                     Log.e(TAG, "EXO audio diag failed", e)
                 }
-            }, 3000L)
+            }, 2000L * i)
         } catch (e: Exception) {
             Log.e(TAG, "playFile failed: $url", e)
         }
@@ -392,6 +551,7 @@ class ExoPlayerWrapper(
         _paused.value = true
         _timePos.value = 0.0
         audioFocus.abandon()
+        mainHandler.removeCallbacks(stalledAudioCheckRunnable)
         if (!isMainThread()) {
             mainHandler.post { player?.stop() }
             return

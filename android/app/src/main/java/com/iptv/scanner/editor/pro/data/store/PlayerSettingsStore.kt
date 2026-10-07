@@ -58,6 +58,13 @@ class PlayerSettingsStore(private val prefs: SharedPreferences) {
         prefs.edit().putString(KEY_RTSP_TRANSPORT, transport).apply()
     }
 
+    // ExoPlayer 视频渲染视图（true=SurfaceView, false=TextureView）
+    fun getExoSurfaceView(): Boolean = prefs.getBoolean(KEY_EXO_SURFACE_VIEW, true)
+
+    fun setExoSurfaceView(useSurfaceView: Boolean) {
+        prefs.edit().putBoolean(KEY_EXO_SURFACE_VIEW, useSurfaceView).apply()
+    }
+
     // -----------------------------------------------------------------
     // 反交错
     // -----------------------------------------------------------------
@@ -229,6 +236,7 @@ class PlayerSettingsStore(private val prefs: SharedPreferences) {
         private const val DEFAULT_SPEED_PARAMS = "0.5,3,0.25,0.5,1,2"
         private const val KEY_RTSP_TRANSPORT = "rtsp_transport"
         private const val DEFAULT_RTSP_TRANSPORT = "tcp"
+        private const val KEY_EXO_SURFACE_VIEW = "exo_surface_view"
         private const val KEY_DEINTERLACE = "deinterlace"
         private const val DEFAULT_DEINTERLACE = "no"
         private const val KEY_PER_CHANNEL_SETTINGS = "per_channel_player_settings"

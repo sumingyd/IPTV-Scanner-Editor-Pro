@@ -127,6 +127,8 @@ class UserPrefs private constructor() {
     fun setHdrMode(mode: String) = playerSettingsStore.setHdrMode(mode)
     fun getRtspTransport(): String = playerSettingsStore.getRtspTransport()
     fun setRtspTransport(transport: String) = playerSettingsStore.setRtspTransport(transport)
+    fun getExoSurfaceView(): Boolean = playerSettingsStore.getExoSurfaceView()
+    fun setExoSurfaceView(useSurfaceView: Boolean) = playerSettingsStore.setExoSurfaceView(useSurfaceView)
     fun getDeinterlace(): String = playerSettingsStore.getDeinterlace()
     fun setDeinterlace(value: String) = playerSettingsStore.setDeinterlace(value)
     fun resetPlayerSettings() = playerSettingsStore.resetPlayerSettings()

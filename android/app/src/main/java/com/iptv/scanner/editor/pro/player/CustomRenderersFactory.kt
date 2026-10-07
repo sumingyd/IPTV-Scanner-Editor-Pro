@@ -24,6 +24,7 @@ class CustomRenderersFactory(context: Context) : DefaultRenderersFactory(context
             context, extensionRendererMode, mediaCodecSelector,
             enableFloatOutput, audioSink, eventHandler, eventListener, out
         )
-        out.add(Mp2AudioRenderer(eventHandler, eventListener, audioSink))
+        // 诊断实验：临时禁用自定义 MP2 音频渲染器，验证它是否是播放时钟卡死的元凶
+        // out.add(Mp2AudioRenderer(context, eventHandler, eventListener, audioSink))
     }
 }
