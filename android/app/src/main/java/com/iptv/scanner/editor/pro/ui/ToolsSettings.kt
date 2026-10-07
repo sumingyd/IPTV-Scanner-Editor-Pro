@@ -208,6 +208,11 @@ internal fun PortraitToolsScreen(
     val epgSources by viewModel.epgSources.collectAsState()
     val channels by viewModel.channels.collectAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.loadSources()
+        viewModel.loadEpgSources()
+    }
+
     // 编辑模式（APTV 配置中心：编辑态显示删除按钮）
     var editMode by remember { mutableStateOf(false) }
     var deleteTargetIdx by remember { mutableStateOf(-1) }
