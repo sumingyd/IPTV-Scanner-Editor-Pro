@@ -145,6 +145,7 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -178,13 +179,14 @@ internal fun PortraitBottomTabBar(
 ) {
     val portraitTab by viewModel.portraitTab.collectAsState()
     val bgColor = MaterialTheme.colorScheme.surface
-    val accentColor = MaterialTheme.colorScheme.primary
+    // APTV 风格竖屏强调色（红粉），不影响横屏/TV 主题
+    val accentColor = AptvAccent
     val tabShape = RoundedCornerShape(20.dp)
     val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
 
     val tabItems = listOf(
-        Triple(Icons.Default.Home, stringResource(R.string.tab_home), PortraitTab.HOME),
-        Triple(Icons.Default.VideoLibrary, stringResource(R.string.tab_list), PortraitTab.LIST),
+        Triple(Icons.Default.Language, stringResource(R.string.tab_home), PortraitTab.CHANNELS),
+        Triple(Icons.Default.Favorite, stringResource(R.string.tab_list), PortraitTab.FAVORITES),
         Triple(Icons.Default.Build, stringResource(R.string.tab_tools), PortraitTab.TOOLS),
         Triple(Icons.Default.Settings, stringResource(R.string.tab_settings), PortraitTab.SETTINGS)
     )
@@ -201,9 +203,6 @@ internal fun PortraitBottomTabBar(
                     .then(if (isSelected) Modifier.border(1.dp, accentColor.copy(alpha = 0.50f), RoundedCornerShape(10.dp)) else Modifier)
                     .clickable {
                         viewModel.setPortraitTab(tab)
-                        if (tab == PortraitTab.HOME) {
-                            viewModel.showHomeScreen()
-                        }
                     }
                     .padding(horizontal = 18.dp, vertical = 4.dp)
             ) {
@@ -302,7 +301,7 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "返回首页",
-                    tint = oc.iconTint,
+                    tint = AptvAccent,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -423,6 +422,18 @@ internal fun PortraitControlsV2(viewModel: AppViewModel) {
                     modifier = Modifier.size(24.dp)
                 )
             }
+            // 播放工具按钮：截图/切片/EPG时间轴/搜索/提醒/续播/书签等
+            IconButton(
+                onClick = { viewModel.togglePlayerToolsPanel() },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = "播放工具",
+                    tint = oc.iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             // 播放器设置按钮：打开完整设置面板（含内核选择/VO/HWDEC/HDR 等）
             IconButton(
                 onClick = { viewModel.togglePlayerSettings() },
@@ -453,7 +464,7 @@ internal fun PortraitControlsV2(viewModel: AppViewModel) {
                     viewModel.seekProgress(dragPercent * 100f)
                     dragging = false
                 },
-                accentColor = oc.accent,
+                accentColor = AptvAccent,
                 trackColor = oc.trackInactive,
                 modifier = Modifier
                     .weight(1f)

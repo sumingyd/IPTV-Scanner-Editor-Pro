@@ -391,7 +391,7 @@ private fun QuickActionGrid(
     val oc = rememberPlayerOverlayColors()
     val actions = listOf(
         QuickAction(Icons.Default.VideoLibrary, stringResource(R.string.quick_channel_list), stringResource(R.string.quick_channel_list_desc)) {
-            viewModel.setPortraitTab(PortraitTab.LIST)
+            viewModel.setPortraitTab(PortraitTab.CHANNELS)
         },
         QuickAction(Icons.Default.Movie, "本地文件", "播放视频/音频") {
             if (!viewModel.isSafAvailable()) {
@@ -692,9 +692,11 @@ internal fun MiniPlayerBar(
     val progTitle = currentProgram?.title?.ifEmpty { null } ?: "精彩节目"
 
     Surface(
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 8.dp)
             .height(48.dp)
             .clickable(onClick = onClick)
     ) {
@@ -709,7 +711,7 @@ internal fun MiniPlayerBar(
                 Icon(
                     imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                     contentDescription = if (isPaused) "播放" else "暂停",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = AptvAccent,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -753,12 +755,12 @@ internal fun MiniPlayerBar(
             // 分组标签
             if (groupName.isNotEmpty()) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    color = AptvAccent.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(3.dp)
                 ) {
                     Text(
                         text = groupName,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = AptvAccent,
                         fontSize = 9.sp,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                         maxLines = 1
@@ -780,13 +782,15 @@ internal fun MiniPlayerBar(
 /** 迷你信息标签 */
 @Composable
 internal fun MiniBadge(label: String) {
+    val aptvStyle = LocalAptvStyle.current
+    val badgeColor = if (aptvStyle) AptvAccent else MaterialTheme.colorScheme.primary
     Surface(
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+        color = badgeColor.copy(alpha = 0.15f),
         shape = RoundedCornerShape(3.dp)
     ) {
         Text(
             text = label,
-            color = MaterialTheme.colorScheme.primary,
+            color = badgeColor,
             fontSize = 9.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),

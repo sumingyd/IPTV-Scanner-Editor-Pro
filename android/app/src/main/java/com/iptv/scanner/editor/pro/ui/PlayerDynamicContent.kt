@@ -205,7 +205,8 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
     val tabs = if (isLocalFile) {
         listOf(stringResource(R.string.tab_info), stringResource(R.string.tab_recent_files))
     } else {
-        listOf(stringResource(R.string.tab_category), stringResource(R.string.tab_channel), stringResource(R.string.tab_program), stringResource(R.string.tab_info))
+        // APTV 竖屏播放页：节目单常驻为第一页
+        listOf(stringResource(R.string.tab_program), stringResource(R.string.tab_channel), stringResource(R.string.tab_category), stringResource(R.string.tab_info))
     }
 
     // 如果 selectedTab 超出范围（切换模式时），重置为 0
@@ -214,73 +215,92 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Tab 栏
+        // Tab 栏（APTV 式：文字 + 底部指示条）
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(oc.infoBarBg)
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             tabs.forEachIndexed { index, label ->
                 val isSelected = index == selectedTab
-                Surface(
-                    color = if (isSelected) oc.accent.copy(alpha = 0.15f) else Color.Transparent,
-                    shape = RoundedCornerShape(6.dp),
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .weight(1f)
                         .clickable { selectedTab = index }
+                        .padding(vertical = 8.dp)
                 ) {
                     Text(
                         text = label,
-                        color = if (isSelected) oc.accent else oc.textSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                        color = if (isSelected) oc.textPrimary else oc.textSecondary,
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier.padding(vertical = 6.dp)
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(28.dp)
+                            .height(3.dp)
+                            .background(
+                                if (isSelected) AptvAccent else Color.Transparent,
+                                RoundedCornerShape(2.dp)
+                            )
                     )
                 }
             }
         }
         // 分隔线
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
-        // Tab 内容
+        // Tab 内容（iOS 式淡入淡出转场）
         Box(modifier = Modifier.fillMaxSize()) {
             if (isLocalFile) {
-                when (selectedTab) {
-                    0 -> {
-                        val duration by player.duration.collectAsState()
-                        val timePos by player.timePos.collectAsState()
-                        val videoWidth by player.videoWidth.collectAsState()
-                        val videoHeight by player.videoHeight.collectAsState()
-                        PortraitLocalFileInfo(
-                            viewModel = viewModel,
-                            duration = duration,
-                            timePos = timePos,
-                            videoWidth = videoWidth,
-                            videoHeight = videoHeight
-                        )
+                androidx.compose.animation.Crossfade(
+                    targetState = selectedTab,
+                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+                    label = "localTab"
+                ) { tab ->
+                    when (tab) {
+                        0 -> {
+                            val duration by player.duration.collectAsState()
+                            val timePos by player.timePos.collectAsState()
+                            val videoWidth by player.videoWidth.collectAsState()
+                            val videoHeight by player.videoHeight.collectAsState()
+                            PortraitLocalFileInfo(
+                                viewModel = viewModel,
+                                duration = duration,
+                                timePos = timePos,
+                                videoWidth = videoWidth,
+                                videoHeight = videoHeight
+                            )
+                        }
+                        1 -> PortraitRecentLocalFiles(viewModel = viewModel)
                     }
-                    1 -> PortraitRecentLocalFiles(viewModel = viewModel)
                 }
             } else {
-                when (selectedTab) {
-                    0 -> PortraitCategoryContent(viewModel = viewModel)
-                    1 -> PortraitChannelOnlyList(viewModel = viewModel)
-                    2 -> PortraitEpgContent(viewModel = viewModel)
-                    3 -> {
-                        val duration by player.duration.collectAsState()
-                        val timePos by player.timePos.collectAsState()
-                        val videoWidth by player.videoWidth.collectAsState()
-                        val videoHeight by player.videoHeight.collectAsState()
-                        PortraitPlayerInfoPanel(
-                            viewModel = viewModel,
-                            duration = duration,
-                            timePos = timePos,
-                            videoWidth = videoWidth,
-                            videoHeight = videoHeight
-                        )
+                androidx.compose.animation.Crossfade(
+                    targetState = selectedTab,
+                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+                    label = "channelTab"
+                ) { tab ->
+                    when (tab) {
+                        0 -> PortraitEpgContent(viewModel = viewModel)
+                        1 -> PortraitChannelOnlyList(viewModel = viewModel)
+                        2 -> PortraitCategoryContent(viewModel = viewModel)
+                        3 -> {
+                            val duration by player.duration.collectAsState()
+                            val timePos by player.timePos.collectAsState()
+                            val videoWidth by player.videoWidth.collectAsState()
+                            val videoHeight by player.videoHeight.collectAsState()
+                            PortraitPlayerInfoPanel(
+                                viewModel = viewModel,
+                                duration = duration,
+                                timePos = timePos,
+                                videoWidth = videoWidth,
+                                videoHeight = videoHeight
+                            )
+                        }
                     }
                 }
             }
@@ -321,18 +341,18 @@ private fun PortraitLocalFileInfo(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp)
     ) {
-        // 文件信息卡片
+        // 文件信息卡片（APTV 风格：圆角分组卡）
         item {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = stringResource(R.string.info_file_info),
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -378,7 +398,7 @@ private fun PortraitLocalFileInfo(
                         LinearProgressIndicator(
                             progress = { (progress / 100).toFloat() },
                             modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = AptvAccent,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -417,15 +437,15 @@ private fun PortraitLocalFileInfo(
         item {
             Spacer(modifier = Modifier.height(12.dp))
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = stringResource(R.string.info_audio_subtitle),
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -436,11 +456,11 @@ private fun PortraitLocalFileInfo(
                         TextButton(
                             onClick = { viewModel.toggleAudioSettings() },
                             modifier = Modifier.weight(1f)
-                        ) { Text(stringResource(R.string.info_audio_settings)) }
+                        ) { Text(stringResource(R.string.info_audio_settings), color = AptvAccent) }
                         TextButton(
                             onClick = { viewModel.toggleSubtitleSettings() },
                             modifier = Modifier.weight(1f)
-                        ) { Text(stringResource(R.string.info_subtitle_settings)) }
+                        ) { Text(stringResource(R.string.info_subtitle_settings), color = AptvAccent) }
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -449,11 +469,11 @@ private fun PortraitLocalFileInfo(
                         TextButton(
                             onClick = { viewModel.togglePlaybackPanel() },
                             modifier = Modifier.weight(1f)
-                        ) { Text(stringResource(R.string.info_playback_speed)) }
+                        ) { Text(stringResource(R.string.info_playback_speed), color = AptvAccent) }
                         TextButton(
                             onClick = { viewModel.toggleBookmarkPanel() },
                             modifier = Modifier.weight(1f)
-                        ) { Text(stringResource(R.string.info_bookmark_manager)) }
+                        ) { Text(stringResource(R.string.info_bookmark_manager), color = AptvAccent) }
                     }
                 }
             }
@@ -463,22 +483,17 @@ private fun PortraitLocalFileInfo(
         if (recentLocal.isNotEmpty()) {
             item {
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.info_recent_played),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontWeight = FontWeight.SemiBold
-                )
+                AptvSectionHeader(stringResource(R.string.info_recent_played))
                 Spacer(modifier = Modifier.height(8.dp))
             }
             items(recentLocal) { channel ->
                 val idx = channels.indexOfFirst { it.url == channel.url }
                 Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 2.dp)
+                        .padding(horizontal = 12.dp, vertical = 2.dp)
                         .clickable { if (idx >= 0) viewModel.playChannel(idx) }
                 ) {
                     Row(
@@ -488,7 +503,7 @@ private fun PortraitLocalFileInfo(
                         Icon(
                             Icons.Default.Movie,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = AptvAccent,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -524,7 +539,6 @@ private fun PortraitCategoryContent(viewModel: AppViewModel) {
     val channels by viewModel.channels.collectAsState()
     val channelsTab by viewModel.channelsTab.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
-    val oc = rememberPlayerOverlayColors()
 
     val groups = remember(allGroups, channels, channelsTab) {
         if (channelsTab == ChannelTab.LOCAL) {
@@ -550,77 +564,62 @@ private fun PortraitCategoryContent(viewModel: AppViewModel) {
     }
     val totalCount = channels.size
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 4.dp)
-    ) {
-        item {
-            val isSelected = selectedGroup.isEmpty()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                    .then(if (isSelected) Modifier.border(1.dp, oc.accent.copy(alpha = 0.50f), RoundedCornerShape(8.dp)) else Modifier)
-                    .clickable { viewModel.setSelectedGroup("") }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
+    // APTV 风格：圆角分组卡 + AptvAccent 选中高亮（浅红底 + 红字）
+    AptvGroupCard(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = 4.dp)
+        ) {
+            item {
+                val isSelected = selectedGroup.isEmpty()
+                Row(
                     modifier = Modifier
-                        .width(3.dp)
-                        .height(20.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (isSelected) oc.accent else Color.Transparent)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "全部",
-                    color = if (isSelected) oc.accent else oc.textPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "$totalCount",
-                    color = oc.textSecondary,
-                    fontSize = 12.sp
-                )
+                        .fillMaxWidth()
+                        .then(if (isSelected) Modifier.background(AptvAccent.copy(alpha = 0.12f), RoundedCornerShape(8.dp)) else Modifier)
+                        .clickable { viewModel.setSelectedGroup("") }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "全部",
+                        color = if (isSelected) AptvAccent else MaterialTheme.colorScheme.onSurface,
+                        fontSize = 15.sp,
+                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "$totalCount",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp
+                    )
+                }
             }
-        }
-        items(groups, key = { it }) { group ->
-            val isSelected = selectedGroup == group
-            val count = groupCounts[group] ?: 0
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                    .then(if (isSelected) Modifier.border(1.dp, oc.accent.copy(alpha = 0.50f), RoundedCornerShape(8.dp)) else Modifier)
-                    .clickable { viewModel.setSelectedGroup(group) }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
+            items(groups, key = { it }) { group ->
+                val isSelected = selectedGroup == group
+                val count = groupCounts[group] ?: 0
+                Row(
                     modifier = Modifier
-                        .width(3.dp)
-                        .height(20.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (isSelected) oc.accent else Color.Transparent)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = group,
-                    color = if (isSelected) oc.accent else oc.textPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "$count",
-                    color = oc.textSecondary,
-                    fontSize = 12.sp
-                )
+                        .fillMaxWidth()
+                        .then(if (isSelected) Modifier.background(AptvAccent.copy(alpha = 0.12f), RoundedCornerShape(8.dp)) else Modifier)
+                        .clickable { viewModel.setSelectedGroup(group) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = group,
+                        color = if (isSelected) AptvAccent else MaterialTheme.colorScheme.onSurface,
+                        fontSize = 15.sp,
+                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "$count",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp
+                    )
+                }
             }
         }
     }
@@ -635,7 +634,6 @@ private fun PortraitChannelOnlyList(viewModel: AppViewModel) {
     val selectedGroup by viewModel.selectedGroup.collectAsState()
     val channelsTab by viewModel.channelsTab.collectAsState()
     val epgCacheVersion by viewModel.epgCacheVersion.collectAsState()
-    val oc = rememberPlayerOverlayColors()
 
     val filteredChannels = remember(channels, selectedGroup, channelsTab) {
         val all = channels.mapIndexed { idx, c -> c to idx }
@@ -653,7 +651,7 @@ private fun PortraitChannelOnlyList(viewModel: AppViewModel) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
                 text = "暂无频道",
-                color = oc.textSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp
             )
         }
@@ -680,7 +678,7 @@ private fun PortraitChannelOnlyList(viewModel: AppViewModel) {
                     channel = channel,
                     channelIdx = idx,
                     isPlaying = idx == currentIdx,
-                    oc = oc,
+
                     viewModel = viewModel,
                     epgCacheVersion = epgCacheVersion,
                     onPlay = { viewModel.playChannel(idx) },
@@ -778,6 +776,40 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        // APTV 节目单头部：标题 + 正在播放（红色高亮节目与时段）
+        val nowPlayingProgram = if (catchupProgram != null) catchupProgram
+            else epg.firstOrNull { portraitIsCurrentProgram(it, now) }
+        if (nowPlayingProgram != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.epg_program_title),
+                    color = oc.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "${stringResource(R.string.epg_now_playing)}：${nowPlayingProgram.title}",
+                        color = AptvAccent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${portraitFormatTime(nowPlayingProgram.start)} - ${portraitFormatTime(nowPlayingProgram.stop.ifEmpty { nowPlayingProgram.end })}",
+                        color = AptvAccent,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
         when {
             loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -881,10 +913,11 @@ private fun PortraitEpgItem(
             }
         }
         Text(
-            text = timeText,
-            color = if (isCurrent) oc.accent else oc.textSecondary,
-            fontSize = 11.sp,
-            modifier = Modifier.width(90.dp)
+            text = portraitFormatTime(program.start),
+            color = AptvAccent,
+            fontSize = 13.sp,
+            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+            modifier = Modifier.width(56.dp)
         )
         // 节目标题
         Text(
@@ -896,37 +929,24 @@ private fun PortraitEpgItem(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        // 右侧状态标识
+        // 右侧状态标识（APTV 风格：纯文字着色，正在直播红/回看蓝/未播放灰）
         val statusText = when {
             isCurrent -> stringResource(R.string.epg_status_live)
             isPast -> stringResource(R.string.epg_status_catchup)
             isUpcoming -> stringResource(R.string.epg_status_upcoming)
             else -> ""
         }
-        val statusColor = when {
-            isCurrent -> oc.accent
-            isPast -> Color(0xFFFF9800)
-            isUpcoming -> oc.textSecondary
-            else -> oc.textSecondary
-        }
-        val statusBg = when {
-            isCurrent -> oc.accent.copy(alpha = 0.2f)
-            isPast -> Color(0xFFFF9800).copy(alpha = 0.15f)
-            isUpcoming -> oc.textSecondary.copy(alpha = 0.1f)
-            else -> Color.Transparent
-        }
         if (statusText.isNotEmpty()) {
-            Surface(
-                color = statusBg,
-                shape = RoundedCornerShape(3.dp)
-            ) {
-                Text(
-                    text = statusText,
-                    color = statusColor,
-                    fontSize = 9.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                )
-            }
+            Text(
+                text = statusText,
+                color = when {
+                    isCurrent -> AptvAccent
+                    isPast -> Color(0xFF4A9EFF)
+                    else -> oc.textSecondary
+                },
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
@@ -934,7 +954,6 @@ private fun PortraitEpgItem(
 private fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
     val channels by viewModel.channels.collectAsState()
     val history by viewModel.history.collectAsState()
-    val oc = rememberPlayerOverlayColors()
 
     val recentLocal = remember(history, channels) {
         history.mapNotNull { idx -> channels.getOrNull(idx) }
@@ -947,7 +966,7 @@ private fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text(stringResource(R.string.no_recent_local_files), color = oc.textSecondary, fontSize = 13.sp)
+            Text(stringResource(R.string.no_recent_local_files), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -963,21 +982,21 @@ private fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
                     Icon(
                         Icons.Default.PlayCircle,
                         contentDescription = null,
-                        tint = oc.iconTint,
+                        tint = AptvAccent,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = channel.name,
-                            color = oc.textPrimary,
-                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 14.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = channel.url.substringAfterLast("/"),
-                            color = oc.textSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -1000,7 +1019,6 @@ private fun PortraitPlayerInfoPanel(
     videoHeight: Int
 ) {
     val player = viewModel.mpv
-    val oc = rememberPlayerOverlayColors()
 
     // 获取媒体信息
     var tick by remember { mutableStateOf(0L) }
@@ -1012,39 +1030,25 @@ private fun PortraitPlayerInfoPanel(
     }
     val mediaInfo = remember(tick) { player.getMediaInfo() }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        item {
-            Text(
-                text = stringResource(R.string.info_playback),
-                color = oc.textPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-        }
-        item { InfoRow(label = stringResource(R.string.info_resolution), value = if (videoWidth > 0) "${videoWidth}x${videoHeight}" else stringResource(R.string.info_unknown)) }
-        item { InfoRow(label = stringResource(R.string.info_duration), value = formatTime(duration)) }
-        item { InfoRow(label = stringResource(R.string.info_current_position), value = formatTime(timePos)) }
-        item {
-            val progress = if (duration > 0) (timePos / duration * 100).toInt() else 0
-            InfoRow(label = stringResource(R.string.info_progress), value = "$progress%")
-        }
-        item { Box(modifier = Modifier.height(4.dp)) }
-        item {
-            Text(
-                text = stringResource(R.string.info_media_info),
-                color = oc.textPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-        }
-        mediaInfo.forEach { (key, value) ->
-            item { InfoRow(label = key, value = value.orEmpty()) }
+    // APTV 风格：圆角分组卡 + 灰色小字分组节头
+    AptvGroupCard(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            item { AptvSectionHeader(stringResource(R.string.info_playback)) }
+            item { InfoRow(label = stringResource(R.string.info_resolution), value = if (videoWidth > 0) "${videoWidth}x${videoHeight}" else stringResource(R.string.info_unknown)) }
+            item { InfoRow(label = stringResource(R.string.info_duration), value = formatTime(duration)) }
+            item { InfoRow(label = stringResource(R.string.info_current_position), value = formatTime(timePos)) }
+            item {
+                val progress = if (duration > 0) (timePos / duration * 100).toInt() else 0
+                InfoRow(label = stringResource(R.string.info_progress), value = "$progress%")
+            }
+            item { AptvSectionHeader(stringResource(R.string.info_media_info)) }
+            mediaInfo.forEach { (key, value) ->
+                item { InfoRow(label = key, value = value.orEmpty()) }
+            }
         }
     }
 }
