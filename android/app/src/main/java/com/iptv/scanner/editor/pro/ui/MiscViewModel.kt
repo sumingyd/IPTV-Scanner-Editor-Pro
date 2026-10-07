@@ -87,6 +87,11 @@ internal fun AppViewModel.readBackupFromFile(uri: Uri): String? {
     }
 }
 
+internal fun AppViewModel.togglePlayerToolsPanel() {
+    _playerToolsOpen.value = !_playerToolsOpen.value
+    if (!_playerToolsOpen.value) showControlsAutoHide()
+}
+
 internal fun AppViewModel.loadSources() {
     viewModelScope.launch {
         val result = withContext(Dispatchers.IO) { repository.getSources() }

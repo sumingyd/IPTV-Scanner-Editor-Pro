@@ -44,6 +44,7 @@
     <string name="epg_loading">Loading…</string>
     <string name="epg_no_info">No program info</string>
     <string name="epg_now_playing">Now Playing</string>
+    <string name="epg_program_title">Programs</string>
 
     <!-- Portrait Recent Local Files -->
     <string name="no_recent_local_files">No recent local files</string>
@@ -129,8 +130,8 @@
     <string name="settings_current">Current: %1$s</string>
 
     <!-- Portrait Bottom Tab Bar -->
-    <string name="tab_home">Home</string>
-    <string name="tab_list">List</string>
+    <string name="tab_home">Channels</string>
+    <string name="tab_list">Favorites</string>
     <string name="tab_tools">Tools</string>
     <string name="tab_settings">Settings</string>
 
@@ -142,4 +143,30 @@
     <string name="hint_long_press_favorite">Long press a channel to add to favorites</string>
     <string name="quick_channel_list">Channel List</string>
     <string name="quick_channel_list_desc">Browse all channels</string>
+    <string name="aptv_config_center">Config Center</string>
+    <string name="aptv_group_sources">Sources</string>
+    <string name="aptv_group_about">About</string>
+    <string name="aptv_source_disabled">Disabled</string>
+    <string name="aptv_no_sources">No sources yet, tap "Add Source" below to import</string>
+    <string name="tools_local_channels">Local Channels</string>
+    <string name="settings_edit">Edit</string>
+    <string name="aptv_group_local">Local</string>
+    <string name="aptv_channels_count">%d channels</string>
+    <string name="aptv_action_add">Add</string>
+    <string name="aptv_action_delete">Delete</string>
+    <string name="aptv_action_cancel">Cancel</string>
+    <string name="aptv_delete_source_title">Delete source</string>
+    <string name="aptv_delete_source_confirm">Delete this subscription source? Its channels will be removed from the list.</string>
+    <string name="aptv_group_player_tools">Player Tools</string>
+    <string name="aptv_player_tools">Player Tools Panel</string>
+    <string name="aptv_player_tools_desc">Screenshot, clips, EPG timeline, search and more</string>
+    <string name="aptv_delete_epg_title">Delete EPG source</string>
+    <string name="aptv_delete_epg_confirm">Delete this EPG source? Its program guide will be removed.</string>
+    <string name="aptv_group_epg">EPG Sources</string>
+    <string name="aptv_no_epg_sources">No EPG sources yet</string>
+    <string name="aptv_epg_not_updated">Not updated</string>
+    <string name="aptv_add_epg">Add EPG source</string>
+    <string name="aptv_epg_url_hint">Enter EPG URL</string>
+    <string name="aptv_epg_name_hint">EPG name (optional)</string>
+    <string name="aptv_group_channel_tools">Channel Tools</string>
 </resources>

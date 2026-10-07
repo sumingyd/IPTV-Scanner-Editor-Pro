@@ -94,7 +94,7 @@ sealed class InitState {
 
 enum class ChannelTab { SUB, LOCAL, FAV, HIST }
 
-enum class PortraitTab { HOME, LIST, TOOLS, SETTINGS }
+enum class PortraitTab { CHANNELS, FAVORITES, TOOLS, SETTINGS }
 
 enum class ListViewMode { LIST, THUMBNAIL }
 
@@ -251,7 +251,7 @@ exoWrapper = it
 
 /** 列表页数据源 */
 
-internal val _portraitTab = MutableStateFlow(PortraitTab.HOME)
+internal val _portraitTab = MutableStateFlow(PortraitTab.CHANNELS)
 val portraitTab: StateFlow<PortraitTab> = _portraitTab.asStateFlow()
 
 /** 列表页视图模式：列表 / 缩略图 */
@@ -492,6 +492,10 @@ internal var switchPlayJob: Job? = null
     val thumbnailGenProgress: StateFlow<Pair<Int, Int>?> = _thumbnailGenProgress.asStateFlow()
 
     /** 当前选中的订阅源 URL（空=全部） */
+    /** 播放工具 push 面板（截图/切片/EPG时间轴/搜索等播放相关工具） */
+    internal val _playerToolsOpen = MutableStateFlow(false)
+    val playerToolsOpen: StateFlow<Boolean> = _playerToolsOpen.asStateFlow()
+
     internal val _selectedSource = MutableStateFlow("")
     val selectedSource: StateFlow<String> = _selectedSource.asStateFlow()
 
@@ -511,6 +515,10 @@ internal var switchPlayJob: Job? = null
     // RTSP 传输协议（tcp/udp），供 UI 显示和切换
     internal val _currentRtspTransport = MutableStateFlow(userPrefs.getRtspTransport())
     val currentRtspTransport: StateFlow<String> = _currentRtspTransport.asStateFlow()
+
+    // ExoPlayer 视频渲染视图（true=SurfaceView, false=TextureView）
+    internal val _exoSurfaceView = MutableStateFlow(userPrefs.getExoSurfaceView())
+    val exoSurfaceView: StateFlow<Boolean> = _exoSurfaceView.asStateFlow()
 
 // 反交错（no/auto），供 UI 显示和切换
 internal val _currentDeinterlace = MutableStateFlow(userPrefs.getDeinterlace())
@@ -965,7 +973,7 @@ internal var currentIsLocalFile: Boolean
         _reminderPanelOpen, _resumePanelOpen, _bookmarkPanelOpen, _epgTimelineOpen,
         _searchPanelOpen, _streamQualityPanelOpen, _recentPanelOpen, _clipExportPanelOpen,
         _audioVisualizerOpen, _lyricsOpen, _exitConfirmOpen, _channelInfoOpen,
-        _openUrlDialogOpen, _updateDialogOpen, _landscapeSidebarVisible
+        _openUrlDialogOpen, _updateDialogOpen, _landscapeSidebarVisible, _playerToolsOpen
     ) { arr -> arr.any { it } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /** PiP 回调（Activity 注入，ViewModel 不能直接调用 Activity 方法）
@@ -1143,7 +1151,7 @@ internal var currentIsLocalFile: Boolean
     /** TV 端统一面板切换（打开时关闭其他面板，关闭时恢复控制层） */
 
     val anyPanelOpen: Boolean
-        get() = _landscapeSidebarVisible.value ||
+        get() = _playerToolsOpen.value || _landscapeSidebarVisible.value ||
                 _channelsPanelOpen.value || _epgPanelOpen.value ||
                 _menuPanelOpen.value || _tvUnifiedPanelOpen.value || _fileBrowserOpen.value ||
                 _sourceManagerOpen.value ||

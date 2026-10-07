@@ -187,6 +187,10 @@ import java.io.File
  * - 控制层底部是 ControlPanel（3 行布局）
  * - 面板打开时控制层自动隐藏
  */
+/** EXO 播放器渲染视图 tag（SurfaceView/TextureView 切换时按 tag 重建子 View） */
+private const val TAG_EXO_SURFACE = "exo_surface"
+private const val TAG_EXO_TEXTURE = "exo_texture"
+
 @Composable
 fun MainPlayerScreen(viewModel: AppViewModel) {
     val uiMode by viewModel.uiMode.collectAsState()
@@ -211,6 +215,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val avSyncPanelOpen by viewModel.avSyncPanelOpen.collectAsState()
     val networkPanelOpen by viewModel.networkPanelOpen.collectAsState()
     val toolsPanelOpen by viewModel.toolsPanelOpen.collectAsState()
+    val playerToolsOpen by viewModel.playerToolsOpen.collectAsState()
     val scanPanelOpen by viewModel.scanPanelOpen.collectAsState()
     val reminderPanelOpen by viewModel.reminderPanelOpen.collectAsState()
     val resumePanelOpen by viewModel.resumePanelOpen.collectAsState()
@@ -251,7 +256,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             fileBrowserOpen || sourceManagerOpen || playerSettingsOpen || videoSettingsOpen ||
             audioSettingsOpen || subtitleSettingsOpen || subtitleSearchOpen || playbackPanelOpen ||
             screenshotPanelOpen || viewSettingsOpen || aboutPanelOpen || mappingPanelOpen ||
-            avSyncPanelOpen || networkPanelOpen || toolsPanelOpen || scanPanelOpen ||
+            avSyncPanelOpen || networkPanelOpen || toolsPanelOpen || playerToolsOpen || scanPanelOpen ||
             reminderPanelOpen || resumePanelOpen || bookmarkPanelOpen || epgTimelineOpen ||
             searchPanelOpen || streamQualityPanelOpen || recentPanelOpen || clipExportPanelOpen ||
             audioVisualizerOpen || lyricsOpen || channelInfoOpen || openUrlDialogOpen -> {
@@ -337,7 +342,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             menuPanelOpen || sourceManagerOpen || playerSettingsOpen ||
                     videoSettingsOpen || audioSettingsOpen || subtitleSettingsOpen || subtitleSearchOpen ||
                     playbackPanelOpen || screenshotPanelOpen || viewSettingsOpen || aboutPanelOpen ||
-                    mappingPanelOpen || avSyncPanelOpen || networkPanelOpen || toolsPanelOpen || scanPanelOpen ||
+                    mappingPanelOpen || avSyncPanelOpen || networkPanelOpen || toolsPanelOpen || playerToolsOpen || scanPanelOpen ||
                     reminderPanelOpen || resumePanelOpen || bookmarkPanelOpen ||
                     epgTimelineOpen || searchPanelOpen || streamQualityPanelOpen ||
                     recentPanelOpen || clipExportPanelOpen || audioVisualizerOpen || lyricsOpen ||
@@ -435,6 +440,9 @@ viewModel.mpv.setMute(savedMute)
         // rememberUpdatedState：确保 movableContentOf 内部的 lambda 始终引用最新的 playerType
         // （movableContentOf 被 remember 缓存后，内部 lambda 不会随外层 recompose 自动更新）
         val playerTypeUpdated = rememberUpdatedState(playerType)
+        // ExoPlayer 视频渲染视图（true=SurfaceView, false=TextureView），变化时触发 update 回调重建
+        val exoSurfaceView by viewModel.exoSurfaceView.collectAsState()
+        val exoSurfaceViewUpdated = rememberUpdatedState(exoSurfaceView)
 
         // -----------------------------------------------------------------
         // 1. 底层：播放器 View 容器
@@ -456,11 +464,12 @@ viewModel.mpv.setMute(savedMute)
             val pType = playerTypeUpdated.value
             val player = viewModel.mpv
 
-            // 检查当前容器中的子 View 是否已匹配 playerType
+            // 检查当前容器中的子 View 是否已匹配 playerType（EXO 还需匹配渲染视图类型）
             val currentChild = container.getChildAt(0)
+            val expectedExoTag = if (exoSurfaceViewUpdated.value) TAG_EXO_SURFACE else TAG_EXO_TEXTURE
             val childMatches = when {
                 currentChild is MPVViewLike -> pType == PlayerType.MPV
-                currentChild is PlayerView -> pType == PlayerType.EXO
+                currentChild is PlayerView -> pType == PlayerType.EXO && currentChild.tag == expectedExoTag
                 else -> false
             }
             if (childMatches) return@view  // 已匹配，无需切换
@@ -504,10 +513,14 @@ viewModel.mpv.setMute(savedMute)
                     }
                 }
                 PlayerType.EXO -> {
+                    val useSurface = exoSurfaceViewUpdated.value
+                    val layoutRes = if (useSurface) com.iptv.scanner.editor.pro.R.layout.exo_player_surface_view
+                    else com.iptv.scanner.editor.pro.R.layout.exo_player_texture_view
                     val exoView = android.view.LayoutInflater.from(ctx)
-                        .inflate(com.iptv.scanner.editor.pro.R.layout.exo_player_texture_view, null) as PlayerView
+                        .inflate(layoutRes, null) as PlayerView
+                    exoView.tag = if (useSurface) TAG_EXO_SURFACE else TAG_EXO_TEXTURE
                     player.attachView(exoView)
-                    Log.i("MainPlayerScreen", "PlayerView (TextureView) attached in container, type=$pType")
+                    Log.i("MainPlayerScreen", "PlayerView (surface=$useSurface) attached in container, type=$pType")
                     container.addView(exoView, android.widget.FrameLayout.LayoutParams(
                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT
@@ -661,21 +674,34 @@ viewModel.mpv.setMute(savedMute)
                                     onPlayPause = { viewModel.mpv.togglePause() }
                                 )
                             }
-                            // 内容区域
+                            // 内容区域（iOS 式淡入淡出转场）
                             Box(modifier = Modifier.weight(1f)) {
-                                when (portraitTab) {
-                                    PortraitTab.HOME -> PortraitHomeScreen(
-                                        viewModel = viewModel,
-                                        playlistLauncher = playlistLauncher,
-                                        videoLauncher = videoLauncher
-                                    )
-                                    PortraitTab.LIST -> PortraitListScreen(
-                                        viewModel = viewModel,
-                                        playlistLauncher = playlistLauncher,
-                                        videoLauncher = videoLauncher
-                                    )
-                                    PortraitTab.TOOLS -> PortraitToolsContent(viewModel = viewModel)
-                                    PortraitTab.SETTINGS -> PortraitSettingsContent(viewModel = viewModel)
+                                androidx.compose.animation.Crossfade(
+                                    targetState = portraitTab,
+                                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 250),
+                                    label = "portraitTab"
+                                ) { tab ->
+                                    when (tab) {
+                                        // APTV 频道页：源名+刷新+搜索+双列预览网格
+                                        PortraitTab.CHANNELS -> PortraitListScreen(
+                                            viewModel = viewModel,
+                                            playlistLauncher = playlistLauncher,
+                                            videoLauncher = videoLauncher
+                                        )
+                                        // APTV 收藏页：我的收藏 + 搜索 + 双列预览网格
+                                        PortraitTab.FAVORITES -> PortraitFavoritesScreen(
+                                            viewModel = viewModel,
+                                            playlistLauncher = playlistLauncher,
+                                            videoLauncher = videoLauncher
+                                        )
+                                        // 工具页：APTV 配置中心式（订阅源卡片 + 文件/工具/高级分组）
+                                        PortraitTab.TOOLS -> PortraitToolsScreen(
+                                            viewModel = viewModel,
+                                            playlistLauncher = playlistLauncher,
+                                            videoLauncher = videoLauncher
+                                        )
+                                        PortraitTab.SETTINGS -> PortraitSettingsContent(viewModel = viewModel)
+                                    }
                                 }
                             }
                             PortraitBottomTabBar(viewModel = viewModel)
@@ -838,6 +864,13 @@ viewModel.mpv.setMute(savedMute)
         if (toolsPanelOpen) {
             PortraitPanelDialog(onDismiss = { viewModel.toggleToolsPanel() }) {
                 ToolsPanel(viewModel = viewModel)
+            }
+        }
+
+        // 播放工具（截图/切片/EPG时间线/搜索/提醒等，从控制条 MoreVert 按钮进入）
+        if (playerToolsOpen) {
+            PortraitPanelDialog(onDismiss = { viewModel.togglePlayerToolsPanel() }) {
+                PlayerToolsPanel(viewModel = viewModel)
             }
         }
 

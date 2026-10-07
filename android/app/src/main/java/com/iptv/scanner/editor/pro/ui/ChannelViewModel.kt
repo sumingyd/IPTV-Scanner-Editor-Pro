@@ -961,6 +961,7 @@ internal fun AppViewModel.resetAllPanelStates() {
         _avSyncPanelOpen.value = false
         _networkPanelOpen.value = false
         _toolsPanelOpen.value = false
+        _playerToolsOpen.value = false
         _scanPanelOpen.value = false
         _reminderPanelOpen.value = false
         _resumePanelOpen.value = false

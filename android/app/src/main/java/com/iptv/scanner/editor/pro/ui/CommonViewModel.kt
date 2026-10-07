@@ -799,6 +799,13 @@ internal fun AppViewModel.setRtspTransport(transport: String) {
     showOsd("播放器设置", "RTSP 传输: $transport")
 }
 
+/** 切换 ExoPlayer 视频渲染视图（SurfaceView/TextureView）。
+ * 播放器视图层（updatePlayerView）按 tag 比对自动重建渲染视图，播放不中断。 */
+internal fun AppViewModel.setExoSurfaceView(useSurfaceView: Boolean) {
+    _exoSurfaceView.value = useSurfaceView
+    userPrefs.setExoSurfaceView(useSurfaceView)
+}
+
 internal fun AppViewModel.setHardwareDecode(enabled: Boolean) {
     val player = _player.value ?: return
     val success = try {

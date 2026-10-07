@@ -551,7 +551,15 @@ internal fun AppViewModel.playChannel(idx: Int, silent: Boolean = false) {
 internal fun AppViewModel.startTimeoutSwitchSource(idx: Int) {
     timeoutSwitchJob?.cancel()
     timeoutSwitchJob = viewModelScope.launch {
-        val timeoutMs = userPrefs.getTimeoutMs()
+        val configuredTimeout = userPrefs.getTimeoutMs()
+        // EXO 的 fileLoaded 在 STATE_READY（完成首段缓冲）才置位，冷启动常超过
+        // MPV 秒开级别的配置超时（默认 5s）——直接套用会把正在正常缓冲的流
+        // stop 并切台，表现为"停在第一帧不播放"。EXO 超时窗口加下限保护。
+        val timeoutMs = if (_playerType.value == PlayerType.EXO) {
+            maxOf(configuredTimeout, 20_000L)
+        } else {
+            configuredTimeout
+        }
         delay(timeoutMs)
         // 超时后检查是否已加载
         if (!mpv.fileLoaded.value) {

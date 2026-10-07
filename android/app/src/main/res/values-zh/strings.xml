@@ -44,6 +44,7 @@
     <string name="epg_loading">加载中…</string>
     <string name="epg_no_info">暂无节目信息</string>
     <string name="epg_now_playing">正在播出</string>
+    <string name="epg_program_title">节目单</string>
 
     <!-- Portrait Recent Local Files -->
     <string name="no_recent_local_files">暂无最近播放的本地文件</string>
@@ -129,8 +130,8 @@
     <string name="settings_current">当前: %1$s</string>
 
     <!-- Portrait Bottom Tab Bar -->
-    <string name="tab_home">首页</string>
-    <string name="tab_list">列表</string>
+    <string name="tab_home">频道</string>
+    <string name="tab_list">收藏</string>
     <string name="tab_tools">工具</string>
     <string name="tab_settings">设置</string>
 
@@ -142,4 +143,30 @@
     <string name="hint_long_press_favorite">在频道列表中长按频道可添加收藏</string>
     <string name="quick_channel_list">频道列表</string>
     <string name="quick_channel_list_desc">浏览所有频道</string>
+    <string name="aptv_config_center">配置中心</string>
+    <string name="aptv_group_sources">订阅源</string>
+    <string name="aptv_group_about">关于</string>
+    <string name="aptv_source_disabled">已停用</string>
+    <string name="aptv_no_sources">暂无订阅源，点击下方"添加订阅源"导入</string>
+    <string name="tools_local_channels">本地频道</string>
+    <string name="settings_edit">编辑</string>
+    <string name="aptv_group_local">本地</string>
+    <string name="aptv_channels_count">%d 个频道</string>
+    <string name="aptv_action_add">添加</string>
+    <string name="aptv_action_delete">删除</string>
+    <string name="aptv_action_cancel">取消</string>
+    <string name="aptv_delete_source_title">删除订阅源</string>
+    <string name="aptv_delete_source_confirm">确定删除该订阅源？其频道将从列表移除。</string>
+    <string name="aptv_group_player_tools">播放工具</string>
+    <string name="aptv_player_tools">播放工具面板</string>
+    <string name="aptv_player_tools_desc">截图、切片、EPG时间轴、搜索等</string>
+    <string name="aptv_delete_epg_title">删除EPG源</string>
+    <string name="aptv_delete_epg_confirm">确定删除该EPG源？其节目单将一并移除。</string>
+    <string name="aptv_group_epg">EPG源</string>
+    <string name="aptv_no_epg_sources">暂无EPG源</string>
+    <string name="aptv_epg_not_updated">未更新</string>
+    <string name="aptv_add_epg">添加EPG源</string>
+    <string name="aptv_epg_url_hint">输入EPG地址</string>
+    <string name="aptv_epg_name_hint">EPG名称（可选）</string>
+    <string name="aptv_group_channel_tools">频道工具</string>
 </resources>
