@@ -287,7 +287,7 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
                     when (tab) {
                         0 -> PortraitEpgContent(viewModel = viewModel)
                         1 -> PortraitChannelOnlyList(viewModel = viewModel)
-                        2 -> PortraitCategoryContent(viewModel = viewModel)
+                        2 -> PortraitCategoryContent(viewModel = viewModel, onGroupSelected = { selectedTab = 1 })
                         3 -> {
                             val duration by player.duration.collectAsState()
                             val timePos by player.timePos.collectAsState()
@@ -533,7 +533,7 @@ private fun PortraitLocalFileInfo(
 // -----------------------------------------------------------------
 // 分类列表（竖屏 Tab — 全屏分组选择）
 @Composable
-private fun PortraitCategoryContent(viewModel: AppViewModel) {
+private fun PortraitCategoryContent(viewModel: AppViewModel, onGroupSelected: () -> Unit = {}) {
     val allGroups by viewModel.groups.collectAsState()
     val selectedGroup by viewModel.selectedGroup.collectAsState()
     val channels by viewModel.channels.collectAsState()
@@ -576,7 +576,7 @@ private fun PortraitCategoryContent(viewModel: AppViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(if (isSelected) Modifier.background(AptvAccent.copy(alpha = 0.12f), RoundedCornerShape(8.dp)) else Modifier)
-                        .clickable { viewModel.setSelectedGroup("") }
+                        .clickable { viewModel.setSelectedGroup(""); onGroupSelected() }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -601,7 +601,7 @@ private fun PortraitCategoryContent(viewModel: AppViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(if (isSelected) Modifier.background(AptvAccent.copy(alpha = 0.12f), RoundedCornerShape(8.dp)) else Modifier)
-                        .clickable { viewModel.setSelectedGroup(group) }
+                        .clickable { viewModel.setSelectedGroup(group); onGroupSelected() }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -665,25 +665,27 @@ private fun PortraitChannelOnlyList(viewModel: AppViewModel) {
                 }
             }
         }
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 4.dp)
-        ) {
-            items(
-                items = filteredChannels,
-                key = { (channel, idx) -> idx }
-            ) { (channel, idx) ->
-                PortraitChannelListItem(
-                    channel = channel,
-                    channelIdx = idx,
-                    isPlaying = idx == currentIdx,
+        AptvGroupCard(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 4.dp)
+            ) {
+                items(
+                    items = filteredChannels,
+                    key = { (channel, idx) -> idx }
+                ) { (channel, idx) ->
+                    PortraitChannelListItem(
+                        channel = channel,
+                        channelIdx = idx,
+                        isPlaying = idx == currentIdx,
 
-                    viewModel = viewModel,
-                    epgCacheVersion = epgCacheVersion,
-                    onPlay = { viewModel.playChannel(idx) },
-                    onEpg = { viewModel.playChannelAndShowEpg(idx) }
-                )
+                        viewModel = viewModel,
+                        epgCacheVersion = epgCacheVersion,
+                        onPlay = { viewModel.playChannel(idx) },
+                        onEpg = { viewModel.playChannelAndShowEpg(idx) }
+                    )
+                }
             }
         }
     }
@@ -856,29 +858,31 @@ private fun PortraitEpgContent(viewModel: AppViewModel) {
                     Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
                 }
                 // 节目列表
-                LazyColumn(
-                    state = epgListState,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(filteredEpg) { program ->
-                        val programIdx = filteredEpg.indexOf(program)
-                        val isCurrent = programIdx == currentProgramIdx
-                        val isPast = portraitIsPastProgram(program, now)
-                        val isUpcoming = !isCurrent && !isPast
-                        PortraitEpgItem(
-                            program = program,
-                            isCurrent = isCurrent,
-                            isPast = isPast,
-                            isUpcoming = isUpcoming,
-                            oc = oc,
-                            onClick = {
-                                if (isPast && !isCurrent) {
-                                    viewModel.startCatchup(program)
-                                } else {
-                                    viewModel.toggleReminder(program, currentChannel)
+                AptvGroupCard(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = epgListState,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(filteredEpg) { program ->
+                            val programIdx = filteredEpg.indexOf(program)
+                            val isCurrent = programIdx == currentProgramIdx
+                            val isPast = portraitIsPastProgram(program, now)
+                            val isUpcoming = !isCurrent && !isPast
+                            PortraitEpgItem(
+                                program = program,
+                                isCurrent = isCurrent,
+                                isPast = isPast,
+                                isUpcoming = isUpcoming,
+                                oc = oc,
+                                onClick = {
+                                    if (isPast && !isCurrent) {
+                                        viewModel.startCatchup(program)
+                                    } else {
+                                        viewModel.toggleReminder(program, currentChannel)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -929,7 +933,7 @@ private fun PortraitEpgItem(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        // 右侧状态标识（APTV 风格：纯文字着色，正在直播红/回看蓝/未播放灰）
+        // 右侧状态标识（APTV 风格：圆角胶囊 badge）
         val statusText = when {
             isCurrent -> stringResource(R.string.epg_status_live)
             isPast -> stringResource(R.string.epg_status_catchup)
@@ -937,16 +941,24 @@ private fun PortraitEpgItem(
             else -> ""
         }
         if (statusText.isNotEmpty()) {
-            Text(
-                text = statusText,
-                color = when {
-                    isCurrent -> AptvAccent
-                    isPast -> Color(0xFF4A9EFF)
-                    else -> oc.textSecondary
-                },
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            val badgeColor = when {
+                isCurrent -> AptvAccent
+                isPast -> Color(0xFF4A9EFF)
+                else -> oc.textSecondary
+            }
+            Surface(
+                color = badgeColor.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.padding(start = 6.dp)
+            ) {
+                Text(
+                    text = statusText,
+                    color = badgeColor,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
         }
     }
 }

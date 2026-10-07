@@ -645,7 +645,9 @@ viewModel.mpv.setMute(savedMute)
                                 .weight(1f)
                                 .background(MaterialTheme.colorScheme.background)
                         ) {
-                            PortraitPlayerDynamicContent(viewModel = viewModel)
+                            androidx.compose.runtime.CompositionLocalProvider(LocalAptvStyle provides true) {
+                                PortraitPlayerDynamicContent(viewModel = viewModel)
+                            }
                         }
                     }
 
