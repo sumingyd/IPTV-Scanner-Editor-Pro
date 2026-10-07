@@ -284,8 +284,9 @@ class MpvPlayerController(QObject):
     def _fix_unc_path(self, path):
         return self._playback._fix_unc_path(path)
 
-    def _detect_bdmv_path(self, path):
-        return self._playback._detect_bdmv_path(path)
+    @staticmethod
+    def _detect_bdmv_path(path):
+        return MpvPlayback._detect_bdmv_path(path)
 
     def _normalize_url(self, url):
         return self._playback._normalize_url(url)
@@ -791,9 +792,10 @@ class MpvPlayerController(QObject):
     def update_osd_theme(self):
         return self._playback.update_osd_theme()
 
-    def detect_hdr_type(self, colormatrix: str, gamma: str, sig_peak: float,
+    @staticmethod
+    def detect_hdr_type(colormatrix: str, gamma: str, sig_peak: float,
                         video_format: str = '', primaries: str = '') -> str:
-        return self._hdr.detect_hdr_type(colormatrix, gamma, sig_peak, video_format, primaries)
+        return MpvHdr.detect_hdr_type(colormatrix, gamma, sig_peak, video_format, primaries)
 
     def get_available_seek_range(self) -> dict:
         return self._playback.get_available_seek_range()

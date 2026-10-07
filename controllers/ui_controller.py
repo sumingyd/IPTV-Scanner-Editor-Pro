@@ -380,7 +380,7 @@ class UIController:
         if video_width > 0 and video_height > 0:
             video_parts.append("{}: {}x{}".format(tr('resolution_label', 'Resolution') or 'Resolution', video_width, video_height))
 
-        hdr_type = MpvPlayerController.detect_hdr_type(
+        hdr_type = self.window.player_controller.detect_hdr_type(
             info.get('colormatrix', ''),
             info.get('gamma', ''),
             info.get('sig_peak', 0),

@@ -242,7 +242,8 @@ class MpvPlayback:
         except Exception as _e:
             logger.debug(f"unexpected error: {_e}")
 
-    def _detect_bdmv_path(self, path):
+    @staticmethod
+    def _detect_bdmv_path(path):
         if not path or not os.path.isdir(path):
             return None
         bdmv_dir = os.path.join(path, 'BDMV')
