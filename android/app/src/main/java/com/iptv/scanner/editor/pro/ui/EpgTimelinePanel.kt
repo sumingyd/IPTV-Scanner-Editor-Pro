@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -80,6 +81,10 @@ import java.util.Locale
  */
 @Composable
 fun EpgTimelinePanel(viewModel: AppViewModel) {
+    if (LocalAptvStyle.current) {
+        EpgTimelinePanelAptv(viewModel)
+        return
+    }
     val rows by viewModel.epgTimelineRows.collectAsState()
     val loading by viewModel.epgTimelineLoading.collectAsState()
     val range by viewModel.epgTimelineRange.collectAsState()
@@ -222,6 +227,168 @@ maxLines = 1
                     onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.CURRENT_GROUP) },
                     label = { Text("当前分组", fontSize = 11.sp) },
                     modifier = Modifier.tvFocusBorder()
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // -----------------------------------------------------------------
+            // 主体：时间线网格
+            // -----------------------------------------------------------------
+            when {
+                loading && rows.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("加载 EPG 数据...", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                        }
+                    }
+                }
+                rows.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = status.ifEmpty { "暂无 EPG 数据\n请在主菜单 > 文件 > EPG 订阅源 添加" },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+                else -> {
+                    TimelineGrid(
+                        rows = rows,
+                        currentIdx = currentIdx,
+                        dateOffset = dateOffset,
+                        horizontalScroll = horizontalScroll,
+                        verticalScroll = verticalScroll,
+                        onProgramClick = { program ->
+                            handleTimelineProgramClick(program, viewModel)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------
+// APTV（iOS 风格）版本
+// -----------------------------------------------------------------
+
+/**
+ * APTV（iOS 风格）EPG 时间线面板：单列布局，圆角分组卡片 + iOS 选择行。
+ * 仅在竖屏 APTV 模式下使用，横屏/TV 仍走 [EpgTimelinePanel] 原有布局。
+ */
+@Composable
+private fun EpgTimelinePanelAptv(viewModel: AppViewModel) {
+    val rows by viewModel.epgTimelineRows.collectAsState()
+    val loading by viewModel.epgTimelineLoading.collectAsState()
+    val range by viewModel.epgTimelineRange.collectAsState()
+    val dateOffset by viewModel.epgTimelineDateOffset.collectAsState()
+    val status by viewModel.epgTimelineStatus.collectAsState()
+    val currentIdx by viewModel.currentIdx.collectAsState()
+    val density = LocalDensity.current
+
+    // 选中日期（基于今天 + offset）
+    val selectedDate = remember(dateOffset) {
+        val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, dateOffset) }
+        SimpleDateFormat("yyyy-MM-dd E", Locale.CHINA).format(Date(cal.timeInMillis))
+    }
+
+    // 滚动状态（频道名列 + 主网格共享垂直滚动；时间刻度 + 主网格共享水平滚动）
+    val horizontalScroll = rememberScrollState()
+    val verticalScroll = rememberScrollState()
+
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000L)
+            now = System.currentTimeMillis()
+        }
+    }
+
+    // 自动滚动到当前时间（首次加载或日期变化时，仅今天滚动）
+    LaunchedEffect(rows, dateOffset) {
+        if (rows.isNotEmpty() && dateOffset == 0) {
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val dayStartMs = cal.timeInMillis
+            if (now in dayStartMs until (dayStartMs + 24 * 3600 * 1000L)) {
+                val hoursFromStart = (now - dayStartMs) / 3600000.0
+                val hourWidthPx = with(density) { HOUR_WIDTH_DP.toPx() }
+                val targetPx = (hoursFromStart * hourWidthPx).toInt() - 200
+                horizontalScroll.scrollTo(targetPx.coerceAtLeast(0))
+            }
+        }
+    }
+
+    Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+            // 标题栏 + 工具栏（日期切换 / 刷新 / 关闭）
+            AptvPanelHeader(
+                title = "EPG 时间线",
+                subtitle = "$selectedDate  |  $status",
+                onClose = { viewModel.toggleEpgTimelinePanel() },
+                actions = {
+                    // 日期切换
+                    IconButton(
+                        onClick = { viewModel.setEpgTimelineDateOffset(dateOffset - 1) }
+                    ) {
+                        Text("◀", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                    }
+                    Text(
+                        text = when (dateOffset) {
+                            0 -> "今天"
+                            -1 -> "昨天"
+                            1 -> "明天"
+                            else -> "${dateOffset}天"
+                        },
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    )
+                    IconButton(
+                        onClick = { viewModel.setEpgTimelineDateOffset(dateOffset + 1) }
+                    ) {
+                        Text("▶", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // 刷新
+                    IconButton(onClick = { viewModel.loadEpgTimeline() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "刷新", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            )
+
+            // 频道范围选择（FilterChip → SelectionGroup）
+            SettingsGroup("频道范围") {
+                SelectionGroup(
+                    title = "频道范围",
+                    options = listOf(
+                        "ALL" to "全部频道",
+                        "FAVORITES" to "仅收藏",
+                        "CURRENT_GROUP" to "当前分组"
+                    ),
+                    selectedKey = range.name,
+                    onSelect = { key ->
+                        val r = when (key) {
+                            "FAVORITES" -> EpgTimelineRange.FAVORITES
+                            "CURRENT_GROUP" -> EpgTimelineRange.CURRENT_GROUP
+                            else -> EpgTimelineRange.ALL
+                        }
+                        viewModel.setEpgTimelineRange(r)
+                    }
                 )
             }
 

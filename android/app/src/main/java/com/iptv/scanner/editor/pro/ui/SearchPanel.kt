@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -66,6 +67,10 @@ import java.util.Locale
  */
 @Composable
 fun SearchPanel(viewModel: AppViewModel) {
+    if (LocalAptvStyle.current) {
+        SearchPanelAptv(viewModel)
+        return
+    }
     val results by viewModel.searchResults.collectAsState()
     val loading by viewModel.searchLoading.collectAsState()
     val scope by viewModel.searchScope.collectAsState()
@@ -219,6 +224,156 @@ fun SearchPanel(viewModel: AppViewModel) {
                 }
                 else -> {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(items = results, key = { resultKey(it) }) { result ->
+                            SearchResultRow(result) { viewModel.onSearchResultClick(result) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * APTV（iOS 风格）全局搜索面板：单列布局，圆角分组卡片 + iOS 选择行。
+ * 仅在竖屏 APTV 模式下使用，横屏/TV 仍走 [SearchPanel] 原有布局。
+ */
+@Composable
+private fun SearchPanelAptv(viewModel: AppViewModel) {
+    val results by viewModel.searchResults.collectAsState()
+    val loading by viewModel.searchLoading.collectAsState()
+    val scope by viewModel.searchScope.collectAsState()
+
+    var query by remember { mutableStateOf("") }
+
+    // 输入防抖：query 变化时触发 ViewModel.performSearch（内部已有 250ms 防抖）
+    LaunchedEffect(query) {
+        viewModel.performSearch(query)
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+        ) {
+            AptvPanelHeader(
+                title = "全局搜索",
+                subtitle = "频道 / 节目",
+                onClose = { viewModel.toggleSearchPanel() }
+            )
+
+            // 搜索框
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = {
+                    Text(
+                        "搜索频道名 / 分组 / URL / 节目标题...",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp
+                    )
+                },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { query = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "清空", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(10.dp),
+                singleLine = true
+            )
+
+            // 搜索范围（iOS 选择行）
+            SettingsGroup("搜索范围") {
+                SelectionGroup(
+                    title = "范围",
+                    options = listOf(
+                        SearchScope.ALL.name to "全部",
+                        SearchScope.CHANNELS.name to "频道",
+                        SearchScope.PROGRAMS.name to "节目"
+                    ),
+                    selectedKey = scope.name,
+                    onSelect = { key -> viewModel.setSearchScope(SearchScope.valueOf(key)) }
+                )
+            }
+
+            // 状态行
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "结果",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = "${results.size} 条",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
+            AptvRowDivider()
+
+            // 结果列表
+            when {
+                query.isBlank() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "输入关键词搜索频道和节目",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                !loading && results.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "无搜索结果",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 16.dp,
+                            vertical = 8.dp
+                        )
+                    ) {
                         items(items = results, key = { resultKey(it) }) { result ->
                             SearchResultRow(result) { viewModel.onSearchResultClick(result) }
                         }

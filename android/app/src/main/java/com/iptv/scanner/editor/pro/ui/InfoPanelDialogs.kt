@@ -232,6 +232,7 @@ internal fun ReminderPopup(
     onAccept: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isAptv = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -240,7 +241,7 @@ internal fun ReminderPopup(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = if (isAptv) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant,
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth(0.85f)
         ) {
@@ -252,7 +253,7 @@ internal fun ReminderPopup(
                 Icon(
                     Icons.Default.Notifications,
                     contentDescription = null,
-                    tint = Color(0xFFFFC107),
+                    tint = if (isAptv) AptvAccent else Color(0xFFFFC107),
                     modifier = Modifier
                         .width(48.dp)
                         .height(48.dp)
@@ -321,11 +322,11 @@ internal fun ReminderPopup(
                     Button(
                         onClick = onAccept,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary
+                            containerColor = if (isAptv) AptvAccent else MaterialTheme.colorScheme.secondary
                         ),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("切换频道", color = MaterialTheme.colorScheme.onSecondary)
+                        Text("切换频道", color = if (isAptv) Color.White else MaterialTheme.colorScheme.onSecondary)
                     }
                 }
             }
@@ -349,12 +350,14 @@ internal fun ChannelInfoDialog(viewModel: AppViewModel) {
     val videoHeight by mpv.videoHeight.collectAsState()
     val currentProgram = viewModel.getCurrentProgram()
     val oc = rememberPlayerOverlayColors()
+    val isAptv = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
+    val accentColor = if (isAptv) AptvAccent else oc.accent
 
 AlertDialog(
 onDismissRequest = { viewModel.toggleChannelInfo() },
-containerColor = oc.topBarBg.copy(alpha = 0.80f),
+containerColor = if (isAptv) MaterialTheme.colorScheme.surface else oc.topBarBg.copy(alpha = 0.80f),
 shape = RoundedCornerShape(20.dp),
-modifier = Modifier.border(1.dp, oc.accent.copy(alpha = 0.35f), RoundedCornerShape(20.dp)),
+modifier = Modifier.border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(20.dp)),
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (currentChannel != null && currentChannel!!.logo.isNotEmpty()) {
@@ -370,7 +373,7 @@ modifier = Modifier.border(1.dp, oc.accent.copy(alpha = 0.35f), RoundedCornerSha
                 }
                 Text(
                     text = currentChannel?.name ?: "频道信息",
-                    color = oc.textPrimary,
+                    color = if (isAptv) MaterialTheme.colorScheme.onSurface else oc.textPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -379,39 +382,39 @@ modifier = Modifier.border(1.dp, oc.accent.copy(alpha = 0.35f), RoundedCornerSha
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 currentChannel?.let { ch ->
-                    InfoRow("频道名", ch.name, oc)
-                    if (ch.group.isNotEmpty()) InfoRow("分类", ch.group, oc)
-                    if (ch.tvgId.isNotEmpty()) InfoRow("TVG-ID", ch.tvgId, oc)
-                    if (ch.tvgName.isNotEmpty()) InfoRow("TVG-Name", ch.tvgName, oc)
-                    if (ch.tvgChno.isNotEmpty()) InfoRow("频道号", ch.tvgChno, oc)
-                    if (ch.resolution.isNotEmpty()) InfoRow("分辨率", ch.resolution, oc)
+                    InfoRow("频道名", ch.name, oc, isAptv)
+                    if (ch.group.isNotEmpty()) InfoRow("分类", ch.group, oc, isAptv)
+                    if (ch.tvgId.isNotEmpty()) InfoRow("TVG-ID", ch.tvgId, oc, isAptv)
+                    if (ch.tvgName.isNotEmpty()) InfoRow("TVG-Name", ch.tvgName, oc, isAptv)
+                    if (ch.tvgChno.isNotEmpty()) InfoRow("频道号", ch.tvgChno, oc, isAptv)
+                    if (ch.resolution.isNotEmpty()) InfoRow("分辨率", ch.resolution, oc, isAptv)
                     if (videoWidth > 0 && videoHeight > 0) {
-                        InfoRow("视频尺寸", "${videoWidth}x${videoHeight}", oc)
+                        InfoRow("视频尺寸", "${videoWidth}x${videoHeight}", oc, isAptv)
                     }
 if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
-    if (ch.catchupDays.isNotEmpty()) InfoRow("回看天数", ch.catchupDays, oc)
+    if (ch.catchupDays.isNotEmpty()) InfoRow("回看天数", ch.catchupDays, oc, isAptv)
 }
-if (ch.source.isNotEmpty()) InfoRow("来源", ch.source, oc)
+if (ch.source.isNotEmpty()) InfoRow("来源", ch.source, oc, isAptv)
 // 状态字段仅在有实际状态时显示（去掉“待检测”）
-if (ch.status.isNotEmpty() && ch.status != "待检测") InfoRow("状态", ch.status, oc)
-InfoRow("URL", ch.url, oc)
+if (ch.status.isNotEmpty() && ch.status != "待检测") InfoRow("状态", ch.status, oc, isAptv)
+InfoRow("URL", ch.url, oc, isAptv)
 // 回看 URL
 if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
     val catchupUrl = if (ch.catchupSource.isNotEmpty()) ch.catchupSource else ch.catchup
-    InfoRow("回看URL", catchupUrl, oc)
+    InfoRow("回看URL", catchupUrl, oc, isAptv)
 }
                     // 当前节目
                     if (currentProgram != null && currentProgram.title.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "当前节目",
-                            color = oc.accent,
+                            color = accentColor,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = currentProgram.title,
-                            color = oc.textPrimary,
+                            color = if (isAptv) MaterialTheme.colorScheme.onSurface else oc.textPrimary,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(top = 2.dp)
                         )
@@ -419,7 +422,7 @@ if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
                 } ?: run {
                     Text(
                         text = "未选择频道",
-                        color = oc.textSecondary,
+                        color = if (isAptv) MaterialTheme.colorScheme.onSurfaceVariant else oc.textSecondary,
                         fontSize = 14.sp
                     )
                 }
@@ -428,15 +431,15 @@ if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
         confirmButton = {
             Button(
                 onClick = { viewModel.toggleChannelInfo() },
-                colors = ButtonDefaults.buttonColors(containerColor = oc.accent)
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor)
             ) {
-                Text("关闭", color = MaterialTheme.colorScheme.onSecondary)
+                Text("关闭", color = if (isAptv) Color.White else MaterialTheme.colorScheme.onSecondary)
             }
         }
     )
 }
 @Composable
-internal fun InfoRow(label: String, value: String, oc: PlayerOverlayColors) {
+internal fun InfoRow(label: String, value: String, oc: PlayerOverlayColors, isAptv: Boolean = false) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -445,13 +448,13 @@ internal fun InfoRow(label: String, value: String, oc: PlayerOverlayColors) {
     ) {
         Text(
             text = "$label:",
-            color = oc.textSecondary,
+            color = if (isAptv) MaterialTheme.colorScheme.onSurfaceVariant else oc.textSecondary,
             fontSize = 12.sp,
             modifier = Modifier.width(60.dp)
         )
         Text(
             text = value,
-            color = oc.textPrimary,
+            color = if (isAptv) MaterialTheme.colorScheme.onSurface else oc.textPrimary,
             fontSize = 12.sp,
             modifier = Modifier.weight(1f),
             maxLines = 5,
@@ -575,11 +578,11 @@ private fun MediaBadge(
     isAccent: Boolean = true,
     isHighlight: Boolean = false
 ) {
-    // 统一颜色：所有 badge 用同一种背景和文字色，除 HDR/HLG 高亮外
+    // 统一颜色：所有 badge 用 AptvAccent，除 HDR/HLG 高亮外
     val bg = if (isHighlight) Color(0xFFFF6B00).copy(alpha = 0.2f)
-             else oc.accent.copy(alpha = 0.15f)
+             else AptvAccent.copy(alpha = 0.15f)
     val fg = if (isHighlight) Color(0xFFFF9800)
-             else oc.accent
+             else AptvAccent
     Surface(
         color = bg,
         shape = RoundedCornerShape(3.dp)
@@ -640,7 +643,7 @@ fun PortraitPanelDialog(
                 }
             }
         }
-    } else {
+    } else if (isLandscape) {
         Dialog(
             onDismissRequest = onDismiss,
             properties = DialogProperties(
@@ -651,7 +654,8 @@ fun PortraitPanelDialog(
         ) {
             Box(
                 modifier = Modifier
-                    .then(if (isLandscape) Modifier.fillMaxWidth(0.75f).fillMaxHeight(0.82f) else Modifier.fillMaxWidth(0.92f).fillMaxHeight(0.85f))
+                    .fillMaxWidth(0.75f)
+                    .fillMaxHeight(0.82f)
             ) {
                 if (isAndroid12Plus) {
                     Box(
@@ -668,6 +672,63 @@ fun PortraitPanelDialog(
                     modifier = Modifier.matchParentSize()
                 ) {
                     scaledContent()
+                }
+            }
+        }
+    } else {
+        // ---- 手机竖屏：APTV 式全屏 push 页（右侧滑入，实底背景，BACK 关闭） ----
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = false
+            )
+        ) {
+            var pushVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { pushVisible = true }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable { onDismiss() }
+            ) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = pushVisible,
+                    enter = androidx.compose.animation.slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = androidx.compose.animation.core.tween(220)
+                    ),
+                    exit = androidx.compose.animation.slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = androidx.compose.animation.core.tween(180)
+                    ),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // 实底全屏页：消费自身点击（不透传 scrim），避免误触关闭
+                    Surface(
+                        color = MaterialTheme.colorScheme.background,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null
+                            ) { }
+                    ) {
+                        // APTV 风格开关：竖屏 push 页内的共用基座组件（PanelScaffold 等）切换 APTV 样式
+                        // 同时覆盖 MaterialTheme primary 色为 AptvAccent，让 Switch/RadioButton/FilterChip 等自动适配
+                        androidx.compose.runtime.CompositionLocalProvider(LocalAptvStyle provides true) {
+                            val aptvScheme = MaterialTheme.colorScheme.copy(
+                                primary = AptvAccent,
+                                onPrimary = Color.White,
+                                primaryContainer = AptvAccent.copy(alpha = 0.15f),
+                                onPrimaryContainer = AptvAccent,
+                            )
+                            MaterialTheme(colorScheme = aptvScheme) {
+                                scaledContent()
+                            }
+                        }
+                    }
                 }
             }
         }

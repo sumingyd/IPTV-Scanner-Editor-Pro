@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -173,6 +176,10 @@ fun ChannelDedupPanel(
     viewModel: AppViewModel,
     onDismiss: () -> Unit
 ) {
+    if (LocalAptvStyle.current) {
+        ChannelDedupPanelAptv(viewModel, onDismiss)
+        return
+    }
     val channels by viewModel.channels.collectAsState()
     val oc = rememberPlayerOverlayColors()
 
@@ -392,6 +399,10 @@ fun ChannelBatchOpsPanel(
     viewModel: AppViewModel,
     onDismiss: () -> Unit
 ) {
+    if (LocalAptvStyle.current) {
+        ChannelBatchOpsPanelAptv(viewModel, onDismiss)
+        return
+    }
     var processing by remember { mutableStateOf(false) }
     var resultMsg by remember { mutableStateOf("") }
     var overwriteGroups by remember { mutableStateOf(false) }
@@ -566,6 +577,248 @@ private fun BatchOpCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(12.dp))
             content()
+        }
+    }
+}
+// =================================================================
+// APTV（iOS 风格）频道去重 / 批量操作面板
+// 仅在竖屏 APTV 模式下使用，横屏/TV 仍走原有面板实现。
+// =================================================================
+
+/**
+ * APTV 风格频道去重面板：圆角分组卡片 + iOS 选择行 + 重复列表。
+ */
+@Composable
+private fun ChannelDedupPanelAptv(
+    viewModel: AppViewModel,
+    onDismiss: () -> Unit
+) {
+    val channels by viewModel.channels.collectAsState()
+
+    var dedupMode by remember { mutableStateOf(DedupMode.NAME_URL) }
+    val duplicates = remember(channels, dedupMode) {
+        findDuplicates(channels, dedupMode)
+    }
+    val keepIndices = remember { mutableStateListOf<Int>() }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            AptvPanelHeader(
+                title = "频道去重",
+                subtitle = "发现 ${duplicates.size} 组重复频道",
+                onClose = onDismiss
+            )
+
+            SettingsGroup("去重模式") {
+                SelectionGroup(
+                    title = "匹配方式",
+                    options = listOf(
+                        DedupMode.NAME.name to "按名称",
+                        DedupMode.URL.name to "按 URL",
+                        DedupMode.NAME_URL.name to "名称+URL"
+                    ),
+                    selectedKey = dedupMode.name,
+                    onSelect = { key -> dedupMode = DedupMode.valueOf(key) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (duplicates.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("未发现重复频道", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(duplicates) { _, group ->
+                        DuplicateGroupItem(
+                            group = group,
+                            keepIndices = keepIndices,
+                            onDelete = { idx ->
+                                viewModel.deleteChannel(idx)
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            duplicates.forEach { group ->
+                                group.drop(1).forEach { (_, idx) ->
+                                    viewModel.deleteChannel(idx)
+                                }
+                            }
+                            onDismiss()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("自动去重（保留首个）")
+                    }
+                    TextButton(onClick = onDismiss) { Text("关闭") }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * APTV 风格批量操作面板：圆角分组卡片 + iOS 开关行 + 执行按钮。
+ */
+@Composable
+private fun ChannelBatchOpsPanelAptv(
+    viewModel: AppViewModel,
+    onDismiss: () -> Unit
+) {
+    var processing by remember { mutableStateOf(false) }
+    var resultMsg by remember { mutableStateOf("") }
+    var overwriteGroups by remember { mutableStateOf(false) }
+    var overwriteLogo by remember { mutableStateOf(true) }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState())
+        ) {
+            AptvPanelHeader(
+                title = "批量操作",
+                subtitle = "分类 / 清理 / 台标 / 排序",
+                onClose = onDismiss
+            )
+
+            if (processing) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("处理中...", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp)
+                    }
+                }
+                return@Column
+            }
+
+            if (resultMsg.isNotEmpty()) {
+                Text(
+                    resultMsg,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 13.sp
+                )
+            }
+
+            SettingsGroup("自动分类") {
+                Text(
+                    "按频道名称规则自动归类到对应分组（央视/卫视/地方/4K等）",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
+                SwitchRow(
+                    title = "覆盖已有分组",
+                    checked = overwriteGroups,
+                    onCheckedChange = { overwriteGroups = it }
+                )
+                AptvRowDivider()
+                Button(
+                    onClick = {
+                        processing = true
+                        viewModel.batchEditChannels("auto_classify",
+                            "{\"overwrite\": $overwriteGroups}")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("执行自动分类") }
+            }
+
+            SettingsGroup("名称清理") {
+                Text(
+                    "去除多余括号、HD/4K 后缀、空格等，规范化频道名",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
+                Button(
+                    onClick = {
+                        processing = true
+                        viewModel.batchEditChannels("clean_names", "{}")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("执行名称清理") }
+            }
+
+            SettingsGroup("匹配台标") {
+                Text(
+                    "批量匹配频道台标图片",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
+                SwitchRow(
+                    title = "仅填充空位",
+                    checked = !overwriteLogo,
+                    onCheckedChange = { overwriteLogo = !it }
+                )
+                AptvRowDivider()
+                Button(
+                    onClick = {
+                        processing = true
+                        viewModel.batchEditChannels("match_logo",
+                            "{\"overwrite\": $overwriteLogo}")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("执行台标匹配") }
+            }
+
+            SettingsGroup("按组排序") {
+                Text(
+                    "按频道分组自动排序",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
+                Button(
+                    onClick = {
+                        processing = true
+                        viewModel.batchEditChannels("sort_by_group", "{}")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("执行排序") }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+
+    val osdInfo by viewModel.osd.collectAsState()
+    LaunchedEffect(osdInfo) {
+        if (osdInfo != null && processing) {
+            processing = false
+            resultMsg = osdInfo!!.title + if (osdInfo!!.subtitle.isNotEmpty()) ": ${osdInfo!!.subtitle}" else ""
         }
     }
 }

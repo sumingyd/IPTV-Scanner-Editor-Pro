@@ -84,6 +84,10 @@ import com.iptv.scanner.editor.pro.ui.theme.tvTextField
  */
 @Composable
 fun SourceManagerPanel(viewModel: AppViewModel) {
+    if (LocalAptvStyle.current) {
+        SourceManagerPanelAptv(viewModel)
+        return
+    }
     val sourceTab by viewModel.sourceTab.collectAsState()
     val sources by viewModel.sources.collectAsState()
     val epgSources by viewModel.epgSources.collectAsState()
@@ -862,6 +866,201 @@ private fun BackupRestoreBar(viewModel: AppViewModel) {
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("恢复配置")
+                }
+            }
+        }
+    }
+}
+/**
+ * APTV（iOS 风格）订阅源管理面板：单列布局，圆角分组卡片 + iOS 选择行 + 开关行。
+ * 仅在竖屏 APTV 模式下使用，横屏/TV 仍走 [SourceManagerPanel] 原有布局。
+ */
+@Composable
+private fun SourceManagerPanelAptv(viewModel: AppViewModel) {
+    val sourceTab by viewModel.sourceTab.collectAsState()
+    val sources by viewModel.sources.collectAsState()
+    val epgSources by viewModel.epgSources.collectAsState()
+    val sourceLoading by viewModel.sourceLoading.collectAsState()
+    val sourceMessage by viewModel.sourceMessage.collectAsState()
+    val adminUrl by viewModel.adminServerUrl.collectAsState()
+    val adminToken by viewModel.adminServerToken.collectAsState()
+    val adminRunning by viewModel.adminServerRunning.collectAsState()
+    val adminCountdown by viewModel.adminCountdown.collectAsState()
+    var showQrCode by remember { mutableStateOf(false) }
+    var autoStop by remember { mutableStateOf(viewModel.getAdminAutoStop()) }
+
+    // server 启动时自动展开二维码；同时同步自动关闭开关状态
+    LaunchedEffect(adminRunning) {
+        if (adminRunning) showQrCode = true
+        autoStop = viewModel.getAdminAutoStop()
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState())
+        ) {
+            AptvPanelHeader(
+                title = "订阅源管理",
+                subtitle = "频道源 / EPG 源 / 局域网管理",
+                onClose = { viewModel.toggleSourceManager() },
+                actions = {
+                    // 局域网管理按钮（启动后用 AptvAccent 高亮）
+                    Icon(
+                        Icons.Default.Phonelink,
+                        contentDescription = "局域网管理",
+                        tint = if (adminRunning) AptvAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp).clickable { viewModel.toggleAdminServer() }
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    // 重载按钮（加载中显示进度圈）
+                    if (sourceLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = AptvAccent,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "重载",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp).clickable {
+                                if (sourceTab == SourceTab.PLAYLIST) viewModel.reloadSources()
+                                else viewModel.reloadEpgSources()
+                            }
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+            )
+
+            // 源类型切换（FilterChip → SelectionGroup）
+            SettingsGroup("源类型") {
+                SelectionGroup(
+                    title = "源类型",
+                    options = listOf(
+                        "PLAYLIST" to "频道源 (${sources.size})",
+                        "EPG" to "EPG 源 (${epgSources.size})"
+                    ),
+                    selectedKey = sourceTab.name,
+                    onSelect = { key ->
+                        if (key == "PLAYLIST") viewModel.setSourceTab(SourceTab.PLAYLIST)
+                        else viewModel.setSourceTab(SourceTab.EPG)
+                    }
+                )
+            }
+
+            // 加载消息（小灰字）
+            if (sourceMessage.isNotEmpty()) {
+                Text(
+                    text = sourceMessage,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                )
+            }
+
+            // 局域网管理
+            SettingsGroup("局域网管理") {
+                if (adminRunning && adminUrl.isNotEmpty()) {
+                    LanAdminInfoBar(
+                        url = adminUrl,
+                        token = adminToken,
+                        showQrCode = showQrCode,
+                        onToggleQr = { showQrCode = it },
+                        countdown = adminCountdown
+                    )
+                    AptvRowDivider()
+                    SwitchRow(
+                        title = "5 分钟自动关闭",
+                        checked = autoStop,
+                        onCheckedChange = {
+                            autoStop = it
+                            viewModel.setAdminAutoStop(it)
+                        }
+                    )
+                } else if (!adminRunning) {
+                    Text(
+                        text = "TV 端用遥控器输入不便，点击启动后用手机浏览器扫码管理",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(vertical = 6.dp)
+                    )
+                    AptvRowDivider()
+                    LanAdminTokenInput(viewModel = viewModel)
+                    AptvRowDivider()
+                    SwitchRow(
+                        title = "5 分钟自动关闭",
+                        checked = autoStop,
+                        onCheckedChange = {
+                            autoStop = it
+                            viewModel.setAdminAutoStop(it)
+                        }
+                    )
+                }
+            }
+
+            // 备份与恢复
+            SettingsGroup("备份与恢复") {
+                BackupRestoreBar(viewModel)
+            }
+
+            // 添加订阅源
+            SettingsGroup(if (sourceTab == SourceTab.PLAYLIST) "添加频道订阅源" else "添加 EPG 订阅源") {
+                when (sourceTab) {
+                    SourceTab.PLAYLIST -> AddSourceRow(
+                        placeholder = "输入 M3U 订阅源 URL",
+                        onAdd = { url, name -> viewModel.addSource(url, name) }
+                    )
+                    SourceTab.EPG -> AddSourceRow(
+                        placeholder = "输入 EPG 订阅源 URL（XMLTV）",
+                        onAdd = { url, name -> viewModel.addEpgSource(url, name) }
+                    )
+                }
+            }
+
+            // 订阅源列表
+            SettingsGroup(if (sourceTab == SourceTab.PLAYLIST) "频道订阅源" else "EPG 订阅源") {
+                when (sourceTab) {
+                    SourceTab.PLAYLIST -> {
+                        if (sources.isEmpty()) {
+                            EmptyHint("暂无频道订阅源，点击上方输入框添加")
+                        } else {
+                            sources.forEachIndexed { idx, source ->
+                                SourceItem(
+                                    source = source,
+                                    index = idx,
+                                    onToggle = { enabled -> viewModel.toggleSourceEnabled(idx, enabled) },
+                                    onDelete = { viewModel.deleteSource(idx) },
+                                    onEdit = { url, name -> viewModel.updateSource(idx, url, name) }
+                                )
+                                if (idx < sources.size - 1) AptvRowDivider()
+                            }
+                        }
+                    }
+                    SourceTab.EPG -> {
+                        if (epgSources.isEmpty()) {
+                            EmptyHint("暂无 EPG 订阅源，点击上方输入框添加")
+                        } else {
+                            epgSources.forEachIndexed { idx, source ->
+                                EpgSourceItem(
+                                    source = source,
+                                    index = idx,
+                                    onDelete = { viewModel.deleteEpgSource(idx) },
+                                    onEdit = { url, name -> viewModel.updateEpgSource(idx, url, name) }
+                                )
+                                if (idx < epgSources.size - 1) AptvRowDivider()
+                            }
+                        }
+                    }
                 }
             }
         }

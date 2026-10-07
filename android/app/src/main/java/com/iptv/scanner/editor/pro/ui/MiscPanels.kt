@@ -125,43 +125,110 @@ fun OpenUrlDialog(viewModel: AppViewModel) {
     if (!open) return
 
     var url by remember { mutableStateOf("") }
+    val isAptv = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
 
-    AlertDialog(
-        onDismissRequest = { viewModel.toggleOpenUrlDialog() },
-        title = { Text("打开网络流") },
-        text = {
-            Column {
-                Text(
-                    "输入 M3U/M3U8/HLS/RTSP/RTMP 等协议 URL",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = { url = it },
-placeholder = { Text("https://example.com/stream.m3u8") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().tvTextField()
-                )
+    if (isAptv) {
+        // iOS APTV 风格：居中圆角卡片 + 输入框
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { viewModel.toggleOpenUrlDialog() },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp)
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        text = "打开网络流",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "输入 M3U/M3U8/HLS/RTSP/RTMP 等协议 URL",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it },
+                        placeholder = { Text("https://example.com/stream.m3u8") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "取消",
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .clickable { viewModel.toggleOpenUrlDialog() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "播放",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = AptvAccent,
+                            modifier = Modifier
+                                .clickable {
+                                    viewModel.playUrl(url.trim())
+                                    url = ""
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    viewModel.playUrl(url.trim())
-                    url = ""
-                },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("播放") }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = { viewModel.toggleOpenUrlDialog() },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("取消") }
         }
-    )
+    } else {
+        AlertDialog(
+            onDismissRequest = { viewModel.toggleOpenUrlDialog() },
+            title = { Text("打开网络流") },
+            text = {
+                Column {
+                    Text(
+                        "输入 M3U/M3U8/HLS/RTSP/RTMP 等协议 URL",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it },
+                        placeholder = { Text("https://example.com/stream.m3u8") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().tvTextField()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.playUrl(url.trim())
+                        url = ""
+                    },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("播放", color = if (isAptv) AptvAccent else MaterialTheme.colorScheme.primary) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.toggleOpenUrlDialog() },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("取消") }
+            }
+        )
+    }
 }
 /**
  * 退出确认对话框：按 BACK 键退出时提示选择退出方式。
@@ -177,71 +244,161 @@ fun ExitConfirmDialog(viewModel: AppViewModel) {
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = context as? android.app.Activity
+    val isAptv = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
 
-    AlertDialog(
-        onDismissRequest = { viewModel.dismissExitConfirm() },
-        title = { Text("退出应用", fontWeight = FontWeight.Bold) },
-        text = {
-            Text(
-                "您正在退出应用，请选择退出方式：",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp
-            )
-        },
-        confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // 进入 PiP
-                if (activity != null &&
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                    activity.packageManager.hasSystemFeature("android.software.picture_in_picture")
-                ) {
+    if (isAptv) {
+        // iOS APTV 风格：居中圆角卡片 + 纵向操作列表
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { viewModel.dismissExitConfirm() },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "退出应用",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "请选择退出方式：",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    // PiP
+                    if (activity != null &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                        activity.packageManager.hasSystemFeature("android.software.picture_in_picture")
+                    ) {
+                        Text(
+                            text = "画中画",
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                viewModel.dismissExitConfirm()
+                                try {
+                                    val builder = android.app.PictureInPictureParams.Builder()
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        builder.setAutoEnterEnabled(true)
+                                        builder.setSeamlessResizeEnabled(true)
+                                    }
+                                    activity.enterPictureInPictureMode(builder.build())
+                                } catch (e: Exception) {
+                                    Log.e("ExitConfirmDialog", "PiP failed", e)
+                                }
+                            }.padding(vertical = 12.dp)
+                        )
+                    }
+                    // 立即退出
+                    Text(
+                        text = "立即退出",
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            viewModel.dismissExitConfirm()
+                            viewModel.stopPlay()
+                            activity?.finishAffinity()
+                        }.padding(vertical = 12.dp)
+                    )
+                    // 打开设置
+                    Text(
+                        text = "打开设置",
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            viewModel.dismissExitConfirm()
+                            viewModel.togglePlayerSettings()
+                        }.padding(vertical = 12.dp)
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                    // 取消
+                    Text(
+                        text = "取消",
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().clickable { viewModel.dismissExitConfirm() }
+                            .padding(vertical = 12.dp)
+                    )
+                }
+            }
+        }
+    } else {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissExitConfirm() },
+            title = { Text("退出应用", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "您正在退出应用，请选择退出方式：",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 进入 PiP
+                    if (activity != null &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                        activity.packageManager.hasSystemFeature("android.software.picture_in_picture")
+                    ) {
+                        TextButton(
+                            onClick = {
+                                viewModel.dismissExitConfirm()
+                                try {
+                                    val builder = android.app.PictureInPictureParams.Builder()
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        builder.setAutoEnterEnabled(true)
+                                        builder.setSeamlessResizeEnabled(true)
+                                    }
+                                    activity.enterPictureInPictureMode(builder.build())
+                                } catch (e: Exception) {
+                                    Log.e("ExitConfirmDialog", "PiP failed", e)
+                                }
+                            },
+                            modifier = Modifier.tvFocusBorder()
+                        ) { Text("画中画") }
+                    }
+                    // 立即退出
                     TextButton(
                         onClick = {
                             viewModel.dismissExitConfirm()
-                            try {
-                                val builder = android.app.PictureInPictureParams.Builder()
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                    builder.setAutoEnterEnabled(true)
-                                    builder.setSeamlessResizeEnabled(true)
-                                }
-                                activity.enterPictureInPictureMode(builder.build())
-                            } catch (e: Exception) {
-                                Log.e("ExitConfirmDialog", "PiP failed", e)
-                            }
+                            // 先停止播放，避免 Activity finish 后 mpv 在后台继续播放
+                            viewModel.stopPlay()
+                            activity?.finishAffinity()
                         },
                         modifier = Modifier.tvFocusBorder()
-                    ) { Text("画中画") }
+                    ) { Text("立即退出", color = if (isAptv) AptvAccent else Color(0xFFEF5350)) }
                 }
-                // 立即退出
-                TextButton(
-                    onClick = {
-                        viewModel.dismissExitConfirm()
-                        // 先停止播放，避免 Activity finish 后 mpv 在后台继续播放
-                        viewModel.stopPlay()
-                        activity?.finishAffinity()
-                    },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text("立即退出", color = Color(0xFFEF5350)) }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 打开设置：不退出，转而打开播放器设置面板
+                    TextButton(
+                        onClick = {
+                            viewModel.dismissExitConfirm()
+                            viewModel.togglePlayerSettings()
+                        },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("打开设置") }
+                    // 取消
+                    TextButton(
+                        onClick = { viewModel.dismissExitConfirm() },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("取消") }
+                }
             }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // 打开设置：不退出，转而打开播放器设置面板
-                TextButton(
-                    onClick = {
-                        viewModel.dismissExitConfirm()
-                        viewModel.togglePlayerSettings()
-                    },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text("打开设置") }
-                // 取消
-                TextButton(
-                    onClick = { viewModel.dismissExitConfirm() },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text("取消") }
-            }
-        }
-    )
+        )
+    }
 }
 // =================================================================
 // 工具面板
@@ -367,6 +524,66 @@ private fun ToolEntryRow(tool: ToolEntry) {
         }
     }
 }
+
+/**
+ * 播放工具面板：播放时常用工具入口（截图/切片/EPG时间线/搜索/提醒/续播/书签/可视化/歌词）。
+ * 从控制条"播放工具"按钮或设置页"播放工具"项进入，与 [ToolsPanel] 的通用工具列表互补。
+ */
+@Composable
+fun PlayerToolsPanel(viewModel: AppViewModel) {
+    PanelScaffold(
+        title = "播放工具",
+        subtitle = "截图 / 切片 / EPG时间线 / 搜索 / 提醒 / 续播 / 书签",
+        onClose = { viewModel.togglePlayerToolsPanel() },
+        scrollable = false
+    ) {
+        val tools = listOf(
+            ToolEntry("截图", "截取当前画面", Icons.Default.CameraAlt) {
+                viewModel.togglePlayerToolsPanel()
+                viewModel.toggleScreenshotPanel()
+            },
+            ToolEntry("切片导出", "截取视频片段", Icons.Default.Movie) {
+                viewModel.togglePlayerToolsPanel()
+                viewModel.toggleClipExportPanel()
+            },
+            ToolEntry("EPG 时间线", "节目时间线视图", Icons.Default.CalendarMonth) {
+                viewModel.togglePlayerToolsPanel()
+                viewModel.toggleEpgTimelinePanel()
+            },
+            ToolEntry("搜索", "全局搜索频道和节目", Icons.Default.Search) {
+                viewModel.togglePlayerToolsPanel()
+                viewModel.toggleSearchPanel()
+            },
+            ToolEntry("提醒管理", "节目提醒列表", Icons.Default.Notifications) {
+                viewModel.togglePlayerToolsPanel()
+                viewModel.toggleReminderPanel()
+            },
+            ToolEntry("续播位置", "本地文件/点播断点续播", Icons.Default.History) {
+                viewModel.togglePlayerToolsPanel()
+                viewModel.toggleResumePanel()
+            },
+            ToolEntry("书签管理", "播放位置书签", Icons.Default.Bookmark) {
+                viewModel.togglePlayerToolsPanel()
+                viewModel.toggleBookmarkPanel()
+            },
+            ToolEntry("音频可视化", "频谱/波形可视化", Icons.Default.Analytics) {
+                viewModel.togglePlayerToolsPanel()
+                viewModel.toggleAudioVisualizer()
+            },
+            ToolEntry("歌词", "加载/显示歌词", Icons.Default.Subtitles) {
+                viewModel.togglePlayerToolsPanel()
+                viewModel.toggleLyricsPanel()
+            }
+        )
+        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+            items(tools) { tool ->
+                ToolEntryRow(tool)
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            }
+        }
+    }
+}
+
 // -----------------------------------------------------------------
 // 节目提醒管理面板（与 PC 端 ui/dialogs/reminder_manager_dialog.py 对齐）
 // -----------------------------------------------------------------
@@ -430,18 +647,19 @@ fun ReminderPanel(viewModel: AppViewModel) {
         // 按开始时间升序排序
         val sorted = remember(reminders) { reminders.sortedBy { it.startTs } }
 
-        SectionLabel("提醒列表")
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)
-        ) {
-            items(sorted, key = { it.id }) { item ->
-                ReminderRow(
-                    item = item,
-                    now = now,
-                    timeFmt = timeFmt,
-                    onDelete = { viewModel.removeReminder(item.id) }
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        SettingsGroup("提醒列表") {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)
+            ) {
+                items(sorted, key = { it.id }) { item ->
+                    ReminderRow(
+                        item = item,
+                        now = now,
+                        timeFmt = timeFmt,
+                        onDelete = { viewModel.removeReminder(item.id) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                }
             }
         }
     }
@@ -589,18 +807,19 @@ fun ResumePanel(viewModel: AppViewModel) {
         // 按更新时间降序排序（最近观看在前）
         val sorted = remember(resumeList) { resumeList.sortedByDescending { it.updatedAt } }
 
-        SectionLabel("断点列表")
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)
-        ) {
-            items(sorted, key = { it.id }) { item ->
-                ResumeRow(
-                    item = item,
-                    timeFmt = timeFmt,
-                    onPlay = { viewModel.playResume(item) },
-                    onDelete = { viewModel.removeResume(item.url) }
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        SettingsGroup("断点列表") {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)
+            ) {
+                items(sorted, key = { it.id }) { item ->
+                    ResumeRow(
+                        item = item,
+                        timeFmt = timeFmt,
+                        onPlay = { viewModel.playResume(item) },
+                        onDelete = { viewModel.removeResume(item.url) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                }
             }
         }
     }
@@ -772,32 +991,15 @@ fun BookmarkPanel(viewModel: AppViewModel) {
         Spacer(modifier = Modifier.height(12.dp))
 
         // 视图切换
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilterChip(
-                selected = showCurrent,
-                onClick = { viewModel.setBookmarkShowCurrent(true) },
-                label = { Text("当前文件 (${currentBookmarks.size})") },
-                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    selectedLabelColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.tvFocusBorder()
-            )
-            FilterChip(
-                selected = !showCurrent,
-                onClick = { viewModel.setBookmarkShowCurrent(false) },
-                label = { Text("所有文件 (${allBookmarks.size})") },
-                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    selectedLabelColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.tvFocusBorder()
-            )
-        }
+        SelectionGroup(
+            title = "视图",
+            options = listOf(
+                "current" to "当前文件 (${currentBookmarks.size})",
+                "all" to "所有文件 (${allBookmarks.size})"
+            ),
+            selectedKey = if (showCurrent) "current" else "all",
+            onSelect = { key -> viewModel.setBookmarkShowCurrent(key == "current") }
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -830,18 +1032,19 @@ fun BookmarkPanel(viewModel: AppViewModel) {
             return@PanelScaffold
         }
 
-        SectionLabel("书签列表")
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)
-        ) {
-            items(displayList, key = { it.id }) { item ->
-                BookmarkRow(
-                    item = item,
-                    timeFmt = timeFmt,
-                    onGoto = { viewModel.gotoBookmark(item) },
-                    onDelete = { viewModel.deleteBookmark(item) }
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        SettingsGroup("书签列表") {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)
+            ) {
+                items(displayList, key = { it.id }) { item ->
+                    BookmarkRow(
+                        item = item,
+                        timeFmt = timeFmt,
+                        onGoto = { viewModel.gotoBookmark(item) },
+                        onDelete = { viewModel.deleteBookmark(item) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                }
             }
         }
     }

@@ -37,6 +37,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -167,234 +168,559 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.WifiTethering
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.AvTimer
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.CompareArrows
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.SwapHoriz
 import java.io.File
 
+// -----------------------------------------------------------------
+
+// 工具页（APTV 配置中心式：源卡片 + 文件/工具/高级 分组）
+// -----------------------------------------------------------------
+
 @Composable
-internal fun PortraitToolsContent(viewModel: AppViewModel) {
-    val oc = rememberPlayerOverlayColors()
-    val controlsPinned by viewModel.controlsPinned.collectAsState()
-    val themeMode by viewModel.themeMode.collectAsState()
-    val audioVisualizerOpen by viewModel.audioVisualizerOpen.collectAsState()
-    val lyricsOpen by viewModel.lyricsOpen.collectAsState()
-    val playerType by viewModel.playerType.collectAsState()
-    val isMpv = playerType == PlayerType.MPV
+internal fun PortraitToolsScreen(
+    viewModel: AppViewModel,
+    playlistLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
+    videoLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>
+) {
+    val sources by viewModel.sources.collectAsState()
+    val epgSources by viewModel.epgSources.collectAsState()
+    val channels by viewModel.channels.collectAsState()
 
-    // SAF 文件选择器 —— 打开播放列表
-    val playlistLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri != null) viewModel.importPlaylist(uri)
-    }
+    // 编辑模式（APTV 配置中心：编辑态显示删除按钮）
+    var editMode by remember { mutableStateOf(false) }
+    var deleteTargetIdx by remember { mutableStateOf(-1) }
+    var deleteEpgIdx by remember { mutableStateOf(-1) }
+    var showAddForm by remember { mutableStateOf(false) }
+    var newUrl by remember { mutableStateOf("") }
+    var newName by remember { mutableStateOf("") }
+    var showEpgAddForm by remember { mutableStateOf(false) }
+    var newEpgUrl by remember { mutableStateOf("") }
+    var newEpgName by remember { mutableStateOf("") }
 
-    // SAF 文件选择器 —— 打开本地视频/音频
-    val videoLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri != null) viewModel.playLocalVideo(uri.toString())
-    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // 头部：编辑（左） + 刷新/添加（右）
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (editMode) "完成" else stringResource(R.string.settings_edit),
+                color = AptvAccent,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickable { editMode = !editMode }
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                Icons.Default.Refresh,
+                contentDescription = "刷新源与频道",
+                tint = AptvAccent,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable {
+                        viewModel.loadSources()
+                        viewModel.loadEpgSources()
+                        viewModel.loadChannels()
+                    }
+            )
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        item { PortraitSectionHeader(stringResource(R.string.tools_file), oc) }
-        item {
-            PortraitListRow(stringResource(R.string.tools_open_local_file), stringResource(R.string.tools_open_local_file_desc), oc) {
-                if (!viewModel.isSafAvailable()) {
-                    viewModel.showMediaFileBrowser()
-                } else {
-                    videoLauncher.launch(arrayOf("video/*", "audio/*", "application/x-matroska", "application/octet-stream"))
+        }
+        Text(
+            text = stringResource(R.string.aptv_config_center),
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 26.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+
+        // 本地频道卡（固定第一）
+        AptvSectionHeader(stringResource(R.string.aptv_group_local))
+        AptvGroupCard {
+            val localCount = channels.count { it.source.isEmpty() }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        viewModel.setListSourceTab(ListSourceTab.LOCAL)
+                        viewModel.setPortraitTab(PortraitTab.CHANNELS)
+                    }
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(AptvAccent.copy(alpha = 0.90f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Folder, contentDescription = null, tint = Color.White, modifier = Modifier.size(19.dp))
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.tools_local_channels), color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                    Text(
+                        stringResource(R.string.aptv_channels_count, localCount),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
+                    )
+                }
+                Icon(
+                    Icons.Default.ChevronRight, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        // 订阅源卡片（APTV 配置中心样式：名称/频道数/启停/删除）
+        AptvSectionHeader(stringResource(R.string.aptv_group_sources))
+        AptvGroupCard {
+            if (sources.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.aptv_no_sources),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            }
+            sources.forEachIndexed { idx, s ->
+                val name = s.name.ifEmpty { s.url.substringAfterLast('/').take(28) }
+                val count = channels.count { it.source == s.url }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !editMode) {
+                            viewModel.setListSourceTab(ListSourceTab.SUBSCRIPTION)
+                            viewModel.setSelectedSource(s.url)
+                            viewModel.setPortraitTab(PortraitTab.CHANNELS)
+                        }
+                        .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            name,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                stringResource(R.string.aptv_channels_count, count),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 12.sp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = if (s.enabled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                    }
+                    // 启停开关（APTV 配置的启停语义）
+                    androidx.compose.material3.Switch(
+                        checked = s.enabled,
+                        onCheckedChange = { viewModel.toggleSourceEnabled(idx, it) },
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+                    // 编辑模式：删除
+                    if (editMode) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "删除订阅源",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clickable { deleteTargetIdx = idx }
+                        )
+                    }
+                }
+            }
+            // 添加订阅源（与 EPG 源统一：卡片内底部行）
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showAddForm = !showAddForm }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    tint = AptvAccent,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "添加订阅源",
+                    color = AptvAccent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            if (showAddForm) {
+                androidx.compose.material3.TextField(
+                    value = newUrl,
+                    onValueChange = { newUrl = it },
+                    placeholder = { Text("输入 M3U 订阅源 URL", fontSize = 14.sp) },
+                    singleLine = true,
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = AptvAccent
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                )
+                androidx.compose.material3.TextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    placeholder = { Text("名称（可选）", fontSize = 14.sp) },
+                    singleLine = true,
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = AptvAccent
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        text = stringResource(R.string.aptv_action_add),
+                        color = AptvAccent,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .clickable {
+                                viewModel.addSource(newUrl.trim(), newName.trim())
+                                newUrl = ""
+                                newName = ""
+                                showAddForm = false
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
                 }
             }
         }
-        item {
-            PortraitListRow(stringResource(R.string.tools_open_playlist), stringResource(R.string.tools_open_playlist_desc), oc) {
-                if (!viewModel.isSafAvailable()) {
-                    viewModel.showFileBrowser()
-                } else {
-                    playlistLauncher.launch(arrayOf(
-                        "application/x-mpegurl", "application/vnd.apple.mpegurl",
-                        "audio/x-mpegurl", "video/x-mpegurl",
-                        "text/plain", "application/octet-stream"
-                    ))
+
+        // EPG 源（APTV 配置中心：订阅 EPG 的增删）
+        AptvSectionHeader(stringResource(R.string.aptv_group_epg))
+        AptvGroupCard {
+            if (epgSources.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.aptv_no_epg_sources),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            }
+            epgSources.forEachIndexed { idx, e ->
+                val name = e.name.ifEmpty { e.url.substringAfterLast('/').take(28) }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            name,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = (e.lastUpdate ?: stringResource(R.string.aptv_epg_not_updated))
+                                .take(24),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp
+                        )
+                    }
+                    if (editMode) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "删除 EPG 源",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clickable { deleteEpgIdx = idx }
+                        )
+                    }
+                }
+            }
+            // 内联添加 EPG 源
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showEpgAddForm = !showEpgAddForm }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    tint = AptvAccent,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.aptv_add_epg),
+                    color = AptvAccent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            if (showEpgAddForm) {
+                androidx.compose.material3.TextField(
+                    value = newEpgUrl,
+                    onValueChange = { newEpgUrl = it },
+                    placeholder = { Text(stringResource(R.string.aptv_epg_url_hint), fontSize = 14.sp) },
+                    singleLine = true,
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = AptvAccent
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                )
+                androidx.compose.material3.TextField(
+                    value = newEpgName,
+                    onValueChange = { newEpgName = it },
+                    placeholder = { Text(stringResource(R.string.aptv_epg_name_hint), fontSize = 14.sp) },
+                    singleLine = true,
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = AptvAccent
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        text = stringResource(R.string.aptv_action_add),
+                        color = AptvAccent,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .clickable {
+                                viewModel.addEpgSource(newEpgUrl.trim(), newEpgName.trim())
+                                newEpgUrl = ""
+                                newEpgName = ""
+                                showEpgAddForm = false
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
                 }
             }
         }
-        item {
-            PortraitListRow(stringResource(R.string.tools_open_network_stream), stringResource(R.string.tools_open_network_stream_desc), oc) {
+
+        // 频道工具（扫描/导出等与频道内容相关的操作）
+        AptvSectionHeader(stringResource(R.string.aptv_group_channel_tools))
+        AptvGroupCard {
+            AptvRow(Icons.Default.WifiTethering, stringResource(R.string.tools_url_scan), stringResource(R.string.tools_url_scan_desc)) {
+                viewModel.toggleScanPanel()
+            }
+            AptvRow(Icons.Default.Save, stringResource(R.string.tools_save_as_m3u), stringResource(R.string.tools_save_as_m3u_desc)) {
+                viewModel.saveAsM3u()
+            }
+            AptvRow(Icons.Default.CompareArrows, stringResource(R.string.settings_mapping), stringResource(R.string.settings_mapping_desc)) {
+                viewModel.toggleMappingPanel()
+            }
+            AptvRow(Icons.Default.Wifi, stringResource(R.string.settings_network), stringResource(R.string.settings_network_desc)) {
+                viewModel.toggleNetworkPanel()
+            }
+        }
+
+        // 文件分组（原工具功能保留，入口移到此处）
+        AptvSectionHeader(stringResource(R.string.tools_file))
+        AptvGroupCard {
+            AptvRow(Icons.Default.VideoLibrary, stringResource(R.string.tools_open_local_file), stringResource(R.string.tools_open_local_file_desc)) {
+                if (!viewModel.isSafAvailable()) viewModel.showMediaFileBrowser()
+                else videoLauncher.launch(arrayOf("video/*", "audio/*", "application/x-matroska", "application/octet-stream"))
+            }
+            AptvRow(Icons.Default.PlaylistAdd, stringResource(R.string.tools_open_playlist), stringResource(R.string.tools_open_playlist_desc)) {
+                if (!viewModel.isSafAvailable()) viewModel.showFileBrowser()
+                else playlistLauncher.launch(arrayOf(
+                    "application/x-mpegurl", "application/vnd.apple.mpegurl",
+                    "audio/x-mpegurl", "video/x-mpegurl",
+                    "text/plain", "application/octet-stream"
+                ))
+            }
+            AptvRow(Icons.Default.Link, stringResource(R.string.tools_open_network_stream), stringResource(R.string.tools_open_network_stream_desc)) {
                 viewModel.toggleOpenUrlDialog()
             }
+            AptvRow(Icons.Default.History, stringResource(R.string.tools_recent), stringResource(R.string.tools_recent_desc)) {
+                viewModel.toggleRecentPanel()
+            }
         }
-        item {
-            PortraitListRow(stringResource(R.string.tools_recent), stringResource(R.string.tools_recent_desc), oc) { viewModel.toggleRecentPanel() }
+
+        // 播放工具（截图/切片/EPG时间轴/搜索/提醒等，播放时也可从控制浮层进入）
+        AptvSectionHeader(stringResource(R.string.aptv_group_player_tools))
+        AptvGroupCard {
+            AptvRow(Icons.Default.Tune, stringResource(R.string.aptv_player_tools), stringResource(R.string.aptv_player_tools_desc)) {
+                viewModel.togglePlayerToolsPanel()
+            }
         }
-        item { PortraitSectionHeader(stringResource(R.string.tools_tools), oc) }
-        item {
-            PortraitListRow(stringResource(R.string.tools_screenshot), stringResource(R.string.tools_screenshot_desc), oc, disabled = !isMpv) { viewModel.takeScreenshot("video") }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_clip_export), stringResource(R.string.tools_clip_export_desc), oc, disabled = !isMpv) { viewModel.toggleClipExportPanel() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_audio_visualizer), stringResource(R.string.tools_audio_visualizer_desc), oc, active = audioVisualizerOpen) { viewModel.toggleAudioVisualizer() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_lyrics), stringResource(R.string.tools_lyrics_desc), oc, active = lyricsOpen, disabled = !isMpv) { viewModel.toggleLyricsPanel() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_lock_controls), stringResource(R.string.tools_lock_controls_desc), oc, active = controlsPinned) { viewModel.toggleControlsPinned() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_refresh), stringResource(R.string.tools_refresh_desc), oc) { viewModel.refreshUi() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_save_as_m3u), stringResource(R.string.tools_save_as_m3u_desc), oc) { viewModel.saveAsM3u() }
-        }
-        item { PortraitSectionHeader(stringResource(R.string.tools_advanced), oc) }
-        item {
-            PortraitListRow(stringResource(R.string.tools_epg_timeline), stringResource(R.string.tools_epg_timeline_desc), oc) { viewModel.toggleEpgTimelinePanel() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_global_search), stringResource(R.string.tools_global_search_desc), oc) { viewModel.toggleSearchPanel() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_stream_quality), stringResource(R.string.tools_stream_quality_desc), oc, disabled = !isMpv) { viewModel.toggleStreamQualityPanel() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_url_scan), stringResource(R.string.tools_url_scan_desc), oc) { viewModel.toggleScanPanel() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_reminder), stringResource(R.string.tools_reminder_desc), oc) { viewModel.toggleReminderPanel() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_resume), stringResource(R.string.tools_resume_desc), oc) { viewModel.toggleResumePanel() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_bookmark), stringResource(R.string.tools_bookmark_desc), oc, disabled = !isMpv) { viewModel.toggleBookmarkPanel() }
-        }
-        item {
-            PortraitListRow(stringResource(R.string.tools_av_sync), stringResource(R.string.tools_av_sync_desc), oc, disabled = !isMpv) { viewModel.toggleAvSyncPanel() }
-        }
+
+        Spacer(modifier = Modifier.height(90.dp))
+    }
+
+    // 删除确认（频道源 / EPG 源）— iOS 风格圆角卡片弹窗
+    if (deleteTargetIdx >= 0) {
+        AptvAlertDialog(
+            title = stringResource(R.string.aptv_delete_source_title),
+            message = stringResource(R.string.aptv_delete_source_confirm),
+            confirmText = stringResource(R.string.aptv_action_delete),
+            dismissText = stringResource(R.string.aptv_action_cancel),
+            destructive = true,
+            onConfirm = {
+                viewModel.deleteSource(deleteTargetIdx)
+                deleteTargetIdx = -1
+            },
+            onDismiss = { deleteTargetIdx = -1 }
+        )
+    }
+    if (deleteEpgIdx >= 0) {
+        AptvAlertDialog(
+            title = stringResource(R.string.aptv_delete_epg_title),
+            message = stringResource(R.string.aptv_delete_epg_confirm),
+            confirmText = stringResource(R.string.aptv_action_delete),
+            dismissText = stringResource(R.string.aptv_action_cancel),
+            destructive = true,
+            onConfirm = {
+                viewModel.deleteEpgSource(deleteEpgIdx)
+                deleteEpgIdx = -1
+            },
+            onDismiss = { deleteEpgIdx = -1 }
+        )
     }
 }
 
+
 // -----------------------------------------------------------------
-// 设置内容（竖屏 Tab）
+// 设置内容（竖屏 Tab，APTV/iOS 分组卡片式）
 @Composable
 internal fun PortraitSettingsContent(viewModel: AppViewModel) {
-    val oc = rememberPlayerOverlayColors()
     val themeMode by viewModel.themeMode.collectAsState()
     val autoResume by viewModel.autoResume.collectAsState()
     val playerType by viewModel.playerType.collectAsState()
     val isMpv = playerType == PlayerType.MPV
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        item { PortraitSectionHeader(stringResource(R.string.settings_playback), oc) }
-        item {
-            val mpvExtra = if (isMpv) stringResource(R.string.settings_mpv_config_extra) else ""
-            PortraitListRow(stringResource(R.string.settings_player), stringResource(R.string.settings_player_desc, playerType.displayName, mpvExtra), oc) { viewModel.togglePlayerSettings() }
-        }
-        item { PortraitListRow(stringResource(R.string.settings_video), stringResource(R.string.settings_video_desc), oc) { viewModel.toggleVideoSettings() } }
-        item {
-            val audioDesc = if (isMpv) stringResource(R.string.settings_audio_desc_mpv) else stringResource(R.string.settings_audio_desc_exo)
-            PortraitListRow(stringResource(R.string.settings_audio), audioDesc, oc) { viewModel.toggleAudioSettings() }
-        }
-        item { PortraitListRow(stringResource(R.string.settings_subtitle), stringResource(R.string.settings_subtitle_desc), oc, disabled = !isMpv) { viewModel.toggleSubtitleSettings() } }
-        item { PortraitListRow(stringResource(R.string.settings_playback_settings), stringResource(R.string.settings_playback_desc), oc) { viewModel.togglePlaybackPanel() } }
-        item { PortraitListRow(stringResource(R.string.settings_screenshot), stringResource(R.string.settings_screenshot_desc), oc, disabled = !isMpv) { viewModel.toggleScreenshotPanel() } }
-        item { PortraitListRow(stringResource(R.string.settings_view), stringResource(R.string.settings_view_desc), oc) { viewModel.toggleViewSettings() } }
-
-        item { PortraitSectionHeader(stringResource(R.string.settings_channels), oc) }
-        item { PortraitListRow(stringResource(R.string.settings_source_manager), stringResource(R.string.settings_source_manager_desc), oc) { viewModel.toggleSourceManager() } }
-        item { PortraitListRow(stringResource(R.string.settings_mapping), stringResource(R.string.settings_mapping_desc), oc) { viewModel.toggleMappingPanel() } }
-        item { PortraitListRow(stringResource(R.string.settings_network), stringResource(R.string.settings_network_desc), oc) { viewModel.toggleNetworkPanel() } }
-
-        item { PortraitSectionHeader(stringResource(R.string.settings_general), oc) }
-        item {
-            val themeLabel = when (themeMode) { "light" -> stringResource(R.string.settings_theme_light); "system" -> stringResource(R.string.settings_theme_system); else -> stringResource(R.string.settings_theme_dark) }
-            PortraitListRow(stringResource(R.string.settings_theme), stringResource(R.string.settings_current, themeLabel), oc) {
-                val next = when (themeMode) { "dark" -> "light"; "light" -> "system"; else -> "dark" }
-                viewModel.setThemeMode(next)
-            }
-        }
-        item {
-            val resumeLabel = if (autoResume) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled)
-            PortraitListRow(stringResource(R.string.settings_auto_resume), resumeLabel, oc, active = autoResume) {
-                viewModel.setAutoResume(!autoResume)
-            }
-        }
-        item { PortraitListRow(stringResource(R.string.settings_about), stringResource(R.string.settings_about_desc), oc) { viewModel.toggleAboutPanel() } }
-    }
-}
-
-// -----------------------------------------------------------------
-// 竖屏底部 Tab 栏
-/** 竖屏列表行（工具/设置项通用） */
-@Composable
-private fun PortraitListRow(
-    title: String,
-    subtitle: String,
-    oc: PlayerOverlayColors,
-    active: Boolean = false,
-    disabled: Boolean = false,
-    onClick: () -> Unit
-) {
-    val titleColor = when {
-        disabled -> oc.textSecondary.copy(alpha = 0.35f)
-        active -> oc.accent
-        else -> oc.textPrimary
-    }
-    val subColor = if (disabled) oc.textSecondary.copy(alpha = 0.25f) else oc.textSecondary
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (disabled) Modifier else Modifier.clickable(onClick = onClick))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 90.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        item {
             Text(
-                text = title,
-                color = titleColor,
-                fontSize = 14.sp,
-                fontWeight = if (active) FontWeight.Medium else FontWeight.Normal
+                text = stringResource(R.string.tab_settings),
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
-            val displaySub = if (disabled && subtitle.isNotEmpty()) "$subtitle（当前内核不支持）" else subtitle
-            if (displaySub.isNotEmpty()) {
-                Text(
-                    text = displaySub,
-                    color = subColor,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+        }
+
+        item { AptvSectionHeader(stringResource(R.string.settings_general)) }
+        item {
+            AptvGroupCard {
+                val themeLabel = when (themeMode) { "light" -> stringResource(R.string.settings_theme_light); "system" -> stringResource(R.string.settings_theme_system); else -> stringResource(R.string.settings_theme_dark) }
+                AptvRow(Icons.Default.DarkMode, stringResource(R.string.settings_theme), value = themeLabel) {
+                    val next = when (themeMode) { "dark" -> "light"; "light" -> "system"; else -> "dark" }
+                    viewModel.setThemeMode(next)
+                }
+                AptvRow(Icons.Default.Replay, stringResource(R.string.settings_auto_resume), value = if (autoResume) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled)) {
+                    viewModel.setAutoResume(!autoResume)
+                }
             }
         }
-        if (active && !disabled) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(oc.accent)
-            )
+
+        item { AptvSectionHeader(stringResource(R.string.settings_playback)) }
+        item {
+            AptvGroupCard {
+                AptvRow(Icons.Default.PlayCircle, stringResource(R.string.settings_player), value = playerType.displayName) {
+                    viewModel.togglePlayerSettings()
+                }
+                AptvRow(Icons.Default.Tv, stringResource(R.string.settings_video)) { viewModel.toggleVideoSettings() }
+                AptvRow(Icons.Default.VolumeUp, stringResource(R.string.settings_audio)) { viewModel.toggleAudioSettings() }
+                AptvRow(Icons.Default.Subtitles, stringResource(R.string.settings_subtitle), disabled = !isMpv) { viewModel.toggleSubtitleSettings() }
+                AptvRow(Icons.Default.Tune, stringResource(R.string.settings_playback_settings)) { viewModel.togglePlaybackPanel() }
+                AptvRow(Icons.Default.PhotoCamera, stringResource(R.string.settings_screenshot), disabled = !isMpv) { viewModel.toggleScreenshotPanel() }
+                AptvRow(Icons.Default.Wallpaper, stringResource(R.string.settings_view)) { viewModel.toggleViewSettings() }
+            }
+        }
+
+        item { AptvSectionHeader(stringResource(R.string.settings_channels)) }
+        item {
+            AptvGroupCard {
+                AptvRow(Icons.Default.CompareArrows, stringResource(R.string.settings_mapping)) { viewModel.toggleMappingPanel() }
+                AptvRow(Icons.Default.Wifi, stringResource(R.string.settings_network)) { viewModel.toggleNetworkPanel() }
+            }
+        }
+
+        item { AptvSectionHeader(stringResource(R.string.aptv_group_about)) }
+        item {
+            AptvGroupCard {
+                AptvRow(Icons.Default.Info, stringResource(R.string.settings_about)) { viewModel.toggleAboutPanel() }
+            }
         }
     }
-}
-/** 竖屏分组标题 */
-@Composable
-private fun PortraitSectionHeader(
-    title: String,
-    oc: PlayerOverlayColors
-) {
-    Text(
-        text = title,
-        color = oc.accent,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Medium,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(oc.badgeBg)
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-    )
 }
 
 // ============================================================
