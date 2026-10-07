@@ -403,62 +403,52 @@ private fun TvBottomBar(
 
     Box {
         if (isAndroid12Plus) {
-            Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(8.dp)).blur(15.dp).background(Color(0x88333333)))
+            Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(8.dp)).blur(15.dp).background(Color(0x881a1a2e)))
         }
         Surface(
-            color = if (isAndroid12Plus) Color(0xE6333333) else Color(0xF0333333),
+            color = if (isAndroid12Plus) Color(0xE61a1a2e) else Color(0xF01a1a2e),
             shape = RoundedCornerShape(8.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                // 第1行：台标 + 频道号 + 频道名 + 节目名 + 状态标签 + 技术标签
+                // 第1行：台标 + 频道号 + 频道名 + spacer + 状态标签 + 技术标签组
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier.size(56.dp, 40.dp).clip(RoundedCornerShape(4.dp)).background(ICON_BG),
+                        modifier = Modifier.size(48.dp, 36.dp).clip(RoundedCornerShape(4.dp)).background(ICON_BG),
                         contentAlignment = Alignment.Center
                     ) {
                         if (displayInfo.logo.isNotEmpty()) {
-                            AsyncImage(model = displayInfo.logo, contentDescription = displayInfo.name, modifier = Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit)
+                            AsyncImage(model = displayInfo.logo, contentDescription = displayInfo.name, modifier = Modifier.fillMaxSize().padding(3.dp), contentScale = ContentScale.Fit)
                         } else {
                             Text(
                                 text = displayInfo.name.take(2).ifEmpty { "·" },
                                 color = Color.White,
-                                fontSize = 16.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     if (displayInfo.idx >= 0) {
                         Text(
                             text = String.format("%03d", displayInfo.idx + 1),
-                            color = ACCENT_CYAN,
+                            color = Color(0xFF4a90d9),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box(modifier = Modifier.width(1.dp).height(12.dp).background(Color(0x60FFFFFF)))
+                        Spacer(modifier = Modifier.width(4.dp))
                     }
                     Text(
                         text = displayInfo.name.ifEmpty { "未选择频道" },
                         color = if (displayInfo.idx >= 0) oc.textPrimary else oc.textSecondary,
-                        fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp, fontWeight = FontWeight.Bold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
-                    // 当前节目名（频道名后紧跟节目名）
-                    if (currentProgram != null && currentProgram.title.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = currentProgram.title,
-                            color = oc.textSecondary,
-                            fontSize = 14.sp,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+                    Spacer(modifier = Modifier.weight(1f))
                     if (statusTag != null) {
                         Surface(color = statusTag.second.copy(alpha = 0.25f), shape = RoundedCornerShape(3.dp)) {
-                            Text(text = statusTag.first, color = statusTag.second, fontSize = 11.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
+                            Text(text = statusTag.first, color = statusTag.second, fontSize = 10.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                     }
@@ -476,21 +466,34 @@ private fun TvBottomBar(
                     }
                 }
 
-                // 第2行：日期 + 时间范围 + 进度条(占满) + 时间戳 + 距结束 + 按钮
+                // 第2行：当前节目时间范围 + 节目名 + 进度条(细线) + 时间戳 + 距结束 + 按钮
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                        val dateText = remember(tick) { dateFmt.format(java.util.Date(tick)) }
-                        Text(text = dateText, color = oc.textSecondary, fontSize = 12.sp)
-                        if (currentProgram != null && currentProgram.stopTs > 0) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            val timeRange = remember(currentProgram) {
-                                val start = timeFmt.format(java.util.Date(currentProgram.startTs * 1000L))
-                                val end = timeFmt.format(java.util.Date(currentProgram.stopTs * 1000L))
-                                "$start-$end"
+                        if (currentProgram != null && currentProgram.title.isNotEmpty()) {
+                            if (currentProgram.stopTs > 0) {
+                                val timeRange = remember(currentProgram) {
+                                    val start = timeFmt.format(java.util.Date(currentProgram.startTs * 1000L))
+                                    val end = timeFmt.format(java.util.Date(currentProgram.stopTs * 1000L))
+                                    "$start-$end"
+                                }
+                                Text(text = timeRange, color = Color(0xFFa0a0a0), fontSize = 12.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
                             }
-                            Text(text = timeRange, color = oc.textSecondary, fontSize = 12.sp)
+                            Text(
+                                text = currentProgram.title,
+                                color = oc.textPrimary,
+                                fontSize = 13.sp,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            Text(
+                                text = "精彩节目",
+                                color = oc.textSecondary.copy(alpha = 0.6f),
+                                fontSize = 13.sp,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
                         val timePos by mpv.timePos.collectAsState()
                         val duration by mpv.duration.collectAsState()
                         val progress = remember(tick, timePos, duration, displayInfo, currentProgram) {
@@ -506,14 +509,26 @@ private fun TvBottomBar(
                             )
                         }
                         val hasEpg = currentProgram != null && currentProgram.stopTs > 0
-                        Slider(
-                            value = if (hasEpg) progress.percent / 100f else 0f,
-                            onValueChange = { if (hasEpg) viewModel.seekProgress(it * 100f) },
-                            enabled = hasEpg,
-                            modifier = Modifier.weight(1f).height(8.dp),
-                            colors = SliderDefaults.colors(thumbColor = Color(0xFF2979FF), activeTrackColor = Color(0xFF2979FF), inactiveTrackColor = Color(0x30FFFFFF))
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        if (hasEpg) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            // 细线进度条
+                            Box(
+                                modifier = Modifier
+                                    .width(180.dp)
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(1.5.dp))
+                                    .background(Color(0x30FFFFFF))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .width(with(androidx.compose.ui.platform.LocalDensity.current) { (180.dp * (progress.percent / 100f)).toPx().toDp() })
+                                        .clip(RoundedCornerShape(1.5.dp))
+                                        .background(Color(0xFF4a90d9))
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         val posText = remember(tick, timePos, playbackMode, showExitCatchup) {
                             if (playbackMode == PlayMode.LIVE && !showExitCatchup) {
                                 fullTimeFmt.format(java.util.Date(tick))
@@ -522,64 +537,52 @@ private fun TvBottomBar(
                             } else ""
                         }
                         if (posText.isNotEmpty()) {
-                            Text(text = posText, color = oc.textSecondary, fontSize = 12.sp)
+                            Text(text = posText, color = Color(0xFFa0a0a0), fontSize = 11.sp)
                         }
                         if (remainText != null) {
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = remainText, color = ACCENT_CYAN, fontSize = 11.sp)
+                            Text(text = remainText, color = Color(0xFF4a90d9), fontSize = 10.sp)
                         }
                         if (showExitCatchup) {
                             Spacer(modifier = Modifier.width(4.dp))
-                            IconButton(onClick = { viewModel.exitCatchup() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                            IconButton(onClick = { viewModel.exitCatchup() }, modifier = Modifier.size(28.dp).tvFocusBorder()) {
                                 Icon(Icons.AutoMirrored.Filled.Backspace, "退出回看", tint = oc.accent, modifier = Modifier.size(14.dp))
                             }
                         }
                         Spacer(modifier = Modifier.width(2.dp))
-                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(28.dp).tvFocusBorder()) {
                             Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(14.dp))
                         }
                     }
 
-                // 第3行：节目描述 + 下一节目预告
+                // 第3行：下一节目时间范围 + 下一节目名
                 run {
-                    val hasDesc = currentProgram != null && currentProgram.desc.isNotEmpty()
                     val hasNext = nextProgram != null
                     Spacer(modifier = Modifier.height(2.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (hasDesc) {
+                            if (hasNext) {
+                                val nextStart = remember(nextProgram) {
+                                    timeFmt.format(java.util.Date(nextProgram!!.startTs * 1000L))
+                                }
+                                val nextEnd = remember(nextProgram) {
+                                    timeFmt.format(java.util.Date(nextProgram!!.stopTs * 1000L))
+                                }
+                                Text(text = "$nextStart-$nextEnd", color = Color(0xFFa0a0a0), fontSize = 12.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = currentProgram!!.desc,
-                                    color = oc.textSecondary.copy(alpha = 0.85f),
-                                    fontSize = 12.sp,
+                                    text = nextProgram!!.title,
+                                    color = Color(0xB3FFFFFF),
+                                    fontSize = 13.sp,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
                             } else {
+                                val dateText = remember(tick) { dateFmt.format(java.util.Date(tick)) }
                                 Text(
-                                    text = "精彩节目",
-                                    color = oc.textSecondary.copy(alpha = 0.6f),
+                                    text = dateText,
+                                    color = Color(0xFFa0a0a0),
                                     fontSize = 12.sp,
-                                    maxLines = 1,
                                     modifier = Modifier.weight(1f)
-                                )
-                            }
-                            if (hasNext) {
-                                Spacer(modifier = Modifier.width(12.dp))
-                                val nextStart = remember(nextProgram) {
-                                    timeFmt.format(java.util.Date(nextProgram!!.startTs * 1000L))
-                                }
-                                Text(
-                                    text = "下一节目 $nextStart ",
-                                    color = ACCENT_CYAN,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = nextProgram!!.title,
-                                    color = Color(0xB3FFFFFF),
-                                    fontSize = 12.sp,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.width(200.dp)
                                 )
                             }
                         }
