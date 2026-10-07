@@ -183,79 +183,71 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
             Text("未在播放，调整将在播放后生效", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
 
-        SectionLabel("图像调整")
-        LabeledSlider(
-            label = "亮度", value = brightness.toFloat(), range = -100f..100f,
-            valueText = brightness.toString(),
-            onValueChange = { brightness = it.toInt(); mpv.setBrightness(brightness) },
-            onReset = { brightness = 0; mpv.setBrightness(0) }
-        )
-        LabeledSlider(
-            label = "对比度", value = contrast.toFloat(), range = -100f..100f,
-            valueText = contrast.toString(),
-            onValueChange = { contrast = it.toInt(); mpv.setContrast(contrast) },
-            onReset = { contrast = 0; mpv.setContrast(0) }
-        )
-        LabeledSlider(
-            label = "饱和度", value = saturation.toFloat(), range = -100f..100f,
-            valueText = saturation.toString(),
-            onValueChange = { saturation = it.toInt(); mpv.setSaturation(saturation) },
-            onReset = { saturation = 0; mpv.setSaturation(0) }
-        )
-        LabeledSlider(
-            label = "色调", value = hue.toFloat(), range = -100f..100f,
-            valueText = hue.toString(),
-            onValueChange = { hue = it.toInt(); mpv.setHue(hue) },
-            onReset = { hue = 0; mpv.setHue(0) }
-        )
-        LabeledSlider(
-            label = "Gamma", value = gamma.toFloat(), range = -100f..100f,
-            valueText = gamma.toString(),
-            onValueChange = { gamma = it.toInt(); mpv.setGamma(gamma) },
-            onReset = { gamma = 0; mpv.setGamma(0) }
-        )
-
-        SectionLabel("旋转")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(0, 90, 180, 270).forEach { deg ->
-                FilterChip(
-                    selected = rotate == deg,
-                    onClick = { rotate = deg; mpv.setVideoRotate(deg) },
-                    label = { Text("${deg}°") },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
+        SettingsGroup("图像调整") {
+            LabeledSlider(
+                label = "亮度", value = brightness.toFloat(), range = -100f..100f,
+                valueText = brightness.toString(),
+                onValueChange = { brightness = it.toInt(); mpv.setBrightness(brightness) },
+                onReset = { brightness = 0; mpv.setBrightness(0) }
+            )
+            LabeledSlider(
+                label = "对比度", value = contrast.toFloat(), range = -100f..100f,
+                valueText = contrast.toString(),
+                onValueChange = { contrast = it.toInt(); mpv.setContrast(contrast) },
+                onReset = { contrast = 0; mpv.setContrast(0) }
+            )
+            LabeledSlider(
+                label = "饱和度", value = saturation.toFloat(), range = -100f..100f,
+                valueText = saturation.toString(),
+                onValueChange = { saturation = it.toInt(); mpv.setSaturation(saturation) },
+                onReset = { saturation = 0; mpv.setSaturation(0) }
+            )
+            LabeledSlider(
+                label = "色调", value = hue.toFloat(), range = -100f..100f,
+                valueText = hue.toString(),
+                onValueChange = { hue = it.toInt(); mpv.setHue(hue) },
+                onReset = { hue = 0; mpv.setHue(0) }
+            )
+            LabeledSlider(
+                label = "Gamma", value = gamma.toFloat(), range = -100f..100f,
+                valueText = gamma.toString(),
+                onValueChange = { gamma = it.toInt(); mpv.setGamma(gamma) },
+                onReset = { gamma = 0; mpv.setGamma(0) }
+            )
         }
 
-        SectionLabel("翻转")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("none" to "无", "horizontal" to "水平", "vertical" to "垂直", "both" to "both").forEach { (mode, label) ->
-                FilterChip(
-                    selected = flipMode == mode,
-                    onClick = { flipMode = mode; mpv.setVideoFlip(mode) },
-                    label = { Text(label) },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
+        SettingsGroup("旋转") {
+            SelectionGroup(
+                title = "角度",
+                options = listOf("0" to "0°", "90" to "90°", "180" to "180°", "270" to "270°"),
+                selectedKey = rotate.toString(),
+                onSelect = { deg -> rotate = deg.toInt(); mpv.setVideoRotate(deg.toInt()) }
+            )
+        }
+
+        SettingsGroup("翻转") {
+            SelectionGroup(
+                title = "模式",
+                options = listOf("none" to "无", "horizontal" to "水平", "vertical" to "垂直", "both" to "both"),
+                selectedKey = flipMode,
+                onSelect = { mode -> flipMode = mode; mpv.setVideoFlip(mode) }
+            )
         }
 
         // -----------------------------------------------------------------
         // 3D 立体模式（与 PC 端 _STEREO_MODES / Web 端 stereoMode 对齐）
         // 实时切换：点击即生效
         // -----------------------------------------------------------------
-        SectionLabel("3D 立体模式")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                "mono" to "2D", "sbs" to "左右(左)", "sbs2" to "左右(右)",
-                "ab" to "上下(上)", "ab2" to "上下(下)"
-            ).forEach { (mode, label) ->
-                FilterChip(
-                    selected = stereoMode == mode,
-                    onClick = { stereoMode = mode; mpv.setVideoStereoMode(mode) },
-                    label = { Text(label) },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
+        SettingsGroup("3D 立体模式") {
+            SelectionGroup(
+                title = "模式",
+                options = listOf(
+                    "mono" to "2D", "sbs" to "左右(左)", "sbs2" to "左右(右)",
+                    "ab" to "上下(上)", "ab2" to "上下(下)"
+                ),
+                selectedKey = stereoMode,
+                onSelect = { mode -> stereoMode = mode; mpv.setVideoStereoMode(mode) }
+            )
         }
 
         // -----------------------------------------------------------------
@@ -263,217 +255,209 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
         // 调整滑块后点击"应用"才生效，避免拖动时频繁添加/移除滤镜
         // 注意：panorama 滤镜需 ffmpeg 编译时启用，部分设备可能不可用
         // -----------------------------------------------------------------
-        SectionLabel("360° 视角")
-        DescText("调整后点击「应用」生效。需 ffmpeg panorama 滤镜支持，部分设备不可用")
+        SettingsGroup("360° 视角") {
+            DescText("调整后点击「应用」生效。需 ffmpeg panorama 滤镜支持，部分设备不可用")
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("投影：", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
-            listOf("flat" to "平面", "equirect" to "等距柱状", "cubemap" to "立方体贴图").forEach { (p, label) ->
-                FilterChip(
-                    selected = projection == p,
-                    onClick = { projection = p },
-                    label = { Text(label) },
+            SelectionGroup(
+                title = "投影",
+                options = listOf("flat" to "平面", "equirect" to "等距柱状", "cubemap" to "立方体贴图"),
+                selectedKey = projection,
+                onSelect = { p -> projection = p }
+            )
+
+            LabeledSlider(
+                label = "Yaw 偏航", value = yaw.toFloat(), range = -180f..180f,
+                valueText = "${yaw.toInt()}°",
+                onValueChange = { yaw = it.toDouble() },
+                onReset = { yaw = 0.0 }
+            )
+            LabeledSlider(
+                label = "Pitch 俯仰", value = pitch.toFloat(), range = -90f..90f,
+                valueText = "${pitch.toInt()}°",
+                onValueChange = { pitch = it.toDouble() },
+                onReset = { pitch = 0.0 }
+            )
+            LabeledSlider(
+                label = "Roll 滚转", value = roll.toFloat(), range = -180f..180f,
+                valueText = "${roll.toInt()}°",
+                onValueChange = { roll = it.toDouble() },
+                onReset = { roll = 0.0 }
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        mpv.set360View(yaw, pitch, roll, projection)
+                        viewModel.showOsd("360° 视角", "已应用")
+                    },
                     modifier = Modifier.tvFocusBorder()
-                )
+                ) { Text("应用 360°") }
+                OutlinedButton(
+                    onClick = {
+                        mpv.clear360Filter()
+                        yaw = 0.0; pitch = 0.0; roll = 0.0
+                        viewModel.showOsd("360° 视角", "已清除")
+                    },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("清除 360°") }
             }
-        }
-
-        LabeledSlider(
-            label = "Yaw 偏航", value = yaw.toFloat(), range = -180f..180f,
-            valueText = "${yaw.toInt()}°",
-            onValueChange = { yaw = it.toDouble() },
-            onReset = { yaw = 0.0 }
-        )
-        LabeledSlider(
-            label = "Pitch 俯仰", value = pitch.toFloat(), range = -90f..90f,
-            valueText = "${pitch.toInt()}°",
-            onValueChange = { pitch = it.toDouble() },
-            onReset = { pitch = 0.0 }
-        )
-        LabeledSlider(
-            label = "Roll 滚转", value = roll.toFloat(), range = -180f..180f,
-            valueText = "${roll.toInt()}°",
-            onValueChange = { roll = it.toDouble() },
-            onReset = { roll = 0.0 }
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = {
-                    mpv.set360View(yaw, pitch, roll, projection)
-                    viewModel.showOsd("360° 视角", "已应用")
-                },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("应用 360°") }
-            OutlinedButton(
-                onClick = {
-                    mpv.clear360Filter()
-                    yaw = 0.0; pitch = 0.0; roll = 0.0
-                    viewModel.showOsd("360° 视角", "已清除")
-                },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("清除 360°") }
         }
 
         // -----------------------------------------------------------------
         // 运动补偿（与 PC 端 set_motion_compensation 对齐）
         // 使用 FFmpeg minterpolate 滤镜，需 copy-back 硬解或软解
         // -----------------------------------------------------------------
-        SectionLabel("运动补偿")
-        DescText("需 copy-back 硬解或软解。高强度会增加 CPU 负载")
+        SettingsGroup("运动补偿") {
+            DescText("需 copy-back 硬解或软解。高强度会增加 CPU 负载")
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                "off" to "关闭", "low" to "轻度",
-                "medium" to "中度", "high" to "强力"
-            ).forEach { (mode, label) ->
-                FilterChip(
-                    selected = mcStrength == mode,
-                    onClick = {
-                        mcStrength = mode
-                        mpv.setMotionCompensation(mode, mcFps)
-                        viewModel.showOsd("运动补偿", if (mode == "off") "已关闭" else "$label ${mcFps}fps")
-                    },
-                    label = { Text(label) },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
-        }
+            SelectionGroup(
+                title = "强度",
+                options = listOf(
+                    "off" to "关闭", "low" to "轻度",
+                    "medium" to "中度", "high" to "强力"
+                ),
+                selectedKey = mcStrength,
+                onSelect = { mode ->
+                    mcStrength = mode
+                    mpv.setMotionCompensation(mode, mcFps)
+                    val label = when (mode) {
+                        "off" -> "关闭"; "low" -> "轻度"; "medium" -> "中度"; "high" -> "强力"; else -> mode
+                    }
+                    viewModel.showOsd("运动补偿", if (mode == "off") "已关闭" else "$label ${mcFps}fps")
+                }
+            )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("目标帧率：", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
-            listOf(50, 60, 90, 120, 144).forEach { fps ->
-                FilterChip(
-                    selected = mcFps == fps,
-                    onClick = {
-                        mcFps = fps
-                        if (mcStrength != "off") {
-                            mpv.setMotionCompensation(mcStrength, fps)
-                            viewModel.showOsd("运动补偿", "${mcFps}fps")
-                        }
-                    },
-                    label = { Text("${fps}") },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
+            SelectionGroup(
+                title = "帧率",
+                options = listOf("50" to "50", "60" to "60", "90" to "90", "120" to "120", "144" to "144"),
+                selectedKey = mcFps.toString(),
+                onSelect = { fps ->
+                    mcFps = fps.toInt()
+                    if (mcStrength != "off") {
+                        mpv.setMotionCompensation(mcStrength, fps.toInt())
+                        viewModel.showOsd("运动补偿", "${mcFps}fps")
+                    }
+                }
+            )
         }
 
         // -----------------------------------------------------------------
         // 分辨率提升（与 PC 端 set_super_resolution 对齐）
         // 缩放算法全局生效；细节增强需 copy-back 硬解或软解
         // -----------------------------------------------------------------
-        SectionLabel("分辨率提升")
-        DescText("缩放算法全局生效；细节增强需 copy-back 硬解或软解")
+        SettingsGroup("分辨率提升") {
+            DescText("缩放算法全局生效；细节增强需 copy-back 硬解或软解")
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                "off" to "关闭", "bilinear" to "双线性",
-                "bicubic" to "双三次", "lanczos" to "Lanczos",
-                "spline" to "样条", "ewa_lanczos" to "EWA",
-                "ewa_lanczossharp" to "EWA Sharp"
-            ).forEach { (algo, label) ->
-                FilterChip(
-                    selected = srScale == algo,
-                    onClick = {
-                        srScale = algo
-                        mpv.setSuperResolution(algo, srDetail)
-                        viewModel.showOsd("分辨率提升", label)
-                    },
-                    label = { Text(label) },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
+            SelectionGroup(
+                title = "算法",
+                options = listOf(
+                    "off" to "关闭", "bilinear" to "双线性",
+                    "bicubic" to "双三次", "lanczos" to "Lanczos",
+                    "spline" to "样条", "ewa_lanczos" to "EWA",
+                    "ewa_lanczossharp" to "EWA Sharp"
+                ),
+                selectedKey = srScale,
+                onSelect = { algo ->
+                    srScale = algo
+                    mpv.setSuperResolution(algo, srDetail)
+                    val label = listOf(
+                        "off" to "关闭", "bilinear" to "双线性",
+                        "bicubic" to "双三次", "lanczos" to "Lanczos",
+                        "spline" to "样条", "ewa_lanczos" to "EWA",
+                        "ewa_lanczossharp" to "EWA Sharp"
+                    ).firstOrNull { it.first == algo }?.second ?: algo
+                    viewModel.showOsd("分辨率提升", label)
+                }
+            )
+
+            LabeledSlider(
+                label = "细节增强", value = srDetail.toFloat(), range = 0f..100f,
+                valueText = srDetail.toString(),
+                onValueChange = {
+                    srDetail = it.toInt()
+                    mpv.setSuperResolution(srScale, srDetail)
+                },
+                onReset = {
+                    srDetail = 0
+                    mpv.setSuperResolution(srScale, 0)
+                }
+            )
         }
-
-        LabeledSlider(
-            label = "细节增强", value = srDetail.toFloat(), range = 0f..100f,
-            valueText = srDetail.toString(),
-            onValueChange = {
-                srDetail = it.toInt()
-                mpv.setSuperResolution(srScale, srDetail)
-            },
-            onReset = {
-                srDetail = 0
-                mpv.setSuperResolution(srScale, 0)
-            }
-        )
 
         // -----------------------------------------------------------------
         // AI 超分辨率着色器（GLSL Shader，GPU 加速）
         // 着色器文件放在 app filesDir/shaders/ 目录下
         // -----------------------------------------------------------------
-        SectionLabel("AI 超分辨率着色器")
-        DescText("GLSL 着色器在 GPU 运行，不影响 CPU。请将 .glsl/.hook 文件放在 shaders/ 目录")
+        SettingsGroup("AI 超分辨率着色器") {
+            DescText("GLSL 着色器在 GPU 运行，不影响 CPU。请将 .glsl/.hook 文件放在 shaders/ 目录")
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                "off" to "关闭",
-                "ravu" to "RAVU",
-                "fsrcnnx" to "FSRCNNX",
-                "anime4k" to "Anime4K",
-                "krig" to "KrigBilateral",
-                "ssim" to "SSim",
-                "esrgan" to "ESRGAN",
-                "adaptive_sharpen" to "锐化"
-            ).forEach { (preset, label) ->
-                FilterChip(
-                    selected = shaderPreset == preset,
-                    onClick = {
-                        shaderPreset = preset
-                        mpv.setUserShader(preset)
-                        viewModel.showOsd("着色器", label)
-                    },
-                    label = { Text(label) },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
+            SelectionGroup(
+                title = "预设",
+                options = listOf(
+                    "off" to "关闭",
+                    "ravu" to "RAVU",
+                    "fsrcnnx" to "FSRCNNX",
+                    "anime4k" to "Anime4K",
+                    "krig" to "KrigBilateral",
+                    "ssim" to "SSim",
+                    "esrgan" to "ESRGAN",
+                    "adaptive_sharpen" to "锐化"
+                ),
+                selectedKey = shaderPreset,
+                onSelect = { preset ->
+                    shaderPreset = preset
+                    mpv.setUserShader(preset)
+                    val label = listOf(
+                        "off" to "关闭", "ravu" to "RAVU", "fsrcnnx" to "FSRCNNX",
+                        "anime4k" to "Anime4K", "krig" to "KrigBilateral", "ssim" to "SSim",
+                        "esrgan" to "ESRGAN", "adaptive_sharpen" to "锐化"
+                    ).firstOrNull { it.first == preset }?.second ?: preset
+                    viewModel.showOsd("着色器", label)
+                }
+            )
         }
 
         // -----------------------------------------------------------------
         // 智能预设（一键优化）
         // -----------------------------------------------------------------
-        SectionLabel("智能预设")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                "auto" to "智能推荐",
-                "performance" to "性能优先",
-                "quality" to "画质优先",
-                "anime" to "动画优化",
-                "sports" to "体育直播",
-                "movie" to "电影模式"
-            ).forEach { (preset, label) ->
-                FilterChip(
-                    selected = false,
-                    onClick = {
-                        when (preset) {
-                            "auto" -> {
-                                // 根据硬件自动选择
-                                val cores = Runtime.getRuntime().availableProcessors()
-                                val maxMem = Runtime.getRuntime().maxMemory()
-                                if (cores >= 8 && maxMem > 512L * 1024 * 1024) {
-                                    mcStrength = "medium"; mcFps = 60
-                                    srScale = "ewa_lanczossharp"; srDetail = 40
-                                    shaderPreset = "off"
-                                    mpv.setMotionCompensation("medium", 60)
-                                    mpv.setSuperResolution("ewa_lanczossharp", 40)
-                                    mpv.clearUserShader()
-                                } else if (cores >= 4) {
-                                    mcStrength = "low"; mcFps = 60
-                                    srScale = "lanczos"; srDetail = 20
-                                    shaderPreset = "off"
-                                    mpv.setMotionCompensation("low", 60)
-                                    mpv.setSuperResolution("lanczos", 20)
-                                    mpv.clearUserShader()
-                                } else {
-                                    mcStrength = "off"; mcFps = 60
-                                    srScale = "bilinear"; srDetail = 0
-                                    shaderPreset = "off"
-                                    mpv.clearMotionCompensation()
-                                    mpv.setSuperResolution("bilinear", 0)
-                                    mpv.clearUserShader()
-                                }
-                            }
-                            "performance" -> {
+        SettingsGroup("智能预设") {
+            SelectionGroup(
+                title = "预设",
+                options = listOf(
+                    "auto" to "智能推荐",
+                    "performance" to "性能优先",
+                    "quality" to "画质优先",
+                    "anime" to "动画优化",
+                    "sports" to "体育直播",
+                    "movie" to "电影模式"
+                ),
+                selectedKey = "",
+                onSelect = { preset ->
+                    val label = listOf(
+                        "auto" to "智能推荐", "performance" to "性能优先",
+                        "quality" to "画质优先", "anime" to "动画优化",
+                        "sports" to "体育直播", "movie" to "电影模式"
+                    ).firstOrNull { it.first == preset }?.second ?: preset
+                    when (preset) {
+                        "auto" -> {
+                            // 根据硬件自动选择
+                            val cores = Runtime.getRuntime().availableProcessors()
+                            val maxMem = Runtime.getRuntime().maxMemory()
+                            if (cores >= 8 && maxMem > 512L * 1024 * 1024) {
+                                mcStrength = "medium"; mcFps = 60
+                                srScale = "ewa_lanczossharp"; srDetail = 40
+                                shaderPreset = "off"
+                                mpv.setMotionCompensation("medium", 60)
+                                mpv.setSuperResolution("ewa_lanczossharp", 40)
+                                mpv.clearUserShader()
+                            } else if (cores >= 4) {
+                                mcStrength = "low"; mcFps = 60
+                                srScale = "lanczos"; srDetail = 20
+                                shaderPreset = "off"
+                                mpv.setMotionCompensation("low", 60)
+                                mpv.setSuperResolution("lanczos", 20)
+                                mpv.clearUserShader()
+                            } else {
                                 mcStrength = "off"; mcFps = 60
                                 srScale = "bilinear"; srDetail = 0
                                 shaderPreset = "off"
@@ -481,45 +465,51 @@ fun VideoSettingsPanel(viewModel: AppViewModel) {
                                 mpv.setSuperResolution("bilinear", 0)
                                 mpv.clearUserShader()
                             }
-                            "quality" -> {
-                                mcStrength = "medium"; mcFps = 60
-                                srScale = "ewa_lanczossharp"; srDetail = 40
-                                shaderPreset = "off"
-                                mpv.setMotionCompensation("medium", 60)
-                                mpv.setSuperResolution("ewa_lanczossharp", 40)
-                                mpv.clearUserShader()
-                            }
-                            "anime" -> {
-                                mcStrength = "low"; mcFps = 60
-                                srScale = "ewa_lanczos"; srDetail = 20
-                                shaderPreset = "anime4k"
-                                mpv.setMotionCompensation("low", 60)
-                                mpv.setSuperResolution("ewa_lanczos", 20)
-                                mpv.setUserShader("anime4k")
-                            }
-                            "sports" -> {
-                                mcStrength = "high"; mcFps = 60
-                                srScale = "lanczos"; srDetail = 30
-                                shaderPreset = "off"
-                                mpv.setMotionCompensation("high", 60)
-                                mpv.setSuperResolution("lanczos", 30)
-                                mpv.clearUserShader()
-                            }
-                            "movie" -> {
-                                mcStrength = "medium"; mcFps = 60
-                                srScale = "ewa_lanczossharp"; srDetail = 40
-                                shaderPreset = "off"
-                                mpv.setMotionCompensation("medium", 60)
-                                mpv.setSuperResolution("ewa_lanczossharp", 40)
-                                mpv.clearUserShader()
-                            }
                         }
-                        viewModel.showOsd("智能预设", label)
-                    },
-                    label = { Text(label) },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
+                        "performance" -> {
+                            mcStrength = "off"; mcFps = 60
+                            srScale = "bilinear"; srDetail = 0
+                            shaderPreset = "off"
+                            mpv.clearMotionCompensation()
+                            mpv.setSuperResolution("bilinear", 0)
+                            mpv.clearUserShader()
+                        }
+                        "quality" -> {
+                            mcStrength = "medium"; mcFps = 60
+                            srScale = "ewa_lanczossharp"; srDetail = 40
+                            shaderPreset = "off"
+                            mpv.setMotionCompensation("medium", 60)
+                            mpv.setSuperResolution("ewa_lanczossharp", 40)
+                            mpv.clearUserShader()
+                        }
+                        "anime" -> {
+                            mcStrength = "low"; mcFps = 60
+                            srScale = "ewa_lanczos"; srDetail = 20
+                            shaderPreset = "anime4k"
+                            mpv.setMotionCompensation("low", 60)
+                            mpv.setSuperResolution("ewa_lanczos", 20)
+                            mpv.setUserShader("anime4k")
+                        }
+                        "sports" -> {
+                            mcStrength = "high"; mcFps = 60
+                            srScale = "lanczos"; srDetail = 30
+                            shaderPreset = "off"
+                            mpv.setMotionCompensation("high", 60)
+                            mpv.setSuperResolution("lanczos", 30)
+                            mpv.clearUserShader()
+                        }
+                        "movie" -> {
+                            mcStrength = "medium"; mcFps = 60
+                            srScale = "ewa_lanczossharp"; srDetail = 40
+                            shaderPreset = "off"
+                            mpv.setMotionCompensation("medium", 60)
+                            mpv.setSuperResolution("ewa_lanczossharp", 40)
+                            mpv.clearUserShader()
+                        }
+                    }
+                    viewModel.showOsd("智能预设", label)
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -597,58 +587,57 @@ fun AudioSettingsPanel(viewModel: AppViewModel) {
             Text("未在播放", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
 
-        SectionLabel("音轨")
-        if (audioTracks.isEmpty()) {
-            DescText("无可用音轨（单音频流）")
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                audioTracks.forEach { (id, title) ->
-                    FilterChip(
-                        selected = currentAid == id,
-                        onClick = { currentAid = id; mpv.setAudioTrack(id) },
-                        label = { Text(title, maxLines = 1) },
-                        modifier = Modifier.tvFocusBorder()
-                    )
-                }
-            }
-        }
-
-        SectionLabel("音频延迟")
-        LabeledSlider(
-            label = "延迟（秒）",
-            value = audioDelay.toFloat(),
-            range = -10f..10f,
-            valueText = "${"%.1f".format(audioDelay)}s",
-            onValueChange = { audioDelay = it.toDouble(); mpv.setAudioDelay(audioDelay) },
-            onReset = { audioDelay = 0.0; mpv.setAudioDelay(0.0) }
-        )
-
-SectionLabel("均衡器预设")
-FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf("normal" to "正常", "bass" to "低音", "treble" to "高音",
-                "vocal" to "人声", "pop" to "流行", "classic" to "古典").forEach { (key, label) ->
-                FilterChip(
-                    selected = eqPreset == key,
-                    onClick = {
-                        eqPreset = key
-                        mpv.setAudioEq(eqPresets[key] ?: emptyList())
-                        viewModel.showOsd("EQ", label)
-                    },
-                    label = { Text(label) },
-                    modifier = Modifier.tvFocusBorder()
+        SettingsGroup("音轨") {
+            if (audioTracks.isEmpty()) {
+                DescText("无可用音轨（单音频流）")
+            } else {
+                SelectionGroup(
+                    title = "音轨",
+                    options = audioTracks.map { (id, title) -> id.toString() to title },
+                    selectedKey = currentAid.toString(),
+                    onSelect = { id -> currentAid = id.toInt(); mpv.setAudioTrack(id.toInt()) }
                 )
             }
         }
 
-        SectionLabel("音调（变调不变速）")
-        LabeledSlider(
-            label = "音调",
-            value = audioPitch.toFloat(),
-            range = 0.5f..2.0f,
-            valueText = "${"%.2f".format(audioPitch)}x",
-            onValueChange = { audioPitch = it.toDouble(); mpv.setAudioPitch(audioPitch) },
-            onReset = { audioPitch = 1.0; mpv.setAudioPitch(1.0) }
-        )
+        SettingsGroup("音频延迟") {
+            LabeledSlider(
+                label = "延迟（秒）",
+                value = audioDelay.toFloat(),
+                range = -10f..10f,
+                valueText = "${"%.1f".format(audioDelay)}s",
+                onValueChange = { audioDelay = it.toDouble(); mpv.setAudioDelay(audioDelay) },
+                onReset = { audioDelay = 0.0; mpv.setAudioDelay(0.0) }
+            )
+        }
+
+        SettingsGroup("均衡器预设") {
+            SelectionGroup(
+                title = "预设",
+                options = listOf("normal" to "正常", "bass" to "低音", "treble" to "高音",
+                    "vocal" to "人声", "pop" to "流行", "classic" to "古典"),
+                selectedKey = eqPreset,
+                onSelect = { key ->
+                    eqPreset = key
+                    mpv.setAudioEq(eqPresets[key] ?: emptyList())
+                    val label = listOf("normal" to "正常", "bass" to "低音", "treble" to "高音",
+                        "vocal" to "人声", "pop" to "流行", "classic" to "古典"
+                    ).firstOrNull { it.first == key }?.second ?: key
+                    viewModel.showOsd("EQ", label)
+                }
+            )
+        }
+
+        SettingsGroup("音调（变调不变速）") {
+            LabeledSlider(
+                label = "音调",
+                value = audioPitch.toFloat(),
+                range = 0.5f..2.0f,
+                valueText = "${"%.2f".format(audioPitch)}x",
+                onValueChange = { audioPitch = it.toDouble(); mpv.setAudioPitch(audioPitch) },
+                onReset = { audioPitch = 1.0; mpv.setAudioPitch(1.0) }
+            )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
     }
@@ -703,125 +692,123 @@ fun PlaybackPanel(viewModel: AppViewModel) {
             Text("未在播放", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
 
-        SectionLabel("播放速度")
-        LabeledSlider(
-            label = "速度",
-            value = speed.toFloat(),
-            range = 0.25f..4.0f,
-            valueText = "${"%.2f".format(speed)}x",
-            onValueChange = { mpv.setSpeed(it.toDouble()) },
-            onReset = { mpv.setSpeed(1.0) }
-        )
+        SettingsGroup("播放速度") {
+            LabeledSlider(
+                label = "速度",
+                value = speed.toFloat(),
+                range = 0.25f..4.0f,
+                valueText = "${"%.2f".format(speed)}x",
+                onValueChange = { mpv.setSpeed(it.toDouble()) },
+                onReset = { mpv.setSpeed(1.0) }
+            )
+        }
 
-        SectionLabel("循环模式")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("no" to "不循环", "inf" to "单曲循环", "yes" to "循环一次").forEach { (mode, label) ->
-                FilterChip(
-                    selected = loopFile == mode,
-                    onClick = { loopFile = mode; mpv.setLoopFile(mode) },
-                    label = { Text(label) },
+        SettingsGroup("循环模式") {
+            SelectionGroup(
+                title = "单文件",
+                options = listOf("no" to "不循环", "inf" to "单曲循环", "yes" to "循环一次"),
+                selectedKey = loopFile,
+                onSelect = { mode -> loopFile = mode; mpv.setLoopFile(mode) }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            SelectionGroup(
+                title = "列表",
+                options = listOf("no" to "列表不循环", "inf" to "列表循环", "force" to "强制列表循环"),
+                selectedKey = loopPlaylist,
+                onSelect = { mode -> loopPlaylist = mode; mpv.setLoopPlaylist(mode) }
+            )
+        }
+
+        SettingsGroup("随机播放") {
+            DescText("开启后，切换下一频道时在当前可见频道范围内随机选择（避免短期重复）。上一频道可回退到上一个随机频道。")
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Switch(
+                    checked = shuffleMode,
+                    onCheckedChange = { viewModel.toggleShuffleMode() },
                     modifier = Modifier.tvFocusBorder()
+                )
+                Text(
+                    text = if (shuffleMode) "随机播放：开" else "随机播放：关",
+                    color = if (shuffleMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp
                 )
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("no" to "列表不循环", "inf" to "列表循环", "force" to "强制列表循环").forEach { (mode, label) ->
-                FilterChip(
-                    selected = loopPlaylist == mode,
-                    onClick = { loopPlaylist = mode; mpv.setLoopPlaylist(mode) },
-                    label = { Text(label) },
+
+        SettingsGroup("A/B 循环") {
+            DescText("设置 A 点和 B 点后，在该区间内循环播放")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        abLoopA = mpv.timePos.value
+                        mpv.setAbLoopA()
+                        viewModel.showOsd("AB 循环", "A 点: ${"%.1f".format(abLoopA)}s")
+                    },
                     modifier = Modifier.tvFocusBorder()
+                ) { Text("设置 A 点") }
+                OutlinedButton(
+                    onClick = {
+                        abLoopB = mpv.timePos.value
+                        mpv.setAbLoopB()
+                        viewModel.showOsd("AB 循环", "B 点: ${"%.1f".format(abLoopB)}s")
+                    },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("设置 B 点") }
+                OutlinedButton(
+                    onClick = {
+                        abLoopA = null; abLoopB = null
+                        mpv.clearAbLoop()
+                        viewModel.showOsd("AB 循环", "已清除")
+                    },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("清除") }
+            }
+            if (abLoopA != null || abLoopB != null) {
+                Text(
+                    "A: ${abLoopA?.let { "%.1f".format(it) + "s" } ?: "未设置"}  " +
+                        "B: ${abLoopB?.let { "%.1f".format(it) + "s" } ?: "未设置"}",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
 
-        SectionLabel("随机播放")
-        DescText("开启后，切换下一频道时在当前可见频道范围内随机选择（避免短期重复）。上一频道可回退到上一个随机频道。")
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Switch(
-                checked = shuffleMode,
-                onCheckedChange = { viewModel.toggleShuffleMode() },
-                modifier = Modifier.tvFocusBorder()
-            )
-            Text(
-                text = if (shuffleMode) "随机播放：开" else "随机播放：关",
-                color = if (shuffleMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp
-            )
-        }
-
-SectionLabel("A/B 循环")
-DescText("设置 A 点和 B 点后，在该区间内循环播放")
-FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            OutlinedButton(
-                onClick = {
-                    abLoopA = mpv.timePos.value
-                    mpv.setAbLoopA()
-                    viewModel.showOsd("AB 循环", "A 点: ${"%.1f".format(abLoopA)}s")
-                },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("设置 A 点") }
-            OutlinedButton(
-                onClick = {
-                    abLoopB = mpv.timePos.value
-                    mpv.setAbLoopB()
-                    viewModel.showOsd("AB 循环", "B 点: ${"%.1f".format(abLoopB)}s")
-                },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("设置 B 点") }
-            OutlinedButton(
-                onClick = {
-                    abLoopA = null; abLoopB = null
-                    mpv.clearAbLoop()
-                    viewModel.showOsd("AB 循环", "已清除")
-                },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("清除") }
-        }
-        if (abLoopA != null || abLoopB != null) {
-            Text(
-                "A: ${abLoopA?.let { "%.1f".format(it) + "s" } ?: "未设置"}  " +
-                    "B: ${abLoopB?.let { "%.1f".format(it) + "s" } ?: "未设置"}",
-                color = MaterialTheme.colorScheme.primary,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-
-        SectionLabel("逐帧")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = { mpv.frameBackStep() },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("◀ 上一帧") }
-            OutlinedButton(
-                onClick = { mpv.frameStep() },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("下一帧 ▶") }
+        SettingsGroup("逐帧") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { mpv.frameBackStep() },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("◀ 上一帧") }
+                OutlinedButton(
+                    onClick = { mpv.frameStep() },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("下一帧 ▶") }
+            }
         }
 
         // 章节（如果有）
         if (chapterCount > 0) {
-            SectionLabel("章节（${chapterCount} 个）")
-            Text(
-                "当前: 第 ${currentChapter + 1} 章",
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 13.sp
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = { mpv.chapterPrev() },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text("◀ 上一章") }
-                OutlinedButton(
-                    onClick = { mpv.chapterNext() },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text("下一章 ▶") }
+            SettingsGroup("章节（${chapterCount} 个）") {
+                Text(
+                    "当前: 第 ${currentChapter + 1} 章",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { mpv.chapterPrev() },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("◀ 上一章") }
+                    OutlinedButton(
+                        onClick = { mpv.chapterNext() },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("下一章 ▶") }
+                }
             }
         }
 
@@ -849,53 +836,53 @@ fun ViewSettingsPanel(viewModel: AppViewModel) {
         subtitle = "视频比例 / OSD",
         onClose = { viewModel.toggleViewSettings() }
     ) {
-        SectionLabel("视频比例")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("auto" to "自适应", "16:9" to "16:9", "4:3" to "4:3", "stretch" to "拉伸").forEach { (mode, label) ->
-                FilterChip(
-                    selected = aspectMode == mode,
-                    onClick = {
-                        aspectMode = mode
-                        when (mode) {
-                            "auto" -> {
-                                mpv.setPropertyBoolean("keepaspect", true)
-                                mpv.setPropertyString("video-aspect-override", "0")
-                            }
-                            "16:9" -> {
-                                mpv.setPropertyBoolean("keepaspect", true)
-                                mpv.setPropertyString("video-aspect-override", "1.7778")
-                            }
-                            "4:3" -> {
-                                mpv.setPropertyBoolean("keepaspect", true)
-                                mpv.setPropertyString("video-aspect-override", "1.3333")
-                            }
-                            "stretch" -> {
-                                mpv.setPropertyBoolean("keepaspect", false)
-                            }
+        SettingsGroup("视频比例") {
+            SelectionGroup(
+                title = "比例",
+                options = listOf("auto" to "自适应", "16:9" to "16:9", "4:3" to "4:3", "stretch" to "拉伸"),
+                selectedKey = aspectMode,
+                onSelect = { mode ->
+                    aspectMode = mode
+                    when (mode) {
+                        "auto" -> {
+                            mpv.setPropertyBoolean("keepaspect", true)
+                            mpv.setPropertyString("video-aspect-override", "0")
                         }
-                        viewModel.showOsd("视频比例", label)
-                    },
-                    label = { Text(label) },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
+                        "16:9" -> {
+                            mpv.setPropertyBoolean("keepaspect", true)
+                            mpv.setPropertyString("video-aspect-override", "1.7778")
+                        }
+                        "4:3" -> {
+                            mpv.setPropertyBoolean("keepaspect", true)
+                            mpv.setPropertyString("video-aspect-override", "1.3333")
+                        }
+                        "stretch" -> {
+                            mpv.setPropertyBoolean("keepaspect", false)
+                        }
+                    }
+                    val label = listOf("auto" to "自适应", "16:9" to "16:9", "4:3" to "4:3", "stretch" to "拉伸"
+                    ).firstOrNull { it.first == mode }?.second ?: mode
+                    viewModel.showOsd("视频比例", label)
+                }
+            )
         }
 
-        SectionLabel("OSD")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = { viewModel.showOsd("播放时间", "${"%.0f".format(mpv.timePos.value)}秒") },
-                modifier = Modifier.tvFocusBorder()
-            ) {
-                Text("显示时间")
+        SettingsGroup("OSD") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { viewModel.showOsd("播放时间", "${"%.0f".format(mpv.timePos.value)}秒") },
+                    modifier = Modifier.tvFocusBorder()
+                ) {
+                    Text("显示时间")
+                }
+                OutlinedButton(
+                    onClick = {
+                        val filename = mpv.getPropertyString("filename") ?: mpv.getPropertyString("media-title") ?: ""
+                        viewModel.showOsd("文件名", filename)
+                    },
+                    modifier = Modifier.tvFocusBorder()
+                ) { Text("显示文件名") }
             }
-            OutlinedButton(
-                onClick = {
-                    val filename = mpv.getPropertyString("filename") ?: mpv.getPropertyString("media-title") ?: ""
-                    viewModel.showOsd("文件名", filename)
-                },
-                modifier = Modifier.tvFocusBorder()
-            ) { Text("显示文件名") }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -927,83 +914,88 @@ fun AvSyncPanel(viewModel: AppViewModel) {
         subtitle = "实时波形 / 音视频差值",
         onClose = { viewModel.toggleAvSyncPanel() }
     ) {
-        SectionLabel("实时数值")
-        InfoRow("avdiff", "%.4f s".format(avDiff))
-        InfoRow("audio-pts", "%.3f s".format(audioPts))
-        InfoRow("video-pts", "%.3f s".format(videoPts))
-        InfoRow("audio-delay", "%.3f s".format(audioDelay))
+        SettingsGroup("实时数值") {
+            InfoRow("avdiff", "%.4f s".format(avDiff))
+            InfoRow("audio-pts", "%.3f s".format(audioPts))
+            InfoRow("video-pts", "%.3f s".format(videoPts))
+            InfoRow("audio-delay", "%.3f s".format(audioDelay))
 
-        // avdiff 状态指示
-        val diffAbs = kotlin.math.abs(avDiff)
-        val diffColor = when {
-            diffAbs < 0.04 -> Color(0xFF4CAF50)  // 绿色：正常
-            diffAbs < 0.2 -> Color(0xFFFFC107)   // 黄色：轻微偏差
-            else -> Color(0xFFF44336)            // 红色：严重偏差
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("同步状态", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-            Text(
-                text = when {
-                    diffAbs < 0.04 -> "良好"
-                    diffAbs < 0.2 -> "轻微偏差"
-                    else -> "严重偏差"
-                },
-                color = diffColor,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
-            )
+            // avdiff 状态指示
+            val diffAbs = kotlin.math.abs(avDiff)
+            val diffColor = when {
+                diffAbs < 0.04 -> Color(0xFF4CAF50)  // 绿色：正常
+                diffAbs < 0.2 -> Color(0xFFFFC107)   // 黄色：轻微偏差
+                else -> Color(0xFFF44336)            // 红色：严重偏差
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("同步状态", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Text(
+                    text = when {
+                        diffAbs < 0.04 -> "良好"
+                        diffAbs < 0.2 -> "轻微偏差"
+                        else -> "严重偏差"
+                    },
+                    color = diffColor,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
 
-        SectionLabel("历史趋势波形")
-        DescText("绿<0.04s  黄<0.2s  红≥0.2s（最近 200 采样点）")
-        AvSyncWaveform(history = history, modifier = Modifier.fillMaxWidth().height(120.dp))
+        SettingsGroup("历史趋势波形") {
+            DescText("绿<0.04s  黄<0.2s  红≥0.2s（最近 200 采样点）")
+            AvSyncWaveform(history = history, modifier = Modifier.fillMaxWidth().height(120.dp))
+        }
 
         if (capabilities.supportsAudioDelay) {
-            SectionLabel("音频延迟调整")
-            LabeledSlider(
-                label = "音频延迟",
-                value = audioDelay.toFloat(),
-                range = -10f..10f,
-                valueText = "%.3fs".format(audioDelay),
-                onValueChange = { viewModel.adjustAudioDelay(it.toDouble() - audioDelay) },
-                onReset = { viewModel.resetAudioDelay() }
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(onClick = { viewModel.adjustAudioDelay(-0.1) }, modifier = Modifier.weight(1f).tvFocusBorder()) {
-                    Text("-0.1s", color = MaterialTheme.colorScheme.onSurface)
-                }
-                OutlinedButton(onClick = { viewModel.adjustAudioDelay(0.1) }, modifier = Modifier.weight(1f).tvFocusBorder()) {
-                    Text("+0.1s", color = MaterialTheme.colorScheme.onSurface)
-                }
-                OutlinedButton(onClick = { viewModel.resetAudioDelay() }, modifier = Modifier.weight(1f).tvFocusBorder()) {
-                    Text("重置", color = MaterialTheme.colorScheme.onSurface)
+            SettingsGroup("音频延迟调整") {
+                LabeledSlider(
+                    label = "音频延迟",
+                    value = audioDelay.toFloat(),
+                    range = -10f..10f,
+                    valueText = "%.3fs".format(audioDelay),
+                    onValueChange = { viewModel.adjustAudioDelay(it.toDouble() - audioDelay) },
+                    onReset = { viewModel.resetAudioDelay() }
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(onClick = { viewModel.adjustAudioDelay(-0.1) }, modifier = Modifier.weight(1f).tvFocusBorder()) {
+                        Text("-0.1s", color = MaterialTheme.colorScheme.onSurface)
+                    }
+                    OutlinedButton(onClick = { viewModel.adjustAudioDelay(0.1) }, modifier = Modifier.weight(1f).tvFocusBorder()) {
+                        Text("+0.1s", color = MaterialTheme.colorScheme.onSurface)
+                    }
+                    OutlinedButton(onClick = { viewModel.resetAudioDelay() }, modifier = Modifier.weight(1f).tvFocusBorder()) {
+                        Text("重置", color = MaterialTheme.colorScheme.onSurface)
+                    }
                 }
             }
         } else {
-            SectionLabel("音频延迟调整")
-            DescText("当前播放器不支持音频延迟调整（仅 MPV 支持）")
+            SettingsGroup("音频延迟调整") {
+                DescText("当前播放器不支持音频延迟调整（仅 MPV 支持）")
+            }
         }
 
-        SectionLabel("字幕自动同步")
-        DescText("基于 avdiff 比例控制算法：每 500ms 采样，超阈值(0.05s)时按 gain(0.30) 调整 sub_delay")
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("启用自动同步", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
-            Switch(
-                checked = subSyncEnabled,
-                onCheckedChange = { viewModel.toggleSubSync() },
-                modifier = Modifier.tvFocusBorder()
-            )
+        SettingsGroup("字幕自动同步") {
+            DescText("基于 avdiff 比例控制算法：每 500ms 采样，超阈值(0.05s)时按 gain(0.30) 调整 sub_delay")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("启用自动同步", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
+                Switch(
+                    checked = subSyncEnabled,
+                    onCheckedChange = { viewModel.toggleSubSync() },
+                    modifier = Modifier.tvFocusBorder()
+                )
+            }
         }
     }
 }

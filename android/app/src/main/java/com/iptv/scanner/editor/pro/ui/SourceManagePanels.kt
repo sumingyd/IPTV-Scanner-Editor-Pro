@@ -357,144 +357,146 @@ fun ScanPanel(viewModel: AppViewModel) {
         onClose = { viewModel.toggleScanPanel() }
     ) {
         // 参数表单
-        SectionLabel("扫描参数")
-        OutlinedTextField(
-            value = baseUrl,
-            onValueChange = { baseUrl = it },
-            label = { Text("基础 URL") },
-            placeholder = { Text("rtp://239.1.1.[1-255]:5002 或 http://x.com/[1-100:n]/{n}.m3u8") },
-            singleLine = true,
-            enabled = !running,
-            modifier = Modifier.fillMaxWidth().tvTextField()
-        )
-        DescText("支持方括号范围表达式：")
-        DescText("· [1-255] 数字范围（如 192.168.1.[1-255]）")
-        DescText("· [1,5,10] 列表枚举")
-        DescText("· [1-10,20-30] 范围与列表混合")
-        DescText("· [1-255:n] 命名变量，可用 {n} 在 URL 其他位置引用并同步变化")
-        DescText("· 多个独立表达式按笛卡尔积展开")
+        SettingsGroup("扫描参数") {
+            OutlinedTextField(
+                value = baseUrl,
+                onValueChange = { baseUrl = it },
+                label = { Text("基础 URL") },
+                placeholder = { Text("rtp://239.1.1.[1-255]:5002 或 http://x.com/[1-100:n]/{n}.m3u8") },
+                singleLine = true,
+                enabled = !running,
+                modifier = Modifier.fillMaxWidth().tvTextField()
+            )
+            DescText("支持方括号范围表达式：")
+            DescText("· [1-255] 数字范围（如 192.168.1.[1-255]）")
+            DescText("· [1,5,10] 列表枚举")
+            DescText("· [1-10,20-30] 范围与列表混合")
+            DescText("· [1-255:n] 命名变量，可用 {n} 在 URL 其他位置引用并同步变化")
+            DescText("· 多个独立表达式按笛卡尔积展开")
 
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val oc2 = rememberPlayerOverlayColors()
-            Column(modifier = Modifier.weight(1f)) {
-                Text("超时: ${timeout}s", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
-                Slider(
-                    value = timeout.toFloat(),
-                    onValueChange = { timeout = it.toInt().coerceIn(3, 30) },
-                    valueRange = 3f..30f,
-                    enabled = !running,
-                    modifier = Modifier.fillMaxWidth().tvFocusBorder(),
-                    thumb = {
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .background(oc2.accent, androidx.compose.foundation.shape.CircleShape)
-                                .then(Modifier.border(2.dp, oc2.accent.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val oc2 = rememberPlayerOverlayColors()
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("超时: ${timeout}s", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
+                    Slider(
+                        value = timeout.toFloat(),
+                        onValueChange = { timeout = it.toInt().coerceIn(3, 30) },
+                        valueRange = 3f..30f,
+                        enabled = !running,
+                        modifier = Modifier.fillMaxWidth().tvFocusBorder(),
+                        thumb = {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .background(oc2.accent, androidx.compose.foundation.shape.CircleShape)
+                                    .then(Modifier.border(2.dp, oc2.accent.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape))
+                            )
+                        },
+                        colors = SliderDefaults.colors(
+                            thumbColor = oc2.accent,
+                            activeTrackColor = oc2.accent,
+                            inactiveTrackColor = oc2.trackInactive
                         )
-                    },
-                    colors = SliderDefaults.colors(
-                        thumbColor = oc2.accent,
-                        activeTrackColor = oc2.accent,
-                        inactiveTrackColor = oc2.trackInactive
                     )
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text("线程: ${threads}", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
-                Slider(
-                    value = threads.toFloat(),
-                    onValueChange = { threads = it.toInt().coerceIn(1, 16) },
-                    valueRange = 1f..16f,
-                    enabled = !running,
-                    modifier = Modifier.fillMaxWidth().tvFocusBorder(),
-                    thumb = {
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .background(oc2.accent, androidx.compose.foundation.shape.CircleShape)
-                                .then(Modifier.border(2.dp, oc2.accent.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape))
-                        )
-                    },
-                    colors = SliderDefaults.colors(
-                        thumbColor = oc2.accent,
-                        activeTrackColor = oc2.accent,
-                        inactiveTrackColor = oc2.trackInactive
-                    )
-                )
-            }
-        }
-
-        // 控制按钮
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (running) {
-                OutlinedButton(
-                    onClick = { viewModel.stopScan() },
-                    modifier = Modifier.tvFocusBorder()
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFFF5252))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("停止扫描", color = Color(0xFFFF5252))
                 }
-            } else {
-                OutlinedButton(
-                    onClick = { viewModel.startScan(baseUrl.trim(), timeout, threads) },
-                    enabled = !scanLoading,
-                    modifier = Modifier.tvFocusBorder()
-                ) {
-                    if (scanLoading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("线程: ${threads}", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
+                    Slider(
+                        value = threads.toFloat(),
+                        onValueChange = { threads = it.toInt().coerceIn(1, 16) },
+                        valueRange = 1f..16f,
+                        enabled = !running,
+                        modifier = Modifier.fillMaxWidth().tvFocusBorder(),
+                        thumb = {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .background(oc2.accent, androidx.compose.foundation.shape.CircleShape)
+                                    .then(Modifier.border(2.dp, oc2.accent.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape))
+                            )
+                        },
+                        colors = SliderDefaults.colors(
+                            thumbColor = oc2.accent,
+                            activeTrackColor = oc2.accent,
+                            inactiveTrackColor = oc2.trackInactive
                         )
-                    } else {
-                        Icon(Icons.Default.Radar, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
+
+            // 控制按钮
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (running) {
+                    OutlinedButton(
+                        onClick = { viewModel.stopScan() },
+                        modifier = Modifier.tvFocusBorder()
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFFF5252))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("开始扫描", color = MaterialTheme.colorScheme.primary)
+                        Text("停止扫描", color = Color(0xFFFF5252))
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = { viewModel.startScan(baseUrl.trim(), timeout, threads) },
+                        enabled = !scanLoading,
+                        modifier = Modifier.tvFocusBorder()
+                    ) {
+                        if (scanLoading) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        } else {
+                            Icon(Icons.Default.Radar, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("开始扫描", color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
-        }
 
-        // 错误提示
-        if (scanError.isNotEmpty()) {
-            Text(
-                text = scanError,
-                color = Color(0xFFFF5252),
-                fontSize = 12.sp,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
+            // 错误提示
+            if (scanError.isNotEmpty()) {
+                Text(
+                    text = scanError,
+                    color = Color(0xFFFF5252),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
         }
 
         // 进度
         scanStatus?.let { status ->
-            SectionLabel("进度")
-            val progress = if (status.total > 0) {
-                status.scanned.toFloat() / status.total
-            } else 0f
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("已扫描: ${status.scanned}/${status.total}", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
-                Text("有效: ${status.valid}", color = Color(0xFF4CAF50), fontSize = 13.sp)
-                Text("无效: ${status.invalid}", color = Color(0xFFFF5252), fontSize = 13.sp)
-            }
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-            if (status.message.isNotEmpty()) {
-                Text(status.message, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+            SettingsGroup("进度") {
+                val progress = if (status.total > 0) {
+                    status.scanned.toFloat() / status.total
+                } else 0f
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("已扫描: ${status.scanned}/${status.total}", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
+                    Text("有效: ${status.valid}", color = Color(0xFF4CAF50), fontSize = 13.sp)
+                    Text("无效: ${status.invalid}", color = Color(0xFFFF5252), fontSize = 13.sp)
+                }
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                if (status.message.isNotEmpty()) {
+                    Text(status.message, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
             }
         }
 

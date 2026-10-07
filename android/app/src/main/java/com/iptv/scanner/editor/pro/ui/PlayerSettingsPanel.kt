@@ -66,6 +66,10 @@ import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PlayerSettingsPanel(viewModel: AppViewModel) {
+    if (LocalAptvStyle.current) {
+        PlayerSettingsPanelAptv(viewModel)
+        return
+    }
     val currentVo by viewModel.currentVo.collectAsState()
     val currentHwdec by viewModel.currentHwdec.collectAsState()
     val currentRtspTransport by viewModel.currentRtspTransport.collectAsState()
@@ -188,6 +192,34 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
         modifier = Modifier.padding(horizontal = 4.dp)
     )
     Spacer(modifier = Modifier.height(20.dp))
+
+    // ExoPlayer 视频渲染视图切换（SurfaceView 兼容性更好；TextureView 部分设备 GPU 渲染异常）
+    if (currentPlayerType == PlayerType.EXO) {
+        val exoSurfaceView by viewModel.exoSurfaceView.collectAsState()
+        SectionTitle("视频渲染（ExoPlayer）")
+        Spacer(modifier = Modifier.height(4.dp))
+        SectionDesc("画面黑屏或停在第一帧时切换渲染视图。SurfaceView 兼容性最好")
+        Spacer(modifier = Modifier.height(8.dp))
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            FilterChip(
+                selected = exoSurfaceView,
+                onClick = { if (!exoSurfaceView) viewModel.setExoSurfaceView(true) },
+                label = { Text("SurfaceView（推荐）") },
+                modifier = Modifier.tvFocusBorder()
+            )
+            FilterChip(
+                selected = !exoSurfaceView,
+                onClick = { if (exoSurfaceView) viewModel.setExoSurfaceView(false) },
+                label = { Text("TextureView") },
+                modifier = Modifier.tvFocusBorder()
+            )
+        }
+        Spacer(modifier = Modifier.height(20.dp))
+    }
 
     SectionTitle("播放增强")
     Spacer(modifier = Modifier.height(8.dp))
@@ -510,4 +542,348 @@ private fun SectionDesc(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontSize = 12.sp
     )
+}
+/**
+ * APTV（iOS 风格）播放器设置面板：单列布局，圆角分组卡片 + iOS 选择行 + 开关行。
+ * 仅在竖屏 APTV 模式下使用，横屏/TV 仍走 [PlayerSettingsPanel] 原有双列布局。
+ */
+@Composable
+private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
+    val currentPlayerType by viewModel.playerType.collectAsState()
+    val currentVo by viewModel.currentVo.collectAsState()
+    val currentHwdec by viewModel.currentHwdec.collectAsState()
+    val currentRtspTransport by viewModel.currentRtspTransport.collectAsState()
+    val currentDeinterlace by viewModel.currentDeinterlace.collectAsState()
+    val logLevel by viewModel.logLevel.collectAsState()
+    val hdrMode by viewModel.hdrMode.collectAsState()
+    val hardwareDecode by viewModel.hardwareDecode.collectAsState()
+    val timeoutSwitch by viewModel.timeoutSwitchSource.collectAsState()
+    val reconnectIdx by viewModel.reconnectIndex.collectAsState()
+    val screenLocked by viewModel.screenLock.collectAsState()
+    val bootStart by viewModel.bootStart.collectAsState()
+    val autoResume by viewModel.autoResume.collectAsState()
+    val exoSurfaceView by viewModel.exoSurfaceView.collectAsState()
+    val epgTz by viewModel.epgTimezoneOffset.collectAsState()
+    val epgCache by viewModel.epgCacheSchedule.collectAsState()
+    val groupMd by viewModel.groupMode.collectAsState()
+    val perChannelEnabled by viewModel.perChannelSettingsEnabled.collectAsState()
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState())
+        ) {
+            AptvPanelHeader(
+                title = "播放器设置",
+                subtitle = "内核 / 解码 / 输出 / 增强",
+                onClose = { viewModel.togglePlayerSettings() }
+            )
+
+            SettingsGroup("播放器内核") {
+                SelectionGroup(
+                    title = "内核",
+                    options = listOf("MPV" to "MPV（推荐）", "EXO" to "ExoPlayer"),
+                    selectedKey = currentPlayerType.name,
+                    onSelect = { key ->
+                        if (key == "MPV") viewModel.switchPlayerType(PlayerType.MPV)
+                        else viewModel.switchPlayerType(PlayerType.EXO)
+                    }
+                )
+                AptvRowDivider()
+                Text(
+                    text = currentPlayerType.description,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            if (currentPlayerType == PlayerType.EXO) {
+                SettingsGroup("视频渲染") {
+                    SelectionGroup(
+                        title = "渲染视图",
+                        options = listOf("true" to "SurfaceView（推荐）", "false" to "TextureView"),
+                        selectedKey = exoSurfaceView.toString(),
+                        onSelect = { viewModel.setExoSurfaceView(it.toBoolean()) }
+                    )
+                    AptvRowDivider()
+                    Text(
+                        text = "画面黑屏或停在第一帧时切换渲染视图。SurfaceView 兼容性最好",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            }
+
+            SettingsGroup("播放增强") {
+                SelectionGroup(
+                    title = "超时换源",
+                    options = listOf(
+                        "0" to "5s", "1" to "8s", "2" to "12s",
+                        "3" to "15s", "4" to "20s", "5" to "30s"
+                    ),
+                    selectedKey = timeoutSwitch.toString(),
+                    onSelect = { viewModel.setTimeoutSwitchSource(it.toInt()) }
+                )
+                AptvRowDivider()
+                SelectionGroup(
+                    title = "断线重连",
+                    options = listOf(
+                        "0" to "关闭", "1" to "3s", "2" to "5s",
+                        "3" to "10s", "4" to "15s", "5" to "20s"
+                    ),
+                    selectedKey = reconnectIdx.toString(),
+                    onSelect = { viewModel.setReconnectIndex(it.toInt()) }
+                )
+                AptvRowDivider()
+                SwitchRow(
+                    title = "画面锁定（换源不黑屏）",
+                    checked = screenLocked,
+                    onCheckedChange = { viewModel.setScreenLock(it) }
+                )
+                AptvRowDivider()
+                SwitchRow(
+                    title = "开机自启动",
+                    checked = bootStart,
+                    onCheckedChange = { viewModel.setBootStart(it) }
+                )
+                AptvRowDivider()
+                SwitchRow(
+                    title = "启动自动续播",
+                    checked = autoResume,
+                    onCheckedChange = { viewModel.setAutoResume(it) }
+                )
+            }
+
+            if (currentPlayerType == PlayerType.MPV) {
+                SettingsGroup("视频输出") {
+                    SelectionGroup(
+                        title = "VO",
+                        options = listOf(
+                            "gpu" to "GPU（EGL）",
+                            "gpu-next" to "GPU-Next（EGL）",
+                            "mediacodec_embed" to "MediaCodec"
+                        ),
+                        selectedKey = currentVo,
+                        onSelect = { viewModel.setPlayerVo(it) }
+                    )
+                    AptvRowDivider()
+                    val voDesc = when (currentVo) {
+                        "gpu" -> "GPU 渲染：经典 EGL 后端，支持 HDR/OSD/shader，兼容大多数 GPU。部分 GPU（如 Mali-G76）可能黑屏"
+                        "gpu-next" -> "GPU-Next 渲染：新一代 EGL 后端（render API），渲染路径与 GPU 不同。支持 HDR/OSD/shader，GPU 黑屏时可尝试此选项"
+                        "mediacodec_embed" -> "MediaCodec 直接渲染到 Surface，绕过 EGL。GPU EGL 兼容性问题时的 fallback，不支持 OSD/HDR"
+                        else -> "未知 vo: $currentVo"
+                    }
+                    Text(
+                        text = voDesc,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+
+                SettingsGroup("硬件解码") {
+                    val hwdecOptions = when (currentVo) {
+                        "mediacodec_embed" -> listOf("mediacodec" to "mediacodec（固定）")
+                        else -> listOf(
+                            "auto-copy" to "auto-copy（推荐）",
+                            "auto" to "auto（4K HDR）",
+                            "no" to "no（软解）"
+                        )
+                    }
+                    SelectionGroup(
+                        title = "HWDEC",
+                        options = hwdecOptions,
+                        selectedKey = currentHwdec,
+                        onSelect = { viewModel.setPlayerHwdec(it) }
+                    )
+                    AptvRowDivider()
+                    val hwdecDesc = when (currentHwdec) {
+                        "auto-copy" -> "自动选择硬件解码器，解码后拷贝到 CPU 内存再上传 GPU。兼容性好，支持视频滤镜（翻转/裁剪/360°）。4K HDR 可能卡顿"
+                        "auto" -> "自动选择最佳硬解，优先直接输出（零拷贝）。4K HDR 流畅，但视频翻转/裁剪/360° 滤镜可能不可用"
+                        "mediacodec" -> "MediaCodec 硬件解码，直接渲染到 Surface。必须与 vo=mediacodec_embed 配合"
+                        "no" -> "纯软件解码。兼容性最好但耗电，CPU 解码可能慢"
+                        else -> "未知 hwdec: $currentHwdec"
+                    }
+                    Text(
+                        text = hwdecDesc,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            }
+
+            if (currentPlayerType == PlayerType.EXO) {
+                SettingsGroup("解码模式") {
+                    SelectionGroup(
+                        title = "模式",
+                        options = listOf("true" to "硬件解码（推荐）", "false" to "软件解码"),
+                        selectedKey = hardwareDecode.toString(),
+                        onSelect = { viewModel.setHardwareDecode(it.toBoolean()) }
+                    )
+                    AptvRowDivider()
+                    Text(
+                        text = if (hardwareDecode) "硬件解码：使用 Android MediaCodec 硬件加速解码。功耗低、速度快，但部分 4K/HDR 流可能不兼容。遇到花屏/卡顿时可尝试软解" else "软件解码：使用 Android 系统自带的软件编解码器（如 OMX.google.*）。兼容性更好，不依赖 GPU，但 CPU 负载高、可能发热。适合硬解不兼容的流",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            }
+
+            SettingsGroup("EPG 设置") {
+                val tzOptions = (0..25).map { i ->
+                    i.toString() to (if (i == 0) "默认" else "UTC${if (i > 13) "-" else "+"}${if (i > 13) (26 - i) else i}")
+                }
+                SelectionGroup(
+                    title = "时区",
+                    options = tzOptions,
+                    selectedKey = epgTz.toString(),
+                    onSelect = { viewModel.setEpgTimezoneOffset(it.toInt()) }
+                )
+                AptvRowDivider()
+                val cacheOptions = listOf(
+                    "0" to "关闭", "1" to "1h", "2" to "2h", "3" to "3h",
+                    "4" to "4h", "5" to "6h", "6" to "8h", "7" to "12h",
+                    "8" to "24h", "9" to "48h", "10" to "72h", "11" to "7d"
+                )
+                SelectionGroup(
+                    title = "缓存",
+                    options = cacheOptions,
+                    selectedKey = epgCache.toString(),
+                    onSelect = { viewModel.setEpgCacheSchedule(it.toInt()) }
+                )
+                AptvRowDivider()
+                val groupOptions = listOf("0" to "默认", "1" to "二级分组", "2" to "紧凑", "3" to "展开")
+                SelectionGroup(
+                    title = "分组",
+                    options = groupOptions,
+                    selectedKey = groupMd.toString(),
+                    onSelect = { viewModel.setGroupMode(it.toInt()) }
+                )
+            }
+
+            SettingsGroup("反交错") {
+                SelectionGroup(
+                    title = "模式",
+                    options = listOf("no" to "关闭", "auto" to "自动"),
+                    selectedKey = currentDeinterlace,
+                    onSelect = { viewModel.setDeinterlace(it) }
+                )
+                AptvRowDivider()
+                val deinterlaceDesc = when (currentDeinterlace) {
+                    "no" -> "关闭反交错：逐行视频不受影响，隔行视频可能出现梳齿。适合所有逐行视频源（大部分网络流均为逐行）"
+                    "auto" -> "自动反交错：mpv 自动检测隔行内容并应用 yadif 滤镜。逐行视频不受影响，隔行视频（1080i TV）消除梳齿。与 hwdec=auto（直接输出）模式可能不兼容，需用 auto-copy 或 no"
+                    else -> "未知设置: $currentDeinterlace"
+                }
+                Text(
+                    text = deinterlaceDesc,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            SettingsGroup("HDR 输出模式") {
+                SelectionGroup(
+                    title = "模式",
+                    options = listOf(
+                        "DISABLE" to "禁用",
+                        "AUTO" to "自动",
+                        "TONEMAP" to "色调映射",
+                        "PASSTHROUGH" to "直通"
+                    ),
+                    selectedKey = hdrMode.name,
+                    onSelect = { key -> viewModel.setHdrMode(HdrMode.valueOf(key)) }
+                )
+                AptvRowDivider()
+                val hdrDesc = when (hdrMode) {
+                    HdrMode.DISABLE -> "禁用 HDR：强制 SDR 输出。所有视频按 bt.709/bt.1886 渲染，HDR 视频可能高光过曝"
+                    HdrMode.AUTO -> "自动模式：检测设备 HDR 能力，支持则交给系统自动切换 HDR 显示（直通），不支持则色调映射到 SDR"
+                    HdrMode.TONEMAP -> "HDR→SDR 色调映射：HDR 视频映射到 bt.709/bt.1886。信任 HDR10+ 动态元数据，自动选择算法（HDR10+→st2094-40, HDR10/HLG→bt.2390）"
+                    HdrMode.PASSTHROUGH -> "HDR 直通：HDR 视频按 bt.2020/pq 输出。需要显示器支持 HDR，否则画面可能过暗或色彩异常"
+                }
+                Text(
+                    text = hdrDesc,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            SettingsGroup("RTSP 传输协议") {
+                SelectionGroup(
+                    title = "协议",
+                    options = listOf("tcp" to "TCP（推荐）", "udp" to "UDP（低延迟）"),
+                    selectedKey = currentRtspTransport,
+                    onSelect = { viewModel.setRtspTransport(it) }
+                )
+                AptvRowDivider()
+                val rtspDesc = when (currentRtspTransport) {
+                    "tcp" -> "TCP 传输：RTSP over TCP，数据通过 TCP 通道传输。更稳定，防火墙穿透好，适合网络不稳定的环境。延迟略高"
+                    "udp" -> "UDP 传输：RTSP over UDP，数据通过 UDP 通道传输。延迟更低，但网络不稳定时可能丢包导致花屏。需要良好的网络环境"
+                    else -> "未知传输协议: $currentRtspTransport"
+                }
+                Text(
+                    text = rtspDesc,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            SettingsGroup("日志等级") {
+                SelectionGroup(
+                    title = "等级",
+                    options = listOf(
+                        "error" to "错误",
+                        "warn" to "警告",
+                        "info" to "信息",
+                        "debug" to "调试"
+                    ),
+                    selectedKey = logLevel,
+                    onSelect = { viewModel.setLogLevel(it) }
+                )
+                AptvRowDivider()
+                val logLevelDesc = when (logLevel) {
+                    "error" -> "仅输出错误信息。适合正式使用，日志量最小"
+                    "warn" -> "输出警告和错误。适合日常使用"
+                    "info" -> "输出信息、警告和错误（默认）。适合一般调试"
+                    "debug" -> "输出全部日志（含 trace）。适合深度调试，日志量很大"
+                    else -> "未知等级: $logLevel"
+                }
+                Text(
+                    text = logLevelDesc,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            SettingsGroup("频道记忆") {
+                SwitchRow(
+                    title = "启用频道专属设置",
+                    checked = perChannelEnabled,
+                    onCheckedChange = { viewModel.setPerChannelSettingsEnabled(it) }
+                )
+                AptvRowDivider()
+                Text(
+                    text = "开启后，每个频道会自动记忆各自的输出/解码/HDR 设置。切换频道时自动应用，无需手动保存。在主菜单「清除频道专属设置」可重置当前频道。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
 }

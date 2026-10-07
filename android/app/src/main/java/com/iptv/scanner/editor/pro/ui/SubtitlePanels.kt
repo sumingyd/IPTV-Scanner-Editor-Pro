@@ -209,229 +209,231 @@ fun SubtitleSettingsPanel(viewModel: AppViewModel) {
         }
 
         // 字幕显示开关
-        SectionLabel("字幕显示")
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("显示字幕", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
-            Switch(
-                checked = subVisible,
-                onCheckedChange = { subVisible = it; mpv.setSubVisibility(it) },
-                modifier = Modifier.tvFocusBorder()
-            )
-        }
-
-        SectionLabel("字幕轨")
-        if (subTracks.isEmpty()) {
-            DescText("无内置字幕轨，可点击右上角图标加载外挂字幕")
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                subTracks.forEach { (id, title) ->
-                    FilterChip(
-                        selected = currentSid == id,
-                        onClick = { currentSid = id; mpv.setSubTrack(id) },
-                        label = { Text(title, maxLines = 1) },
-                        modifier = Modifier.tvFocusBorder()
-                    )
-                }
+        SettingsGroup("字幕显示") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("显示字幕", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                Switch(
+                    checked = subVisible,
+                    onCheckedChange = { subVisible = it; mpv.setSubVisibility(it) },
+                    modifier = Modifier.tvFocusBorder()
+                )
             }
         }
 
-        SectionLabel("字幕延迟")
-        LabeledSlider(
-            label = "延迟（秒）",
-            value = subDelay.toFloat(),
-            range = -10f..10f,
-            valueText = "${"%.1f".format(subDelay)}s",
-            onValueChange = { subDelay = it.toDouble(); mpv.setSubDelay(subDelay) },
-            onReset = { subDelay = 0.0; mpv.setSubDelay(0.0) }
-        )
+        SettingsGroup("字幕轨") {
+            if (subTracks.isEmpty()) {
+                DescText("无内置字幕轨，可点击右上角图标加载外挂字幕")
+            } else {
+                SelectionGroup(
+                    title = "字幕轨",
+                    options = subTracks.map { (id, title) -> id.toString() to title },
+                    selectedKey = currentSid.toString(),
+                    onSelect = { key -> currentSid = key.toInt(); mpv.setSubTrack(key.toInt()) }
+                )
+            }
+        }
 
-        SectionLabel("字幕缩放")
-        LabeledSlider(
-            label = "缩放",
-            value = subScale.toFloat(),
-            range = 0.5f..3.0f,
-            valueText = "${"%.1f".format(subScale)}x",
-            onValueChange = { subScale = it.toDouble(); mpv.setSubScale(subScale) },
-            onReset = { subScale = 1.0; mpv.setSubScale(1.0) }
-        )
+        SettingsGroup("字幕延迟") {
+            LabeledSlider(
+                label = "延迟（秒）",
+                value = subDelay.toFloat(),
+                range = -10f..10f,
+                valueText = "${"%.1f".format(subDelay)}s",
+                onValueChange = { subDelay = it.toDouble(); mpv.setSubDelay(subDelay) },
+                onReset = { subDelay = 0.0; mpv.setSubDelay(0.0) }
+            )
+        }
 
-        SectionLabel("字幕位置（距底部 %）")
-        LabeledSlider(
-            label = "位置",
-            value = subPos.toFloat(),
-            range = 0f..100f,
-            valueText = "$subPos%",
-            onValueChange = { subPos = it.toInt(); mpv.setSubPos(subPos) },
-            onReset = { subPos = 0; mpv.setSubPos(0) }
-        )
+        SettingsGroup("字幕缩放") {
+            LabeledSlider(
+                label = "缩放",
+                value = subScale.toFloat(),
+                range = 0.5f..3.0f,
+                valueText = "${"%.1f".format(subScale)}x",
+                onValueChange = { subScale = it.toDouble(); mpv.setSubScale(subScale) },
+                onReset = { subScale = 1.0; mpv.setSubScale(1.0) }
+            )
+        }
+
+        SettingsGroup("字幕位置（距底部 %）") {
+            LabeledSlider(
+                label = "位置",
+                value = subPos.toFloat(),
+                range = 0f..100f,
+                valueText = "$subPos%",
+                onValueChange = { subPos = it.toInt(); mpv.setSubPos(subPos) },
+                onReset = { subPos = 0; mpv.setSubPos(0) }
+            )
+        }
 
         // -----------------------------------------------------------------
         // 字幕样式（与 PC 端 SubtitleStyleDialog 对齐）
         // -----------------------------------------------------------------
-        SectionLabel("字幕样式")
-        DescText("颜色/字体/边框/阴影高级设置")
+        SettingsGroup("字幕样式") {
+            DescText("颜色/字体/边框/阴影高级设置")
 
-        // 快速预设
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf(
-                "默认" to mapOf(
-                    "font-size" to "55", "color" to "#FFFFFFFF",
-                    "border-color" to "#FF000000", "border-size" to "2.5",
-                    "bold" to "1", "italic" to "0", "shadow-offset" to "0"
-                ),
-                "黄字黑边" to mapOf(
-                    "font-size" to "55", "color" to "#FFFFFF00",
-                    "border-color" to "#FF000000", "border-size" to "2.5",
-                    "bold" to "1", "italic" to "0", "shadow-offset" to "0"
-                ),
-                "白字大号" to mapOf(
-                    "font-size" to "72", "color" to "#FFFFFFFF",
-                    "border-color" to "#FF000000", "border-size" to "3",
-                    "bold" to "1", "italic" to "0", "shadow-offset" to "0"
-                ),
-                "无边框带阴影" to mapOf(
-                    "font-size" to "55", "color" to "#FFFFFFFF",
-                    "border-color" to "#FF000000", "border-size" to "0",
-                    "bold" to "1", "italic" to "0", "shadow-offset" to "2"
-                )
-            ).forEach { (name, style) ->
-                OutlinedButton(
-                    onClick = {
-                        subFontSize = style["font-size"]?.toIntOrNull() ?: 55
-                        subColor = style["color"] ?: "#FFFFFFFF"
-                        subBorderColor = style["border-color"] ?: "#FF000000"
-                        subBorderSize = style["border-size"]?.toDoubleOrNull() ?: 2.5
-                        subShadowOffset = style["shadow-offset"]?.toDoubleOrNull() ?: 0.0
-                        subBold = style["bold"] == "1"
-                        subItalic = style["italic"] == "1"
-                        style.forEach { (k, v) -> mpv.setPropertyString("sub-$k", v) }
-                        viewModel.showOsd("字幕样式", name)
-                    },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text(name, fontSize = 11.sp) }
+            // 快速预设
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(
+                    "默认" to mapOf(
+                        "font-size" to "55", "color" to "#FFFFFFFF",
+                        "border-color" to "#FF000000", "border-size" to "2.5",
+                        "bold" to "1", "italic" to "0", "shadow-offset" to "0"
+                    ),
+                    "黄字黑边" to mapOf(
+                        "font-size" to "55", "color" to "#FFFFFF00",
+                        "border-color" to "#FF000000", "border-size" to "2.5",
+                        "bold" to "1", "italic" to "0", "shadow-offset" to "0"
+                    ),
+                    "白字大号" to mapOf(
+                        "font-size" to "72", "color" to "#FFFFFFFF",
+                        "border-color" to "#FF000000", "border-size" to "3",
+                        "bold" to "1", "italic" to "0", "shadow-offset" to "0"
+                    ),
+                    "无边框带阴影" to mapOf(
+                        "font-size" to "55", "color" to "#FFFFFFFF",
+                        "border-color" to "#FF000000", "border-size" to "0",
+                        "bold" to "1", "italic" to "0", "shadow-offset" to "2"
+                    )
+                ).forEach { (name, style) ->
+                    OutlinedButton(
+                        onClick = {
+                            subFontSize = style["font-size"]?.toIntOrNull() ?: 55
+                            subColor = style["color"] ?: "#FFFFFFFF"
+                            subBorderColor = style["border-color"] ?: "#FF000000"
+                            subBorderSize = style["border-size"]?.toDoubleOrNull() ?: 2.5
+                            subShadowOffset = style["shadow-offset"]?.toDoubleOrNull() ?: 0.0
+                            subBold = style["bold"] == "1"
+                            subItalic = style["italic"] == "1"
+                            style.forEach { (k, v) -> mpv.setPropertyString("sub-$k", v) }
+                            viewModel.showOsd("字幕样式", name)
+                        },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text(name, fontSize = 11.sp) }
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // 字体大小
-        LabeledSlider(
-            label = "字体大小",
-            value = subFontSize.toFloat(),
-            range = 10f..100f,
-            valueText = subFontSize.toString(),
-            onValueChange = { subFontSize = it.toInt(); mpv.setPropertyString("sub-font-size", subFontSize.toString()) },
-            onReset = { subFontSize = 55; mpv.setPropertyString("sub-font-size", "55") }
-        )
+            // 字体大小
+            LabeledSlider(
+                label = "字体大小",
+                value = subFontSize.toFloat(),
+                range = 10f..100f,
+                valueText = subFontSize.toString(),
+                onValueChange = { subFontSize = it.toInt(); mpv.setPropertyString("sub-font-size", subFontSize.toString()) },
+                onReset = { subFontSize = 55; mpv.setPropertyString("sub-font-size", "55") }
+            )
 
-        // 边框粗细
-        LabeledSlider(
-            label = "边框粗细",
-            value = subBorderSize.toFloat(),
-            range = 0f..10f,
-            valueText = "${"%.1f".format(subBorderSize)}",
-            onValueChange = { subBorderSize = it.toDouble(); mpv.setPropertyString("sub-border-size", "%.1f".format(subBorderSize)) },
-            onReset = { subBorderSize = 2.5; mpv.setPropertyString("sub-border-size", "2.5") }
-        )
+            // 边框粗细
+            LabeledSlider(
+                label = "边框粗细",
+                value = subBorderSize.toFloat(),
+                range = 0f..10f,
+                valueText = "${"%.1f".format(subBorderSize)}",
+                onValueChange = { subBorderSize = it.toDouble(); mpv.setPropertyString("sub-border-size", "%.1f".format(subBorderSize)) },
+                onReset = { subBorderSize = 2.5; mpv.setPropertyString("sub-border-size", "2.5") }
+            )
 
-        // 阴影偏移
-        LabeledSlider(
-            label = "阴影偏移",
-            value = subShadowOffset.toFloat(),
-            range = 0f..10f,
-            valueText = "${"%.1f".format(subShadowOffset)}",
-            onValueChange = { subShadowOffset = it.toDouble(); mpv.setPropertyString("sub-shadow-offset", "%.1f".format(subShadowOffset)) },
-            onReset = { subShadowOffset = 0.0; mpv.setPropertyString("sub-shadow-offset", "0") }
-        )
+            // 阴影偏移
+            LabeledSlider(
+                label = "阴影偏移",
+                value = subShadowOffset.toFloat(),
+                range = 0f..10f,
+                valueText = "${"%.1f".format(subShadowOffset)}",
+                onValueChange = { subShadowOffset = it.toDouble(); mpv.setPropertyString("sub-shadow-offset", "%.1f".format(subShadowOffset)) },
+                onReset = { subShadowOffset = 0.0; mpv.setPropertyString("sub-shadow-offset", "0") }
+            )
 
-        // 字幕颜色选择（预设色块）
-        Text("字幕颜色", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-            listOf(
-                "#FFFFFFFF" to MaterialTheme.colorScheme.onSurface, "#FFFFFF00" to Color.Yellow,
-                "#FFFF0000" to Color.Red, "#FF00FF00" to Color.Green,
-                "#FF00FFFF" to Color.Cyan, "#FF000000" to Color.Black
-            ).forEach { (hex, color) ->
-                Surface(
-                    color = color,
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable {
-                            subColor = hex
-                            mpv.setPropertyString("sub-color", hex)
-                        }
-                        .tvFocusBorder()
-                ) {
-                    if (subColor.equals(hex, ignoreCase = true)) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("✓", color = if (color == Color.Black) MaterialTheme.colorScheme.onSurface else Color.Black, fontSize = 14.sp)
+            // 字幕颜色选择（预设色块）
+            Text("字幕颜色", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                listOf(
+                    "#FFFFFFFF" to MaterialTheme.colorScheme.onSurface, "#FFFFFF00" to Color.Yellow,
+                    "#FFFF0000" to Color.Red, "#FF00FF00" to Color.Green,
+                    "#FF00FFFF" to Color.Cyan, "#FF000000" to Color.Black
+                ).forEach { (hex, color) ->
+                    Surface(
+                        color = color,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clickable {
+                                subColor = hex
+                                mpv.setPropertyString("sub-color", hex)
+                            }
+                            .tvFocusBorder()
+                    ) {
+                        if (subColor.equals(hex, ignoreCase = true)) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("✓", color = if (color == Color.Black) MaterialTheme.colorScheme.onSurface else Color.Black, fontSize = 14.sp)
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // 边框颜色选择（预设色块）
-        Text("边框颜色", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-            listOf(
-                "#FF000000" to Color.Black, "#FFFFFFFF" to MaterialTheme.colorScheme.onSurface,
-                "#FFFF0000" to Color.Red, "#FF0000FF" to Color.Blue,
-                "#FF00FF00" to Color.Green, "#00000000" to Color.Transparent
-            ).forEach { (hex, color) ->
-                Surface(
-                    color = color,
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable {
-                            subBorderColor = hex
-                            mpv.setPropertyString("sub-border-color", hex)
-                        }
-                        .tvFocusBorder()
-                ) {
-                    if (subBorderColor.equals(hex, ignoreCase = true)) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("✓", color = if (color == Color.Black) MaterialTheme.colorScheme.onSurface else Color.Black, fontSize = 14.sp)
+            // 边框颜色选择（预设色块）
+            Text("边框颜色", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                listOf(
+                    "#FF000000" to Color.Black, "#FFFFFFFF" to MaterialTheme.colorScheme.onSurface,
+                    "#FFFF0000" to Color.Red, "#FF0000FF" to Color.Blue,
+                    "#FF00FF00" to Color.Green, "#00000000" to Color.Transparent
+                ).forEach { (hex, color) ->
+                    Surface(
+                        color = color,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clickable {
+                                subBorderColor = hex
+                                mpv.setPropertyString("sub-border-color", hex)
+                            }
+                            .tvFocusBorder()
+                    ) {
+                        if (subBorderColor.equals(hex, ignoreCase = true)) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("✓", color = if (color == Color.Black) MaterialTheme.colorScheme.onSurface else Color.Black, fontSize = 14.sp)
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // 加粗 / 斜体开关
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("加粗", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Switch(
-                    checked = subBold,
-                    onCheckedChange = { subBold = it; mpv.setPropertyString("sub-bold", if (it) "1" else "0") },
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("斜体", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Switch(
-                    checked = subItalic,
-                    onCheckedChange = { subItalic = it; mpv.setPropertyString("sub-italic", if (it) "1" else "0") },
-                    modifier = Modifier.tvFocusBorder()
-                )
+            // 加粗 / 斜体开关
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("加粗", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = subBold,
+                        onCheckedChange = { subBold = it; mpv.setPropertyString("sub-bold", if (it) "1" else "0") },
+                        modifier = Modifier.tvFocusBorder()
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("斜体", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = subItalic,
+                        onCheckedChange = { subItalic = it; mpv.setPropertyString("sub-italic", if (it) "1" else "0") },
+                        modifier = Modifier.tvFocusBorder()
+                    )
+                }
             }
         }
 
@@ -491,25 +493,12 @@ fun SubtitleSearchPanel(viewModel: AppViewModel) {
         )
 
         // 语言选择
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            languages.forEach { (code, label) ->
-                FilterChip(
-                    selected = selectedLang == code,
-                    onClick = { selectedLang = code },
-                    label = { Text(label, fontSize = 12.sp) },
-                    colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    modifier = Modifier.tvFocusBorder()
-                )
-            }
-        }
+        SelectionGroup(
+            title = "语言",
+            options = languages,
+            selectedKey = selectedLang,
+            onSelect = { code -> selectedLang = code }
+        )
 
         // 搜索按钮
         Box(

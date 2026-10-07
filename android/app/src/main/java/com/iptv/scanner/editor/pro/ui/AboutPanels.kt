@@ -132,88 +132,91 @@ fun AboutPanel(viewModel: AppViewModel) {
         subtitle = "ISEP",
         onClose = { viewModel.toggleAboutPanel() }
     ) {
-        SectionLabel("版本信息")
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                InfoRow("应用名称", "ISEP")
-                InfoRow("版本", currentVersion)
-                InfoRow("播放引擎", "mpv (libmpv)")
-                InfoRow("UI 框架", "Jetpack Compose")
-                InfoRow("Python 引擎", "Chaquopy")
-            }
-        }
-
-        SectionLabel("版本检查")
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(
-                onClick = { viewModel.checkForUpdates(auto = false) },
-                enabled = updateState !is UpdateState.Checking,
-                modifier = Modifier.tvFocusBorder()
+        SettingsGroup("版本信息") {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                if (updateState is UpdateState.Checking) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("检查中...")
-                } else {
-                    Text("检查更新")
+                Column(modifier = Modifier.padding(16.dp)) {
+                    InfoRow("应用名称", "ISEP")
+                    InfoRow("版本", currentVersion)
+                    InfoRow("播放引擎", "mpv (libmpv)")
+                    InfoRow("UI 框架", "Jetpack Compose")
+                    InfoRow("Python 引擎", "Chaquopy")
                 }
-            }
-            when (updateState) {
-                is UpdateState.Checking -> {}
-                is UpdateState.UpToDate -> {
-                    Text("当前已是最新版本", color = Color(0xFF4CAF50), fontSize = 13.sp)
-                }
-                is UpdateState.UpdateAvailable -> {
-                    val info = updateState as UpdateState.UpdateAvailable
-                    Text(
-                        "发现新版本 v${info.latestVersion}（当前 v$currentVersion）",
-                        color = MaterialTheme.colorScheme.tertiary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                is UpdateState.Error -> {
-                    val err = updateState as UpdateState.Error
-                    Text("检查失败: ${err.message}", color = Color(0xFFEF5350), fontSize = 13.sp)
-                }
-                else -> {}
             }
         }
 
-        SectionLabel("功能特性")
-        val features = listOf(
-            "频道播放：支持 HLS/RTSP/RTMP/HTTP 等协议",
-            "订阅源管理：M3U 播放列表 CRUD + 自动加载",
-            "EPG 节目单：XMLTV 格式，按频道/日期/搜索",
-            "回看/时移：catchup-source 支持，EPG 过去节目回看",
-            "视频调整：亮度/对比度/饱和度/色调/Gamma/旋转/翻转",
-            "音频调整：音轨切换/延迟/10段EQ预设",
-            "字幕：轨道切换/延迟/缩放/位置/外挂加载",
-            "截图：仅画面/含字幕/含 OSD",
-            "播放控制：循环/AB循环/逐帧/速度/章节",
-            "局域网管理：TV 端遥控器扫码管理（5分钟自动停止）",
-            "备份恢复：订阅源/EPG源/收藏/历史/队列/播放器设置",
-            "TV 适配：DPAD 遥控器/手机触摸双模式"
-        )
-        features.forEach { feature ->
-            Text(
-                text = "• $feature",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(vertical = 2.dp, horizontal = 4.dp)
+        SettingsGroup("版本检查") {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { viewModel.checkForUpdates(auto = false) },
+                    enabled = updateState !is UpdateState.Checking,
+                    modifier = Modifier.tvFocusBorder()
+                ) {
+                    if (updateState is UpdateState.Checking) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("检查中...")
+                    } else {
+                        Text("检查更新")
+                    }
+                }
+                when (updateState) {
+                    is UpdateState.Checking -> {}
+                    is UpdateState.UpToDate -> {
+                        Text("当前已是最新版本", color = Color(0xFF4CAF50), fontSize = 13.sp)
+                    }
+                    is UpdateState.UpdateAvailable -> {
+                        val info = updateState as UpdateState.UpdateAvailable
+                        Text(
+                            "发现新版本 v${info.latestVersion}（当前 v$currentVersion）",
+                            color = MaterialTheme.colorScheme.tertiary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    is UpdateState.Error -> {
+                        val err = updateState as UpdateState.Error
+                        Text("检查失败: ${err.message}", color = Color(0xFFEF5350), fontSize = 13.sp)
+                    }
+                    else -> {}
+                }
+            }
+        }
+
+        SettingsGroup("功能特性") {
+            val features = listOf(
+                "频道播放：支持 HLS/RTSP/RTMP/HTTP 等协议",
+                "订阅源管理：M3U 播放列表 CRUD + 自动加载",
+                "EPG 节目单：XMLTV 格式，按频道/日期/搜索",
+                "回看/时移：catchup-source 支持，EPG 过去节目回看",
+                "视频调整：亮度/对比度/饱和度/色调/Gamma/旋转/翻转",
+                "音频调整：音轨切换/延迟/10段EQ预设",
+                "字幕：轨道切换/延迟/缩放/位置/外挂加载",
+                "截图：仅画面/含字幕/含 OSD",
+                "播放控制：循环/AB循环/逐帧/速度/章节",
+                "局域网管理：TV 端遥控器扫码管理（5分钟自动停止）",
+                "备份恢复：订阅源/EPG源/收藏/历史/队列/播放器设置",
+                "TV 适配：DPAD 遥控器/手机触摸双模式"
             )
+            features.forEach { feature ->
+                Text(
+                    text = "• $feature",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 2.dp, horizontal = 4.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -248,6 +251,8 @@ fun UpdateDialog(viewModel: AppViewModel) {
 
     val isDownloading = apkState is ApkDownloadState.Downloading
     val progress = (apkState as? ApkDownloadState.Downloading)?.progress ?: 0
+    val isAptv = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
+    val accentColor = if (isAptv) AptvAccent else MaterialTheme.colorScheme.primary
 
     AlertDialog(
         onDismissRequest = {
@@ -259,7 +264,7 @@ fun UpdateDialog(viewModel: AppViewModel) {
             Column {
                 Text(
                     "新版本 v${info.latestVersion} 已发布",
-                    color = MaterialTheme.colorScheme.tertiary,
+                    color = if (isAptv) AptvAccent else MaterialTheme.colorScheme.tertiary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -282,7 +287,7 @@ fun UpdateDialog(viewModel: AppViewModel) {
                     is ApkDownloadState.Downloading -> {
                         Text(
                             "正在下载更新包… ${s.progress}%",
-                            color = MaterialTheme.colorScheme.primary,
+                            color = accentColor,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -290,7 +295,7 @@ fun UpdateDialog(viewModel: AppViewModel) {
                         LinearProgressIndicator(
                             progress = { s.progress / 100f },
                             modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = accentColor,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -336,7 +341,7 @@ fun UpdateDialog(viewModel: AppViewModel) {
                     TextButton(
                         onClick = { viewModel.downloadAndInstallApk(info.downloadUrl) },
                         modifier = Modifier.tvFocusBorder()
-                    ) { Text("立即更新") }
+                    ) { Text("立即更新", color = accentColor) }
                 }
                 is ApkDownloadState.Downloading -> {
                     // 下载中只显示取消按钮

@@ -152,108 +152,106 @@ fun ScreenshotPanel(viewModel: AppViewModel) {
             Text("未在播放，无法截图", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
 
-        SectionLabel("截图模式")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("video" to "仅画面", "subtitles" to "含字幕", "window" to "含 OSD").forEach { (m, label) ->
-                FilterChip(
-                    selected = mode == m,
-                    onClick = { mode = m },
-                    label = { Text(label) },
-                    modifier = Modifier.tvFocusBorder()
+        SettingsGroup("截图模式") {
+            SelectionGroup(
+                title = "截图模式",
+                options = listOf("video" to "仅画面", "subtitles" to "含字幕", "window" to "含 OSD"),
+                selectedKey = mode,
+                onSelect = { m -> mode = m }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 单张截图按钮
+            Surface(
+                color = MaterialTheme.colorScheme.secondary,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .clickable {
+                        if (fileLoaded) viewModel.takeScreenshot(mode)
+                        else viewModel.showOsd("未在播放")
+                    }
+                    .tvFocusBorder()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("截图", color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+
+        SettingsGroup("连拍截图") {
+            // -----------------------------------------------------------------
+            // 连拍截图（与 PC 端 BurstScreenshotDialog 对齐）
+            // -----------------------------------------------------------------
+            DescText("按设定间隔自动截图，适合捕捉精彩瞬间")
+
+            LabeledSlider(
+                label = "间隔（秒）",
+                value = burstInterval.toFloat(),
+                range = 0.5f..60f,
+                valueText = "${"%.1f".format(burstInterval)}s",
+                onValueChange = { burstInterval = it.toDouble() },
+                onReset = { burstInterval = 2.0 }
+            )
+
+            LabeledSlider(
+                label = "总数（张）",
+                value = burstTotalInput.toFloat(),
+                range = 1f..999f,
+                valueText = burstTotalInput.toString(),
+                onValueChange = { burstTotalInput = it.toInt() },
+                onReset = { burstTotalInput = 10 }
+            )
+
+            // 连拍进度
+            if (burstActive) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { if (burstTotal > 0) burstCount.toFloat() / burstTotal else 0f },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.secondary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "进度：$burstCount / $burstTotal",
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontSize = 12.sp
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 单张截图按钮
-        Surface(
-            color = MaterialTheme.colorScheme.secondary,
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .clickable {
-                    if (fileLoaded) viewModel.takeScreenshot(mode)
-                    else viewModel.showOsd("未在播放")
-                }
-                .tvFocusBorder()
-        ) {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("截图", color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // -----------------------------------------------------------------
-        // 连拍截图（与 PC 端 BurstScreenshotDialog 对齐）
-        // -----------------------------------------------------------------
-        SectionLabel("连拍截图")
-        DescText("按设定间隔自动截图，适合捕捉精彩瞬间")
-
-        LabeledSlider(
-            label = "间隔（秒）",
-            value = burstInterval.toFloat(),
-            range = 0.5f..60f,
-            valueText = "${"%.1f".format(burstInterval)}s",
-            onValueChange = { burstInterval = it.toDouble() },
-            onReset = { burstInterval = 2.0 }
-        )
-
-        LabeledSlider(
-            label = "总数（张）",
-            value = burstTotalInput.toFloat(),
-            range = 1f..999f,
-            valueText = burstTotalInput.toString(),
-            onValueChange = { burstTotalInput = it.toInt() },
-            onReset = { burstTotalInput = 10 }
-        )
-
-        // 连拍进度
-        if (burstActive) {
             Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { if (burstTotal > 0) burstCount.toFloat() / burstTotal else 0f },
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.secondary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "进度：$burstCount / $burstTotal",
-                color = MaterialTheme.colorScheme.secondary,
-                fontSize = 12.sp
-            )
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 开始/停止连拍按钮
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (!burstActive) {
-                OutlinedButton(
-                    onClick = {
-                        if (fileLoaded) viewModel.startBurstScreenshot(burstInterval, burstTotalInput, mode)
-                        else viewModel.showOsd("未在播放")
-                    },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text("开始连拍") }
-            } else {
-                OutlinedButton(
-                    onClick = { viewModel.stopBurstScreenshot() },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text("停止连拍") }
+            // 开始/停止连拍按钮
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!burstActive) {
+                    OutlinedButton(
+                        onClick = {
+                            if (fileLoaded) viewModel.startBurstScreenshot(burstInterval, burstTotalInput, mode)
+                            else viewModel.showOsd("未在播放")
+                        },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("开始连拍") }
+                } else {
+                    OutlinedButton(
+                        onClick = { viewModel.stopBurstScreenshot() },
+                        modifier = Modifier.tvFocusBorder()
+                    ) { Text("停止连拍") }
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        DescText("截图自动保存到设备的 Pictures/IPTV_Screenshots 目录")
+            Spacer(modifier = Modifier.height(16.dp))
+            DescText("截图自动保存到设备的 Pictures/IPTV_Screenshots 目录")
+        }
     }
 }

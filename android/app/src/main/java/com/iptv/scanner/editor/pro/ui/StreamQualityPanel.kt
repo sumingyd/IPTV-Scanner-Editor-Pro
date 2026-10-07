@@ -144,58 +144,73 @@ fontSize = 13.sp
                 modifier = Modifier.fillMaxSize()
             ) {
                 // 视频信息
-                item { SectionLabel("视频") }
-                item { InfoRow("编解码器", info.videoCodec, focusRequester = firstRowFocus, isTv = isTv) }
-                item { InfoRow("分辨率", info.resolution, isTv = isTv) }
-                item { InfoRow("显示分辨率", info.displayResolution, isTv = isTv) }
-                item { InfoRow("帧率", info.fps, isTv = isTv) }
-                item { InfoRow("视频码率", info.videoBitrate, isTv = isTv) }
-                item { InfoRow("像素格式", info.pixelFormat, isTv = isTv) }
-                item { InfoRow("色彩矩阵", info.colormatrix, isTv = isTv) }
-                item { InfoRow("色彩原色", info.primaries, isTv = isTv) }
-                item { InfoRow("传输特性", info.gamma, isTv = isTv) }
-                item { InfoRow("HDR 类型", info.hdrType, isTv = isTv) }
-                item { InfoRow("视频位深", info.videoDepth, isTv = isTv) }
-                item { InfoRow("宽高比", info.aspectRatio, isTv = isTv) }
+                item {
+                    SettingsGroup("视频") {
+                        InfoRow("编解码器", info.videoCodec, focusRequester = firstRowFocus, isTv = isTv)
+                        InfoRow("分辨率", info.resolution, isTv = isTv)
+                        InfoRow("显示分辨率", info.displayResolution, isTv = isTv)
+                        InfoRow("帧率", info.fps, isTv = isTv)
+                        InfoRow("视频码率", info.videoBitrate, isTv = isTv)
+                        InfoRow("像素格式", info.pixelFormat, isTv = isTv)
+                        InfoRow("色彩矩阵", info.colormatrix, isTv = isTv)
+                        InfoRow("色彩原色", info.primaries, isTv = isTv)
+                        InfoRow("传输特性", info.gamma, isTv = isTv)
+                        InfoRow("HDR 类型", info.hdrType, isTv = isTv)
+                        InfoRow("视频位深", info.videoDepth, isTv = isTv)
+                        InfoRow("宽高比", info.aspectRatio, isTv = isTv)
+                    }
+                }
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
                 // 音频信息
-                item { SectionLabel("音频") }
-                item { InfoRow("编解码器", info.audioCodec, isTv = isTv) }
-                item { InfoRow("声道数", info.audioChannels, isTv = isTv) }
-                item { InfoRow("声道布局", info.audioLayout, isTv = isTv) }
-                item { InfoRow("采样率", info.sampleRate, isTv = isTv) }
-                item { InfoRow("音频码率", info.audioBitrate, isTv = isTv) }
-                item { InfoRow("音频位深", info.audioDepth, isTv = isTv) }
+                item {
+                    SettingsGroup("音频") {
+                        InfoRow("编解码器", info.audioCodec, isTv = isTv)
+                        InfoRow("声道数", info.audioChannels, isTv = isTv)
+                        InfoRow("声道布局", info.audioLayout, isTv = isTv)
+                        InfoRow("采样率", info.sampleRate, isTv = isTv)
+                        InfoRow("音频码率", info.audioBitrate, isTv = isTv)
+                        InfoRow("音频位深", info.audioDepth, isTv = isTv)
+                    }
+                }
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
                 // 网络与缓存
-                item { SectionLabel("网络与缓存") }
-                item { InfoRow("容器格式", info.container, isTv = isTv) }
-                item { InfoRow("协议", info.protocol, isTv = isTv) }
-                item { InfoRow("解复用器", info.demuxer, isTv = isTv) }
-                item { InfoRow("缓存时长", info.cacheDuration, isTv = isTv) }
-                item { InfoRow("缓存大小", info.cacheSize, isTv = isTv) }
-                item { InfoRow("缓存速度", info.cacheSpeed, isTv = isTv) }
-                item { InfoRow("缓冲状态", info.buffering, isTv = isTv) }
-                item { InfoRow("解复用码率", info.demuxerBitrate, isTv = isTv) }
+                item {
+                    SettingsGroup("网络与缓存") {
+                        InfoRow("容器格式", info.container, isTv = isTv)
+                        InfoRow("协议", info.protocol, isTv = isTv)
+                        InfoRow("解复用器", info.demuxer, isTv = isTv)
+                        InfoRow("缓存时长", info.cacheDuration, isTv = isTv)
+                        InfoRow("缓存大小", info.cacheSize, isTv = isTv)
+                        InfoRow("缓存速度", info.cacheSpeed, isTv = isTv)
+                        InfoRow("缓冲状态", info.buffering, isTv = isTv)
+                        InfoRow("解复用码率", info.demuxerBitrate, isTv = isTv)
+                    }
+                }
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
                 // 丢帧统计
-                item { SectionLabel("丢帧统计") }
-                item { InfoRow("VO 丢帧", info.voDropCount, isTv = isTv) }
-                item { InfoRow("解码器丢帧", info.decoderDropCount, isTv = isTv) }
-                item { InfoRow("音视频偏差", info.avdiff, isTv = isTv) }
+                item {
+                    SettingsGroup("丢帧统计") {
+                        InfoRow("VO 丢帧", info.voDropCount, isTv = isTv)
+                        InfoRow("解码器丢帧", info.decoderDropCount, isTv = isTv)
+                        InfoRow("音视频偏差", info.avdiff, isTv = isTv)
+                    }
+                }
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
                 // 硬件与渲染
-                item { SectionLabel("硬件与渲染") }
-                item { InfoRow("硬解", info.hwdec, isTv = isTv) }
-                item { InfoRow("视频输出", info.vo, isTv = isTv) }
+                item {
+                    SettingsGroup("硬件与渲染") {
+                        InfoRow("硬解", info.hwdec, isTv = isTv)
+                        InfoRow("视频输出", info.vo, isTv = isTv)
+                    }
+                }
             }
         }
     }

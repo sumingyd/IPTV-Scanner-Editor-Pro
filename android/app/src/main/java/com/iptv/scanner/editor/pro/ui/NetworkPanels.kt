@@ -138,32 +138,35 @@ fun NetworkPanel(viewModel: AppViewModel) {
         subtitle = "Referer / Proxy / Headers（仅 MPV 支持）",
         onClose = { viewModel.toggleNetworkPanel() }
     ) {
-        SectionLabel("HTTP Referer")
-        DescText("用于绕过防盗链（mpv referrer 属性）")
-        OutlinedTextField(
-            value = referer, onValueChange = { referer = it },
-            label = { Text("如 https://example.com/") },
-            modifier = Modifier.fillMaxWidth().tvTextField(),
-            singleLine = true
-        )
+        SettingsGroup("HTTP Referer") {
+            DescText("用于绕过防盗链（mpv referrer 属性）")
+            OutlinedTextField(
+                value = referer, onValueChange = { referer = it },
+                label = { Text("如 https://example.com/") },
+                modifier = Modifier.fillMaxWidth().tvTextField(),
+                singleLine = true
+            )
+        }
 
-        SectionLabel("HTTP/HTTPS 代理")
-        DescText("支持 http:// / https:// / socks5:// / socks5h://（mpv http-proxy 属性）")
-        OutlinedTextField(
-            value = proxy, onValueChange = { proxy = it },
-            label = { Text("如 socks5://127.0.0.1:1080") },
-            modifier = Modifier.fillMaxWidth().tvTextField(),
-            singleLine = true
-        )
+        SettingsGroup("HTTP/HTTPS 代理") {
+            DescText("支持 http:// / https:// / socks5:// / socks5h://（mpv http-proxy 属性）")
+            OutlinedTextField(
+                value = proxy, onValueChange = { proxy = it },
+                label = { Text("如 socks5://127.0.0.1:1080") },
+                modifier = Modifier.fillMaxWidth().tvTextField(),
+                singleLine = true
+            )
+        }
 
-        SectionLabel("HTTP Headers")
-        DescText("每行一个，格式 Key: Value（mpv http-header-fields 属性）")
-        OutlinedTextField(
-            value = headers, onValueChange = { headers = it },
-            label = { Text("User-Agent: Mozilla/5.0\nAuthorization: Bearer xxx") },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp).tvTextField(),
-            maxLines = 5
-        )
+        SettingsGroup("HTTP Headers") {
+            DescText("每行一个，格式 Key: Value（mpv http-header-fields 属性）")
+            OutlinedTextField(
+                value = headers, onValueChange = { headers = it },
+                label = { Text("User-Agent: Mozilla/5.0\nAuthorization: Bearer xxx") },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp).tvTextField(),
+                maxLines = 5
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
         Row(
