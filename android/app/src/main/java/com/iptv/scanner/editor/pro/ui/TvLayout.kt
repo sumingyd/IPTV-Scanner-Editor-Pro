@@ -403,53 +403,53 @@ private fun TvBottomBar(
 
     Box {
         if (isAndroid12Plus) {
-            Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)).blur(15.dp).background(Color(0x88333333)))
+            Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(8.dp)).blur(15.dp).background(Color(0x88333333)))
         }
         Surface(
             color = if (isAndroid12Plus) Color(0xE6333333) else Color(0xF0333333),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(8.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                // 第1行：Logo + 频道号 + 频道名 + 状态标签 + 技术标签
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                // 第1行：台标 + 频道号 + 频道名 + 节目名 + 状态标签 + 技术标签
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier.size(96.dp, 64.dp).clip(RoundedCornerShape(8.dp)).background(ICON_BG),
+                        modifier = Modifier.size(56.dp, 40.dp).clip(RoundedCornerShape(4.dp)).background(ICON_BG),
                         contentAlignment = Alignment.Center
                     ) {
                         if (displayInfo.logo.isNotEmpty()) {
-                            AsyncImage(model = displayInfo.logo, contentDescription = displayInfo.name, modifier = Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
+                            AsyncImage(model = displayInfo.logo, contentDescription = displayInfo.name, modifier = Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit)
                         } else {
                             Text(
                                 text = displayInfo.name.take(2).ifEmpty { "·" },
                                 color = Color.White,
-                                fontSize = 24.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     if (displayInfo.idx >= 0) {
                         Text(
                             text = String.format("%03d", displayInfo.idx + 1),
                             color = ACCENT_CYAN,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                     }
                     Text(
                         text = displayInfo.name.ifEmpty { "未选择频道" },
                         color = if (displayInfo.idx >= 0) oc.textPrimary else oc.textSecondary,
-                        fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp, fontWeight = FontWeight.Bold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
-                    // 当前节目名（酷9风格：频道名后紧跟节目名）
+                    // 当前节目名（频道名后紧跟节目名）
                     if (currentProgram != null && currentProgram.title.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = currentProgram.title,
                             color = oc.textSecondary,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
@@ -457,33 +457,30 @@ private fun TvBottomBar(
                         Spacer(modifier = Modifier.weight(1f))
                     }
                     if (statusTag != null) {
-                        Surface(color = statusTag.second.copy(alpha = 0.25f), shape = RoundedCornerShape(4.dp)) {
-                            Text(text = statusTag.first, color = statusTag.second, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                        Surface(color = statusTag.second.copy(alpha = 0.25f), shape = RoundedCornerShape(3.dp)) {
+                            Text(text = statusTag.first, color = statusTag.second, fontSize = 11.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     if (paused && fileLoaded) {
-                        Surface(color = Color(0x30FFFFFF), shape = RoundedCornerShape(4.dp)) {
-                            Text("暂停", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp))
+                        Surface(color = Color(0x30FFFFFF), shape = RoundedCornerShape(3.dp)) {
+                            Text("暂停", color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     mediaInfoBadges.forEach { info: String ->
-                        Surface(color = Color(0x30FFFFFF), shape = RoundedCornerShape(4.dp)) {
-                            Text(text = info, color = Color(0xCCFFFFFF), fontSize = 11.sp, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp))
+                        Surface(color = Color(0x30FFFFFF), shape = RoundedCornerShape(3.dp)) {
+                            Text(text = info, color = Color(0xCCFFFFFF), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                     }
                 }
 
-                // 第2行：时间范围 + 进度条 + 时间戳 + 距结束 + 按钮（始终显示）
-                Spacer(modifier = Modifier.height(6.dp))
+                // 第2行：日期 + 时间范围 + 进度条(占满) + 时间戳 + 距结束 + 按钮
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                        // 日期
                         val dateText = remember(tick) { dateFmt.format(java.util.Date(tick)) }
                         Text(text = dateText, color = oc.textSecondary, fontSize = 12.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Spacer(modifier = Modifier.weight(1f))
                         if (currentProgram != null && currentProgram.stopTs > 0) {
                             Spacer(modifier = Modifier.width(8.dp))
                             val timeRange = remember(currentProgram) {
@@ -513,7 +510,7 @@ private fun TvBottomBar(
                             value = if (hasEpg) progress.percent / 100f else 0f,
                             onValueChange = { if (hasEpg) viewModel.seekProgress(it * 100f) },
                             enabled = hasEpg,
-                            modifier = Modifier.width(200.dp).height(10.dp),
+                            modifier = Modifier.weight(1f).height(8.dp),
                             colors = SliderDefaults.colors(thumbColor = Color(0xFF2979FF), activeTrackColor = Color(0xFF2979FF), inactiveTrackColor = Color(0x30FFFFFF))
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -533,23 +530,22 @@ private fun TvBottomBar(
                         }
                         if (showExitCatchup) {
                             Spacer(modifier = Modifier.width(4.dp))
-                            IconButton(onClick = { viewModel.exitCatchup() }, modifier = Modifier.size(36.dp).tvFocusBorder()) {
-                                Icon(Icons.AutoMirrored.Filled.Backspace, "退出回看", tint = oc.accent, modifier = Modifier.size(16.dp))
+                            IconButton(onClick = { viewModel.exitCatchup() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                                Icon(Icons.AutoMirrored.Filled.Backspace, "退出回看", tint = oc.accent, modifier = Modifier.size(14.dp))
                             }
                         }
                         Spacer(modifier = Modifier.width(2.dp))
-                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(36.dp).tvFocusBorder()) {
-                            Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(16.dp))
+                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(14.dp))
                         }
                     }
 
-                // 第3行：当前节目描述 + 下一节目预告（始终显示，无节目单时占位）
+                // 第3行：节目描述 + 下一节目预告
                 run {
                     val hasDesc = currentProgram != null && currentProgram.desc.isNotEmpty()
                     val hasNext = nextProgram != null
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                            // 节目描述（有则显示，无则占位"精彩节目"）
                             if (hasDesc) {
                                 Text(
                                     text = currentProgram!!.desc,
@@ -567,7 +563,6 @@ private fun TvBottomBar(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            // 下一节目预告（紧跟描述或左对齐）
                             if (hasNext) {
                                 Spacer(modifier = Modifier.width(12.dp))
                                 val nextStart = remember(nextProgram) {
