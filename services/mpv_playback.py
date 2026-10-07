@@ -198,7 +198,7 @@ class MpvPlayback:
             return None
         return result[0]
 
-    def _check_path_reachability_sync(url):
+    def _check_path_reachability_sync(self, url):
         """快速检查 HTTP/HTTPS 主机是否可达。
 
         返回 None 表示可达或无法判断，返回错误字符串表示不可达。
@@ -242,7 +242,7 @@ class MpvPlayback:
         except Exception as _e:
             logger.debug(f"unexpected error: {_e}")
 
-    def _detect_bdmv_path(path):
+    def _detect_bdmv_path(self, path):
         if not path or not os.path.isdir(path):
             return None
         bdmv_dir = os.path.join(path, 'BDMV')
@@ -645,7 +645,7 @@ class MpvPlayback:
                 self._facade.mpv_handle = None
             return False
 
-    def _fix_unc_path(path):
+    def _fix_unc_path(self, path):
         if not path:
             return path
         if not is_windows():
@@ -668,7 +668,7 @@ class MpvPlayback:
         except Exception:
             return 0, 0
 
-    def _guess_protocol(url):
+    def _guess_protocol(self, url):
         if not url:
             return '未知'
         u = url.lower()
@@ -1640,7 +1640,7 @@ class MpvPlayback:
     def get_speed(self):
         return self._facade._current_speed
 
-    def get_thumbnail_path(url):
+    def get_thumbnail_path(self, url):
         if not url:
             return None
         import hashlib

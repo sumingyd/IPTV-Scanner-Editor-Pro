@@ -148,6 +148,28 @@ class MpvPlayerController(QObject):
         'high': 'mi_mode=mci:mc_mode=aobmc:me=hexbs',
     }
 
+    _SCALE_OPTIONS = ('bilinear', 'bicubic', 'lanczos', 'spline', 'ewa_lanczos', 'ewa_lanczossharp')
+
+    _STEREO_MODES = ('mono', 'sbs', 'sbs2', 'ab', 'ab2')
+
+    _SHADER_PRESET_FILES = {
+        'ravu': ['ravu_r3.hook'],
+        'fsrcnnx': ['FSRCNNX_x2_8-0-4-1.glsl'],
+        'anime4k': [
+            'Anime4K_Clamp_Highlights.glsl',
+            'Anime4K_Restore_CNN_S.glsl',
+            'Anime4K_Upscale_CNN_x2_S.glsl',
+        ],
+        'krig': ['KrigBilateral.hook'],
+        'ssim': ['SSimDownscaler.glsl'],
+        'esrgan': [
+            'ravu_r4.hook',
+            'FSRCNNX_x2_8-0-4-1.glsl',
+            'adaptive_sharpen.glsl',
+        ],
+        'adaptive_sharpen': ['adaptive_sharpen.glsl'],
+    }
+
     _STATIC_INFO_REFRESH_TICKS = 10
 
     def __init__(self, video_widget, channel_model=None):
