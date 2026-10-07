@@ -2,6 +2,7 @@
 
 import ctypes
 import os
+import threading
 
 from PySide6.QtCore import QTimer
 from core.log_manager import global_logger as logger
