@@ -1,6 +1,7 @@
 package com.iptv.scanner.editor.pro.ui
 
 import android.content.Context
+import android.util.Log
 import android.content.res.Configuration
 import android.os.Build
 
@@ -44,14 +45,32 @@ object UiModeDetector {
 
         // 0.1 文件标志强制 TV 模式（adb shell touch /sdcard/force_tv_mode）
         try {
-            if (java.io.File("/sdcard/force_tv_mode").exists()) {
+            val extDir = context.getExternalFilesDir(null)
+            if (java.io.File(extDir, "force_tv_mode").exists() ||
+                java.io.File("/sdcard/force_tv_mode").exists()
+            ) {
+                Log.i("UiModeDetector", "force_tv_mode -> TV")
                 return UiMode.TV
+            }
+        } catch (_: Exception) {}
+
+        // 0.15 文件标志强制手机模式（模拟器调试用）
+        // 位置：应用外部文件目录 force_phone_mode（adb: touch /sdcard/Android/data/<pkg>/files/force_phone_mode）
+        // 也可放 /sdcard 根目录（需"所有文件访问"权限）。优先级低于 force_tv_mode，高于系统 TV 检测
+        try {
+            val extDir = context.getExternalFilesDir(null)
+            if (java.io.File(extDir, "force_phone_mode").exists() ||
+                java.io.File("/sdcard/force_phone_mode").exists()
+            ) {
+                Log.i("UiModeDetector", "force_phone_mode -> PHONE")
+                return UiMode.PHONE
             }
         } catch (_: Exception) {}
 
         // 1. 系统声明 TV 模式（最可靠）
         val currentModeType = context.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
         if (currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) {
+            Log.i("UiModeDetector", "system uiMode=TELEVISION -> TV")
             return UiMode.TV
         }
 
@@ -59,11 +78,13 @@ object UiModeDetector {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
             && context.packageManager.hasSystemFeature("android.software.leanback")
         ) {
+            Log.i("UiModeDetector", "leanback -> TV")
             return UiMode.TV
         }
 
         // 3. 无触屏设备（部分老旧 TV）
         if (!context.packageManager.hasSystemFeature("android.hardware.touchscreen")) {
+            Log.i("UiModeDetector", "no touchscreen -> TV")
             return UiMode.TV
         }
 

@@ -150,6 +150,7 @@ scrollable: Boolean = true,
 content: @Composable () -> Unit
 ) {
 val oc = rememberPlayerOverlayColors()
+val aptvStyle = LocalAptvStyle.current
     // 面板打开时主动抢焦点，避免焦点回落到下层统一面板的菜单项导致无法操作子面板。
     // focusGroup() 让 DPAD 导航限制在面板内部，不外溢到下层。
     val closeFocusRequester = remember { FocusRequester() }
@@ -166,6 +167,15 @@ val oc = rememberPlayerOverlayColors()
                     .systemBarsPadding()
                     .padding(16.dp)
             ) {
+            if (aptvStyle) {
+                // 竖屏 APTV 样式标题栏：大标题 + 红色副标题 + 关闭图标
+                AptvPanelHeader(
+                    title = title,
+                    subtitle = subtitle,
+                    onClose = onClose,
+                    modifier = Modifier.focusRequester(closeFocusRequester)
+                ) { actions() }
+            } else {
             // 标题栏
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -197,6 +207,7 @@ val oc = rememberPlayerOverlayColors()
                     }
                 }
             }
+            }
             Spacer(modifier = Modifier.height(16.dp))
             // 内容区域：scrollable=true 时用 verticalScroll（适用于普通 Column 内容），
             // scrollable=false 时不加 verticalScroll（适用于内含 LazyColumn 的面板，避免无限高度约束崩溃）
@@ -213,11 +224,12 @@ val oc = rememberPlayerOverlayColors()
 }
 @Composable
 internal fun SectionLabel(text: String) {
+    val aptvStyle = LocalAptvStyle.current
     Text(
         text = text,
-        color = MaterialTheme.colorScheme.primary,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.SemiBold,
+        color = if (aptvStyle) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+        fontSize = if (aptvStyle) 13.sp else 14.sp,
+        fontWeight = if (aptvStyle) FontWeight.Normal else FontWeight.SemiBold,
         modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
     )
 }
@@ -229,6 +241,43 @@ internal fun DescText(text: String) {
         fontSize = 12.sp,
         modifier = Modifier.padding(bottom = 8.dp)
     )
+}
+
+/**
+ * 设置分组容器：APTV 模式下用 AptvSectionHeader + AptvGroupCard（圆角卡片）包裹，
+ * 非 APTV 模式下用 SectionLabel + 扁平内容，保持横屏/TV 原样不变。
+ */
+@Composable
+internal fun SettingsGroup(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    if (LocalAptvStyle.current) {
+        AptvSectionHeader(title)
+        AptvGroupCard {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                content = content
+            )
+        }
+    } else {
+        SectionLabel(title)
+        Column(content = content)
+    }
+}
+
+/**
+ * APTV 模式下在卡片内行与行之间加细分隔线；非 APTV 模式不渲染。
+ */
+@Composable
+internal fun AptvRowDivider() {
+    if (LocalAptvStyle.current) {
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 0.dp),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        )
+    }
 }
 /**
  * 带标签和重置按钮的滑块。

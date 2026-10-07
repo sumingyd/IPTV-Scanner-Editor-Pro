@@ -15,6 +15,8 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
+import com.iptv.scanner.editor.pro.ui.AptvAccent
+import com.iptv.scanner.editor.pro.ui.LocalAptvStyle
 
 /**
  * IPTV 应用主题。支持深色/浅色/跟随系统三种模式。
@@ -176,6 +178,22 @@ data class PlayerOverlayColors(
 @ReadOnlyComposable
 fun rememberPlayerOverlayColors(): PlayerOverlayColors {
     val dark = isDarkTheme()
+    if (LocalAptvStyle.current) {
+        return PlayerOverlayColors(
+            scrim = Color(0x66000000),
+            topBarBg = MaterialTheme.colorScheme.surface,
+            infoBarBg = MaterialTheme.colorScheme.surfaceVariant,
+            iconTint = MaterialTheme.colorScheme.onSurface,
+            iconTintActive = AptvAccent,
+            textPrimary = MaterialTheme.colorScheme.onSurface,
+            textSecondary = MaterialTheme.colorScheme.onSurfaceVariant,
+            accent = AptvAccent,
+            trackInactive = MaterialTheme.colorScheme.surfaceVariant,
+            badgeBg = AptvAccent.copy(alpha = 0.12f),
+            badgeText = AptvAccent,
+            divider = MaterialTheme.colorScheme.outline,
+        )
+    }
     return if (dark) {
         PlayerOverlayColors(
             scrim = Color(0x66000000),
