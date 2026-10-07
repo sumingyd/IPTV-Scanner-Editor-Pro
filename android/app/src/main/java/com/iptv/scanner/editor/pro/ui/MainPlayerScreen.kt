@@ -320,6 +320,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         viewModel.showControlsAutoHide()
     }
 
+
     // 视频宽高比：用于 SurfaceView 比例保持（解决竖屏下视频被拉长铺满的问题）。
     // 根因：vo=mediacodec_embed 直接用 MediaCodec 渲染到 Surface buffer，不经过 GPU 渲染管线，
     // mpv 的 keepaspect/keepaspect-window 选项对 mediacodec_embed 不生效。
@@ -336,6 +337,15 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
 
     val anyPanelOpen by viewModel.anyPanelOpenFlow.collectAsState()
     val showControls = controlsVisible && !anyPanelOpen
+
+    // 横屏/TV 模式：启动时若无频道加载且无面板打开，自动弹出频道列表面板供用户选择
+    // 修复：关闭自动续播后横屏启动直接进入空白播放页面的问题
+    val currentIdx by viewModel.currentIdx.collectAsState()
+    LaunchedEffect(isLandscape, fileLoaded, currentIdx, anyPanelOpen) {
+        if (isLandscape && currentIdx < 0 && !fileLoaded && !anyPanelOpen && !multiViewState.active) {
+            viewModel.toggleTvUnifiedPanel()
+        }
+    }
 
     val anyFullScreenPanel by remember {
         derivedStateOf {

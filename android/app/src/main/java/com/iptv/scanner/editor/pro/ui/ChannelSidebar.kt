@@ -931,9 +931,8 @@ private fun ChannelThumbnailPanel(
             val channelGroup = channel.group.ifEmpty { "未分组" }
 
             Surface(
-                color = Color.Transparent,
+                color = if (isCurrent) AptvAccent.copy(alpha = 0.12f) else Color.Transparent,
                 shape = RoundedCornerShape(8.dp),
-                border = if (isCurrent) androidx.compose.foundation.BorderStroke(1.5.dp, AptvAccent) else null,
                 modifier = Modifier.combinedClickable(
                     onClick = { if (idx >= 0) viewModel.playChannel(idx) },
                     onLongClick = {
@@ -1010,7 +1009,7 @@ private fun ChannelThumbnailPanel(
                         // 第1行：频道名称
                         Text(
                             text = channel.name,
-                            color = if (isCurrent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                            color = if (isCurrent) AptvAccent else MaterialTheme.colorScheme.onSurface,
                             fontSize = 12.sp,
                             fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
                             maxLines = 1,
@@ -1026,24 +1025,27 @@ private fun ChannelThumbnailPanel(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        // 第3行：媒体信息（灰色小字，APTV 式弱化）
-                        val mediaSummary = mediaInfoMap[channel.url]?.split(" ")
-                            ?.filter { it.isNotEmpty() }?.take(3)?.joinToString(" · ")
-                        val summaryLine = buildString {
-                            mediaSummary?.let { append(it) }
-                            if (canCatchup) {
-                                if (isNotEmpty()) append(" · ")
-                                append("回看")
+                        // 第3行：媒体标识badge（圆角矩形，与列表模式一致）
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                            mediaInfoMap[channel.url]?.split(" ")?.forEach { badge ->
+                                if (badge.isNotEmpty()) {
+                                    Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
+                                        Text(badge, color = AptvAccent, fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                    }
+                                }
                             }
-                        }
-                        if (summaryLine.isNotEmpty()) {
-                            Text(
-                                text = summaryLine,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                                fontSize = 9.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            if (canCatchup) {
+                                Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)) {
+                                        Icon(Icons.Default.History, contentDescription = "可回看", tint = AptvAccent, modifier = Modifier.size(10.dp))
+                                    }
+                                }
+                            }
+                            if (isFav) {
+                                Surface(color = Color(0xFFFFC107).copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
+                                    Text("收藏", color = Color(0xFFFFC107), fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                }
+                            }
                         }
                     }
                 }
