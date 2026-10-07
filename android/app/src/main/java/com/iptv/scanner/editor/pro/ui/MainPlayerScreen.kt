@@ -692,34 +692,42 @@ viewModel.mpv.setMute(savedMute)
                             }
                             // 内容区域（iOS 式淡入淡出转场）
                             Box(modifier = Modifier.weight(1f)) {
-                                androidx.compose.animation.Crossfade(
-                                    targetState = portraitTab,
-                                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 250),
-                                    label = "portraitTab"
-                                ) { tab ->
-                                    when (tab) {
-                                        // APTV 频道页：源名+刷新+搜索+双列预览网格
-                                        PortraitTab.CHANNELS -> PortraitListScreen(
-                                            viewModel = viewModel,
-                                            playlistLauncher = playlistLauncher,
-                                            videoLauncher = videoLauncher
-                                        )
-                                        // APTV 收藏页：我的收藏 + 搜索 + 双列预览网格
-                                        PortraitTab.FAVORITES -> PortraitFavoritesScreen(
-                                            viewModel = viewModel,
-                                            playlistLauncher = playlistLauncher,
-                                            videoLauncher = videoLauncher
-                                        )
-                                        // 工具页：APTV 配置中心式（订阅源卡片 + 文件/工具/高级分组）
-                                        PortraitTab.TOOLS -> PortraitToolsScreen(
-                                            viewModel = viewModel,
-                                            playlistLauncher = playlistLauncher,
-                                            videoLauncher = videoLauncher
-                                        )
-                                        PortraitTab.SETTINGS -> PortraitSettingsContent(viewModel = viewModel)
+                                androidx.compose.runtime.CompositionLocalProvider(LocalAptvStyle provides true) {
+                                    val aptvScheme = MaterialTheme.colorScheme.copy(
+                                        primary = AptvAccent,
+                                        onPrimary = Color.White,
+                                        primaryContainer = AptvAccent.copy(alpha = 0.15f),
+                                        onPrimaryContainer = AptvAccent,
+                                    )
+                                    MaterialTheme(colorScheme = aptvScheme) {
+                                        androidx.compose.animation.Crossfade(
+                                            targetState = portraitTab,
+                                            animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+                                            label = "portraitTab"
+                                        ) { tab ->
+                                            when (tab) {
+                                                PortraitTab.CHANNELS -> PortraitListScreen(
+                                                    viewModel = viewModel,
+                                                    playlistLauncher = playlistLauncher,
+                                                    videoLauncher = videoLauncher
+                                                )
+                                                PortraitTab.FAVORITES -> PortraitFavoritesScreen(
+                                                    viewModel = viewModel,
+                                                    playlistLauncher = playlistLauncher,
+                                                    videoLauncher = videoLauncher
+                                                )
+                                                PortraitTab.TOOLS -> PortraitToolsScreen(
+                                                    viewModel = viewModel,
+                                                    playlistLauncher = playlistLauncher,
+                                                    videoLauncher = videoLauncher
+                                                )
+                                                PortraitTab.SETTINGS -> PortraitSettingsContent(viewModel = viewModel)
+                                            }
+                                        }
                                     }
                                 }
                             }
+
                             PortraitBottomTabBar(viewModel = viewModel)
                         }
                     }

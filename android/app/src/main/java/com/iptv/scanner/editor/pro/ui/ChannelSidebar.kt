@@ -632,7 +632,7 @@ internal fun PortraitListScreen(
                                 modifier = Modifier.padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = AptvAccent, modifier = Modifier.size(24.dp))
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = channel.name,
@@ -969,7 +969,7 @@ private fun ChannelThumbnailPanel(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), modifier = Modifier.size(28.dp))
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = AptvAccent.copy(alpha = 0.3f), modifier = Modifier.size(28.dp))
                             }
                         }
                         // 左下角延迟标识

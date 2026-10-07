@@ -336,12 +336,12 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
                 if (currentChannel != null && currentChannel!!.group.isNotEmpty()) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Surface(
-                        color = oc.badgeBg,
+                        color = AptvAccent.copy(alpha = 0.12f),
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
                             text = currentChannel!!.group,
-                            color = oc.badgeText,
+                            color = AptvAccent,
                             fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             maxLines = 1
