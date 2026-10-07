@@ -446,7 +446,7 @@ class UserPrefs private constructor() {
 
         private const val KEY_LAST_CHANNEL_URL = "last_channel_url"
         private const val KEY_AUTO_RESUME = "auto_resume_on_start"
-        private const val DEFAULT_AUTO_RESUME = true
+        private const val DEFAULT_AUTO_RESUME = false
 
         private const val KEY_BOOT_START = "boot_start"
         private const val KEY_SPLIT_MODE = "split_mode"
