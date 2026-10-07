@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
@@ -613,12 +614,23 @@ viewModel.mpv.setMute(savedMute)
                                 .background(Color.Black)
                         ) {
                             primaryPlayer()
-                            // 竖屏快速换台：向上滑动=上一频道，向下滑动=下一频道
+                            // 竖屏视频覆盖层：单击切换控制层 + 双击全屏 + 上下滑动换台
                             if (!showHome && !anyPanelOpen) {
+                                var controlsVisible by remember { mutableStateOf(false) }
+                                val pausedState by viewModel.mpv.paused.collectAsState()
                                 val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onTap = { controlsVisible = !controlsVisible },
+                                                onDoubleTap = {
+                                                    viewModel.toggleFullscreen()
+                                                    controlsVisible = false
+                                                }
+                                            )
+                                        }
                                         .pointerInput(Unit) {
                                             var totalY = 0f
                                             var triggered = false
@@ -648,6 +660,54 @@ viewModel.mpv.setMute(savedMute)
                                             )
                                         }
                                 )
+                                if (controlsVisible) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.3f))
+                                            .clickable { controlsVisible = false }
+                                    ) {
+                                        IconButton(
+                                            onClick = { viewModel.mpv.togglePause() },
+                                            modifier = Modifier
+                                                .align(Alignment.Center)
+                                                .size(56.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (pausedState) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                                contentDescription = if (pausedState) "播放" else "暂停",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(48.dp)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { viewModel.enterPip(); controlsVisible = false },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.PictureInPicture,
+                                                contentDescription = "画中画",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { viewModel.toggleFullscreen(); controlsVisible = false },
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Fullscreen,
+                                                contentDescription = "全屏",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                         PortraitMediaInfoBar(viewModel = viewModel)

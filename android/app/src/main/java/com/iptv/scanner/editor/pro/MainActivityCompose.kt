@@ -114,6 +114,8 @@ class MainActivityCompose : ComponentActivity() {
 
         // 注入 PiP 回调（ViewModel 不能直接调用 Activity 方法）
         viewModel.onEnterPip = { enterPipManual() }
+        // 注入全屏切换回调（竖屏→强制横屏，横屏→跟随传感器）
+        viewModel.onToggleFullscreen = { toggleFullscreen() }
 
         // Android 13+ 通知运行时授权：EPG 节目提醒的后台系统通知依赖它；
         // 拒绝后仅影响后台提醒，应用内弹窗不受影响
@@ -693,6 +695,19 @@ class MainActivityCompose : ComponentActivity() {
      * - setSourceBoundsHint：从视频区域平滑动画过渡到 PiP 窗口
      * - Android 12+：setAutoEnterEnabled + setSeamlessResizeEnabled
      */
+    /** 全屏切换：竖屏→强制横屏，横屏→跟随传感器（可回竖屏） */
+    fun toggleFullscreen() {
+        try {
+            if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) {
+                requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            } else {
+                requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "toggleFullscreen failed: ${e.message}")
+        }
+    }
+
     /**
      * 手动进入 PiP 模式（主菜单/控制层按钮触发）。
      * 与 onUserLeaveHint 自动进入不同，这是用户主动请求 PiP。

@@ -118,6 +118,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
@@ -349,7 +350,7 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
                     }
                 }
             }
-            // 右侧：收藏 + 信息按钮
+            // 右侧：收藏 + 投屏 + 信息按钮
             IconButton(
                 onClick = { viewModel.toggleFavorite() },
                 modifier = Modifier.size(36.dp)
@@ -358,6 +359,17 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
                     imageVector = if (favorites.contains(currentIdx)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "收藏",
                     tint = if (favorites.contains(currentIdx)) Color(0xFFFFC107) else oc.iconTint,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            IconButton(
+                onClick = { viewModel.showOsd("投屏", "功能开发中") },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    Icons.Default.Cast,
+                    contentDescription = "投屏",
+                    tint = oc.iconTint,
                     modifier = Modifier.size(22.dp)
                 )
             }

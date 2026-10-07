@@ -985,6 +985,18 @@ internal var currentIsLocalFile: Boolean
             _onEnterPip = if (value != null) java.lang.ref.WeakReference(value) else null
         }
 
+    /** 全屏切换回调（Activity 注入，切换横竖屏） */
+    internal var _onToggleFullscreen: java.lang.ref.WeakReference<() -> Unit>? = null
+    var onToggleFullscreen: (() -> Unit)?
+        get() = _onToggleFullscreen?.get()
+        set(value) {
+            _onToggleFullscreen = if (value != null) java.lang.ref.WeakReference(value) else null
+        }
+
+    fun toggleFullscreen() {
+        onToggleFullscreen?.invoke()
+    }
+
     /** 刷新 UI 状态 */
     internal val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()

@@ -205,8 +205,7 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
     val tabs = if (isLocalFile) {
         listOf(stringResource(R.string.tab_info), stringResource(R.string.tab_recent_files))
     } else {
-        // APTV 竖屏播放页：节目单常驻为第一页
-        listOf(stringResource(R.string.tab_program), stringResource(R.string.tab_channel), stringResource(R.string.tab_category), stringResource(R.string.tab_info))
+        listOf(stringResource(R.string.tab_category), stringResource(R.string.tab_channel), stringResource(R.string.tab_program), stringResource(R.string.tab_info))
     }
 
     // 如果 selectedTab 超出范围（切换模式时），重置为 0
@@ -215,20 +214,21 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Tab 栏（APTV 式：文字 + 底部指示条）
+        // Tab 栏（iOS 分段控制器式：选中白色圆角背景）
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(oc.infoBarBg)
+                .padding(horizontal = 6.dp, vertical = 4.dp)
         ) {
             tabs.forEachIndexed { index, label ->
                 val isSelected = index == selectedTab
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                Surface(
+                    color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                    shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
                         .weight(1f)
                         .clickable { selectedTab = index }
-                        .padding(vertical = 8.dp)
                 ) {
                     Text(
                         text = label,
@@ -236,17 +236,8 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                         textAlign = TextAlign.Center,
-                        maxLines = 1
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Box(
-                        modifier = Modifier
-                            .width(28.dp)
-                            .height(3.dp)
-                            .background(
-                                if (isSelected) AptvAccent else Color.Transparent,
-                                RoundedCornerShape(2.dp)
-                            )
+                        maxLines = 1,
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
             }
@@ -285,9 +276,9 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
                     label = "channelTab"
                 ) { tab ->
                     when (tab) {
-                        0 -> PortraitEpgContent(viewModel = viewModel)
+                        0 -> PortraitCategoryContent(viewModel = viewModel, onGroupSelected = { selectedTab = 1 })
                         1 -> PortraitChannelOnlyList(viewModel = viewModel)
-                        2 -> PortraitCategoryContent(viewModel = viewModel, onGroupSelected = { selectedTab = 1 })
+                        2 -> PortraitEpgContent(viewModel = viewModel)
                         3 -> {
                             val duration by player.duration.collectAsState()
                             val timePos by player.timePos.collectAsState()
