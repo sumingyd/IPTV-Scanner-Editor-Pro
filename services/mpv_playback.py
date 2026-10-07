@@ -628,7 +628,7 @@ class MpvPlayback:
             except Exception as e:
                 self._facade.logger.debug(f"HDR诊断读取失败: {e}")
 
-            self._facade.event_timer = QTimer(self)
+            self._facade.event_timer = QTimer()
             self._facade.event_timer.timeout.connect(self._facade._process_events)
             self._facade.event_timer.start(100)
 
@@ -975,7 +975,7 @@ class MpvPlayback:
         if hasattr(self, '_media_info_timer') and self._facade._media_info_timer:
             self._facade._media_info_timer.stop()
             self._facade._media_info_timer.deleteLater()
-        self._facade._media_info_timer = QTimer(self)
+        self._facade._media_info_timer = QTimer()
         self._facade._media_info_timer.singleShot(1000, self._facade._start_live_info_timer)
 
         QTimer.singleShot(3000, self._facade._capture_thumbnail)
@@ -1187,7 +1187,7 @@ class MpvPlayback:
             self._facade._live_info_timer.stop()
             self._facade._live_info_timer.deleteLater()
         self._facade._static_info_counter = self._facade._STATIC_INFO_REFRESH_TICKS
-        self._facade._live_info_timer = QTimer(self)
+        self._facade._live_info_timer = QTimer()
         self._facade._live_info_timer.timeout.connect(self._facade._update_live_info)
         self._facade._live_info_timer.start(500)
 
