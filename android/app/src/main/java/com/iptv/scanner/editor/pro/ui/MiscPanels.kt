@@ -454,35 +454,27 @@ fun ToolsPanel(viewModel: AppViewModel) {
             },
             // —— 原有工具 ——
             ToolEntry("搜索", "全局搜索频道和节目", Icons.Default.Search) {
-                viewModel.toggleToolsPanel()
                 viewModel.toggleSearchPanel()
             },
             ToolEntry("EPG 时间线", "节目时间线视图", Icons.Default.CalendarMonth) {
-                viewModel.toggleToolsPanel()
                 viewModel.toggleEpgTimelinePanel()
             },
             ToolEntry("提醒管理", "节目提醒列表", Icons.Default.Notifications) {
-                viewModel.toggleToolsPanel()
                 viewModel.toggleReminderPanel()
             },
             ToolEntry("续播位置", "本地文件/点播断点续播", Icons.Default.History) {
-                viewModel.toggleToolsPanel()
                 viewModel.toggleResumePanel()
             },
             ToolEntry("书签管理", "播放位置书签（增删查/跳转）", Icons.Default.Bookmark) {
-                viewModel.toggleToolsPanel()
                 viewModel.toggleBookmarkPanel()
             },
             ToolEntry("频道映射", "远程映射 + 用户映射管理", Icons.Default.SyncAlt) {
-                viewModel.toggleToolsPanel()
                 viewModel.toggleMappingPanel()
             },
             ToolEntry("扫描整理", "URL 范围扫描（StandaloneScanner）", Icons.Default.Radar) {
-                viewModel.toggleToolsPanel()
                 viewModel.toggleScanPanel()
             },
             ToolEntry("流质量检测", "码率 / 分辨率 / 编解码器", Icons.Default.Analytics) {
-                viewModel.toggleToolsPanel()
                 viewModel.toggleStreamQualityPanel()
             }
         )
@@ -539,39 +531,30 @@ fun PlayerToolsPanel(viewModel: AppViewModel) {
     ) {
         val tools = listOf(
             ToolEntry("截图", "截取当前画面", Icons.Default.CameraAlt) {
-                viewModel.togglePlayerToolsPanel()
                 viewModel.toggleScreenshotPanel()
             },
             ToolEntry("切片导出", "截取视频片段", Icons.Default.Movie) {
-                viewModel.togglePlayerToolsPanel()
                 viewModel.toggleClipExportPanel()
             },
             ToolEntry("EPG 时间线", "节目时间线视图", Icons.Default.CalendarMonth) {
-                viewModel.togglePlayerToolsPanel()
                 viewModel.toggleEpgTimelinePanel()
             },
             ToolEntry("搜索", "全局搜索频道和节目", Icons.Default.Search) {
-                viewModel.togglePlayerToolsPanel()
                 viewModel.toggleSearchPanel()
             },
             ToolEntry("提醒管理", "节目提醒列表", Icons.Default.Notifications) {
-                viewModel.togglePlayerToolsPanel()
                 viewModel.toggleReminderPanel()
             },
             ToolEntry("续播位置", "本地文件/点播断点续播", Icons.Default.History) {
-                viewModel.togglePlayerToolsPanel()
                 viewModel.toggleResumePanel()
             },
             ToolEntry("书签管理", "播放位置书签", Icons.Default.Bookmark) {
-                viewModel.togglePlayerToolsPanel()
                 viewModel.toggleBookmarkPanel()
             },
             ToolEntry("音频可视化", "频谱/波形可视化", Icons.Default.Analytics) {
-                viewModel.togglePlayerToolsPanel()
                 viewModel.toggleAudioVisualizer()
             },
             ToolEntry("歌词", "加载/显示歌词", Icons.Default.Subtitles) {
-                viewModel.togglePlayerToolsPanel()
                 viewModel.toggleLyricsPanel()
             }
         )
