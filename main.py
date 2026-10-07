@@ -1,4 +1,4 @@
-from PySide6.QtCore import QHighDpiScaleFactorRoundingPolicy, QTimer, Qt, QtMsgType, qInstallMessageHandler
+from PySide6.QtCore import QTimer, Qt, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QColor, QIcon, QPixmap
 from PySide6.QtWidgets import QApplication, QSplashScreen
 import sys
@@ -29,6 +29,7 @@ def main():
         )
     except (AttributeError, TypeError):
         try:
+            from PySide6.QtCore import QHighDpiScaleFactorRoundingPolicy
             QApplication.setHighDpiScaleFactorRoundingPolicy(
                 QHighDpiScaleFactorRoundingPolicy.PassThrough
             )
