@@ -4,6 +4,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
@@ -258,6 +259,34 @@ fun GlassCard(
             shape = shape,
             border = androidx.compose.foundation.BorderStroke(1.dp, oc.accent.copy(alpha = if (isAndroid12Plus) 0.30f else 0.15f)),
             modifier = Modifier.matchParentSize()
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+fun GlassPanel(
+    liquidGlass: Boolean,
+    modifier: Modifier = Modifier,
+    cornerRadius: androidx.compose.ui.unit.Dp = 10.dp,
+    content: @Composable () -> Unit
+) {
+    val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+    val useGlass = liquidGlass && isAndroid12Plus
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius)
+    Box(modifier = modifier.then(Modifier.clip(shape))) {
+        if (useGlass) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .blur(15.dp)
+                    .background(Color(0x88222222))
+            )
+        }
+        Surface(
+            color = if (useGlass) Color(0xE6222222) else Color(0xF0222222),
+            shape = shape
         ) {
             content()
         }

@@ -95,6 +95,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
+import com.iptv.scanner.editor.pro.ui.theme.GlassPanel
 
 private val ACCENT_CYAN = Color(0xFF00BCD4)
 
@@ -115,6 +116,7 @@ private val ACCENT_CYAN = Color(0xFF00BCD4)
 fun MainMenuPanel(viewModel: AppViewModel) {
     val currentChannel by viewModel.currentChannel.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val osdShowTime by viewModel.osdShowTime.collectAsState()
     val osdShowNetSpeed by viewModel.osdShowNetSpeed.collectAsState()
@@ -376,9 +378,9 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 } else false
             }
         ) {
-            Surface(
-                color = Color(0xE6222222),
-                shape = RoundedCornerShape(10.dp),
+            GlassPanel(
+                liquidGlass = liquidGlass,
+                cornerRadius = 10.dp,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .fillMaxHeight()

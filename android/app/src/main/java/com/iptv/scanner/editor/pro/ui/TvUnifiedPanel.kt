@@ -83,6 +83,7 @@ import com.iptv.scanner.editor.pro.data.IptvEpgProgram
 import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
+import com.iptv.scanner.editor.pro.ui.theme.GlassPanel
 import java.util.Locale
 
 // 侧边栏风格配色
@@ -121,6 +122,7 @@ private val ICON_BG = Color(0x32FFFFFF)
 fun TvUnifiedPanel(viewModel: AppViewModel) {
     val currentIdx by viewModel.currentIdx.collectAsState()
     val channels by viewModel.channels.collectAsState()
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val isFavorite = currentIdx >= 0 && favorites.contains(currentIdx)
 
@@ -291,19 +293,11 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     // -----------------------------------------------------------------
                     // 分组+频道+EPG 合并为一个圆角矩形
                     // -----------------------------------------------------------------
-                    val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-                    Box(
+                    GlassPanel(
+                        liquidGlass = liquidGlass,
+                        cornerRadius = 10.dp,
                         modifier = Modifier.fillMaxHeight()
-                            .clip(RoundedCornerShape(10.dp))
                     ) {
-                        if (isAndroid12Plus) {
-                            Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(10.dp)).blur(15.dp).background(Color(0x88333333)))
-                        }
-                        Box(
-                            modifier = Modifier.fillMaxHeight()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isAndroid12Plus) Color(0xE6222222) else Color(0xF0222222))
-                        ) {
                         Row(modifier = Modifier.fillMaxHeight()) {
                             // 第一列：分组列表
                             if (showGroups) {
@@ -379,7 +373,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                                 }
                             }
                         }
-                        }
+
                     }
                 }
                 UnifiedMode.MENU -> {

@@ -157,6 +157,7 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
     val timeoutSwitch by viewModel.timeoutSwitchSource.collectAsState()
     val reconnectIdx by viewModel.reconnectIndex.collectAsState()
     val screenLocked by viewModel.screenLock.collectAsState()
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
     val bootStart by viewModel.bootStart.collectAsState()
     val autoResume by viewModel.autoResume.collectAsState()
 
@@ -257,6 +258,17 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
                     Text(text = "切换频道时保持上一帧画面，避免黑屏闪烁", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
                 Switch(checked = screenLocked, onCheckedChange = { viewModel.setScreenLock(it) })
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().tvFocusBorder().focusable().padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "液态玻璃", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text(text = "UI背景模糊透明效果（需Android 12+，不支持则纯色）", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+                Switch(checked = liquidGlass, onCheckedChange = { viewModel.setLiquidGlass(it) })
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(
@@ -560,6 +572,7 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
     val timeoutSwitch by viewModel.timeoutSwitchSource.collectAsState()
     val reconnectIdx by viewModel.reconnectIndex.collectAsState()
     val screenLocked by viewModel.screenLock.collectAsState()
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
     val bootStart by viewModel.bootStart.collectAsState()
     val autoResume by viewModel.autoResume.collectAsState()
     val exoSurfaceView by viewModel.exoSurfaceView.collectAsState()
@@ -646,6 +659,12 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
                     title = "画面锁定（换源不黑屏）",
                     checked = screenLocked,
                     onCheckedChange = { viewModel.setScreenLock(it) }
+                )
+                AptvRowDivider()
+                SwitchRow(
+                    title = "液态玻璃",
+                    checked = liquidGlass,
+                    onCheckedChange = { viewModel.setLiquidGlass(it) }
                 )
                 AptvRowDivider()
                 SwitchRow(

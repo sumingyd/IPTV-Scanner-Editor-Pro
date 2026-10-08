@@ -71,6 +71,7 @@ import com.iptv.scanner.editor.pro.player.PlayMode
 import com.iptv.scanner.editor.pro.player.PlaybackState
 import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
+import com.iptv.scanner.editor.pro.ui.theme.GlassPanel
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -361,6 +362,7 @@ private fun TvBottomBar(
 ) {
     val oc = rememberPlayerOverlayColors()
     val mpv = viewModel.mpv
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
 
     var tick by remember { mutableStateOf(0L) }
     LaunchedEffect(Unit) { while (true) { tick = System.currentTimeMillis(); delay(1000L) } }
@@ -401,14 +403,7 @@ private fun TvBottomBar(
         } else null
     }
 
-    Box {
-        if (isAndroid12Plus) {
-            Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(8.dp)).blur(15.dp).background(Color(0x881a1a2e)))
-        }
-        Surface(
-            color = if (isAndroid12Plus) Color(0xE61a1a2e) else Color(0xF01a1a2e),
-            shape = RoundedCornerShape(8.dp)
-        ) {
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 8.dp) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
                 // 第1行：台标 + 频道号 + 频道名 + spacer + 状态标签 + 技术标签组
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -587,7 +582,7 @@ private fun TvBottomBar(
                             }
                         }
             }
-        }
+
     }
 }
 

@@ -135,6 +135,12 @@ class PlayerSettingsStore(private val prefs: SharedPreferences) {
         prefs.edit().putBoolean(KEY_SCREEN_LOCK, enabled).apply()
     }
 
+    fun getLiquidGlass(): Boolean = prefs.getBoolean(KEY_LIQUID_GLASS, true)
+
+    fun setLiquidGlass(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LIQUID_GLASS, enabled).apply()
+    }
+
     // -----------------------------------------------------------------
     // 倍速双步进参数
     // -----------------------------------------------------------------
@@ -232,6 +238,7 @@ class PlayerSettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_RECONNECT_INDEX = "reconnect_index"
         private const val DEFAULT_RECONNECT_INDEX = 0
         private const val KEY_SCREEN_LOCK = "screen_lock"
+        private const val KEY_LIQUID_GLASS = "liquid_glass"
         private const val KEY_SPEED_PARAMS = "speed_params"
         private const val DEFAULT_SPEED_PARAMS = "0.5,3,0.25,0.5,1,2"
         private const val KEY_RTSP_TRANSPORT = "rtsp_transport"

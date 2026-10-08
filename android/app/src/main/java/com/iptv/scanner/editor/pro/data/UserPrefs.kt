@@ -142,6 +142,8 @@ class UserPrefs private constructor() {
     fun getReconnectDelayMs(): Long = playerSettingsStore.getReconnectDelayMs()
     fun getScreenLock(): Boolean = playerSettingsStore.getScreenLock()
     fun setScreenLock(enabled: Boolean) = playerSettingsStore.setScreenLock(enabled)
+    fun getLiquidGlass(): Boolean = playerSettingsStore.getLiquidGlass()
+    fun setLiquidGlass(enabled: Boolean) = playerSettingsStore.setLiquidGlass(enabled)
     fun getSpeedParams(): String = playerSettingsStore.getSpeedParams()
     fun setSpeedParams(params: String) = playerSettingsStore.setSpeedParams(params)
     fun getSpeedConfig(): SpeedConfig = playerSettingsStore.getSpeedConfig()

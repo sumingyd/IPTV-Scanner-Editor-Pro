@@ -916,6 +916,15 @@ internal var currentIsLocalFile: Boolean
     internal val _themeMode = MutableStateFlow(userPrefs.getThemeMode())
     val themeMode: StateFlow<String> = _themeMode.asStateFlow()
 
+    /** 液态玻璃效果开关（Android 12+ 生效，低版本降级为纯色） */
+    internal val _liquidGlass = MutableStateFlow(userPrefs.getLiquidGlass())
+    val liquidGlass: StateFlow<Boolean> = _liquidGlass.asStateFlow()
+
+    fun setLiquidGlass(enabled: Boolean) {
+        _liquidGlass.value = enabled
+        userPrefs.setLiquidGlass(enabled)
+    }
+
     // 侧边栏风格显示设置开关项
     internal val _osdShowTime = MutableStateFlow(userPrefs.isOsdShowTime())
     val osdShowTime: StateFlow<Boolean> = _osdShowTime.asStateFlow()
