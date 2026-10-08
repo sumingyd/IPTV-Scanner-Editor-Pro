@@ -223,7 +223,7 @@ internal fun PortraitBottomTabBar(
     val useGlass = liquidGlass && isAndroid12Plus
     if (useGlass) {
         Surface(
-            color = bgColor.copy(alpha = 0.60f),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f),
             shape = tabShape,
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
             modifier = modifier
