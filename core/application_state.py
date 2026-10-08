@@ -4,6 +4,14 @@ from typing import List, Dict, Any
 from utils.singleton import Singleton
 
 
+def _all_channels_text():
+    try:
+        from core.language_manager import LanguageManager
+        return LanguageManager().tr("all_channels", "All Channels")
+    except Exception:
+        return "All Channels"
+
+
 class ApplicationState(Singleton):
 
     def __init__(self):
@@ -14,7 +22,7 @@ class ApplicationState(Singleton):
         self._channels: List[Dict[str, Any]] = []
 
         # 频道分组（从实际数据中提取，初始为空）
-        self._channel_groups: List[str] = ["All Channels"]
+        self._channel_groups: List[str] = [_all_channels_text()]
 
         # EPG 节目单数据（初始为空字典）
         self._epg_data: Dict[str, Any] = {}
@@ -94,7 +102,7 @@ class ApplicationState(Singleton):
         with self._channels_lock:
             self._channels.clear()
         with self._groups_lock:
-            self._channel_groups = ["All Channels"]
+            self._channel_groups = [_all_channels_text()]
         with self._epg_lock:
             self._epg_data.clear()
 

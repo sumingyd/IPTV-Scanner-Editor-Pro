@@ -621,7 +621,7 @@ class CatchupController:
             self.seek_catchup(position)
 
     def continue_timeshift(self):
-        """时移流播放到终点后自动续播：从当前播放位置重建时移URL"""
+        """时移流播放到终点后自动续播：优先切换到下一个节目，无下一节目则从当前位置续播"""
         w = self.window
 
 
@@ -632,26 +632,61 @@ class CatchupController:
         program_start = self.catchup_program['start']
         program_end = self.catchup_program['end']
         now = datetime.now()
-
-        elapsed_since_start = getattr(w, '_catchup_start_progress', None)
-        if elapsed_since_start is not None and hasattr(w, '_catchup_start_time'):
-            import time as _time
-            elapsed_real = _time.time() - w._catchup_start_time
-            new_start_time = program_start + timedelta(seconds=elapsed_since_start + elapsed_real)
-        else:
-            new_start_time = now - timedelta(seconds=5)
-
-        if new_start_time >= now:
-            new_start_time = now - timedelta(seconds=5)
-        if new_start_time < program_start:
-            new_start_time = program_start
-
-        end_time = program_end if program_end > now else now + timedelta(minutes=30)
-
-        catchup_url = self.build_catchup_url(self.original_channel, new_start_time, end_time)
         channel_name = self.original_channel.get('name', '')
 
-        logger.info(f"时移续播 -> new_start={new_start_time}, end={end_time}, url={catchup_url}")
+        next_program = None
+        try:
+            ch_name, tvg_id, tvg_name, comma_name = w._get_epg_match_params()
+            epg_list = w.epg_parser.get_channel_epg(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+            for prog in epg_list:
+                try:
+                    prog_start = datetime.fromisoformat(prog.get('start', ''))
+                    if prog_start >= program_end:
+                        next_program = prog
+                        break
+                except (ValueError, KeyError):
+                    continue
+        except Exception as ex:
+            logger.warning(f"获取下一节目失败: {ex}")
+
+        if next_program:
+            next_start = datetime.fromisoformat(next_program['start'])
+            next_end = datetime.fromisoformat(next_program['end'])
+            if next_end > now:
+                play_start = next_start
+            else:
+                play_start = next_end - timedelta(seconds=5)
+            end_time = next_end if next_end > now else now + timedelta(minutes=30)
+            catchup_url = self.build_catchup_url(self.original_channel, play_start, end_time)
+            self.catchup_program = {
+                'start': next_start, 'end': next_end,
+                'title': next_program.get('title', ''),
+                'desc': next_program.get('desc', ''),
+            }
+            w._progress_program_start = next_start
+            w._progress_program_end = next_end
+            total_duration = int((next_end - next_start).total_seconds())
+            if total_duration > 0:
+                self._set_progress_range(total_duration)
+            w._progress_time_mode = 'epg'
+            logger.info(f"时移续播 -> 下一节目 {next_start}~{next_end}, title={next_program.get('title', '')}")
+        else:
+            elapsed_since_start = getattr(w, '_catchup_start_progress', None)
+            if elapsed_since_start is not None and hasattr(w, '_catchup_start_time'):
+                import time as _time
+                elapsed_real = _time.time() - w._catchup_start_time
+                new_start_time = program_start + timedelta(seconds=elapsed_since_start + elapsed_real)
+            else:
+                new_start_time = now - timedelta(seconds=5)
+
+            if new_start_time >= now:
+                new_start_time = now - timedelta(seconds=5)
+            if new_start_time < program_start:
+                new_start_time = program_start
+
+            end_time = program_end if program_end > now else now + timedelta(minutes=30)
+            catchup_url = self.build_catchup_url(self.original_channel, new_start_time, end_time)
+            logger.info(f"时移续播(同节目) -> new_start={new_start_time}, end={end_time}")
 
         w._pending_catchup_progress = 0
         import time as _time
@@ -761,10 +796,7 @@ class CatchupController:
             self._set_progress_range(total_duration)
             w._pending_catchup_progress = offset_seconds
             self._set_progress_value(offset_seconds)
-            if has_epg:
-                w._progress_time_mode = 'epg'
-            else:
-                w._progress_time_mode = 'hour'
+            w._progress_time_mode = 'epg'
             w._progress_program_start = program_start
             w._progress_program_end = end_time
 
