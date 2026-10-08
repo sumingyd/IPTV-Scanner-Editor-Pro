@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -145,7 +146,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
         if (uri != null) viewModel.playLocalVideo(uri.toString())
     }
 
-    val sections = remember(currentIdx, isFavorite, osdShowTime, osdShowNetSpeed, osdHideChannelNum, osdDisableEpg, osdDisableFavorite, osdShowListIcon, osdShowBottomIcon, sources, selectedSource, multiViewState) {
+    val sections = remember(currentIdx, isFavorite, osdShowTime, osdShowNetSpeed, osdHideChannelNum, osdDisableEpg, osdDisableFavorite, osdShowListIcon, osdShowBottomIcon, liquidGlass, sources, selectedSource, multiViewState) {
         buildMenuSections(
             onOpenPlaylist = {
                 if (!viewModel.isSafAvailable()) {
@@ -292,6 +293,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             onToggleDisableFavorite = { viewModel.setOsdDisableFavorite(!osdDisableFavorite) },
             onToggleShowListIcon = { viewModel.setOsdShowListIcon(!osdShowListIcon) },
             onToggleShowBottomIcon = { viewModel.setOsdShowBottomIcon(!osdShowBottomIcon) },
+            onToggleLiquidGlass = { viewModel.setLiquidGlass(!liquidGlass) },
             showTime = osdShowTime,
             showNetSpeed = osdShowNetSpeed,
             hideChannelNum = osdHideChannelNum,
@@ -299,6 +301,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             disableFavorite = osdDisableFavorite,
             showListIcon = osdShowListIcon,
             showBottomIcon = osdShowBottomIcon,
+            liquidGlassValue = liquidGlass,
             hasCurrentChannel = currentChannel != null,
             isFavorite = isFavorite,
             sources = sources,
@@ -699,6 +702,7 @@ private fun buildMenuSections(
     onToggleDisableFavorite: () -> Unit,
     onToggleShowListIcon: () -> Unit,
     onToggleShowBottomIcon: () -> Unit,
+    onToggleLiquidGlass: () -> Unit,
     showTime: Boolean,
     showNetSpeed: Boolean,
     hideChannelNum: Boolean,
@@ -706,6 +710,7 @@ private fun buildMenuSections(
     disableFavorite: Boolean,
     showListIcon: Boolean,
     showBottomIcon: Boolean,
+    liquidGlassValue: Boolean,
     hasCurrentChannel: Boolean,
     isFavorite: Boolean,
     sources: List<com.iptv.scanner.editor.pro.data.IptvSource>,
@@ -793,7 +798,8 @@ private fun buildMenuSections(
             MenuEntry(Icons.Default.Info, "关闭EPG", "不加载节目单", onToggleDisableEpg, isToggle = true, toggleValue = disableEpg),
             MenuEntry(Icons.Default.Info, "关闭收藏", "不显示收藏星标", onToggleDisableFavorite, isToggle = true, toggleValue = disableFavorite),
             MenuEntry(Icons.Default.Info, "列表图标", "频道列表显示台标", onToggleShowListIcon, isToggle = true, toggleValue = showListIcon),
-            MenuEntry(Icons.Default.Info, "底部图标", "底部信息栏显示图标", onToggleShowBottomIcon, isToggle = true, toggleValue = showBottomIcon)
+            MenuEntry(Icons.Default.Info, "底部图标", "底部信息栏显示图标", onToggleShowBottomIcon, isToggle = true, toggleValue = showBottomIcon),
+            MenuEntry(Icons.Default.AutoAwesome, "液态玻璃", "UI背景半透明玻璃质感", onToggleLiquidGlass, isToggle = true, toggleValue = liquidGlassValue)
         )
     )
     val toolSection = MenuSection(
