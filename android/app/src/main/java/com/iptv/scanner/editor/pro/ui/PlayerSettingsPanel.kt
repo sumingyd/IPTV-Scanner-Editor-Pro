@@ -157,7 +157,6 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
     val timeoutSwitch by viewModel.timeoutSwitchSource.collectAsState()
     val reconnectIdx by viewModel.reconnectIndex.collectAsState()
     val screenLocked by viewModel.screenLock.collectAsState()
-    val liquidGlass by viewModel.liquidGlass.collectAsState()
     val bootStart by viewModel.bootStart.collectAsState()
     val autoResume by viewModel.autoResume.collectAsState()
 
@@ -193,6 +192,7 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
         modifier = Modifier.padding(horizontal = 4.dp)
     )
     Spacer(modifier = Modifier.height(20.dp))
+
 
     // ExoPlayer 视频渲染视图切换（SurfaceView 兼容性更好；TextureView 部分设备 GPU 渲染异常）
     if (currentPlayerType == PlayerType.EXO) {
@@ -265,17 +265,7 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "液态玻璃", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Text(text = "UI背景模糊透明效果（需Android 12+，不支持则纯色）", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                }
-                Switch(checked = liquidGlass, onCheckedChange = { viewModel.setLiquidGlass(it) })
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth().tvFocusBorder().focusable().padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+
                     Text(text = "开机自启动", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     Text(text = "设备开机后自动启动应用", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
@@ -572,7 +562,6 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
     val timeoutSwitch by viewModel.timeoutSwitchSource.collectAsState()
     val reconnectIdx by viewModel.reconnectIndex.collectAsState()
     val screenLocked by viewModel.screenLock.collectAsState()
-    val liquidGlass by viewModel.liquidGlass.collectAsState()
     val bootStart by viewModel.bootStart.collectAsState()
     val autoResume by viewModel.autoResume.collectAsState()
     val exoSurfaceView by viewModel.exoSurfaceView.collectAsState()
@@ -615,6 +604,7 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
+
 
             if (currentPlayerType == PlayerType.EXO) {
                 SettingsGroup("视频渲染") {
@@ -662,12 +652,7 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
                 )
                 AptvRowDivider()
                 SwitchRow(
-                    title = "液态玻璃",
-                    checked = liquidGlass,
-                    onCheckedChange = { viewModel.setLiquidGlass(it) }
-                )
-                AptvRowDivider()
-                SwitchRow(
+
                     title = "开机自启动",
                     checked = bootStart,
                     onCheckedChange = { viewModel.setBootStart(it) }
