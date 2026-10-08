@@ -423,6 +423,7 @@ def build_macos():
         "--add-data", f"{PROJECT_ROOT / 'mpv'}{DATA_SEP}mpv",
         "--add-data", f"{PROJECT_ROOT / 'ffmpeg'}{DATA_SEP}ffmpeg",
         "--add-data", f"{PROJECT_ROOT / 'resources'}{DATA_SEP}resources",
+        "--add-data", f"{PROJECT_ROOT / 'i18n'}{DATA_SEP}i18n",
     ])
     for imp in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", imp])
@@ -446,6 +447,7 @@ def build_windows():
         "--add-data", f"{PROJECT_ROOT / 'mpv'}{DATA_SEP}mpv",
         "--add-data", f"{PROJECT_ROOT / 'ffmpeg'}{DATA_SEP}ffmpeg",
         "--add-data", f"{PROJECT_ROOT / 'resources'}{DATA_SEP}resources",
+        "--add-data", f"{PROJECT_ROOT / 'i18n'}{DATA_SEP}i18n",
     ])
     for imp in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", imp])
@@ -502,6 +504,7 @@ def build_linux():
         "--add-data", f"{PROJECT_ROOT / 'mpv'}{DATA_SEP}mpv",
         "--add-data", f"{PROJECT_ROOT / 'ffmpeg'}{DATA_SEP}ffmpeg",
         "--add-data", f"{PROJECT_ROOT / 'resources'}{DATA_SEP}resources",
+        "--add-data", f"{PROJECT_ROOT / 'i18n'}{DATA_SEP}i18n",
     ])
     # 将 libxcb-cursor.so.0 打包到解压后的根目录，
     # PyInstaller 运行时会把 _MEIPASS 加入 LD_LIBRARY_PATH，Qt 的 xcb 平台插件即可找到此库
@@ -545,6 +548,7 @@ def build_android():
         "--add-data", f"{PROJECT_ROOT / 'mpv'}{DATA_SEP}mpv",
         "--add-data", f"{PROJECT_ROOT / 'ffmpeg'}{DATA_SEP}ffmpeg",
         "--add-data", f"{PROJECT_ROOT / 'resources'}{DATA_SEP}resources",
+        "--add-data", f"{PROJECT_ROOT / 'i18n'}{DATA_SEP}i18n",
     ])
     for imp in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", imp])
