@@ -157,8 +157,6 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
     val timeoutSwitch by viewModel.timeoutSwitchSource.collectAsState()
     val reconnectIdx by viewModel.reconnectIndex.collectAsState()
     val screenLocked by viewModel.screenLock.collectAsState()
-    val bootStart by viewModel.bootStart.collectAsState()
-    val autoResume by viewModel.autoResume.collectAsState()
 
     SectionTitle("播放器内核")
     Spacer(modifier = Modifier.height(4.dp))
@@ -259,29 +257,7 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
                 }
                 Switch(checked = screenLocked, onCheckedChange = { viewModel.setScreenLock(it) })
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth().tvFocusBorder().focusable().padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
 
-                    Text(text = "开机自启动", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Text(text = "设备开机后自动启动应用", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                }
-                Switch(checked = bootStart, onCheckedChange = { viewModel.setBootStart(it) })
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth().tvFocusBorder().focusable().padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "启动自动续播", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Text(text = "打开应用时自动播放上次频道", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                }
-                Switch(checked = autoResume, onCheckedChange = { viewModel.setAutoResume(it) })
-            }
         }
     }
     Spacer(modifier = Modifier.height(20.dp))
@@ -562,8 +538,7 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
     val timeoutSwitch by viewModel.timeoutSwitchSource.collectAsState()
     val reconnectIdx by viewModel.reconnectIndex.collectAsState()
     val screenLocked by viewModel.screenLock.collectAsState()
-    val bootStart by viewModel.bootStart.collectAsState()
-    val autoResume by viewModel.autoResume.collectAsState()
+
     val exoSurfaceView by viewModel.exoSurfaceView.collectAsState()
     val epgTz by viewModel.epgTimezoneOffset.collectAsState()
     val epgCache by viewModel.epgCacheSchedule.collectAsState()
@@ -650,19 +625,7 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
                     checked = screenLocked,
                     onCheckedChange = { viewModel.setScreenLock(it) }
                 )
-                AptvRowDivider()
-                SwitchRow(
 
-                    title = "开机自启动",
-                    checked = bootStart,
-                    onCheckedChange = { viewModel.setBootStart(it) }
-                )
-                AptvRowDivider()
-                SwitchRow(
-                    title = "启动自动续播",
-                    checked = autoResume,
-                    onCheckedChange = { viewModel.setAutoResume(it) }
-                )
             }
 
             if (currentPlayerType == PlayerType.MPV) {

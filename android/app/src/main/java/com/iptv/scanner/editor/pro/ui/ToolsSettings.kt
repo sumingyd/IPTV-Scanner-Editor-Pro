@@ -150,6 +150,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -668,6 +669,7 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
     val autoResume by viewModel.autoResume.collectAsState()
     val playerType by viewModel.playerType.collectAsState()
     val liquidGlass by viewModel.liquidGlass.collectAsState()
+    val bootStart by viewModel.bootStart.collectAsState()
     val isMpv = playerType == PlayerType.MPV
 
     LazyColumn(
@@ -696,6 +698,7 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
                     viewModel.setAutoResume(!autoResume)
                 }
                 AptvSwitchRow(Icons.Default.AutoAwesome, "液态玻璃", checked = liquidGlass, onCheckedChange = { viewModel.setLiquidGlass(it) })
+                AptvSwitchRow(Icons.Default.PowerSettingsNew, "开机自启动", checked = bootStart, onCheckedChange = { viewModel.setBootStart(it) })
             }
         }
 
