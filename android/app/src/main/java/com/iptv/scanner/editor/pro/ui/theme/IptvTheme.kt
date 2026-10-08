@@ -275,18 +275,20 @@ fun GlassPanel(
     val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
     val useGlass = liquidGlass && isAndroid12Plus
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius)
-    Box(modifier = modifier.then(Modifier.clip(shape))) {
-        if (useGlass) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .blur(15.dp)
-                    .background(Color(0x88222222))
-            )
-        }
+    if (useGlass) {
         Surface(
-            color = if (useGlass) Color(0xE6222222) else Color(0xF0222222),
-            shape = shape
+            color = Color(0xB0222222),
+            shape = shape,
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+            modifier = modifier
+        ) {
+            content()
+        }
+    } else {
+        Surface(
+            color = Color(0xF0222222),
+            shape = shape,
+            modifier = modifier
         ) {
             content()
         }
