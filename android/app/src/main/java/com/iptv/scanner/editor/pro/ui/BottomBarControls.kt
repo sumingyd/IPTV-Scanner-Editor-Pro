@@ -179,6 +179,7 @@ internal fun PortraitBottomTabBar(
     modifier: Modifier = Modifier
 ) {
     val portraitTab by viewModel.portraitTab.collectAsState()
+    val liquidGlass = LocalLiquidGlass.current
     val bgColor = MaterialTheme.colorScheme.surface
     // APTV 风格竖屏强调色（红粉），不影响横屏/TV 主题
     val accentColor = AptvAccent
@@ -219,7 +220,27 @@ internal fun PortraitBottomTabBar(
         }
     }
 
-    if (isAndroid12Plus) {
+    val useGlass = liquidGlass && isAndroid12Plus
+    if (useGlass) {
+        Surface(
+            color = bgColor.copy(alpha = 0.60f),
+            shape = tabShape,
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .navigationBarsPadding()
+                .height(56.dp)
+                .shadow(8.dp, tabShape)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                content = tabContent
+            )
+        }
+    } else if (isAndroid12Plus) {
         Box(
             modifier = modifier
                 .fillMaxWidth()

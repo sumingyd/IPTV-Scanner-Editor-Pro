@@ -83,9 +83,9 @@ internal fun AptvGroupCard(
     val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
     val useGlass = liquidGlass && isAndroid12Plus
     Surface(
-        color = if (useGlass) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        color = if (useGlass) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         shape = RoundedCornerShape(12.dp),
-        border = if (useGlass) androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)) else null,
+        border = if (useGlass) androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)) else null,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)

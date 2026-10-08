@@ -709,7 +709,8 @@ fun PortraitPanelDialog(
                     val liquidGlass = LocalLiquidGlass.current
                     val useGlass = liquidGlass && isAndroid12Plus
                     Surface(
-                        color = if (useGlass) MaterialTheme.colorScheme.background.copy(alpha = 0.82f) else MaterialTheme.colorScheme.background,
+                        color = if (useGlass) MaterialTheme.colorScheme.background.copy(alpha = 0.70f) else MaterialTheme.colorScheme.background,
+                        border = if (useGlass) BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)) else null,
                         modifier = Modifier
                             .fillMaxSize()
                             .clickable(
