@@ -195,6 +195,8 @@ private const val TAG_EXO_TEXTURE = "exo_texture"
 @Composable
 fun MainPlayerScreen(viewModel: AppViewModel) {
     val uiMode by viewModel.uiMode.collectAsState()
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+
 
     val controlsVisible by viewModel.controlsVisible.collectAsState()
     val channelsPanelOpen by viewModel.channelsPanelOpen.collectAsState()
@@ -824,6 +826,7 @@ viewModel.mpv.setMute(savedMute)
                 }
             }
 
+        androidx.compose.runtime.CompositionLocalProvider(LocalLiquidGlass provides liquidGlass) {
         // 主菜单 — PHONE 全屏覆盖 / TV 侧边栏风格右侧菜单
         if (menuPanelOpen) {
             MainMenuPanel(viewModel = viewModel)
@@ -1056,6 +1059,7 @@ if (lyricsOpen) {
         // 频道信息详情对话框（信息栏"信息"按钮触发）
         if (channelInfoOpen) {
             ChannelInfoDialog(viewModel = viewModel)
+        }
         }
 
         // -----------------------------------------------------------------

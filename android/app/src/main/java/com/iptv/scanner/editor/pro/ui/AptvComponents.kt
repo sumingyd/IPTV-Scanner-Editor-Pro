@@ -54,6 +54,12 @@ internal val AptvAccent = Color(0xFFE8455F)
  */
 internal val LocalAptvStyle = compositionLocalOf { false }
 
+/**
+ * 液态玻璃开关：通过 CompositionLocal 传递，竖屏 AptvGroupCard / PortraitPanelDialog 等读取此值。
+ */
+internal val LocalLiquidGlass = compositionLocalOf { false }
+
+
 /** APTV 分组节头：灰色小字 */
 @Composable
 internal fun AptvSectionHeader(title: String) {
@@ -73,9 +79,13 @@ internal fun AptvGroupCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val liquidGlass = LocalLiquidGlass.current
+    val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+    val useGlass = liquidGlass && isAndroid12Plus
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        color = if (useGlass) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         shape = RoundedCornerShape(12.dp),
+        border = if (useGlass) androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)) else null,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)

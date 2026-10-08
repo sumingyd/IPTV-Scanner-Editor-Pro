@@ -672,6 +672,7 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
     val bootStart by viewModel.bootStart.collectAsState()
     val isMpv = playerType == PlayerType.MPV
 
+    androidx.compose.runtime.CompositionLocalProvider(LocalLiquidGlass provides liquidGlass) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 90.dp)
@@ -731,6 +732,7 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
                 AptvRow(Icons.Default.Info, stringResource(R.string.settings_about)) { viewModel.toggleAboutPanel() }
             }
         }
+    }
     }
 }
 

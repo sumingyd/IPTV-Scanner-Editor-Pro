@@ -706,8 +706,10 @@ fun PortraitPanelDialog(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     // 实底全屏页：消费自身点击（不透传 scrim），避免误触关闭
+                    val liquidGlass = LocalLiquidGlass.current
+                    val useGlass = liquidGlass && isAndroid12Plus
                     Surface(
-                        color = MaterialTheme.colorScheme.background,
+                        color = if (useGlass) MaterialTheme.colorScheme.background.copy(alpha = 0.82f) else MaterialTheme.colorScheme.background,
                         modifier = Modifier
                             .fillMaxSize()
                             .clickable(
