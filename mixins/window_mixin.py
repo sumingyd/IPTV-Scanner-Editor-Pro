@@ -256,6 +256,7 @@ class WindowMixin:
             panel = getattr(self, panel_attr, None)
             if panel and panel.isVisible():
                 panel.show()
+                panel.raise_()
         self._raise_child_dialogs()
 
     def _raise_child_dialogs(self):

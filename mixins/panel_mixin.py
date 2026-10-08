@@ -51,6 +51,9 @@ class PanelMixin:
         is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
         self.panel_vis.restore_auto_hide_state(is_local_file=is_local)
         self._sync_panel_actions()
+        self.raise_()
+        if hasattr(self, '_raise_floating_panels'):
+            self._raise_floating_panels()
         self._raise_child_dialogs()
 
     def _delayed_hide_floating_panels(self):
@@ -195,16 +198,20 @@ class PanelMixin:
         self.status_bar_show_message(self.language_manager.tr("epg_sub_updated", "EPG subscription updated"))
 
     def raise_floating_panels(self):
+        self.raise_()
         self.update_floating_position()
         if hasattr(self, 'epg_panel') and self.epg_panel and self.epg_visible:
             if not self.epg_panel.isVisible():
                 self.epg_panel.show()
+            self.epg_panel.raise_()
         if hasattr(self, 'playlist_panel') and self.playlist_panel and self.playlist_visible:
             if not self.playlist_panel.isVisible():
                 self.playlist_panel.show()
+            self.playlist_panel.raise_()
         if hasattr(self, 'floating_panel') and self.floating_panel and self.floating_panel_visible:
             if not self.floating_panel.isVisible():
                 self.floating_panel.show()
+            self.floating_panel.raise_()
         self._raise_child_dialogs()
 
     def _reapply_side_panel_styles(self):

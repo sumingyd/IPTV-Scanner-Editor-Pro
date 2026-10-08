@@ -640,6 +640,7 @@ class EventHandler:
         if event.type() == QEvent.Type.ActivationChange:
             if self.window and self.window.isActiveWindow():
                 if not getattr(self.window, 'pip_mode', False):
+                    self.window.raise_()
                     if hasattr(self.window, 'raise_floating_panels'):
                         self.window.raise_floating_panels()
                     if getattr(self.window, 'is_fullscreen', False):
