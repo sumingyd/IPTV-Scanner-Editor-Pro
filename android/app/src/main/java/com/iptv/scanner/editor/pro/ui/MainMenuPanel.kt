@@ -340,8 +340,8 @@ fun MainMenuPanel(viewModel: AppViewModel) {
         CompositionLocalProvider(LocalDensity provides scaledDensity) {
         Box(
             modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
-                if (event.type == KeyEventType.KeyDown) {
-                    when (event.key) {
+                when (event.type) {
+                    KeyEventType.KeyDown -> when (event.key) {
                         Key.DirectionDown -> {
                             if (activeColumn == 0) {
                                 selectedSectionIdx = (safeIdx + 1) % sections.size
@@ -371,6 +371,19 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                             } else false
                         }
                         Key.DirectionCenter, Key.Enter -> {
+                            // 按下阶段仅消费事件，点击延迟到 KeyUp 触发（见 KeyUp 分支）。
+                            // 若在 KeyDown 直接触发 onClick：菜单关闭 + 子面板打开后，焦点已落到
+                            // 子面板标题栏的关闭按钮（PanelScaffold 打开时自动抢焦点），同一次按键
+                            // 的 KeyUp 会让该按钮的 clickable 再次触发点击 → 面板刚打开就被关闭
+                            // （表现为功能窗口闪一下立即消失，回到未点击前的状态）。
+                            activeColumn == 1 && currentSection != null && currentSection.entries.isNotEmpty()
+                        }
+                        else -> false
+                    }
+                    KeyEventType.KeyUp -> when (event.key) {
+                        Key.DirectionCenter, Key.Enter -> {
+                            // 在 KeyUp 统一触发点击：整个按键序列在预览层完整消费，
+                            // 不会泄漏到新打开面板中自动获得焦点的控件（如关闭按钮）。
                             if (activeColumn == 1 && currentSection != null && currentSection.entries.isNotEmpty()) {
                                 currentSection.entries.getOrNull(safeLeftIdx)?.onClick()
                                 true
@@ -378,7 +391,8 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                         }
                         else -> false
                     }
-                } else false
+                    else -> false
+                }
             }
         ) {
             GlassPanel(

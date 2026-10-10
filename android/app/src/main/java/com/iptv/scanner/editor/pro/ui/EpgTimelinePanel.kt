@@ -640,6 +640,20 @@ private fun TimelineGrid(
                     .focusRequester(gridFocusRequester)
                     .focusable()
                     .onPreviewKeyEvent { e ->
+                        // OK 键在 KeyUp 统一触发点击（KeyDown 仅消费）。
+                        // 原因：若在 KeyDown 直接 onProgramClick，回看/提醒等面板打开后焦点会落到
+                        // 其标题栏关闭按钮（PanelScaffold 打开时自动抢焦点），同一次按键的 KeyUp
+                        // 会让该按钮的 clickable 再次点击 → 面板刚打开就被关闭（闪一下消失）。
+                        if (e.type == KeyEventType.KeyUp) {
+                            if (e.key == Key.DirectionCenter || e.key == Key.Enter) {
+                                val prog = rows.getOrNull(selectedRow)?.programs?.getOrNull(selectedProgramIdx)
+                                if (prog != null) {
+                                    onProgramClick(prog)
+                                    return@onPreviewKeyEvent true
+                                }
+                            }
+                            return@onPreviewKeyEvent false
+                        }
                         if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                         when (e.key) {
                             Key.DirectionUp -> {
@@ -694,11 +708,8 @@ private fun TimelineGrid(
                                 } else false
                             }
                             Key.DirectionCenter, Key.Enter -> {
-                                val prog = rows.getOrNull(selectedRow)?.programs?.getOrNull(selectedProgramIdx)
-                                if (prog != null) {
-                                    onProgramClick(prog)
-                                    true
-                                } else false
+                                // KeyDown 仅消费事件，点击延迟到 KeyUp 触发（见函数开头注释）
+                                rows.getOrNull(selectedRow)?.programs?.getOrNull(selectedProgramIdx) != null
                             }
                             else -> false
                         }
