@@ -47,6 +47,10 @@ class PanelMixin:
             return
         if not self.panel_vis.is_auto_hidden:
             return
+        # 主窗口不是活动窗口时不显示悬浮面板：
+        # 否则鼠标扫过主窗口区域会把非焦点的主窗口抬到其它窗口（如扫描整理窗口）之上
+        if not self.isActiveWindow():
+            return
 
         is_local = self._is_local_file() if hasattr(self, '_is_local_file') else False
         self.panel_vis.restore_auto_hide_state(is_local_file=is_local)

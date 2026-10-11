@@ -628,6 +628,91 @@ class CatchupController:
             logger.info(f"冷却期结束，执行延迟的时移seek: position={position:.1f}s")
             self.seek_catchup(position)
 
+    def rollover_catchup_program(self, raw_seconds: float) -> bool:
+        """回看墙钟进度越过当前节目末尾时，把记账状态滚动到下一节目。
+
+        回看URL按节目起点开播后服务器通常连续发流，越过节目边界无需重载流，
+        只需把 catchup_program/进度条/EPG"正在回看"标记滚动到下一节目，
+        避免进度条顶满、EPG 仍高亮上一节目。倍速保持不变。
+        返回 True 表示已滚动到下一节目。
+        """
+        w = self.window
+        if not self.catchup_program or not self.original_channel:
+            return False
+        program_start = self.catchup_program.get('start')
+        program_end = self.catchup_program.get('end')
+        if not isinstance(program_start, datetime) or not isinstance(program_end, datetime):
+            return False
+
+        now = datetime.now()
+        if program_end > now:
+            return False  # 节目尚未播完（贴近直播边缘），不滚动
+
+        next_program = None
+        try:
+            ch_name, tvg_id, tvg_name, comma_name = w._get_epg_match_params()
+            epg_list = w.epg_parser.get_channel_epg(ch_name, tvg_id, tvg_name=tvg_name, comma_name=comma_name)
+            for prog in epg_list or []:
+                try:
+                    if datetime.fromisoformat(prog.get('start', '')) >= program_end:
+                        next_program = prog
+                        break
+                except (ValueError, KeyError):
+                    continue
+        except Exception as ex:
+            logger.debug(f"回看滚动查找下一节目失败: {ex}")
+        if not next_program:
+            return False
+        try:
+            next_start = datetime.fromisoformat(next_program['start'])
+            next_end = datetime.fromisoformat(next_program['end'])
+        except (ValueError, KeyError):
+            return False
+        if next_start >= now:
+            return False  # 下一节目尚未开播，墙钟位置不可能超前直播
+
+        # 流墙钟位置 = program_start + raw_seconds，换算为下一节目内的偏移
+        pos_in_next = (program_start + timedelta(seconds=raw_seconds) - next_start).total_seconds()
+        pos_in_next = max(0.0, min(pos_in_next,
+                                   (next_end - next_start).total_seconds(),
+                                   (now - next_start).total_seconds()))
+
+        import time as _time
+        self.catchup_program = {
+            'start': next_start, 'end': next_end,
+            'title': next_program.get('title', ''),
+            'desc': next_program.get('desc', ''),
+        }
+        w._catchup_start_time = _time.time()
+        w._catchup_start_progress = pos_in_next
+        w._progress_time_mode = 'epg'
+        w._progress_program_start = next_start
+        w._progress_program_end = next_end
+        total_duration = int((next_end - next_start).total_seconds())
+        if total_duration > 0:
+            self._set_progress_range(total_duration)
+        self._set_progress_value(pos_in_next)
+
+        catchup_template = w.language_manager.tr('catchup_playing', '正在回看: {name}')
+        w.status_bar_show_message(
+            f"{catchup_template.format(name=self.original_channel.get('name', ''))} - {self.catchup_program.get('title', '')}"
+        )
+
+        try:
+            # EPG键未变时走 _refresh_badges_only，仅刷新"正在回看"标记
+            if hasattr(w, '_populate_epg_list'):
+                w._populate_epg_list()
+            elif hasattr(w, 'populate_epg_list'):
+                w.populate_epg_list()
+        except Exception as ex:
+            logger.debug(f"回看滚动刷新EPG标记失败: {ex}")
+
+        logger.info(
+            f"回看滚动到下一节目 {next_start.strftime('%H:%M')}~{next_end.strftime('%H:%M')} "
+            f"title={self.catchup_program.get('title', '')}，节目内进度 {pos_in_next:.0f}s，倍速保持"
+        )
+        return True
+
     def continue_timeshift(self):
         """时移流播放到终点后自动续播：优先切换到下一个节目，无下一节目则从当前位置续播"""
         w = self.window

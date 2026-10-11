@@ -60,7 +60,18 @@ class ProgressController:
                     current_time = time.time()
                     elapsed_seconds = current_time - w._catchup_start_time
                     speed = w.player_controller.get_speed() if w.player_controller else 1.0
-                    progress_seconds = min(int(w._catchup_start_progress + elapsed_seconds * speed), int(total_duration))
+                    raw_seconds = w._catchup_start_progress + elapsed_seconds * speed
+
+                    # 墙钟进度越过节目末尾：回看流连续发流，内容已进入下一节目，
+                    # 滚动记账到下一节目（保留倍速、重置进度条、刷新EPG标记）
+                    if raw_seconds >= total_duration:
+                        try:
+                            if w.catchup_ctrl.rollover_catchup_program(raw_seconds):
+                                return
+                        except Exception as e:
+                            logger.debug(f"回看滚动到下一节目失败: {e}")
+
+                    progress_seconds = min(int(raw_seconds), int(total_duration))
 
                     if progress_seconds >= int(total_duration) * 0.98 and hasattr(w, 'speed_button') and w.player_controller:
                         current_speed = w.player_controller.get_speed()
