@@ -179,6 +179,16 @@ class LanguageManager(Singleton):
                 if el:
                     el.setText(self.tr('no_channels', 'No channels'))
 
+            # 分组下拉框首项"全部频道"需随语言刷新（复用已有的重建逻辑，
+            # 缓存列表中仍为旧语言文本，会触发重建并保留真实分组）
+            update_groups = getattr(main_window, '_update_groups_for', None)
+            if callable(update_groups):
+                for source in ('subscription', 'local'):
+                    try:
+                        update_groups(source)
+                    except Exception as e:
+                        logger.debug(f"刷新分组下拉框失败 ({source}): {e}")
+
             if hasattr(main_window, 'video_info'):
                 main_window.video_info.setText(self.tr('not_playing', 'Not playing'))
             if hasattr(main_window, 'audio_info'):
@@ -215,5 +225,9 @@ class LanguageManager(Singleton):
             for widget in main_window.findChildren(QtWidgets.QDialog):
                 if hasattr(widget, 'update_ui_texts'):
                     widget.update_ui_texts()
+            # 扫描整理窗口是无 parent 的独立顶层窗口，不在 findChildren 结果里
+            scan_dialog = getattr(main_window, '_scan_dialog', None)
+            if scan_dialog is not None and hasattr(scan_dialog, 'update_ui_texts'):
+                scan_dialog.update_ui_texts()
         except Exception as e:
             logger.debug(f"更新对话框失败: {e}")

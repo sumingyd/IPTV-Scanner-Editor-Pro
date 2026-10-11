@@ -47,6 +47,14 @@ class CatchupController:
         self.catchup_program = program
         self.window.play_state.mode = mode
         self.window._live_timeshift_seconds = 0
+        # 立即切到 epg 模式并记录节目起点，避免首个进度 tick 之前
+        # 悬浮预览仍按直播的 'hour' 模式换算出错误时间
+        w = self.window
+        start_time = program.get('start')
+        if start_time:
+            w._progress_time_mode = 'epg'
+            w._progress_program_start = start_time
+            w._progress_program_end = program.get('end')
 
     def _clear_catchup_state(self, set_state='idle'):
         self._original_channel = None

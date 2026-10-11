@@ -160,7 +160,11 @@ class ScanChannelDialog(FloatingDialog):
     _border_color_key = 'mid'
 
     def __init__(self, parent=None):
-        super().__init__(parent, frameless=False, stay_on_top=False)
+        # 不把 parent 传给 QDialog：Windows 上 owned window 会被系统强制
+        # 始终位于主窗口上层，导致点击主窗口也无法盖过本窗口。
+        # 改为独立顶层窗口，按点击激活顺序正常交错排列；
+        # 主窗口引用仍通过 self.application 保留（配置/语言/清理用）。
+        super().__init__(None, frameless=False, stay_on_top=False)
         self._no_auto_raise = True
         colors = AppStyles._get_colors()
         if AppStyles._visual_style == 'frosted':
@@ -2093,11 +2097,12 @@ class ScanChannelDialog(FloatingDialog):
         channel = self.model.get_channel(source_row)
         if not channel or not channel.get('url'):
             return
-        parent = self.parent()
-        if parent and hasattr(parent, 'play_channel'):
-            parent.play_channel(channel)
-            parent.activateWindow()
-            parent.raise_()
+        # 本窗口是无 parent 的独立顶层窗口，主窗口引用保存在 self.application
+        main_win = self.application
+        if main_win and hasattr(main_win, 'play_channel'):
+            main_win.play_channel(channel)
+            main_win.activateWindow()
+            main_win.raise_()
 
     def _init_main_window(self):
         if not hasattr(self, 'model') or not self.model:

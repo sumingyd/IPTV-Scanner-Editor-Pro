@@ -1,9 +1,14 @@
 """ContextMenuController — 从 MediaController 提取的子控制器。"""
 
+import os
+import re
+
 from core.log_manager import global_logger as logger
 from utils.thread_safety import safe_single_shot
 from utils.delay_constants import DelayMs
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QPoint, QTimer
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QApplication, QFileDialog, QMenu
 
 
 class ContextMenuController:

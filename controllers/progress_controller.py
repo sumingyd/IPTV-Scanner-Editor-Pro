@@ -42,6 +42,12 @@ class ProgressController:
             w.progress_start.repaint()
             w.progress_end.repaint()
 
+            # 回看进度条 = 节目开播起的秒数，必须同步设置 epg 模式和节目起点，
+            # 否则残留直播的 'hour' 模式，悬浮预览会按当前小时换算出错误时间
+            w._progress_time_mode = 'epg'
+            w._progress_program_start = start_time
+            w._progress_program_end = end_time
+
             current_position = current_time_ms / 1000 if current_time_ms else 0
 
             if total_duration > 0:

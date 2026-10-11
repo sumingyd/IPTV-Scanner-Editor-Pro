@@ -12,7 +12,6 @@ except ImportError:
     _shiboken_isvalid = None
 
 from core.log_manager import global_logger as logger
-from core.application_state import app_state
 from ui.styles import AppStyles
 from utils.delay_constants import DelayMs
 
@@ -294,7 +293,9 @@ class PlaylistPanelMixin:
         sub_layout.setSpacing(4)
 
         self.sub_group_combo = QComboBox()
-        self.sub_group_combo.addItems(app_state._channel_groups)
+        # 不直接复制 app_state._channel_groups：其值在模块导入时（语言未加载）已固化为英文，
+        # 播放列表为空时不会触发 _update_groups_for 重建，需按当前语言取翻译
+        self.sub_group_combo.addItems([tr("all_channels", "全部频道")])
         self.sub_group_combo.setStyleSheet(AppStyles.player_group_combo_style())
         self.sub_group_combo.setToolTip(tr("channel_group", "频道分组"))
         self.sub_group_combo.currentTextChanged.connect(self.on_sub_group_changed)
