@@ -198,6 +198,24 @@ class MappingManagerDialog(FloatingDialog):
                 font-size: 11px;
             }}
         """)
+        # 行号列（纵向表头）顶部是QTableCornerButton，默认不绘制文字且QSS无法设置，
+        # 用覆盖其上的同主题标签显示"序号"标题
+        self._serial_header_label = QtWidgets.QLabel(_('serial_number', 'No.'), self.mapping_table)
+        self._serial_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._serial_header_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._serial_header_label.setStyleSheet(f"""
+            QLabel {{
+                background-color: {_colors['table_header']};
+                color: {_colors['window_text']};
+                font-size: 11px;
+                font-weight: 600;
+                border: none;
+                border-right: 1px solid {_colors['mid']};
+                border-bottom: 1px solid {_colors['mid']};
+            }}
+        """)
+        self.mapping_table.horizontalHeader().geometriesChanged.connect(self._position_serial_label)
+        self._position_serial_label()
         self.mapping_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.mapping_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.mapping_table.setMaximumHeight(200)
@@ -293,6 +311,14 @@ class MappingManagerDialog(FloatingDialog):
             f"color: {color}; font-size: 11px; border: none; background: transparent; padding: 4px 8px;"
         )
         self._update_check_worker = None
+
+    def _position_serial_label(self):
+        """把"序号"标题标签定位到行号列顶部的角按钮上"""
+        if hasattr(self, '_serial_header_label'):
+            hh = self.mapping_table.horizontalHeader()
+            self._serial_header_label.setGeometry(
+                0, 0, self.mapping_table.verticalHeader().width(), hh.height())
+            self._serial_header_label.raise_()
 
     def load_user_mappings(self):
         self.mapping_table.setRowCount(0)
@@ -547,6 +573,8 @@ class MappingManagerDialog(FloatingDialog):
                     _('group', 'Group'),
                     _('logo_address', 'Logo Address')
                 ])
+            if hasattr(self, '_serial_header_label'):
+                self._serial_header_label.setText(_('serial_number', 'No.'))
             if hasattr(self, 'add_mapping_btn'):
                 self.add_mapping_btn.setText(_('add_mapping', 'Add'))
             if hasattr(self, 'edit_mapping_btn'):

@@ -332,6 +332,8 @@ class CatchupController:
                          '_target_catchup_progress', '_disable_progress_auto_update']:
                 if hasattr(self.window, attr):
                     setattr(self.window, attr, None if 'time' in attr or 'progress' in attr else False)
+            # 新回看URL从节目起点开播，time-pos换算偏移归零
+            self.window._catchup_time_pos_offset = 0.0
 
             if hasattr(self.window, 'program_progress'):
                 self._set_progress_value(0)
@@ -542,6 +544,8 @@ class CatchupController:
                 self._cooldown_timer = None
             w._catchup_start_time = _time.time()
             w._catchup_start_progress = position
+            # 新URL从请求位置开播，time-pos换算偏移归零
+            w._catchup_time_pos_offset = 0.0
 
             if hasattr(w, 'player_controller') and w.player_controller:
                 w.player_controller.play(catchup_url, f"{channel_name} - {title} ({w.language_manager.tr('catchup_osd', '回看')})")
@@ -685,6 +689,10 @@ class CatchupController:
         }
         w._catchup_start_time = _time.time()
         w._catchup_start_progress = pos_in_next
+        # time-pos 从URL起点连续计数（滚动不重载流），累计节目起点偏移
+        # 使进度换算保持为当前节目内的位置
+        w._catchup_time_pos_offset = getattr(w, '_catchup_time_pos_offset', 0.0) \
+            + (next_start - program_start).total_seconds()
         w._progress_time_mode = 'epg'
         w._progress_program_start = next_start
         w._progress_program_end = next_end
@@ -787,6 +795,8 @@ class CatchupController:
         self._url_rebuild_pending = True
         w._catchup_start_time = _time.time()
         w._catchup_start_progress = 0
+        # 新URL从下一节目起点开播，time-pos换算偏移归零
+        w._catchup_time_pos_offset = 0.0
 
         if hasattr(w, 'player_controller') and w.player_controller:
             w.player_controller.play(catchup_url, f"{channel_name} ({w.language_manager.tr('timeshift_resume', '时移续播')})")
@@ -872,6 +882,8 @@ class CatchupController:
             self._cooldown_timer = None
         w._catchup_start_time = _time.time()
         w._catchup_start_progress = offset_seconds
+        # 新URL从时移目标位置开播，time-pos换算偏移归零
+        w._catchup_time_pos_offset = 0.0
 
         w._timeshift_start_time = target_wallclock
         w.play_state.set_timeshift()

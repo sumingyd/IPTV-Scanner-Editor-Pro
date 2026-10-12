@@ -221,10 +221,19 @@ class QualityBarDelegate(QStyledItemDelegate):
         return rect
 
     def _text_color(self, option) -> QColor:
-        # 选中时使用高亮文字色，否则用 QPalette.Text
-        if option.state & QStyle.StateFlag.State_Selected:
-            return option.palette.color(QPalette.ColorGroup.Normal, QPalette.ColorRole.HighlightedText)
-        return option.palette.color(QPalette.ColorGroup.Normal, QPalette.ColorRole.Text)
+        # 选中时使用表格选中文字色，否则用主题窗口文字色
+        # 注意：应用主题完全由QSS驱动、不写入QPalette，delegate手工绘制
+        # 文字时必须直接取主题色，否则深色主题下会用系统palette的黑色
+        try:
+            from ui.styles import AppStyles
+            colors = AppStyles._get_colors()
+            if option.state & QStyle.StateFlag.State_Selected:
+                return QColor(colors['table_selection_text'])
+            return QColor(colors['window_text'])
+        except Exception:
+            if option.state & QStyle.StateFlag.State_Selected:
+                return option.palette.color(QPalette.ColorGroup.Normal, QPalette.ColorRole.HighlightedText)
+            return option.palette.color(QPalette.ColorGroup.Normal, QPalette.ColorRole.Text)
 
     def _copy_option(self, option):
         # 拷贝一份 option，避免修改原始对象

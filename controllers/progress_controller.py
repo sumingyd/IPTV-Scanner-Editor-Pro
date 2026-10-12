@@ -58,11 +58,21 @@ class ProgressController:
                         and w._catchup_start_time is not None and w._catchup_start_progress is not None:
                     import time
                     current_time = time.time()
-                    elapsed_seconds = current_time - w._catchup_start_time
                     speed = w.player_controller.get_speed() if w.player_controller else 1.0
-                    raw_seconds = w._catchup_start_progress + elapsed_seconds * speed
 
-                    # 墙钟进度越过节目末尾：回看流连续发流，内容已进入下一节目，
+                    if current_time_ms:
+                        # 以mpv实际内容位置为准：倍速下墙钟外推会在网络缓冲停顿时
+                        # 超前于真实位置，导致提前跨边界滚动、连锁滚动到失真位置、
+                        # 甚至误触发"追上直播"降速。time-pos从URL起点连续计数
+                        # （滚动到下一节目不重载流），减去累计节目起点偏移得到节目内位置
+                        raw_seconds = max(0.0, current_time_ms / 1000 - getattr(w, '_catchup_time_pos_offset', 0.0))
+                        # 同步校准墙钟基准，time-pos 短暂不可用时兜底
+                        w._catchup_start_progress = raw_seconds
+                        w._catchup_start_time = current_time
+                    else:
+                        raw_seconds = w._catchup_start_progress + (current_time - w._catchup_start_time) * speed
+
+                    # 进度越过节目末尾：回看流连续发流，内容已进入下一节目，
                     # 滚动记账到下一节目（保留倍速、重置进度条、刷新EPG标记）
                     if raw_seconds >= total_duration:
                         try:
