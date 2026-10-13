@@ -241,6 +241,12 @@ android/local.properties
 android/app/build/
 android/apk-output/
 
+# mpv-android 提取脚本产物（CI 构建时重新下载提取，本地由
+# android/extract_mpv_native.py 生成；官方 mpv-*.apk 下载缓存同理）
+android/mpv-*.apk
+android/libmpv-cavs-android-dynamic.tar.gz
+android/app/src/main/assets/model.bin
+
 # 调试日志和临时文件（根目录）
 tv_*.txt
 tv_*.log

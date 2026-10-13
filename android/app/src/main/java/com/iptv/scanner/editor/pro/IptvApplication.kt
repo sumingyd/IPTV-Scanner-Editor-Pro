@@ -48,6 +48,11 @@ class IptvApplication : PyApplication(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
 
+        // 拷贝 AV3A(Audio Vivid) 解码器运行时模型到 filesDir
+        // libavs3a_decoder 初始化时会 fopen("model.bin")，找不到会初始化失败，
+        // 其 C 层回退路径固定为 /data/data/<pkg>/files/model.bin
+        copyAv3aModelIfNeeded()
+
         // 初始化 ACRA（Java 异常崩溃捕获）
         try {
             val config = CoreConfigurationBuilder()
@@ -69,6 +74,40 @@ class IptvApplication : PyApplication(), ImageLoaderFactory {
 
         // 检查上次崩溃报告
         checkLastCrashReport()
+    }
+
+    // -----------------------------------------------------------------
+    // AV3A 解码模型：assets/model.bin → filesDir/model.bin
+    //
+    // mpv-android-avs 的 libavs3a_decoder.so 在 Avs3AllocDecoder() 内部
+    // 通过 fopen("model.bin") 读取模型，其 C 层回退目录固定为
+    // /data/data/<pkg>/files。应用启动时从 assets 拷贝一份过去，
+    // 文件已存在且大小一致时跳过（升级 APK 后大小变化会自动覆盖）。
+    // -----------------------------------------------------------------
+    private fun copyAv3aModelIfNeeded() {
+        try {
+            val model = File(filesDir, "model.bin")
+            val tmp = File(filesDir, "model.bin.tmp")
+            assets.open("model.bin").use { input ->
+                tmp.outputStream().use { output -> input.copyTo(output) }
+            }
+            if (model.exists() && model.length() == tmp.length()) {
+                tmp.delete()
+                Log.d(TAG, "AV3A model.bin already up to date")
+                return
+            }
+            if (model.exists() && !model.delete()) {
+                throw java.io.IOException("cannot replace stale model.bin")
+            }
+            if (!tmp.renameTo(model)) {
+                throw java.io.IOException("rename model.bin.tmp failed")
+            }
+            Log.i(TAG, "AV3A model.bin copied to filesDir (${model.length()} bytes)")
+        } catch (e: Exception) {
+            // assets 中无 model.bin（旧版构建流程）或拷贝失败：
+            // 仅影响 AV3A 音频解码，不阻塞应用启动
+            Log.w(TAG, "copyAv3aModelIfNeeded failed (AV3A audio unavailable)", e)
+        }
     }
 
     // -----------------------------------------------------------------

@@ -344,6 +344,10 @@ jobs:
   build-android:
     name: Build Android APK
     runs-on: ubuntu-latest
+    env:
+      # AVS 支持版 libmpv 发布标签（sggc/mpv-android-avs，自动递增 tag，
+      # 升级时 bump 此值即可），提供 CAVS/AVS2/AVS3-P2/AV3A 解码支持
+      MPV_AVS_RELEASE: "libmpv-cavs-dynamic-v003"
 
     steps:
       - name: Checkout repository
@@ -378,12 +382,23 @@ jobs:
           SDKM=$(ls /usr/local/lib/android/sdk/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)
           yes | "$SDKM" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Download official mpv-android .so files
-        # 从官方 mpv-android APK 提取 .so 文件（无 CAVS/AVS2 支持，但稳定可靠）
+      - name: Download mpv-android .so files (official base + AVS overlay)
+        # 安卓端 libmpv 来源：
+        # 1. 官方 mpv-android APK（基座）：提供 libplayer.so（mpv-android 的 JNI 层，
+        #    MPVLib.kt 需同时加载 libmpv 与 libplayer）与 libc++_shared.so
+        #    （davs2 为 C++ 编译，dlopen 时必需）
+        # 2. sggc/mpv-android-avs（覆盖）：带 CAVS/AVS2/AVS3-P2/AV3A 解码支持的
+        #    libmpv.so / libavcodec.so / libdavs2.so / libuavs3d.so /
+        #    libavs3a_decoder.so 等一套 .so，覆盖 arm64-v8a / armeabi-v7a
+        # 3. assets/model.bin：AV3A(Audio Vivid) 解码器运行时模型，
+        #    由 IptvApplication 启动时拷贝到 filesDir 供 libavs3a_decoder 读取
         working-directory: android
         run: |
           JNILIBS_DIR="app/src/main/jniLibs"
-          mkdir -p "$JNILIBS_DIR"
+          ASSETS_DIR="app/src/main/assets"
+          mkdir -p "$JNILIBS_DIR" "$ASSETS_DIR"
+
+          # --- 1) 官方基座 ---
           BASE_URL="https://github.com/mpv-android/mpv-android/releases/download/2026-04-25"
           ARCHS=("arm64-v8a" "armeabi-v7a")
           for arch in "${ARCHS[@]}"; do
@@ -394,16 +409,38 @@ jobs:
             unzip -o "mpv-${arch}.apk" "lib/${arch}/*.so" -d /tmp/mpv-extract
             if [ -d "/tmp/mpv-extract/lib/${arch}" ]; then
               cp /tmp/mpv-extract/lib/${arch}/*.so "$JNILIBS_DIR/$arch/"
-              echo "$arch .so files:"
-              ls -la "$JNILIBS_DIR/$arch/"
             else
               echo "ERROR: No .so files found for $arch"
               exit 1
             fi
             rm -rf /tmp/mpv-extract "mpv-${arch}.apk"
           done
+
+          # --- 2) AVS 支持版覆盖 ---
+          AVS_URL="https://github.com/sggc/mpv-android-avs/releases/download/${MPV_AVS_RELEASE}/libmpv-cavs-android-dynamic.tar.gz"
+          echo "Downloading AVS-enabled libmpv from: $AVS_URL"
+          curl -fsSL -o /tmp/mpv-avs.tar.gz "$AVS_URL"
+          mkdir -p /tmp/mpv-avs-extract
+          for arch in "${ARCHS[@]}"; do
+            tar xzf /tmp/mpv-avs.tar.gz -C /tmp/mpv-avs-extract "jniLibs/${arch}" 2>/dev/null || true
+            if ls /tmp/mpv-avs-extract/jniLibs/${arch}/*.so >/dev/null 2>&1; then
+              cp /tmp/mpv-avs-extract/jniLibs/${arch}/*.so "$JNILIBS_DIR/$arch/"
+              echo "$arch AVS overlay done"
+            else
+              echo "ERROR: No AVS .so files found for $arch"
+              exit 1
+            fi
+          done
+
+          # --- 3) AV3A 解码模型 ---
+          tar xzf /tmp/mpv-avs.tar.gz -C /tmp/mpv-avs-extract "assets/model.bin"
+          cp /tmp/mpv-avs-extract/assets/model.bin "$ASSETS_DIR/model.bin"
+          rm -rf /tmp/mpv-avs.tar.gz /tmp/mpv-avs-extract
+
           echo "=== Final jniLibs structure ==="
           find "$JNILIBS_DIR" -name "*.so" -ls
+          echo "=== assets ==="
+          ls -la "$ASSETS_DIR/model.bin"
 
       - name: Create local.properties
         working-directory: android
