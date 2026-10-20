@@ -739,25 +739,6 @@ class ChannelListModel(QtCore.QAbstractTableModel):
             if resolution and not self.is_column_hidden(2):  # 分辨率列
                 extinf_parts.append(f'resolution="{resolution}"')
 
-            # 流质量评分（持久化到 EXTINF，便于加载后直接显示评分条）
-            # valid 为 None（未检测）时不写入
-            if channel.get('valid') is not None:
-                qs = channel.get('quality_score')
-                qg = channel.get('quality_grade')
-                # 若评分字段缺失但有 valid，按现有数据计算并回填
-                if qs is None:
-                    try:
-                        from services.stream_quality_scorer import StreamQualityScorer
-                        info = StreamQualityScorer.score_from_channel(channel)
-                        qs = info.get('total')
-                        qg = info.get('grade')
-                    except Exception:
-                        qs = None
-                if qs is not None:
-                    extinf_parts.append(f'quality-score="{qs}"')
-                if qg:
-                    extinf_parts.append(f'quality-grade="{qg}"')
-
             # 添加频道名称
             extinf_parts.append(f",{channel_name}")
 
