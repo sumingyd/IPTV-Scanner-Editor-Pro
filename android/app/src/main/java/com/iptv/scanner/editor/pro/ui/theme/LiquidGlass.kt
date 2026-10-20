@@ -56,6 +56,9 @@ internal fun Modifier.liquidGlassSource(hazeState: HazeState): Modifier =
  * iOS 风格液态玻璃容器。
  *
  * @param enabled 液态玻璃总开关；false 时渲染为实底面板（原样式）
+ * @param staticGlass 强制使用静态光泽玻璃（不实时模糊）。
+ *   Dialog 是独立窗口，其 RenderNode 与主窗口隔离，hazeEffect 无法采样
+ *   主窗口的 hazeSource——弹窗内必须传 true，否则会渲染空白
  * @param fallbackColor 关闭/降级时的实底色（保持各调用点原有观感）
  * @param cornerRadius 圆角半径
  */
@@ -64,12 +67,13 @@ fun LiquidGlassSurface(
     enabled: Boolean,
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 10.dp,
+    staticGlass: Boolean = false,
     fallbackColor: Color = Color(0xF0222222),
     content: @Composable BoxScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(cornerRadius)
     val hazeState = LocalHazeState.current
-    val useBlur = enabled && isLiquidBlurSupported() && hazeState != null
+    val useBlur = enabled && !staticGlass && isLiquidBlurSupported() && hazeState != null
     val radiusPx = with(LocalDensity.current) { cornerRadius.toPx() }
 
     Box(modifier = modifier.clip(shape)) {

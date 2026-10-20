@@ -657,18 +657,12 @@ fun PortraitPanelDialog(
                     .fillMaxWidth(0.75f)
                     .fillMaxHeight(0.82f)
             ) {
-                if (isAndroid12Plus) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .blur(25.dp)
-                            .background(oc.topBarBg.copy(alpha = 0.55f), dialogShape)
-                    )
-                }
-                Surface(
-                    color = if (isAndroid12Plus) oc.topBarBg.copy(alpha = 0.30f) else oc.topBarBg.copy(alpha = 0.80f),
-                    shape = dialogShape,
-                    border = BorderStroke(1.dp, oc.accent.copy(alpha = 0.35f)),
+                // Dialog 为独立窗口，无法采样主窗口背景 —— 静态光泽玻璃降级
+                com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+                    enabled = LocalLiquidGlass.current && isAndroid12Plus,
+                    cornerRadius = 20.dp,
+                    staticGlass = true,
+                    fallbackColor = oc.topBarBg.copy(alpha = 0.80f),
                     modifier = Modifier.matchParentSize()
                 ) {
                     scaledContent()
