@@ -109,7 +109,10 @@ import com.iptv.scanner.editor.pro.mpv.MPVViewLike
 import com.iptv.scanner.editor.pro.player.PlayerType
 import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.ChannelTab
+import com.iptv.scanner.editor.pro.ui.theme.LocalHazeState
 import com.iptv.scanner.editor.pro.ui.theme.PlayerOverlayColors
+import com.iptv.scanner.editor.pro.ui.theme.liquidGlassSource
+import com.iptv.scanner.editor.pro.ui.theme.rememberLiquidHazeState
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.lazy.LazyColumn
@@ -446,6 +449,9 @@ viewModel.mpv.setMute(savedMute)
 }
 }
 
+    // 液态玻璃：背景采样源状态（视频层标记 hazeSource，玻璃面板 hazeEffect 取景模糊）
+    val hazeState = rememberLiquidHazeState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -584,7 +590,10 @@ viewModel.mpv.setMute(savedMute)
                     factory = createPlayerView,
                     update = updatePlayerView,
                     onRelease = onReleasePlayer,
-                    modifier = Modifier.fillMaxSize()
+                    // 液态玻璃采样源：玻璃面板对该层取景模糊
+                    // （SurfaceView 内容无法被 RenderEffect 采样，安卓平台限制；
+                    //  视频上方时玻璃呈烟熏质感，叠加 Compose 内容时为真实模糊）
+                    modifier = Modifier.fillMaxSize().liquidGlassSource(hazeState)
                 )
             }
         }
@@ -826,7 +835,10 @@ viewModel.mpv.setMute(savedMute)
                 }
             }
 
-        androidx.compose.runtime.CompositionLocalProvider(LocalLiquidGlass provides liquidGlass) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalLiquidGlass provides liquidGlass,
+            LocalHazeState provides hazeState
+        ) {
         // 主菜单 — PHONE 全屏覆盖 / TV 侧边栏风格右侧菜单
         if (menuPanelOpen) {
             MainMenuPanel(viewModel = viewModel)
@@ -1060,7 +1072,6 @@ if (lyricsOpen) {
         if (channelInfoOpen) {
             ChannelInfoDialog(viewModel = viewModel)
         }
-        }
 
         // -----------------------------------------------------------------
         // 5. OSD 浮层（顶部居中，最顶层）— 竖屏模式下不显示
@@ -1081,6 +1092,7 @@ if (lyricsOpen) {
             }
         }
         }
+        }   // CompositionLocalProvider（液态玻璃开关 + HazeState）闭合
     }
 }
 
