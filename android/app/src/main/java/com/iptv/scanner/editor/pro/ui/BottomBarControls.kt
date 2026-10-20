@@ -108,6 +108,7 @@ import com.iptv.scanner.editor.pro.mpv.MPVViewLike
 import com.iptv.scanner.editor.pro.player.PlayerType
 import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.ChannelTab
+import com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface
 import com.iptv.scanner.editor.pro.ui.theme.PlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import androidx.media3.ui.PlayerView
@@ -220,74 +221,25 @@ internal fun PortraitBottomTabBar(
         }
     }
 
-    val useGlass = liquidGlass && isAndroid12Plus
-    if (useGlass) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f),
-            shape = tabShape,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .navigationBarsPadding()
-                .height(56.dp)
-                .shadow(8.dp, tabShape)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-                content = tabContent
-            )
-        }
-    } else if (isAndroid12Plus) {
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .navigationBarsPadding()
-                .height(56.dp)
-                .shadow(8.dp, tabShape)
-        ) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .blur(20.dp)
-                    .background(bgColor.copy(alpha = 0.50f), tabShape)
-            )
-            Surface(
-                color = bgColor.copy(alpha = 0.85f),
-                shape = tabShape,
-                border = BorderStroke(1.dp, accentColor.copy(alpha = 0.20f)),
-                modifier = Modifier.matchParentSize()
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                    content = tabContent
-                )
-            }
-        }
-    } else {
-        Surface(
-            color = bgColor.copy(alpha = 0.90f),
-            shape = tabShape,
-            border = BorderStroke(1.dp, accentColor.copy(alpha = 0.20f)),
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .navigationBarsPadding()
-                .height(56.dp)
-                .shadow(8.dp, tabShape)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-                content = tabContent
-            )
-        }
+    val useGlass = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported()
+    LiquidGlassSurface(
+        enabled = useGlass,
+        cornerRadius = 20.dp,
+        // 关闭/降级：原 90% surface 实底
+        fallbackColor = bgColor.copy(alpha = 0.90f),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .navigationBarsPadding()
+            .height(56.dp)
+            .shadow(8.dp, tabShape)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            content = tabContent
+        )
     }
 }
 /**

@@ -12,7 +12,6 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
@@ -233,7 +232,8 @@ fun rememberPlayerOverlayColors(): PlayerOverlayColors {
 // -----------------------------------------------------------------
 
 /**
- * 玻璃态卡片：半透明背景 + 圆角 + 边框 + Android 12+ 模糊
+ * 玻璃态卡片：液态玻璃材质（Haze backdrop blur + 光泽 + 高光描边）
+ * 跟随「液态玻璃」开关（LocalLiquidGlass）；关闭或降级时为实底卡片。
  * 用于替换所有硬编码的颜色块（如设置项背景、关于面板等）
  */
 @Composable
@@ -243,22 +243,14 @@ fun GlassCard(
     content: @Composable () -> Unit
 ) {
     val oc = rememberPlayerOverlayColors()
-    val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius)
+    val liquidGlass = com.iptv.scanner.editor.pro.ui.LocalLiquidGlass.current
+    val enabled = liquidGlass && isLiquidBlurSupported()
     Box(modifier = modifier) {
-        if (isAndroid12Plus) {
-            Box(
-                modifier = Modifier
-                    .then(Modifier.matchParentSize())
-                    .blur(15.dp)
-                    .background(oc.topBarBg.copy(alpha = 0.40f), shape)
-            )
-        }
-        Surface(
-            color = if (isAndroid12Plus) oc.topBarBg.copy(alpha = 0.25f) else oc.topBarBg.copy(alpha = 0.85f),
-            shape = shape,
-            border = androidx.compose.foundation.BorderStroke(1.dp, oc.accent.copy(alpha = if (isAndroid12Plus) 0.30f else 0.15f)),
-            modifier = Modifier.matchParentSize()
+        LiquidGlassSurface(
+            enabled = enabled,
+            cornerRadius = cornerRadius,
+            // 关闭/降级：保持原非模糊观感（topBarBg 85% 实底）
+            fallbackColor = oc.topBarBg.copy(alpha = 0.85f)
         ) {
             content()
         }
@@ -272,26 +264,13 @@ fun GlassPanel(
     cornerRadius: androidx.compose.ui.unit.Dp = 10.dp,
     content: @Composable () -> Unit
 ) {
-    val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-    val useGlass = liquidGlass && isAndroid12Plus
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius)
-    if (useGlass) {
-        Surface(
-            color = Color(0xB0222222),
-            shape = shape,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
-            modifier = modifier
-        ) {
-            content()
-        }
-    } else {
-        Surface(
-            color = Color(0xF0222222),
-            shape = shape,
-            modifier = modifier
-        ) {
-            content()
-        }
+    LiquidGlassSurface(
+        enabled = liquidGlass && isLiquidBlurSupported(),
+        cornerRadius = cornerRadius,
+        fallbackColor = Color(0xF0222222),
+        modifier = modifier
+    ) {
+        content()
     }
 }
 

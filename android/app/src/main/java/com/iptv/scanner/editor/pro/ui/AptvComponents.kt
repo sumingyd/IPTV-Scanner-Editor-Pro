@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,19 +74,18 @@ internal fun AptvSectionHeader(title: String) {
     )
 }
 
-/** APTV 分组卡片容器：圆角深色卡 */
+/** APTV 分组卡片容器：液态玻璃卡（跟随开关，降级为实底卡） */
 @Composable
 internal fun AptvGroupCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val liquidGlass = LocalLiquidGlass.current
-    val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-    val useGlass = liquidGlass && isAndroid12Plus
-    Surface(
-        color = if (useGlass) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-        shape = RoundedCornerShape(12.dp),
-        border = if (useGlass) androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)) else null,
+    LiquidGlassSurface(
+        enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
+        cornerRadius = 12.dp,
+        // 关闭/降级：原 55% surfaceVariant 实底
+        fallbackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)

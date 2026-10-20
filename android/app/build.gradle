@@ -216,6 +216,11 @@ dependencies {
      * - 用于 TvChannelItem 的频道 logo 加载 */
     implementation 'io.coil-kt:coil-compose:2.7.0'
 
+    /* Haze - Compose backdrop blur（液态玻璃）
+     * - 基于 RenderEffect 的取景模糊（API 31+），低版本自动 scrim 兜底
+     * - 1.2.x 与 Compose BOM 2024.10.01（Compose 1.7）配套 */
+    implementation 'dev.chrisbanes.haze:haze:1.2.2'
+
     /* Media3 (ExoPlayer) - 用于多画面副画面播放
      * MPV 在安卓端为单例，不支持多实例，副画面使用 ExoPlayer 独立播放。
      * - media3-exoplayer: 核心播放引擎
