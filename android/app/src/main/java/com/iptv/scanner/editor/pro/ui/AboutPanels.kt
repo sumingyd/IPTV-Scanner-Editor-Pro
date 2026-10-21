@@ -130,15 +130,13 @@ fun AboutPanel(viewModel: AppViewModel) {
         onClose = { viewModel.toggleAboutPanel() }
     ) {
         SettingsGroup("版本信息") {
-            // 玻璃化：版本信息表用 APTV 玻璃卡（静态磨砂+描边），替代原 surfaceVariant 实底
-            AptvGroupCard {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    InfoRow("应用名称", "ISEP")
-                    InfoRow("版本", currentVersion)
-                    InfoRow("播放引擎", "mpv (libmpv)")
-                    InfoRow("UI 框架", "Jetpack Compose")
-                    InfoRow("Python 引擎", "Chaquopy")
-                }
+            // SettingsGroup 在 APTV 模式下已自带玻璃卡容器，此处直接排 InfoRow，避免双层嵌套
+            Column(modifier = Modifier.fillMaxWidth()) {
+                InfoRow("应用名称", "ISEP")
+                InfoRow("版本", currentVersion)
+                InfoRow("播放引擎", "mpv (libmpv)")
+                InfoRow("UI 框架", "Jetpack Compose")
+                InfoRow("Python 引擎", "Chaquopy")
             }
         }
 
