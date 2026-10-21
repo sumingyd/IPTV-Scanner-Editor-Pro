@@ -254,12 +254,16 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
     val currentIdx by viewModel.currentIdx.collectAsState()
     val oc = rememberPlayerOverlayColors()
 
-    // 磨砂玻璃背景：半透明色（文字不模糊）
-    val glassBg = oc.topBarBg.copy(alpha = 0.80f)
-
-    Surface(
-        color = glassBg,
-        modifier = Modifier.fillMaxWidth()
+    // 标题栏：玻璃条（静态磨砂+描边），跟随玻璃开关，降级为原实底
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    LiquidGlassSurface(
+        enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
+        cornerRadius = 14.dp,
+        staticGlass = true,
+        fallbackColor = oc.topBarBg.copy(alpha = 0.80f),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Row(
             modifier = Modifier
@@ -383,12 +387,16 @@ internal fun PortraitControlsV2(viewModel: AppViewModel) {
     var dragging by remember { mutableStateOf(false) }
     var dragPercent by remember { mutableStateOf(0f) }
 
-    // 磨砂玻璃背景：半透明色（文字不模糊）
-    val glassBg = oc.infoBarBg.copy(alpha = 0.80f)
-
-    Surface(
-        color = glassBg,
-        modifier = Modifier.fillMaxWidth()
+    // 控制条：玻璃条（静态磨砂+描边），跟随玻璃开关，降级为原实底
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    LiquidGlassSurface(
+        enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
+        cornerRadius = 14.dp,
+        staticGlass = true,
+        fallbackColor = oc.infoBarBg.copy(alpha = 0.80f),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Row(
             modifier = Modifier
