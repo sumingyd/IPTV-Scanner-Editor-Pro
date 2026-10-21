@@ -239,15 +239,18 @@ internal fun PortraitToolsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (editMode) "完成" else stringResource(R.string.settings_edit),
-                color = AptvAccent,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .clickable { editMode = !editMode }
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-            )
+            // 编辑/完成：玻璃胶囊按钮（与右侧刷新钮同风格）
+            AptvGlassChip(cornerRadius = 16.dp) {
+                Text(
+                    text = if (editMode) "完成" else stringResource(R.string.settings_edit),
+                    color = AptvAccent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clickable { editMode = !editMode }
+                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                )
+            }
             Spacer(modifier = Modifier.weight(1f))
             // 刷新源与频道：玻璃圆形按钮
             AptvGlassChip(cornerRadius = 16.dp, modifier = Modifier.size(32.dp)) {
