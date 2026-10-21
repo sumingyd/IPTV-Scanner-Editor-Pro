@@ -207,13 +207,18 @@ internal fun MiniPlayerBar(
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 播放/暂停按钮
-            IconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
+            // 播放/暂停按钮：裸图标（不套玻璃圆底，避免过大）
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable(onClick = onPlayPause),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                     contentDescription = if (isPaused) "播放" else "暂停",
                     tint = AptvAccent,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
