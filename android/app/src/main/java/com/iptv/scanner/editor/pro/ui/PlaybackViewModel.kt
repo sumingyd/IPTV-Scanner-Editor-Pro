@@ -299,6 +299,16 @@ internal fun AppViewModel.loadChannels() {
                 .distinct()
             _groups.value = groupList
             Log.i(AppViewModel.TAG, "Loaded ${loaded.size} channels, ${groupList.size} groups")
+            // 残留检测：历史版本删除订阅源时不清理频道缓存，分组列会残留已删源的分组。
+            // 频道 source 不属于任何现有源 → 判定为残留，自动重载订阅源（桥端按现有源重建频道缓存）
+            if (loaded.any { it.source.isNotEmpty() }) {
+                val knownUrls = withContext(Dispatchers.IO) { repository.getSources() }
+                    .getOrNull()?.map { it.url }?.toSet() ?: emptySet()
+                if (knownUrls.isNotEmpty() && loaded.any { it.source !in knownUrls }) {
+                    Log.w(AppViewModel.TAG, "loadChannels: stale channels from removed sources detected, auto reload")
+                    reloadSources()
+                }
+            }
             // 收藏/历史/队列按 URL 重锚定（订阅重载后 idx 漂移会错位）
             reanchorUserListsToChannels()
         }

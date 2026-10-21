@@ -198,13 +198,21 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     }
 
     val channelListFocus = remember { FocusRequester() }
+    // 「全部」分组项焦点：未选择频道时初始焦点落在「全部」，避免 DPAD 几何聚焦到分组列中间项
+    val allGroupFocus = remember { FocusRequester() }
     LaunchedEffect(sidebarVisible) {
         if (sidebarVisible) {
             kotlinx.coroutines.delay(300)
-            kotlin.runCatching { channelListFocus.requestFocus() }
             // 自动聚焦当前播放频道，使EPG列显示
             if (focusedChannelIdx < 0 && currentIdx >= 0) {
                 focusedChannelIdx = currentIdx
+            }
+            if (currentIdx >= 0) {
+                kotlin.runCatching { channelListFocus.requestFocus() }
+            } else {
+                // 未选择频道：默认聚焦「全部」分组（分组筛选保持默认全部）
+                if (selectedGroup.isNotEmpty()) viewModel.setSelectedGroup("")
+                kotlin.runCatching { allGroupFocus.requestFocus() }
             }
         }
     }
@@ -319,7 +327,8 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                                     groups = groups,
                                     selectedGroup = selectedGroup,
                                     onGroupSelected = { viewModel.setSelectedGroup(it) },
-                                    modifier = Modifier.width(180.dp)
+                                    modifier = Modifier.width(180.dp),
+                                    allItemFocus = allGroupFocus
                                 )
                             }
 
@@ -564,7 +573,8 @@ private fun GroupColumn(
     groups: List<String>,
     selectedGroup: String,
     onGroupSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    allItemFocus: FocusRequester? = null
 ) {
     Surface(
         color = Color.Transparent,
@@ -594,7 +604,8 @@ private fun GroupColumn(
                         GroupItemRow(
                             label = "全部",
                             selected = selectedGroup.isEmpty(),
-                            onClick = { onGroupSelected("") }
+                            onClick = { onGroupSelected("") },
+                            focusRequester = allItemFocus
                         )
                     }
                     // 各分组
@@ -636,8 +647,10 @@ private fun QuickMenuColumn(
     ) {
         // 轻量单层玻璃：不额外垫深色底衬，避免双层叠加观感
         // （fallbackColor 已提供底色，图标为白色高对比，可读性足够）
+        // fillMaxWidth：占满玻璃条宽度，否则 Box 内内容默认靠左上，图标列整体偏左不居中
         Column(
             modifier = Modifier
+                .fillMaxWidth()
                 .fillMaxHeight()
                 .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -661,14 +674,18 @@ private fun QuickMenuIcon(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    // 固定宽度 + 内容居中排列：玻璃选中块尺寸稳定，图标/文字严格居中不偏移
+    // （旧写法 wrap 内容 + Text 行高 descent，导致玻璃块内视觉偏移）
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
         modifier = Modifier
+            .width(40.dp)
             .clip(RoundedCornerShape(8.dp))
             .then(if (isSelected) Modifier.tvGlassSelected(8) else Modifier)
             .tvFocusBorder(8)
             .clickable { onClick() }
-            .padding(horizontal = 6.dp, vertical = 8.dp)
+            .padding(vertical = 8.dp)
     ) {
         Icon(
             imageVector = icon,
@@ -680,7 +697,8 @@ private fun QuickMenuIcon(
         Text(
             text = label,
             color = if (isSelected) Color.White else Color(0x99FFFFFF),
-            fontSize = 9.sp
+            fontSize = 9.sp,
+            lineHeight = 10.sp
         )
     }
 }
@@ -689,11 +707,13 @@ private fun QuickMenuIcon(
 private fun GroupItemRow(
     label: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    focusRequester: FocusRequester? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .then(if (selected) Modifier.tvGlassSelected(8) else Modifier)
             .tvFocusBorder(8)
             .clickable { onClick() }

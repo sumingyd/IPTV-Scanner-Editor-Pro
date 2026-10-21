@@ -619,6 +619,17 @@ fun PortraitPanelDialog(
             content()
         }
     }
+    // TV/横屏弹窗统一覆盖：暗玻璃（彩条视频背景上白霜太透）+ 主色橙红（AptvAccent），
+    // 内部 Switch/按钮/FilterChip/输入框焦点色自动跟随，不再出现 Material 默认蓝
+    val accentScheme = MaterialTheme.colorScheme.copy(
+        primary = AptvAccent,
+        secondary = AptvAccent,
+        secondaryContainer = AptvAccent,
+        onSecondaryContainer = Color.White
+    )
+    val accentedContent: @Composable () -> Unit = {
+        MaterialTheme(colorScheme = accentScheme) { scaledContent() }
+    }
     if (isTv) {
         Box(
             modifier = Modifier
@@ -636,10 +647,11 @@ fun PortraitPanelDialog(
                     enabled = LocalLiquidGlass.current && isAndroid12Plus,
                     cornerRadius = 20.dp,
                     staticGlass = true,
+                    overlayDark = true,
                     fallbackColor = oc.topBarBg.copy(alpha = 0.85f),
                     modifier = Modifier.matchParentSize()
                 ) {
-                    scaledContent()
+                    accentedContent()
                 }
             }
         }
@@ -662,10 +674,11 @@ fun PortraitPanelDialog(
                     enabled = LocalLiquidGlass.current && isAndroid12Plus,
                     cornerRadius = 20.dp,
                     staticGlass = true,
+                    overlayDark = true,
                     fallbackColor = oc.topBarBg.copy(alpha = 0.80f),
                     modifier = Modifier.matchParentSize()
                 ) {
-                    scaledContent()
+                    accentedContent()
                 }
             }
         }

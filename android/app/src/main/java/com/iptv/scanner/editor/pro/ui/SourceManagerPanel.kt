@@ -186,8 +186,9 @@ fun SourceManagerPanel(viewModel: AppViewModel) {
             } else if (!adminRunning) {
                 Spacer(modifier = Modifier.height(8.dp))
                 // 启动提示卡片：可被遥控器焦点选中（tvFocusBorder + focusable）
+                // 半透明白替代 surfaceVariant 实底：叠加在暗玻璃弹窗上不突兀
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = Color(0x14FFFFFF),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -594,8 +595,9 @@ private fun LanAdminInfoBar(
     countdown: Int = 0
 ) {
     Column {
+        // 半透明白替代 surfaceVariant 实底：叠加在暗玻璃弹窗上不突兀
         Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = Color(0x14FFFFFF),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -816,8 +818,9 @@ private fun BackupRestoreBar(viewModel: AppViewModel) {
         }
     }
 
+    // 半透明白替代 surfaceVariant 实底：叠加在暗玻璃弹窗上不突兀
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = Color(0x14FFFFFF),
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {

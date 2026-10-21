@@ -414,8 +414,9 @@ private fun TvBottomBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 台标：置于底栏左侧，随三行内容整体垂直居中（不再嵌在第1行上部）
+                // 96dp 宽：适配长条状台标（如 CCTV 组合标），方形标 ContentScale.Fit 自动居中
                 Box(
-                    modifier = Modifier.size(52.dp, 44.dp).clip(RoundedCornerShape(6.dp)).background(ICON_BG),
+                    modifier = Modifier.size(96.dp, 44.dp).clip(RoundedCornerShape(6.dp)).background(ICON_BG),
                     contentAlignment = Alignment.Center
                 ) {
                     if (displayInfo.logo.isNotEmpty()) {
