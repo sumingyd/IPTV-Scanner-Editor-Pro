@@ -260,7 +260,21 @@ internal fun AppViewModel.reloadEpgSources() {
         val result = withContext(Dispatchers.IO) { repository.reloadEpg() }
         result.onSuccess {
             showOsd("EPG 重载已启动")
-            delay(10000)
+            // 大体积 EPG 解析可能远超 10s，固定延时容易错过刷新 —— 轮询直到 lastUpdate 落盘
+            val startTime = System.currentTimeMillis()
+            while (isActive) {
+                if (System.currentTimeMillis() - startTime > 120_000L) {
+                    showOsd("EPG 解析超时", "请检查 EPG 源地址是否可达")
+                    loadEpgSources()
+                    return@launch
+                }
+                delay(5000L)
+                val sources = withContext(Dispatchers.IO) { repository.getEpgSources() }
+                    .getOrDefault(emptyList())
+                if (sources.any { !it.lastUpdate.isNullOrBlank() }) {
+                    break
+                }
+            }
             epgCache.clear()
             _epgCacheVersion.value++
             preloadEpgForAllChannels()

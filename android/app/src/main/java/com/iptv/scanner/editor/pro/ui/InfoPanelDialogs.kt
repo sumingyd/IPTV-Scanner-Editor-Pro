@@ -55,7 +55,6 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,7 +63,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -321,9 +319,6 @@ internal fun ReminderPopup(
                     }
                     Button(
                         onClick = onAccept,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isAptv) AptvAccent else MaterialTheme.colorScheme.secondary
-                        ),
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("切换频道", color = if (isAptv) Color.White else MaterialTheme.colorScheme.onSecondary)
@@ -430,8 +425,7 @@ if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
         },
         confirmButton = {
             Button(
-                onClick = { viewModel.toggleChannelInfo() },
-                colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                onClick = { viewModel.toggleChannelInfo() }
             ) {
                 Text("关闭", color = if (isAptv) Color.White else MaterialTheme.colorScheme.onSecondary)
             }
@@ -699,19 +693,32 @@ fun PortraitPanelDialog(
                     ),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // 实底全屏页：消费自身点击（不透传 scrim），避免误触关闭
+                    // push 页：近全屏圆角玻璃卡片（iOS sheet 风格）—— 静态磨砂+光斑+描边，
+                    // 底层界面透出朦胧可见；四周留边+大圆角避免直角观感
                     val liquidGlass = LocalLiquidGlass.current
                     val useGlass = liquidGlass && isAndroid12Plus
-                    Surface(
-                        color = if (useGlass) MaterialTheme.colorScheme.background.copy(alpha = 0.70f) else MaterialTheme.colorScheme.background,
-                        border = if (useGlass) BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)) else null,
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f))
                             .clickable(
                                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                                 indication = null
                             ) { }
+                            .padding(start = 10.dp, end = 10.dp, top = 42.dp, bottom = 10.dp)
                     ) {
+                        com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+                            enabled = useGlass,
+                            cornerRadius = 24.dp,
+                            staticGlass = true,
+                            fallbackColor = MaterialTheme.colorScheme.background,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    if (useGlass) MaterialTheme.colorScheme.background.copy(alpha = 0.68f)
+                                    else MaterialTheme.colorScheme.background
+                                )
+                        ) {
                         // APTV 风格开关：竖屏 push 页内的共用基座组件（PanelScaffold 等）切换 APTV 样式
                         // 同时覆盖 MaterialTheme primary 色为 AptvAccent，让 Switch/RadioButton/FilterChip 等自动适配
                         androidx.compose.runtime.CompositionLocalProvider(LocalAptvStyle provides true) {
@@ -730,4 +737,5 @@ fun PortraitPanelDialog(
             }
         }
     }
+    }   // push 页外层 scrim Box 闭合
 }

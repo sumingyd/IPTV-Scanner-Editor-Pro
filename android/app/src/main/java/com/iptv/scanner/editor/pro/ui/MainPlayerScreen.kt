@@ -56,7 +56,6 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,7 +64,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -590,10 +588,7 @@ viewModel.mpv.setMute(savedMute)
                     factory = createPlayerView,
                     update = updatePlayerView,
                     onRelease = onReleasePlayer,
-                    // 液态玻璃采样源：玻璃面板对该层取景模糊
-                    // （SurfaceView 内容无法被 RenderEffect 采样，安卓平台限制；
-                    //  视频上方时玻璃呈烟熏质感，叠加 Compose 内容时为真实模糊）
-                    modifier = Modifier.fillMaxSize().liquidGlassSource(hazeState)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
@@ -762,44 +757,60 @@ viewModel.mpv.setMute(savedMute)
                                 )
                             }
                             // 内容区域（iOS 式淡入淡出转场）
-                            Box(modifier = Modifier.weight(1f)) {
-                                androidx.compose.runtime.CompositionLocalProvider(LocalAptvStyle provides true) {
-                                    val aptvScheme = MaterialTheme.colorScheme.copy(
-                                        primary = AptvAccent,
-                                        onPrimary = Color.White,
-                                        primaryContainer = AptvAccent.copy(alpha = 0.15f),
-                                        onPrimaryContainer = AptvAccent,
-                                    )
-                                    MaterialTheme(colorScheme = aptvScheme) {
-                                        androidx.compose.animation.Crossfade(
-                                            targetState = portraitTab,
-                                            animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
-                                            label = "portraitTab"
-                                        ) { tab ->
-                                            when (tab) {
-                                                PortraitTab.CHANNELS -> PortraitListScreen(
-                                                    viewModel = viewModel,
-                                                    playlistLauncher = playlistLauncher,
-                                                    videoLauncher = videoLauncher
-                                                )
-                                                PortraitTab.FAVORITES -> PortraitFavoritesScreen(
-                                                    viewModel = viewModel,
-                                                    playlistLauncher = playlistLauncher,
-                                                    videoLauncher = videoLauncher
-                                                )
-                                                PortraitTab.TOOLS -> PortraitToolsScreen(
-                                                    viewModel = viewModel,
-                                                    playlistLauncher = playlistLauncher,
-                                                    videoLauncher = videoLauncher
-                                                )
-                                                PortraitTab.SETTINGS -> PortraitSettingsContent(viewModel = viewModel)
+                            // 内容延伸到底部，底部 tab 栏悬浮其上 —— tab 栏对滚动内容实时真模糊
+                            // 液态玻璃采样源只挂内容 Box：hazeEffect（tab 栏）必须不在 source 子树内
+                            // 注意：不可挂在 movableContentOf 的视频层上 —— movable 移动
+                            // 时 Haze 节点注册失效会随机崩溃；且视频是 SurfaceView 本就不可采样
+                            Box(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .liquidGlassSource(hazeState)
+                                ) {
+                                    androidx.compose.runtime.CompositionLocalProvider(LocalAptvStyle provides true) {
+                                        val aptvScheme = MaterialTheme.colorScheme.copy(
+                                            primary = AptvAccent,
+                                            onPrimary = Color.White,
+                                            primaryContainer = AptvAccent.copy(alpha = 0.15f),
+                                            onPrimaryContainer = AptvAccent,
+                                        )
+                                        MaterialTheme(colorScheme = aptvScheme) {
+                                            androidx.compose.animation.Crossfade(
+                                                targetState = portraitTab,
+                                                animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+                                                label = "portraitTab"
+                                            ) { tab ->
+                                                when (tab) {
+                                                    PortraitTab.CHANNELS -> PortraitListScreen(
+                                                        viewModel = viewModel,
+                                                        playlistLauncher = playlistLauncher,
+                                                        videoLauncher = videoLauncher
+                                                    )
+                                                    PortraitTab.FAVORITES -> PortraitFavoritesScreen(
+                                                        viewModel = viewModel,
+                                                        playlistLauncher = playlistLauncher,
+                                                        videoLauncher = videoLauncher
+                                                    )
+                                                    PortraitTab.TOOLS -> PortraitToolsScreen(
+                                                        viewModel = viewModel,
+                                                        playlistLauncher = playlistLauncher,
+                                                        videoLauncher = videoLauncher
+                                                    )
+                                                    PortraitTab.SETTINGS -> PortraitSettingsContent(viewModel = viewModel)
+                                                }
                                             }
                                         }
                                     }
                                 }
+                                // 悬浮底部 tab 栏：提供 HazeState 以启用背后内容的实时真模糊
+                                Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                                    androidx.compose.runtime.CompositionLocalProvider(LocalHazeState provides hazeState) {
+                                        PortraitBottomTabBar(viewModel = viewModel)
+                                    }
+                                }
                             }
-
-                            PortraitBottomTabBar(viewModel = viewModel)
                         }
                     }
                 }

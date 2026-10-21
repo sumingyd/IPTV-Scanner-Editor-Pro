@@ -56,7 +56,6 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,7 +64,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -209,12 +207,15 @@ internal fun PortraitToolsScreen(
     val sources by viewModel.sources.collectAsState()
     val epgSources by viewModel.epgSources.collectAsState()
     val channels by viewModel.channels.collectAsState()
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadSources()
         viewModel.loadEpgSources()
     }
 
+    // 与设置页一致：玻璃卡片组件读取 LocalLiquidGlass，需在本页提供开关值
+    androidx.compose.runtime.CompositionLocalProvider(LocalLiquidGlass provides liquidGlass) {
     // 编辑模式（APTV 配置中心：编辑态显示删除按钮）
     var editMode by remember { mutableStateOf(false) }
     var deleteTargetIdx by remember { mutableStateOf(-1) }
@@ -626,7 +627,7 @@ internal fun PortraitToolsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(90.dp))
+        Spacer(modifier = Modifier.height(130.dp))
     }
 
     // 删除确认（频道源 / EPG 源）— iOS 风格圆角卡片弹窗
@@ -658,6 +659,7 @@ internal fun PortraitToolsScreen(
             onDismiss = { deleteEpgIdx = -1 }
         )
     }
+    }   // CompositionLocalProvider（液态玻璃开关）闭合
 }
 
 
@@ -675,7 +677,7 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
     androidx.compose.runtime.CompositionLocalProvider(LocalLiquidGlass provides liquidGlass) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 90.dp)
+        contentPadding = PaddingValues(bottom = 130.dp)
     ) {
         item {
             Text(

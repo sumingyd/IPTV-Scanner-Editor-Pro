@@ -41,6 +41,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
@@ -66,7 +67,6 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -78,7 +78,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -334,69 +333,92 @@ fun ExitConfirmDialog(viewModel: AppViewModel) {
             }
         }
     } else {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissExitConfirm() },
-            title = { Text("退出应用", fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    "您正在退出应用，请选择退出方式：",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp
-                )
-            },
-            confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // 进入 PiP
+        // iOS 风格玻璃退出弹窗：圆角玻璃卡片 + 居中标题 + 竖排选项（独立窗口走静态玻璃）
+        val glass = LocalLiquidGlass.current &&
+            com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported() &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        Dialog(onDismissRequest = { viewModel.dismissExitConfirm() }) {
+            com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+                enabled = glass,
+                cornerRadius = 22.dp,
+                staticGlass = true,
+                fallbackColor = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = if (glass) 0.72f else 1f))
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 22.dp, bottom = 12.dp)
+                ) {
+                    Text("退出应用", fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "您正在退出应用，请选择退出方式：",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                    // 画中画
                     if (activity != null &&
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                         activity.packageManager.hasSystemFeature("android.software.picture_in_picture")
                     ) {
-                        TextButton(
-                            onClick = {
-                                viewModel.dismissExitConfirm()
-                                try {
-                                    val builder = android.app.PictureInPictureParams.Builder()
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        builder.setAutoEnterEnabled(true)
-                                        builder.setSeamlessResizeEnabled(true)
-                                    }
-                                    activity.enterPictureInPictureMode(builder.build())
-                                } catch (e: Exception) {
-                                    Log.e("ExitConfirmDialog", "PiP failed", e)
+                        ExitOptionRow("画中画") {
+                            viewModel.dismissExitConfirm()
+                            try {
+                                val builder = android.app.PictureInPictureParams.Builder()
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                    builder.setAutoEnterEnabled(true)
+                                    builder.setSeamlessResizeEnabled(true)
                                 }
-                            },
-                            modifier = Modifier.tvFocusBorder()
-                        ) { Text("画中画") }
+                                activity.enterPictureInPictureMode(builder.build())
+                            } catch (e: Exception) {
+                                Log.e("ExitConfirmDialog", "PiP failed", e)
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
                     }
-                    // 立即退出
-                    TextButton(
-                        onClick = {
-                            viewModel.dismissExitConfirm()
-                            // 先停止播放，避免 Activity finish 后 mpv 在后台继续播放
-                            viewModel.stopPlay()
-                            activity?.finishAffinity()
-                        },
-                        modifier = Modifier.tvFocusBorder()
-                    ) { Text("立即退出", color = if (isAptv) AptvAccent else Color(0xFFEF5350)) }
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     // 打开设置：不退出，转而打开播放器设置面板
-                    TextButton(
-                        onClick = {
-                            viewModel.dismissExitConfirm()
-                            viewModel.togglePlayerSettings()
-                        },
-                        modifier = Modifier.tvFocusBorder()
-                    ) { Text("打开设置") }
-                    // 取消
-                    TextButton(
-                        onClick = { viewModel.dismissExitConfirm() },
-                        modifier = Modifier.tvFocusBorder()
-                    ) { Text("取消") }
+                    ExitOptionRow("打开设置") {
+                        viewModel.dismissExitConfirm()
+                        viewModel.togglePlayerSettings()
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                    // 立即退出（红色强调）
+                    ExitOptionRow("立即退出", tint = if (isAptv) AptvAccent else Color(0xFFEF5350)) {
+                        viewModel.dismissExitConfirm()
+                        // 先停止播放，避免 Activity finish 后 mpv 在后台继续播放
+                        viewModel.stopPlay()
+                        activity?.finishAffinity()
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                    // 取消（加粗）
+                    ExitOptionRow("取消", bold = true) {
+                        viewModel.dismissExitConfirm()
+                    }
                 }
             }
+        }
+    }
+}
+
+/** 退出弹窗选项行：全宽点击 + 居中文字（iOS ActionSheet 样式） */
+@Composable
+private fun ExitOptionRow(label: String, tint: Color = Color.Unspecified, bold: Boolean = false, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 15.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            color = if (tint == Color.Unspecified) MaterialTheme.colorScheme.onSurface else tint,
+            fontSize = 16.sp,
+            fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }

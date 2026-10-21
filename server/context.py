@@ -588,7 +588,7 @@ class StandaloneScanner:
                     continue
                 try:
                     from utils.http_session import get as _http_get
-                    resp = _http_get(src_url, timeout=15, headers={'User-Agent': APP_USER_AGENT})
+                    resp = _http_get(src_url, timeout=30, headers={'User-Agent': APP_USER_AGENT})
                     content = load_m3u_from_url_data(resp.content)
                     channels, header_attrs = parse_m3u_content(content)
                     if channels:
@@ -747,7 +747,7 @@ class ServerContext:
                 try:
 
                     from utils.http_session import get as _http_get
-                    resp = _http_get(url, timeout=15)
+                    resp = _http_get(url, timeout=30)
                     content = load_m3u_from_url_data(resp.content)
                     channels, _ = parse_m3u_content(content)
                     if channels:
@@ -855,7 +855,7 @@ class ServerContext:
                     self._source_load_status['message'] = f'加载中 {idx+1}/{len(sources)}'
                 try:
                     from utils.http_session import get as _http_get
-                    resp = _http_get(src_url, timeout=15, headers={'User-Agent': APP_USER_AGENT})
+                    resp = _http_get(src_url, timeout=30, headers={'User-Agent': APP_USER_AGENT})
                     if resp.status_code != 200:
                         err = f'HTTP {resp.status_code}'
                         errors.append(err)

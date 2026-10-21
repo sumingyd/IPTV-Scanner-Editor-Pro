@@ -55,7 +55,6 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,7 +63,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -180,7 +178,8 @@ internal fun PortraitBottomTabBar(
     modifier: Modifier = Modifier
 ) {
     val portraitTab by viewModel.portraitTab.collectAsState()
-    val liquidGlass = LocalLiquidGlass.current
+    // 直接读开关：MainPlayerScreen 的 LocalLiquidGlass provider 不覆盖 tab 栏子树
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
     val bgColor = MaterialTheme.colorScheme.surface
     // APTV 风格竖屏强调色（红粉），不影响横屏/TV 主题
     val accentColor = AptvAccent
@@ -201,20 +200,21 @@ internal fun PortraitBottomTabBar(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .height(48.dp)
+                    .height(54.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .then(if (isSelected) Modifier.border(1.dp, accentColor.copy(alpha = 0.50f), RoundedCornerShape(10.dp)) else Modifier)
                     .clickable {
                         viewModel.setPortraitTab(tab)
                     }
-                    .padding(horizontal = 18.dp, vertical = 4.dp)
+                    .padding(horizontal = 18.dp, vertical = 3.dp)
             ) {
                 Icon(imageVector = icon, contentDescription = label, tint = tint, modifier = Modifier.size(22.dp))
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = label,
                     color = tint,
                     fontSize = 10.sp,
+                    lineHeight = 12.sp,
                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
                 )
             }
@@ -225,13 +225,15 @@ internal fun PortraitBottomTabBar(
     LiquidGlassSurface(
         enabled = useGlass,
         cornerRadius = 20.dp,
+        // 真模糊：悬浮于滚动内容之上，hazeEffect 实时取景（HazeState 由 MainPlayerScreen 提供）
         // 关闭/降级：原 90% surface 实底
         fallbackColor = bgColor.copy(alpha = 0.90f),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
             .navigationBarsPadding()
-            .height(56.dp)
+            .padding(bottom = 8.dp)
+            .height(62.dp)
             .shadow(8.dp, tabShape)
     ) {
         Row(

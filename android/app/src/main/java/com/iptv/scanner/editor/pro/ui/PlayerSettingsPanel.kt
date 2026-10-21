@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -545,9 +546,18 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
     val groupMd by viewModel.groupMode.collectAsState()
     val perChannelEnabled by viewModel.perChannelSettingsEnabled.collectAsState()
 
-    Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-        modifier = Modifier.fillMaxSize()
+    // 全屏覆盖页：Dialog 独立窗口无法采样主窗口背景 —— 静态光泽玻璃，可模糊透出下层界面观感
+    val liquidGlass = com.iptv.scanner.editor.pro.ui.LocalLiquidGlass.current
+    val useGlass = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported() &&
+        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+    com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+        enabled = useGlass,
+        cornerRadius = 0.dp,
+        staticGlass = true,
+        fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = if (useGlass) 0.60f else 1f))
     ) {
         Column(
             modifier = Modifier

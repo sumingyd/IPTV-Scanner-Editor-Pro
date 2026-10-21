@@ -249,6 +249,8 @@ fun GlassCard(
         LiquidGlassSurface(
             enabled = enabled,
             cornerRadius = cornerRadius,
+            // 卡片/面板多出现在 Dialog 或自采样子树中，真模糊会输出黑块，统一用静态玻璃
+            staticGlass = true,
             // 关闭/降级：保持原非模糊观感（topBarBg 85% 实底）
             fallbackColor = oc.topBarBg.copy(alpha = 0.85f)
         ) {
@@ -267,6 +269,7 @@ fun GlassPanel(
     LiquidGlassSurface(
         enabled = liquidGlass && isLiquidBlurSupported(),
         cornerRadius = cornerRadius,
+        staticGlass = true,
         fallbackColor = Color(0xF0222222),
         modifier = modifier
     ) {

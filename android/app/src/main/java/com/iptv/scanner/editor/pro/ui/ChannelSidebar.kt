@@ -55,7 +55,6 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,7 +63,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -742,7 +740,8 @@ private fun ChannelListPanel(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 72.dp, top = 4.dp)
+        // 底部避让悬浮 tab 栏（62dp 栏体 + 导航栏），末项可滚动到 tab 栏上方
+        contentPadding = PaddingValues(bottom = 130.dp, top = 4.dp)
     ) {
         items(displayChannels) { channel ->
             val idx = channels.indexOf(channel)
@@ -913,7 +912,7 @@ private fun ChannelThumbnailPanel(
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 6.dp, top = 4.dp, end = 6.dp, bottom = 80.dp),
+        contentPadding = PaddingValues(start = 6.dp, top = 4.dp, end = 6.dp, bottom = 130.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {

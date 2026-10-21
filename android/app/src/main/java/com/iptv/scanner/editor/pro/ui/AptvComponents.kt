@@ -1,6 +1,7 @@
 package com.iptv.scanner.editor.pro.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -74,6 +75,109 @@ internal fun AptvSectionHeader(title: String) {
     )
 }
 
+/**
+ * 玻璃胶囊按钮：液态玻璃开启时为半透明磨砂 + 白描边 + 顶部高光（iOS 拟态玻璃按钮），
+ * 关闭/降级时回落到 Material3 OutlinedButton 原样式。
+ * 与 material3.OutlinedButton 同签名，面板文件删除 import 即可零改动切换。
+ */
+@Composable
+internal fun OutlinedButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit
+) {
+    val liquidGlass = LocalLiquidGlass.current
+    if (liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported()) {
+        val shape = RoundedCornerShape(50)
+        Box(
+            modifier = modifier
+                .clip(shape)
+                .background(Color.White.copy(alpha = 0.14f), shape)
+                .border(1.dp, Color.White.copy(alpha = 0.38f), shape)
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        0f to Color.White.copy(alpha = 0.16f),
+                        0.5f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.10f)
+                    ),
+                    shape
+                )
+                .clickable(enabled = enabled) { onClick() }
+                .padding(horizontal = 18.dp, vertical = 9.dp),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.material3.LocalContentColor provides
+                    if (enabled) Color.White else Color.White.copy(alpha = 0.38f)
+            ) {
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    content = content
+                )
+            }
+        }
+    } else {
+        androidx.compose.material3.OutlinedButton(
+            onClick = onClick,
+            modifier = modifier,
+            enabled = enabled,
+            content = content
+        )
+    }
+}
+
+/**
+ * 玻璃主按钮：与 material3.Button 同签名。液态玻璃开启时为品牌色半透明胶囊 + 白描边 + 高光，
+ * 关闭/降级时回落 Material3 Button 原样式。
+ */
+@Composable
+internal fun Button(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit
+) {
+    val liquidGlass = LocalLiquidGlass.current
+    if (liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported()) {
+        val shape = RoundedCornerShape(50)
+        Box(
+            modifier = modifier
+                .clip(shape)
+                .background(AptvAccent.copy(alpha = if (enabled) 0.65f else 0.30f), shape)
+                .border(1.dp, Color.White.copy(alpha = 0.42f), shape)
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        0f to Color.White.copy(alpha = 0.22f),
+                        0.5f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.12f)
+                    ),
+                    shape
+                )
+                .clickable(enabled = enabled) { onClick() }
+                .padding(horizontal = 18.dp, vertical = 9.dp),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.material3.LocalContentColor provides
+                    if (enabled) Color.White else Color.White.copy(alpha = 0.50f)
+            ) {
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    content = content
+                )
+            }
+        }
+    } else {
+        androidx.compose.material3.Button(
+            onClick = onClick,
+            modifier = modifier,
+            enabled = enabled,
+            content = content
+        )
+    }
+}
+
 /** APTV 分组卡片容器：液态玻璃卡（跟随开关，降级为实底卡） */
 @Composable
 internal fun AptvGroupCard(
@@ -84,6 +188,7 @@ internal fun AptvGroupCard(
     LiquidGlassSurface(
         enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
         cornerRadius = 12.dp,
+        staticGlass = true,
         // 关闭/降级：原 55% surfaceVariant 实底
         fallbackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         modifier = modifier

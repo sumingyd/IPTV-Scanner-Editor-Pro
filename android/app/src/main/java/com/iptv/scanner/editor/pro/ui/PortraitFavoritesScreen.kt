@@ -168,7 +168,7 @@ internal fun PortraitFavoritesScreen(
             state = gridState,
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 10.dp, top = 4.dp, end = 10.dp, bottom = 90.dp),
+            contentPadding = PaddingValues(start = 10.dp, top = 4.dp, end = 10.dp, bottom = 130.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
