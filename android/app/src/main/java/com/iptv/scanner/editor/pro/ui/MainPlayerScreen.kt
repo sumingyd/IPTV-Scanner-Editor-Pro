@@ -655,11 +655,14 @@ viewModel.mpv.setMute(savedMute)
                     Column(modifier = Modifier.fillMaxSize()) {
                         PortraitInfoBarV2(viewModel = viewModel)
                         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
-                        // 视频渲染层：画布上的视频窗口（黑色底，mpv 画面渲染其上）
+                        // 视频渲染层：画布上的圆角视频窗口（边距/圆角与玻璃条一致；
+                        // API31+ SurfaceView 支持按 View outline 圆角裁剪）
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
                                 .aspectRatio(16f / 9f)
+                                .clip(RoundedCornerShape(14.dp))
                                 .background(Color.Black)
                         ) {
                             primaryPlayer()
