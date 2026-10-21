@@ -104,13 +104,15 @@ private fun computeViewportIndex(
     }
 }
 
-// 侧边栏风格配色
+// 侧边栏风格配色（主色统一为竖屏 APTV 橙红 AptvAccent）
 private val SIDEBAR_GRADIENT_START = Color(0xFF036D80)
 private val SIDEBAR_GRADIENT_END = Color(0xFF052D49)
-private val ACCENT_GREEN = Color(0xFF70C439)
-private val ACCENT_CYAN = Color(0xFF00BCD4)
 private val ICON_BG = Color(0x32FFFFFF)
 private val TIME_BG = Color(0x26000000)
+/** 底栏可读性底色：玻璃霜层上垫深色底 */
+private val TV_BAR_SCRIM = Color(0x99000000)
+/** 行间分隔条颜色 */
+private val TV_ROW_DIVIDER = Color(0x1FFFFFFF)
 
 @Composable
 fun TvPlayerLayout(
@@ -265,7 +267,7 @@ private fun TvTimeGroup(modifier: Modifier = Modifier, channelNumberInput: Strin
             ) {
                 Text(
                     text = channelNumberInput,
-                    color = ACCENT_GREEN,
+                    color = AptvAccent,
                     fontSize = 72.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -280,7 +282,7 @@ private fun TvTimeGroup(modifier: Modifier = Modifier, channelNumberInput: Strin
             ) {
                 Text(
                     text = channelNumDisplay,
-                    color = ACCENT_GREEN,
+                    color = AptvAccent,
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
@@ -380,7 +382,7 @@ private fun TvBottomBar(
         !fileLoaded -> null
         playbackMode == PlayMode.TIMESHIFT -> "时移" to Color(0xFF2979FF)
         showExitCatchup -> "回看" to Color(0xFFFFA500)
-        else -> "直播" to ACCENT_GREEN
+        else -> "直播" to AptvAccent
     }
 
     // 下一节目
@@ -403,7 +405,12 @@ private fun TvBottomBar(
     }
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 8.dp) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(TV_BAR_SCRIM, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
                 // 第1行：台标 + 频道号 + 频道名 + spacer + 状态标签 + 技术标签组
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -425,7 +432,7 @@ private fun TvBottomBar(
                     if (displayInfo.idx >= 0) {
                         Text(
                             text = String.format("%03d", displayInfo.idx + 1),
-                            color = Color(0xFF4a90d9),
+                            color = AptvAccent,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -459,6 +466,9 @@ private fun TvBottomBar(
                         Spacer(modifier = Modifier.width(3.dp))
                     }
                 }
+
+                // 行间分隔条
+                Box(modifier = Modifier.fillMaxWidth().padding(top = 5.dp).height(1.dp).background(TV_ROW_DIVIDER))
 
                 // 第2行：当前节目时间范围 + 节目名 + 进度条(细线) + 时间戳 + 距结束 + 按钮
                 Spacer(modifier = Modifier.height(4.dp))
@@ -518,7 +528,7 @@ private fun TvBottomBar(
                                         .fillMaxHeight()
                                         .width(with(androidx.compose.ui.platform.LocalDensity.current) { (180.dp * (progress.percent / 100f)).toPx().toDp() })
                                         .clip(RoundedCornerShape(1.5.dp))
-                                        .background(Color(0xFF4a90d9))
+                                        .background(AptvAccent)
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -535,7 +545,7 @@ private fun TvBottomBar(
                         }
                         if (remainText != null) {
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = remainText, color = Color(0xFF4a90d9), fontSize = 10.sp)
+                            Text(text = remainText, color = AptvAccent, fontSize = 10.sp)
                         }
                         if (showExitCatchup) {
                             Spacer(modifier = Modifier.width(4.dp))
@@ -552,6 +562,8 @@ private fun TvBottomBar(
                 // 第3行：下一节目时间范围 + 下一节目名
                 run {
                     val hasNext = nextProgram != null
+                    // 行间分隔条
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 5.dp).height(1.dp).background(TV_ROW_DIVIDER))
                     Spacer(modifier = Modifier.height(2.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                             if (hasNext) {

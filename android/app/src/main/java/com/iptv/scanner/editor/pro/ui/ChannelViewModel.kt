@@ -674,7 +674,8 @@ internal fun AppViewModel.fetchEpgForCurrent() {
                     Log.w(AppViewModel.TAG, "fetchEpgForCurrent: empty programs, will retry in 3s")
                     delay(3000)
                     val retry = withContext(Dispatchers.IO) {
-                        repository.getEpg(channel.name, channel.tvgId, channel.tvgName, channel.name)
+                        // 重试同样使用去后缀的 baseName，避免写错 keyed 缓存
+                        repository.getEpg(baseName, channel.tvgId, channel.tvgName, channel.name)
                     }
                     val retryPrograms = retry.getOrNull()?.programmes ?: emptyList()
                     if (retryPrograms.isNotEmpty()) {
@@ -791,9 +792,15 @@ internal fun AppViewModel.preloadEpgForAllChannels() {
             batch.forEach { idx ->
                 launch {
                     val channel = channels.getOrNull(idx) ?: return@launch
+                    // 与 fetchEpgForChannel/fetchEpgForCurrent 一致：去掉画质后缀再匹配，
+                    // 否则 "XXX-4K" 这类频道名匹配不到/错配到其他频道，
+                    // 导致频道列表下方"当前节目名"与底栏节目名显示错乱
+                    val baseName = channel.name
+                        .removeSuffix("-4K").removeSuffix("-HDR").removeSuffix("-8K")
+                        .removeSuffix(" 4K").removeSuffix(" HDR").removeSuffix(" 8K")
                     try {
                         val result = repository.getEpg(
-                            channelName = channel.name,
+                            channelName = baseName,
                             tvgId = channel.tvgId,
                             tvgName = channel.tvgName,
                             commaName = channel.name

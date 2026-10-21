@@ -83,13 +83,20 @@ import com.iptv.scanner.editor.pro.data.IptvEpgProgram
 import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
+import com.iptv.scanner.editor.pro.ui.theme.tvGlassSelected
 import com.iptv.scanner.editor.pro.ui.theme.GlassPanel
+import com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface
+import com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported
 import java.util.Locale
 
-// 侧边栏风格配色
-private val ACCENT_GREEN = Color(0xFF2979FF)
+// 侧边栏风格配色（主色统一为竖屏 APTV 橙红 AptvAccent）
 private val ACCENT_CYAN = Color(0xFF00BCD4)
 private val ICON_BG = Color(0x32FFFFFF)
+
+/** 面板可读性底色：玻璃霜层上垫深色底，避免亮色视频背景下文字看不清 */
+private val TV_PANEL_SCRIM = Color(0x99000000)
+/** 栏间分隔条颜色 */
+private val TV_DIVIDER = Color(0x24FFFFFF)
 
 /**
  * TV 端统一面板：五列布局（控制层 + 分组 + 频道列表 + 节目单 + 节目描述）。
@@ -261,6 +268,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     QuickMenuColumn(
                         channelsTab = channelsTab,
                         controlsPinned = controlsPinned,
+                        liquidGlass = liquidGlass,
                         onTabChange = { tab ->
                             viewModel.setChannelsTab(tab)
                             unifiedMode = UnifiedMode.CHANNELS
@@ -282,6 +290,7 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                         SourceSwitchColumn(
                             sources = enabledSources,
                             selectedSource = selectedSource,
+                            liquidGlass = liquidGlass,
                             onSourceSelected = { url ->
                                 viewModel.setSelectedSource(url)
                                 viewModel.refreshUi()
@@ -298,7 +307,12 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                         cornerRadius = 10.dp,
                         modifier = Modifier.fillMaxHeight()
                     ) {
-                        Row(modifier = Modifier.fillMaxHeight()) {
+                        // 玻璃霜层上垫深色可读性底色（亮色视频背景下保证文字清晰）
+                        Row(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .background(TV_PANEL_SCRIM, RoundedCornerShape(10.dp))
+                        ) {
                             // 第一列：分组列表
                             if (showGroups) {
                                 GroupColumn(
@@ -307,6 +321,11 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                                     onGroupSelected = { viewModel.setSelectedGroup(it) },
                                     modifier = Modifier.width(180.dp)
                                 )
+                            }
+
+                            // 栏间分隔条
+                            if (showGroups) {
+                                Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(TV_DIVIDER))
                             }
 
                             // 第二列：频道列表
@@ -333,6 +352,9 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                                 onFocusedChannelChange = { idx -> focusedChannelIdx = idx },
                                 modifier = Modifier.width(260.dp).focusRequester(channelListFocus)
                             )
+
+                            // 栏间分隔条
+                            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(TV_DIVIDER))
 
                             // 第三列：节目单
                             if (showEpg) {
@@ -483,26 +505,29 @@ enum class UnifiedMode { CHANNELS, MENU }
 private fun SourceSwitchColumn(
     sources: List<com.iptv.scanner.editor.pro.data.IptvSource>,
     selectedSource: String,
+    liquidGlass: Boolean,
     onSourceSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        color = Color(0x80222222),
-        shape = RoundedCornerShape(10.dp),
+    LiquidGlassSurface(
+        enabled = liquidGlass && isLiquidBlurSupported(),
+        cornerRadius = 10.dp,
+        staticGlass = true,
+        fallbackColor = Color(0xE6222226),
         modifier = modifier.fillMaxHeight()
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().background(TV_PANEL_SCRIM, RoundedCornerShape(10.dp)),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)
         ) {
             items(items = sources, key = { it.url }) { src ->
                 val isSelected = src.url == selectedSource
-                val displayName = src.name.ifEmpty { src.url.substringAfterLast('/').take(6) }
+                val sourceName = src.name.ifEmpty { src.url.substringAfterLast('/').take(6) }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(if (isSelected) ACCENT_GREEN.copy(alpha = 0.2f) else Color.Transparent)
-                        .tvFocusBorder()
+                        .then(if (isSelected) Modifier.tvGlassSelected(8) else Modifier)
+                        .tvFocusBorder(8)
                         .clickable { onSourceSelected(src.url) }
                         .padding(horizontal = 6.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -511,12 +536,12 @@ private fun SourceSwitchColumn(
                         modifier = Modifier
                             .size(5.dp)
                             .clip(CircleShape)
-                            .background(if (isSelected) ACCENT_GREEN else MaterialTheme.colorScheme.outline)
+                            .background(if (isSelected) AptvAccent else MaterialTheme.colorScheme.outline)
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
-                        text = displayName,
-                        color = if (isSelected) ACCENT_GREEN else MaterialTheme.colorScheme.onSurface,
+                        text = sourceName,
+                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                         maxLines = 1,
@@ -592,18 +617,25 @@ private fun GroupColumn(
 private fun QuickMenuColumn(
     channelsTab: ChannelTab,
     controlsPinned: Boolean,
+    liquidGlass: Boolean,
     onTabChange: (ChannelTab) -> Unit,
     onModeChange: (UnifiedMode) -> Unit,
     onOsd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        color = Color(0x80222222),
-        shape = RoundedCornerShape(10.dp),
+    // 玻璃化：替换原 0x80222222 实底（与统一面板玻璃卡片同材质）
+    LiquidGlassSurface(
+        enabled = liquidGlass && isLiquidBlurSupported(),
+        cornerRadius = 10.dp,
+        staticGlass = true,
+        fallbackColor = Color(0xE6222226),
         modifier = modifier.fillMaxHeight().padding(end = 6.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxHeight().padding(vertical = 16.dp),
+            modifier = Modifier
+                .fillMaxHeight()
+                .background(TV_PANEL_SCRIM, RoundedCornerShape(10.dp))
+                .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
         ) {
@@ -629,8 +661,8 @@ private fun QuickMenuIcon(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) ACCENT_GREEN else Color.Transparent)
-            .tvFocusBorder()
+            .then(if (isSelected) Modifier.tvGlassSelected(8) else Modifier)
+            .tvFocusBorder(8)
             .clickable { onClick() }
             .padding(horizontal = 6.dp, vertical = 8.dp)
     ) {
@@ -658,23 +690,23 @@ private fun GroupItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (selected) ACCENT_GREEN.copy(alpha = 0.2f) else Color.Transparent)
-            .tvFocusBorder()
+            .then(if (selected) Modifier.tvGlassSelected(8) else Modifier)
+            .tvFocusBorder(8)
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 选中指示点
+        // 选中指示点（主色橙红）
         Box(
             modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
-                .background(if (selected) ACCENT_GREEN else MaterialTheme.colorScheme.outline)
+                .background(if (selected) AptvAccent else MaterialTheme.colorScheme.outline)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = label,
-            color = if (selected) ACCENT_GREEN else MaterialTheme.colorScheme.onSurface,
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
             maxLines = 1,
@@ -882,7 +914,13 @@ private fun TvChannelItem(
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged { onFocusChange(it.isFocused) }
             .tvFocusBorder()
-            .then(if (isPlaying) Modifier.background(ACCENT_GREEN) else Modifier)
+            // 当前播放频道：主色橙红高亮（竖屏同款 12~16% 底），不再使用绿色实底
+            .then(
+                if (isPlaying) Modifier.background(
+                    AptvAccent.copy(alpha = 0.16f),
+                    RoundedCornerShape(10.dp)
+                ) else Modifier
+            )
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1069,7 +1107,11 @@ private fun MenuColumn(
         color = Color.Transparent,
         modifier = modifier.fillMaxHeight()
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(TV_PANEL_SCRIM, RoundedCornerShape(10.dp))
+        ) {
             Text(
                 text = "主菜单",
                 color = MaterialTheme.colorScheme.onSurface,
@@ -1115,14 +1157,14 @@ private fun TvMenuItemRow(item: TvMenuItem) {
         Icon(
             imageVector = item.icon,
             contentDescription = null,
-            tint = if (item.highlight) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (item.highlight) AptvAccent else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                color = if (item.highlight) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
+                color = if (item.highlight) AptvAccent else MaterialTheme.colorScheme.onSurface,
                 fontSize = 14.sp,
                 fontWeight = if (item.highlight) FontWeight.Medium else FontWeight.Normal,
                 maxLines = 1,
@@ -1251,8 +1293,14 @@ private fun TvEpgItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isCurrent) ACCENT_GREEN.copy(alpha = 0.2f) else Color.Transparent)
-            .tvFocusBorder()
+            // 当前直播节目：主色橙红高亮底
+            .then(
+                if (isCurrent) Modifier.background(
+                    AptvAccent.copy(alpha = 0.14f),
+                    RoundedCornerShape(8.dp)
+                ) else Modifier
+            )
+            .tvFocusBorder(8)
             .clickable {
                 onSelect()
                 onClick()
@@ -1260,13 +1308,13 @@ private fun TvEpgItem(
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 左侧绿色边框（当前节目）
+        // 左侧主色边条（当前节目）
         if (isCurrent) {
             Box(
                 modifier = Modifier
                     .width(3.dp)
                     .height(36.dp)
-                    .background(ACCENT_GREEN)
+                    .background(AptvAccent)
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -1286,7 +1334,7 @@ private fun TvEpgItem(
                 text = program.title,
                 color = when {
                     isPast -> MaterialTheme.colorScheme.onSurfaceVariant
-                    isCurrent -> ACCENT_GREEN
+                    isCurrent -> AptvAccent
                     else -> MaterialTheme.colorScheme.onSurface
                 },
                 fontSize = 13.sp,
@@ -1306,8 +1354,8 @@ private fun TvEpgItem(
             }
         } else {
             if (hasReminder) {
-                Surface(color = ACCENT_GREEN.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
-                    Text("已预约", color = ACCENT_GREEN, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                Surface(color = AptvAccent.copy(alpha = 0.2f), shape = RoundedCornerShape(3.dp)) {
+                    Text("已预约", color = AptvAccent, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                 }
             } else {
                 Surface(color = Color(0x20FFFFFF), shape = RoundedCornerShape(3.dp)) {

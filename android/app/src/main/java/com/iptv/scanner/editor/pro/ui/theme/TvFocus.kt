@@ -55,6 +55,25 @@ fun Modifier.tvFocusBorder(cornerRadius: Int = 8): Modifier = composed {
 }
 
 /**
+ * 竖屏同款「白亮玻璃凸起块」选中效果（iOS 分段控件选中态）：
+ * 白 20% 底 + 白 45% 描边 + 顶部高光垂直渐变。
+ * 横屏 TV 面板（统一面板/主菜单/底栏）的选中态统一使用，替代旧的纯色/描边选中。
+ */
+fun Modifier.tvGlassSelected(cornerRadius: Int = 10): Modifier = composed {
+    val shape = RoundedCornerShape(cornerRadius.dp)
+    this
+        .background(Color.White.copy(alpha = 0.20f), shape)
+        .border(1.dp, Color.White.copy(alpha = 0.45f), shape)
+        .background(
+            androidx.compose.ui.graphics.Brush.verticalGradient(
+                0f to Color.White.copy(alpha = 0.22f),
+                1f to Color.Transparent
+            ),
+            shape
+        )
+}
+
+/**
  * TV 端可聚焦 + 焦点高亮 Modifier。
  *
  * 同时添加 `focusable()` + 焦点高亮边框。

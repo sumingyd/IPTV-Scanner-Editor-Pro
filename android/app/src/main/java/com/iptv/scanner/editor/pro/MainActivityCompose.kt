@@ -75,8 +75,8 @@ class MainActivityCompose : ComponentActivity() {
         // 多画面退出按钮区域（px）
         private const val EXIT_BUTTON_WIDTH = 300f
         private const val EXIT_BUTTON_HEIGHT = 120f
-        // 菜单关闭边界（px）
-        private const val MENU_CLOSE_WIDTH = 850f
+        // 右侧主菜单面板总宽（dp）：130一级列 + 1分隔 + 150二级列 + 16右边距
+        private const val MENU_PANEL_WIDTH_DP = 297f
     }
 
     /** OK 键长按标记：长按显示控制层，跳过短按逻辑（打开统一面板） */
@@ -220,6 +220,7 @@ class MainActivityCompose : ComponentActivity() {
                     val h = resources.displayMetrics.heightPixels
                     val x = ev.x
                     val y = ev.y
+                    val density = resources.displayMetrics.density
 
                     val sidebarOpen = viewModel.landscapeSidebarVisible.value
                     val menuOpen = viewModel.menuPanelOpen.value
@@ -283,22 +284,41 @@ class MainActivityCompose : ComponentActivity() {
                         return super.dispatchTouchEvent(ev)
                     }
                     // ---- 单击（tap）----
+                    // 交互总则：任何悬浮窗（左侧统一面板/右侧主菜单/底栏控制条）打开时，
+                    // 点击悬浮窗以外的区域 = 关闭该悬浮窗，绝不误触暂停/切台。
                     if (sidebarOpen) {
-                        if (x < w * SIDEBAR_CLOSE_BOUND) return super.dispatchTouchEvent(ev)
+                        // 统一面板实际内容宽度（dp）：16起始边距+48快捷列+6列间距+(多源72)+180分组+260频道+260节目单
+                        val multiSource = viewModel.sources.value.count { it.enabled } > 1
+                        val sidebarWidthDp = 16 + 48 + 6 + (if (multiSource) 72 else 0) + 180 + 260 + 260
+                        // 面板使用 dpiScale 缩放密度（与 TvPlayerLayout/TvUnifiedPanel 一致）
+                        val dpiScale = (resources.configuration.screenHeightDp / 720f).coerceIn(0.70f, 1f)
+                        val pxPerDp = density * dpiScale
+                        val closeBound = minOf(w * SIDEBAR_CLOSE_BOUND, sidebarWidthDp * pxPerDp + 8f * pxPerDp)
+                        // 面板垂直范围：top 10dp、bottom 100dp（与 TvLayout 布局一致）；
+                        // 上下留白与面板右侧区域点击均关闭面板
+                        val inPanelV = y > 10f * pxPerDp && y < h - 100f * pxPerDp
+                        if (x < closeBound && inPanelV) return super.dispatchTouchEvent(ev)
                         viewModel.setLandscapeSidebarVisible(false)
                         return true
                     }
                     if (menuOpen) {
-                        if (x > w - MENU_CLOSE_WIDTH) return super.dispatchTouchEvent(ev)
+                        // 右侧主菜单宽度（dp）：130一级列+1分隔+150二级列+16右边距
+                        val dpiScale = (resources.configuration.screenHeightDp / 720f).coerceIn(0.70f, 1f)
+                        val pxPerDp = density * dpiScale
+                        // 面板垂直范围：top 10dp、bottom 80dp（与 MainMenuPanel 布局一致）
+                        val inMenuV = y > 10f * pxPerDp && y < h - 80f * pxPerDp
+                        if (x > w - (MENU_PANEL_WIDTH_DP * pxPerDp + 8f * pxPerDp) && inMenuV) return super.dispatchTouchEvent(ev)
                         viewModel.toggleMenuPanel()
                         return true
                     }
+                    if (controlsVisible) {
+                        // 底栏控制条打开：点击底栏区域交给 Compose 按钮/滑杆；点击其他区域收起底栏
+                        if (y > h * BOTTOM_REGION_BOUND) return super.dispatchTouchEvent(ev)
+                        viewModel.toggleControls()
+                        return true
+                    }
+                    // 无任何悬浮窗：分区呼出（左右边缘呼出面板，底部呼出控制条，中央暂停/恢复）
                     if (y > h * BOTTOM_REGION_BOUND) {
-                        if (controlsVisible) {
-                            // 控制条可见：底栏按钮（停止/退出回看）与滑杆交给 Compose
-                            // （修复：底栏按钮被"收起控制层"截胡）
-                            return super.dispatchTouchEvent(ev)
-                        }
                         viewModel.toggleControls()
                         return true
                     }
@@ -404,9 +424,14 @@ class MainActivityCompose : ComponentActivity() {
             }
         }
 
-        // BACK 键：先关闭面板 → 再退出多画面 → 再退出回看/时移 → 播放器模式返回首页 → 最后显示退出确认对话框
+        // BACK 键：先关闭面板 → 再收起底栏控制条 → 再退出多画面 → 再退出回看/时移 → 播放器模式返回首页 → 最后显示退出确认对话框
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (viewModel.closeAnyPanel()) {
+                return true
+            }
+            // 仅底栏控制条打开时，BACK 收起底栏（遥控器/触屏一致：悬浮窗打开时 BACK=关闭）
+            if (viewModel.controlsVisible.value) {
+                viewModel.toggleControls()
                 return true
             }
             // 多画面激活时，BACK 退出多画面（释放副画面 Player）

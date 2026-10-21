@@ -96,6 +96,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
+import com.iptv.scanner.editor.pro.ui.theme.tvGlassSelected
 import com.iptv.scanner.editor.pro.ui.theme.GlassPanel
 
 private val ACCENT_CYAN = Color(0xFF00BCD4)
@@ -359,14 +360,16 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                             true
                         }
                         Key.DirectionRight -> {
-                            if (activeColumn == 0 && currentSection != null && currentSection.entries.isNotEmpty()) {
-                                activeColumn = 1
+                            // 列序镜像后：二级条目列在左、一级分组列在最右；从二级按右键回到一级
+                            if (activeColumn == 1) {
+                                activeColumn = 0
                                 true
                             } else false
                         }
                         Key.DirectionLeft -> {
-                            if (activeColumn == 1) {
-                                activeColumn = 0
+                            // 从一级（最右列）按左键进入二级条目列（往左一列）
+                            if (activeColumn == 0 && currentSection != null && currentSection.entries.isNotEmpty()) {
+                                activeColumn = 1
                                 true
                             } else false
                         }
@@ -405,43 +408,13 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                     .focusRequester(menuFocusRequester)
                     .focusable()
             ) {
-                Row(modifier = Modifier.wrapContentWidth()) {
-                    // 左列：主菜单（section titles）
-                    LazyColumn(
-                        modifier = Modifier.fillMaxHeight().width(130.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)
-                    ) {
-                        itemsIndexed(sections) { idx, section ->
-                            val isSelected = idx == safeIdx
-                            val isLeftActive = activeColumn == 0 && isSelected
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isSelected) Color(0xFF2979FF) else Color.Transparent)
-                                    .clickable {
-                                        activeColumn = 0
-                                        selectedSectionIdx = idx
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = section.title,
-                                    color = if (isSelected) Color.White else Color(0xE6FFFFFF),
-                                    fontSize = 16.sp,
-                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                    // 列间分隔线
-                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color(0x40FFFFFF)))
-
-                    // 右列：子菜单（当前选中section的entries）
+                // 列序（面板靠右显示，层级从右往左）：最右=一级分组列，往左=二级条目列
+                Row(
+                    modifier = Modifier
+                        .wrapContentWidth()
+                        .background(Color(0x99000000), RoundedCornerShape(10.dp))
+                ) {
+                    // 左列：二级条目（当前选中分组下的菜单项）
                     if (currentSection != null && currentSection.entries.isNotEmpty()) {
                         LazyColumn(
                             modifier = Modifier.fillMaxHeight().width(150.dp),
@@ -457,11 +430,11 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                                         .fillMaxWidth()
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(
+                                        .then(
                                             when {
-                                                isRightSelected -> Color(0xFF2979FF)
-                                                entry.highlight -> Color(0x402979FF)
-                                                else -> Color.Transparent
+                                                isRightSelected -> Modifier.tvGlassSelected(6)
+                                                entry.highlight -> Modifier.background(AptvAccent.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
+                                                else -> Modifier
                                             }
                                         )
                                         .clickable {
@@ -486,10 +459,48 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                                             modifier = Modifier
                                                 .size(8.dp)
                                                 .clip(CircleShape)
-                                                .background(if (entry.toggleValue) Color(0xFF2979FF) else Color(0x60FFFFFF))
+                                                .background(if (entry.toggleValue) AptvAccent else Color(0x60FFFFFF))
                                         )
                                     }
                                 }
+                            }
+                        }
+                    }
+                    // 列间分隔线
+                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color(0x40FFFFFF)))
+
+                    // 右列（最右=一级）：主菜单分组
+                    LazyColumn(
+                        modifier = Modifier.fillMaxHeight().width(130.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)
+                    ) {
+                        itemsIndexed(sections) { idx, section ->
+                            val isSelected = idx == safeIdx
+                            val isLeftActive = activeColumn == 0 && isSelected
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .then(
+                                        if (isSelected) Modifier.tvGlassSelected(6)
+                                        else Modifier.background(Color.Transparent)
+                                    )
+                                    .clickable {
+                                        activeColumn = 0
+                                        selectedSectionIdx = idx
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = section.title,
+                                    color = if (isSelected) Color.White else Color(0xE6FFFFFF),
+                                    fontSize = 16.sp,
+                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
