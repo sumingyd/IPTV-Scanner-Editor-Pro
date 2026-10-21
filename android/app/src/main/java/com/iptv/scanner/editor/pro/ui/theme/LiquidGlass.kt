@@ -101,11 +101,9 @@ fun LiquidGlassSurface(
     // 浅色模式白上白不可辨 —— 提高玻璃不透明度 + 投影浮起 + 深色描边
     val darkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val glassBase = if (darkTheme) DarkGlass else LightGlass
-    // 画布模式：磨砂底减淡（透出页面画布），光斑增强（环境色更明显）
+    // 画布模式：去掉卡片内的光斑图案（光斑属于页面画布，不随卡片走），其余层保持原样
     val onCanvas = LocalGlassOnCanvas.current
-    val frostAlpha = if (onCanvas) 0.10f else 1f
-    val glossAlpha = if (onCanvas) 0.35f else 1f
-    val glowScale = if (onCanvas) 1.7f else 1f
+    val glowScale = if (onCanvas) 0f else 1f
 
     Box(
         modifier = if (enabled && !darkTheme) {
@@ -136,7 +134,6 @@ fun LiquidGlassSurface(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .graphicsLayer { alpha = frostAlpha }
                         .background(glassBase.frostBrush)
                 )
             }
@@ -160,7 +157,7 @@ fun LiquidGlassSurface(
                                 image = it,
                                 dstOffset = androidx.compose.ui.unit.IntOffset(x, y),
                                 dstSize = androidx.compose.ui.unit.IntSize(step, step),
-                                alpha = if (onCanvas) 0.18f else 0.55f,
+                                alpha = 0.55f,
                                 filterQuality = androidx.compose.ui.graphics.FilterQuality.None
                             )
                             x += step
@@ -173,7 +170,6 @@ fun LiquidGlassSurface(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .graphicsLayer { alpha = glossAlpha }
                     .background(glassBase.glossBrush)
             )
             // 层 5：lensing 双描边

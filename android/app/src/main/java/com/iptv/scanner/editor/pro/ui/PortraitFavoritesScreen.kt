@@ -64,7 +64,7 @@ internal fun PortraitFavoritesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        // 不铺不透明底：透出内容区的环境画布
     ) {
         // APTV 头部：红色源名 + 刷新
         Row(

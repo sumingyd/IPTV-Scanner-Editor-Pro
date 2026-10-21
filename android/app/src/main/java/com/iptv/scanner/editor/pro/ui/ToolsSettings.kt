@@ -229,7 +229,7 @@ internal fun PortraitToolsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            // 不铺不透明底：透出内容区的环境画布（深/浅渐变+光斑）
             .verticalScroll(rememberScrollState())
     ) {
         // 头部：编辑（左） + 刷新/添加（右）

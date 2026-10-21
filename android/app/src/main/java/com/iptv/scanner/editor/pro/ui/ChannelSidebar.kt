@@ -268,7 +268,7 @@ internal fun PortraitListScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        // 不铺不透明底：透出内容区的环境画布
     ) {
         // ---- APTV 头部：分组入口(左,点击弹分组) + 源切换/刷新(右) / 大标题 / 搜索框 ----
         var showGroupSheet by remember { mutableStateOf(false) }
