@@ -193,7 +193,7 @@ internal fun IconButton(
     if (liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported()) {
         Box(
             modifier = modifier
-                .size(40.dp)
+                .size(34.dp)
                 .clip(androidx.compose.foundation.shape.CircleShape)
                 .background(Color.White.copy(alpha = 0.12f), androidx.compose.foundation.shape.CircleShape)
                 .border(1.dp, Color.White.copy(alpha = 0.30f), androidx.compose.foundation.shape.CircleShape)
@@ -205,6 +205,7 @@ internal fun IconButton(
                     androidx.compose.foundation.shape.CircleShape
                 )
                 .clickable(enabled = enabled, onClick = onClick),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
             content = content
         )
     } else {
@@ -213,7 +214,10 @@ internal fun IconButton(
             modifier = modifier,
             enabled = enabled
         ) {
-            androidx.compose.foundation.layout.Box(content = content)
+            androidx.compose.foundation.layout.Box(
+                contentAlignment = androidx.compose.ui.Alignment.Center,
+                content = content
+            )
         }
     }
 }

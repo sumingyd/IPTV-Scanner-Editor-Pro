@@ -407,7 +407,9 @@ internal fun PortraitListScreen(
                     cornerRadius = 28.dp,
                     staticGlass = true,
                     fallbackColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
                 ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
@@ -483,7 +485,9 @@ internal fun PortraitListScreen(
                     cornerRadius = 28.dp,
                     staticGlass = true,
                     fallbackColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
                 ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
@@ -568,7 +572,9 @@ internal fun PortraitListScreen(
                     cornerRadius = 28.dp,
                     staticGlass = true,
                     fallbackColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
                 ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
