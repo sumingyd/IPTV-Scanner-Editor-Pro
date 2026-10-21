@@ -610,10 +610,52 @@ viewModel.mpv.setMute(savedMute)
                 // 这避免了 movableContentOf 移动 SurfaceView 导致的 surface 销毁/重建，
                 // 彻底解决返回播放页无画面问题。
                 Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+                    // 整页环境画布：标题栏/视频窗口/控制条/面板都浮在同一块画布上
+                    val canvasDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .drawBehind {
+                                drawRect(
+                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        if (canvasDark) listOf(
+                                            androidx.compose.ui.graphics.Color(0xFF0B0F1A),
+                                            androidx.compose.ui.graphics.Color(0xFF151B2C)
+                                        ) else listOf(
+                                            androidx.compose.ui.graphics.Color(0xFFE9EEF7),
+                                            androidx.compose.ui.graphics.Color(0xFFF9FBFF)
+                                        )
+                                    )
+                                )
+                                val g = if (canvasDark) 0.32f else 0.15f
+                                drawCircle(
+                                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                        listOf(androidx.compose.ui.graphics.Color(0x5B8CFF).copy(alpha = g), androidx.compose.ui.graphics.Color.Transparent)
+                                    ),
+                                    radius = size.width * 0.85f,
+                                    center = androidx.compose.ui.geometry.Offset(size.width * 0.15f, size.height * 0.12f)
+                                )
+                                drawCircle(
+                                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                        listOf(androidx.compose.ui.graphics.Color(0xC084FC).copy(alpha = g * 0.85f), androidx.compose.ui.graphics.Color.Transparent)
+                                    ),
+                                    radius = size.width * 0.75f,
+                                    center = androidx.compose.ui.geometry.Offset(size.width * 0.95f, size.height * 0.52f)
+                                )
+                                drawCircle(
+                                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                        listOf(androidx.compose.ui.graphics.Color(0x34D399).copy(alpha = g * 0.7f), androidx.compose.ui.graphics.Color.Transparent)
+                                    ),
+                                    radius = size.width * 0.7f,
+                                    center = androidx.compose.ui.geometry.Offset(size.width * 0.2f, size.height * 0.95f)
+                                )
+                            }
+                    ) {}
                     // 播放器 + 控制栏（始终在组合树中，Surface 不被销毁）
                     Column(modifier = Modifier.fillMaxSize()) {
                         PortraitInfoBarV2(viewModel = viewModel)
                         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
+                        // 视频渲染层：画布上的视频窗口（黑色底，mpv 画面渲染其上）
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -725,47 +767,6 @@ viewModel.mpv.setMute(savedMute)
                                 .fillMaxWidth()
                                 .weight(1f)
                         ) {
-                            // 播放页下半面板区：同首页的环境画布（渐变+三色光斑），玻璃只磨砂透画布
-                            val panelCanvasDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .drawBehind {
-                                        drawRect(
-                                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                                if (panelCanvasDark) listOf(
-                                                    androidx.compose.ui.graphics.Color(0xFF0B0F1A),
-                                                    androidx.compose.ui.graphics.Color(0xFF151B2C)
-                                                ) else listOf(
-                                                    androidx.compose.ui.graphics.Color(0xFFE9EEF7),
-                                                    androidx.compose.ui.graphics.Color(0xFFF9FBFF)
-                                                )
-                                            )
-                                        )
-                                        val g = if (panelCanvasDark) 0.32f else 0.15f
-                                        drawCircle(
-                                            brush = androidx.compose.ui.graphics.Brush.radialGradient(
-                                                listOf(androidx.compose.ui.graphics.Color(0x5B8CFF).copy(alpha = g), androidx.compose.ui.graphics.Color.Transparent)
-                                            ),
-                                            radius = size.width * 0.85f,
-                                            center = androidx.compose.ui.geometry.Offset(size.width * 0.15f, size.height * 0.12f)
-                                        )
-                                        drawCircle(
-                                            brush = androidx.compose.ui.graphics.Brush.radialGradient(
-                                                listOf(androidx.compose.ui.graphics.Color(0xC084FC).copy(alpha = g * 0.85f), androidx.compose.ui.graphics.Color.Transparent)
-                                            ),
-                                            radius = size.width * 0.75f,
-                                            center = androidx.compose.ui.geometry.Offset(size.width * 0.95f, size.height * 0.52f)
-                                        )
-                                        drawCircle(
-                                            brush = androidx.compose.ui.graphics.Brush.radialGradient(
-                                                listOf(androidx.compose.ui.graphics.Color(0x34D399).copy(alpha = g * 0.7f), androidx.compose.ui.graphics.Color.Transparent)
-                                            ),
-                                            radius = size.width * 0.7f,
-                                            center = androidx.compose.ui.geometry.Offset(size.width * 0.2f, size.height * 0.95f)
-                                        )
-                                    }
-                            ) {}
                             androidx.compose.runtime.CompositionLocalProvider(
                                 LocalAptvStyle provides true,
                                 com.iptv.scanner.editor.pro.ui.theme.LocalGlassOnCanvas provides true
