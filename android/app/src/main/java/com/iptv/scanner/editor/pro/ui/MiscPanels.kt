@@ -190,17 +190,26 @@ fun OpenUrlDialog(viewModel: AppViewModel) {
             }
         }
     } else {
-        AlertDialog(
-            onDismissRequest = { viewModel.toggleOpenUrlDialog() },
-            title = { Text("打开网络流") },
-            text = {
-                Column {
+        // 横屏/TV：走统一玻璃弹窗容器（原为原生 AlertDialog 实底，与整体玻璃风格不符）
+        PortraitPanelDialog(onDismiss = { viewModel.toggleOpenUrlDialog() }) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(modifier = Modifier.fillMaxWidth(0.55f)) {
                     Text(
-                        "输入 M3U/M3U8/HLS/RTSP/RTMP 等协议 URL",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
+                        text = "打开网络流",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "输入 M3U/M3U8/HLS/RTSP/RTMP 等协议 URL",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = url,
                         onValueChange = { url = it },
@@ -208,24 +217,28 @@ fun OpenUrlDialog(viewModel: AppViewModel) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().tvTextField()
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = { viewModel.toggleOpenUrlDialog() },
+                            modifier = Modifier.tvFocusBorder()
+                        ) { Text("取消", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        TextButton(
+                            onClick = {
+                                viewModel.playUrl(url.trim())
+                                url = ""
+                            },
+                            modifier = Modifier.tvFocusBorder()
+                        ) { Text("播放", color = AptvAccent) }
+                    }
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.playUrl(url.trim())
-                        url = ""
-                    },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text("播放", color = if (isAptv) AptvAccent else MaterialTheme.colorScheme.primary) }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { viewModel.toggleOpenUrlDialog() },
-                    modifier = Modifier.tvFocusBorder()
-                ) { Text("取消") }
             }
-        )
+        }
     }
 }
 /**

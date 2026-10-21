@@ -243,7 +243,9 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 viewModel.toggleFavorite()
             },
             onQuit = {
-                viewModel.showOsd("退出", "请使用系统返回键退出")
+                // 真实退出：与遥控器 BACK 键一致的退出确认弹窗（原为仅 OSD 提示，属无效菜单项）
+                viewModel.toggleMenuPanel()
+                viewModel.showExitConfirm()
             },
             onPip = {
                 viewModel.toggleMenuPanel()

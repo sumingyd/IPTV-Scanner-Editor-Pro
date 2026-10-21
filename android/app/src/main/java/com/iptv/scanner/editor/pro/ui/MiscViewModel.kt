@@ -164,10 +164,19 @@ internal fun AppViewModel.addEpgSourceFromM3u(epgUrl: String) {
 
 internal fun AppViewModel.deleteSource(idx: Int) {
     viewModelScope.launch {
+        // 先记录被删源的 URL，用于删除后判断是否需要重置选中源
+        val deletedUrl = sources.value.getOrNull(idx)?.url
         val result = withContext(Dispatchers.IO) { repository.deleteSource(idx) }
         result.onSuccess {
             showOsd("订阅源已删除")
             loadSources()
+            // 若删除的是当前选中源，重置选中态（避免 UI 残留已删源）
+            if (deletedUrl != null && deletedUrl == _selectedSource.value) {
+                setSelectedSource("")
+            }
+            // 触发桥端重载：被删源的频道/分组才会从列表中清除
+            // （与 updateSource 一致；重载后轮询器检测到频道总数变化会自动 loadChannels 刷新分组）
+            reloadSources()
         }.onFailure { showOsd("删除失败", it.message ?: "") }
     }
 }

@@ -331,7 +331,11 @@ class MainActivityCompose : ComponentActivity() {
                         viewModel.toggleMenuPanel()
                         return true
                     } else {
-                        viewModel.mpv.togglePause()
+                        // 暂停/恢复以观察到的 paused 状态为准显式设置：
+                        // 原 cycle pause 是盲切换，一旦 UI 状态与 mpv 真实状态错位
+                        // （如音频焦点抢占后状态不同步），点击中央会"越点越暂停"
+                        if (viewModel.mpv.paused.value) viewModel.mpv.setPause(false)
+                        else viewModel.mpv.setPause(true)
                         return true
                     }
                 }

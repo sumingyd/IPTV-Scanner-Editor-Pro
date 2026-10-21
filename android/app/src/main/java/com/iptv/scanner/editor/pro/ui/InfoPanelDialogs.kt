@@ -631,10 +631,12 @@ fun PortraitPanelDialog(
                     .fillMaxWidth(0.75f)
                     .fillMaxHeight(0.82f)
             ) {
-                Surface(
-                    color = oc.topBarBg.copy(alpha = 0.85f),
-                    shape = dialogShape,
-                    border = BorderStroke(1.dp, oc.accent.copy(alpha = 0.35f)),
+                // TV 模式同样玻璃化：静态玻璃（独立 overlay 无法跨窗口采样，用静态光泽玻璃）
+                com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+                    enabled = LocalLiquidGlass.current && isAndroid12Plus,
+                    cornerRadius = 20.dp,
+                    staticGlass = true,
+                    fallbackColor = oc.topBarBg.copy(alpha = 0.85f),
                     modifier = Modifier.matchParentSize()
                 ) {
                     scaledContent()

@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
@@ -405,30 +407,37 @@ private fun TvBottomBar(
     }
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 8.dp) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(TV_BAR_SCRIM, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // 第1行：台标 + 频道号 + 频道名 + spacer + 状态标签 + 技术标签组
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier.size(48.dp, 36.dp).clip(RoundedCornerShape(4.dp)).background(ICON_BG),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (displayInfo.logo.isNotEmpty()) {
-                            AsyncImage(model = displayInfo.logo, contentDescription = displayInfo.name, modifier = Modifier.fillMaxSize().padding(3.dp), contentScale = ContentScale.Fit)
-                        } else {
-                            Text(
-                                text = displayInfo.name.take(2).ifEmpty { "·" },
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                // 台标：置于底栏左侧，随三行内容整体垂直居中（不再嵌在第1行上部）
+                Box(
+                    modifier = Modifier.size(52.dp, 44.dp).clip(RoundedCornerShape(6.dp)).background(ICON_BG),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (displayInfo.logo.isNotEmpty()) {
+                        AsyncImage(model = displayInfo.logo, contentDescription = displayInfo.name, modifier = Modifier.fillMaxSize().padding(3.dp), contentScale = ContentScale.Fit)
+                    } else {
+                        Text(
+                            text = displayInfo.name.take(2).ifEmpty { "·" },
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                // 竖分隔条：台标列与右侧信息列分隔
+                Box(modifier = Modifier.width(1.dp).height(44.dp).background(TV_ROW_DIVIDER))
+                Spacer(modifier = Modifier.width(12.dp))
+                // 右侧信息列：三行（频道信息 / 当前节目+进度 / 下一档节目）
+                Column(modifier = Modifier.weight(1f)) {
+                // 第1行：频道号 + 频道名 + spacer + 状态标签 + 技术标签组
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     if (displayInfo.idx >= 0) {
                         Text(
                             text = String.format("%03d", displayInfo.idx + 1),
@@ -554,6 +563,19 @@ private fun TvBottomBar(
                             }
                         }
                         Spacer(modifier = Modifier.width(2.dp))
+                        // 播放/暂停按钮：原底栏无播放控制，暂停后用户无从恢复
+                        IconButton(
+                            onClick = { viewModel.mpv.setPause(!paused) },
+                            modifier = Modifier.size(28.dp).tvFocusBorder()
+                        ) {
+                            Icon(
+                                if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                contentDescription = if (paused) "播放" else "暂停",
+                                tint = oc.accent,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(2.dp))
                         IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(28.dp).tvFocusBorder()) {
                             Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(14.dp))
                         }
@@ -592,7 +614,8 @@ private fun TvBottomBar(
                                 )
                             }
                         }
-            }
+                } // 右侧信息列 Column（三行）
+            } // 底栏外层 Row（台标列 + 信息列）
 
     }
 }

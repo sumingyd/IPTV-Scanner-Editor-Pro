@@ -516,8 +516,9 @@ private fun SourceSwitchColumn(
         fallbackColor = Color(0xE6222226),
         modifier = modifier.fillMaxHeight()
     ) {
+        // 轻量单层玻璃：不额外垫深色底衬，避免双层叠加观感
         LazyColumn(
-            modifier = Modifier.fillMaxSize().background(TV_PANEL_SCRIM, RoundedCornerShape(10.dp)),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)
         ) {
             items(items = sources, key = { it.url }) { src ->
@@ -631,10 +632,11 @@ private fun QuickMenuColumn(
         fallbackColor = Color(0xE6222226),
         modifier = modifier.fillMaxHeight().padding(end = 6.dp)
     ) {
+        // 轻量单层玻璃：不再额外垫深色底衬，避免与玻璃卡叠加成"双层玻璃"观感
+        // （fallbackColor 已提供底色，图标为白色高对比，可读性足够）
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .background(TV_PANEL_SCRIM, RoundedCornerShape(10.dp))
                 .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
