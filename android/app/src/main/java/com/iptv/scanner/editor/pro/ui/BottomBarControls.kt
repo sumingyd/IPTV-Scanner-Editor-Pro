@@ -57,7 +57,6 @@ import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.CircularProgressIndicator
@@ -196,7 +195,7 @@ internal fun PortraitBottomTabBar(
     val tabContent: @Composable RowScope.() -> Unit = {
         tabItems.forEach { (icon, label, tab) ->
             val isSelected = portraitTab == tab
-            val tint = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant
+            val tint = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier

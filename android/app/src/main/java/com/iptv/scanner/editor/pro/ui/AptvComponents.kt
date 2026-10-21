@@ -178,6 +178,46 @@ internal fun Button(
     }
 }
 
+/**
+ * 玻璃圆形图标按钮：与 material3.IconButton 同签名。液态玻璃开启时为圆形磨砂底 + 白描边，
+ * 关闭/降级时回落 Material3 IconButton 原样式。
+ */
+@Composable
+internal fun IconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit
+) {
+    val liquidGlass = LocalLiquidGlass.current
+    if (liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported()) {
+        Box(
+            modifier = modifier
+                .size(40.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(Color.White.copy(alpha = 0.12f), androidx.compose.foundation.shape.CircleShape)
+                .border(1.dp, Color.White.copy(alpha = 0.30f), androidx.compose.foundation.shape.CircleShape)
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        0f to Color.White.copy(alpha = 0.14f),
+                        1f to Color.Transparent
+                    ),
+                    androidx.compose.foundation.shape.CircleShape
+                )
+                .clickable(enabled = enabled, onClick = onClick),
+            content = content
+        )
+    } else {
+        androidx.compose.material3.IconButton(
+            onClick = onClick,
+            modifier = modifier,
+            enabled = enabled
+        ) {
+            androidx.compose.foundation.layout.Box(content = content)
+        }
+    }
+}
+
 /** APTV 分组卡片容器：液态玻璃卡（跟随开关，降级为实底卡） */
 @Composable
 internal fun AptvGroupCard(

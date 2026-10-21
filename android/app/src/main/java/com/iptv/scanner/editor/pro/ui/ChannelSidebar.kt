@@ -57,7 +57,6 @@ import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.CircularProgressIndicator
@@ -295,48 +294,50 @@ internal fun PortraitListScreen(
                     .clickable { showGroupSheet = true }
             )
             Spacer(modifier = Modifier.width(10.dp))
-            // 右侧：源切换（多源切换，对齐 APTV 配置切换）
-            Icon(
-                imageVector = Icons.Default.SwapHoriz,
-                contentDescription = "切换订阅源",
-                tint = AptvAccent,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable { showSourceSheet = true }
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            // 右侧：源切换（多源切换，对齐 APTV 配置切换）—— 玻璃圆形按钮
+            IconButton(onClick = { showSourceSheet = true }) {
+                Icon(
+                    imageVector = Icons.Default.SwapHoriz,
+                    contentDescription = "切换订阅源",
+                    tint = AptvAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
             // 右侧：视图切换 + 预览图菜单
-            Icon(
-                imageVector = if (viewMode == ListViewMode.LIST) Icons.Default.GridView else Icons.Default.ViewList,
-                contentDescription = "切换视图",
-                tint = AptvAccent,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable {
-                        viewModel.setListViewMode(
-                            if (viewMode == ListViewMode.LIST) ListViewMode.THUMBNAIL
-                            else ListViewMode.LIST
-                        )
-                    }
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "预览图菜单",
-                tint = AptvAccent,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable { viewMenuExpanded = true }
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = "刷新频道",
-                tint = AptvAccent,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable { viewModel.loadChannels() }
-            )
+            IconButton(
+                onClick = {
+                    viewModel.setListViewMode(
+                        if (viewMode == ListViewMode.LIST) ListViewMode.THUMBNAIL
+                        else ListViewMode.LIST
+                    )
+                }
+            ) {
+                Icon(
+                    imageVector = if (viewMode == ListViewMode.LIST) Icons.Default.GridView else Icons.Default.ViewList,
+                    contentDescription = "切换视图",
+                    tint = AptvAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(2.dp))
+            IconButton(onClick = { viewMenuExpanded = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "预览图菜单",
+                    tint = AptvAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+            IconButton(onClick = { viewModel.loadChannels() }) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "刷新频道",
+                    tint = AptvAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
         Text(
             text = if (listSourceTab == ListSourceTab.LOCAL) "本地频道"
@@ -397,8 +398,17 @@ internal fun PortraitListScreen(
             ModalBottomSheet(
                 onDismissRequest = { showGroupSheet = false },
                 sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = Color.Transparent
             ) {
+                // 底部弹窗玻璃化：独立窗口走静态玻璃（磨砂+光斑+描边）
+                com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+                    enabled = com.iptv.scanner.editor.pro.ui.LocalLiquidGlass.current &&
+                        com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
+                    cornerRadius = 28.dp,
+                    staticGlass = true,
+                    fallbackColor = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -449,6 +459,7 @@ internal fun PortraitListScreen(
                         }
                     }
                 }
+                }
             }
         }
 
@@ -463,8 +474,17 @@ internal fun PortraitListScreen(
             ModalBottomSheet(
                 onDismissRequest = { showSourceSheet = false },
                 sheetState = sourceSheetState,
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = Color.Transparent
             ) {
+                // 底部弹窗玻璃化：独立窗口走静态玻璃（磨砂+光斑+描边）
+                com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+                    enabled = com.iptv.scanner.editor.pro.ui.LocalLiquidGlass.current &&
+                        com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
+                    cornerRadius = 28.dp,
+                    staticGlass = true,
+                    fallbackColor = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -529,6 +549,7 @@ internal fun PortraitListScreen(
                         }
                     }
                 }
+                }
             }
         }
 
@@ -538,8 +559,17 @@ internal fun PortraitListScreen(
             ModalBottomSheet(
                 onDismissRequest = { viewMenuExpanded = false },
                 sheetState = viewSheetState,
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = Color.Transparent
             ) {
+                // 底部弹窗玻璃化：独立窗口走静态玻璃（磨砂+光斑+描边）
+                com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+                    enabled = com.iptv.scanner.editor.pro.ui.LocalLiquidGlass.current &&
+                        com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
+                    cornerRadius = 28.dp,
+                    staticGlass = true,
+                    fallbackColor = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -596,6 +626,7 @@ internal fun PortraitListScreen(
                             )
                         }
                     }
+                }
                 }
             }
         }

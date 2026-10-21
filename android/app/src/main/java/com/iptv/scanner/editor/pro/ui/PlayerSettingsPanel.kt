@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -557,7 +556,7 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
         fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = if (useGlass) 0.60f else 1f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = if (useGlass) 0.82f else 1f))
     ) {
         Column(
             modifier = Modifier

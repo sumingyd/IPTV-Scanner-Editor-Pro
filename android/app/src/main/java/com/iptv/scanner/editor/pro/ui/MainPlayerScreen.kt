@@ -58,7 +58,6 @@ import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.CircularProgressIndicator
@@ -769,7 +768,11 @@ viewModel.mpv.setMute(savedMute)
                                         .matchParentSize()
                                         .liquidGlassSource(hazeState)
                                 ) {
-                                    androidx.compose.runtime.CompositionLocalProvider(LocalAptvStyle provides true) {
+                                    androidx.compose.runtime.CompositionLocalProvider(
+                                        LocalAptvStyle provides true,
+                                        // 覆盖全部 4 个竖屏 tab 内容：玻璃卡片/按钮组件统一读取开关
+                                        LocalLiquidGlass provides liquidGlass
+                                    ) {
                                         val aptvScheme = MaterialTheme.colorScheme.copy(
                                             primary = AptvAccent,
                                             onPrimary = Color.White,
