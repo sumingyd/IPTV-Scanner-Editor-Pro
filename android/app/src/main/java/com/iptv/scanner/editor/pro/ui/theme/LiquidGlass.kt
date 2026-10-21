@@ -89,6 +89,7 @@ fun LiquidGlassSurface(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 10.dp,
     staticGlass: Boolean = false,
+    overlayDark: Boolean = false,
     fallbackColor: Color = Color(0xF0222222),
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -100,7 +101,11 @@ fun LiquidGlassSurface(
     // 主题自适应：深色模式玻璃为灰白磨砂（iOS 控制中心深色壁纸下的观感）；
     // 浅色模式白上白不可辨 —— 提高玻璃不透明度 + 投影浮起 + 深色描边
     val darkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val glassBase = if (darkTheme) DarkGlass else LightGlass
+    val glassBase = when {
+        overlayDark -> OverlayGlass
+        darkTheme -> DarkGlass
+        else -> LightGlass
+    }
     // 画布模式：去掉卡片内的光斑图案（光斑属于页面画布，不随卡片走），其余层保持原样
     val onCanvas = LocalGlassOnCanvas.current
     val glowScale = if (onCanvas) 0f else 1f
@@ -214,6 +219,24 @@ private val DarkGlass = GlassBase(
     glowAlpha = 1f,
     borderTop = 0.55f, borderMid = 0.10f, borderBottom = 0.22f,
     innerHighlight = 0.16f
+)
+
+/** 播放器覆盖层专用：暗色玻璃（覆盖条上多为白色文字，亮玻璃会让白字不可读） */
+private val OverlayGlass = GlassBase(
+    blurTint = Color(0x66000000),          // 黑 40%
+    fallbackSolid = Color(0xCC1A1C22),
+    frostBrush = Brush.verticalGradient(
+        listOf(Color(0x59000000), Color(0x47000000), Color(0x3D000000))
+    ),
+    glossBrush = Brush.verticalGradient(
+        0f to Color.White.copy(alpha = 0.10f),
+        0.35f to Color.White.copy(alpha = 0.03f),
+        0.7f to Color.Transparent,
+        1f to Color.Black.copy(alpha = 0.10f)
+    ),
+    glowAlpha = 0.35f,
+    borderTop = 0.30f, borderMid = 0.08f, borderBottom = 0.16f,
+    innerHighlight = 0.10f
 )
 
 /** 浅色主题：更实的白玻璃 + 阴影浮起（由外部 shadow 提供）+ 深色底边可辨 */

@@ -490,11 +490,17 @@ internal fun PortraitMediaInfoBar(viewModel: AppViewModel) {
         return
     }
 
-    Surface(
-        color = oc.infoBarBg,
+    // 媒体信息行：暗玻璃条（与标题栏/控制条同材质），降级为原实底
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+        enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
+        cornerRadius = 12.dp,
+        staticGlass = true,
+        overlayDark = true,
+        fallbackColor = oc.infoBarBg,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 2.dp)  // 与视频区域间距
+            .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
         if (mediaInfo.isNotEmpty()) {
             Row(
@@ -572,13 +578,13 @@ private fun MediaBadge(
     isHighlight: Boolean = false
 ) {
     // 统一颜色：所有 badge 用 AptvAccent，除 HDR/HLG 高亮外
-    val bg = if (isHighlight) Color(0xFFFF6B00).copy(alpha = 0.2f)
-             else AptvAccent.copy(alpha = 0.15f)
     val fg = if (isHighlight) Color(0xFFFF9800)
              else AptvAccent
+    // 徽章：轻玻璃小卡（半透明白底+白描边），文字色保留原语义
     Surface(
-        color = bg,
-        shape = RoundedCornerShape(3.dp)
+        color = Color.White.copy(alpha = 0.10f),
+        shape = RoundedCornerShape(4.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
     ) {
         Text(
             text = label,

@@ -228,21 +228,27 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
             ) {
                 tabs.forEachIndexed { index, label ->
                     val isSelected = index == selectedTab
-                    Surface(
-                        color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                        shape = RoundedCornerShape(8.dp),
+                    // 与首页底部 tab 栏同款：选中项红字 + 红色描边圆角块
+                    val tabShape = RoundedCornerShape(10.dp)
+                    androidx.compose.foundation.layout.Box(
                         modifier = Modifier
                             .weight(1f)
+                            .clip(tabShape)
+                            .then(
+                                if (isSelected) Modifier.border(1.dp, AptvAccent.copy(alpha = 0.50f), tabShape)
+                                else Modifier
+                            )
                             .clickable { selectedTab = index }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) oc.textPrimary else oc.textSecondary,
+                            color = if (isSelected) AptvAccent else oc.textSecondary,
                             fontSize = 13.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            maxLines = 1
                         )
                     }
                 }
