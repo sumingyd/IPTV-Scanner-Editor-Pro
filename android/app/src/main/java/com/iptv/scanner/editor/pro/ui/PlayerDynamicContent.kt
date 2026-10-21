@@ -178,6 +178,8 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
     val player = viewModel.mpv
     val fileLoaded by player.fileLoaded.collectAsState()
     val oc = rememberPlayerOverlayColors()
+    // 播放页经 movableContent 移动，在竖屏 provider 之外 —— 需单独读取并提供玻璃开关
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
 
     // 判断是订阅频道还是本地文件
     val isLocalFile = currentChannel == null || currentIdx < 0
@@ -210,32 +212,39 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
         if (selectedTab >= tabs.size) selectedTab = 0
     }
 
+    androidx.compose.runtime.CompositionLocalProvider(LocalLiquidGlass provides liquidGlass) {
     Column(modifier = Modifier.fillMaxSize()) {
-        // Tab 栏（iOS 分段控制器式：选中白色圆角背景）
-        Row(
+        // Tab 栏（玻璃条：静态磨砂+描边；选中项白底高亮）
+        AptvGlassChip(
+            cornerRadius = 14.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(oc.infoBarBg)
-                .padding(horizontal = 6.dp, vertical = 4.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            tabs.forEachIndexed { index, label ->
-                val isSelected = index == selectedTab
-                Surface(
-                    color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { selectedTab = index }
-                ) {
-                    Text(
-                        text = label,
-                        color = if (isSelected) oc.textPrimary else oc.textSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            ) {
+                tabs.forEachIndexed { index, label ->
+                    val isSelected = index == selectedTab
+                    Surface(
+                        color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { selectedTab = index }
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (isSelected) oc.textPrimary else oc.textSecondary,
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
                 }
             }
         }
@@ -293,6 +302,7 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
                 }
             }
         }
+    }
     }
 }
 /** 本地文件信息面板 */
