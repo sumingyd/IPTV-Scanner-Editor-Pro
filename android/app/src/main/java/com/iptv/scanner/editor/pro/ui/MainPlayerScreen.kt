@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AspectRatio
@@ -768,10 +770,54 @@ viewModel.mpv.setMute(savedMute)
                                         .matchParentSize()
                                         .liquidGlassSource(hazeState)
                                 ) {
+                                    // 环境背景画布：深/浅主题渐变底 + 三色环境光斑。
+                                    // 4 个 tab 页面的玻璃卡在此画布上只做磨砂透出，不再各自带底色
+                                    val canvasDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .drawBehind {
+                                                drawRect(
+                                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                                        if (canvasDark) listOf(
+                                                            androidx.compose.ui.graphics.Color(0xFF0B0F1A),
+                                                            androidx.compose.ui.graphics.Color(0xFF151B2C)
+                                                        ) else listOf(
+                                                            androidx.compose.ui.graphics.Color(0xFFE9EEF7),
+                                                            androidx.compose.ui.graphics.Color(0xFFF9FBFF)
+                                                        )
+                                                    )
+                                                )
+                                                val g = if (canvasDark) 0.32f else 0.15f
+                                                drawCircle(
+                                                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                                        listOf(androidx.compose.ui.graphics.Color(0x5B8CFF).copy(alpha = g), androidx.compose.ui.graphics.Color.Transparent)
+                                                    ),
+                                                    radius = size.width * 0.85f,
+                                                    center = androidx.compose.ui.geometry.Offset(size.width * 0.15f, size.height * 0.12f)
+                                                )
+                                                drawCircle(
+                                                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                                        listOf(androidx.compose.ui.graphics.Color(0xC084FC).copy(alpha = g * 0.85f), androidx.compose.ui.graphics.Color.Transparent)
+                                                    ),
+                                                    radius = size.width * 0.75f,
+                                                    center = androidx.compose.ui.geometry.Offset(size.width * 0.95f, size.height * 0.52f)
+                                                )
+                                                drawCircle(
+                                                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                                        listOf(androidx.compose.ui.graphics.Color(0x34D399).copy(alpha = g * 0.7f), androidx.compose.ui.graphics.Color.Transparent)
+                                                    ),
+                                                    radius = size.width * 0.7f,
+                                                    center = androidx.compose.ui.geometry.Offset(size.width * 0.2f, size.height * 0.95f)
+                                                )
+                                            }
+                                    ) {}
                                     androidx.compose.runtime.CompositionLocalProvider(
                                         LocalAptvStyle provides true,
                                         // 覆盖全部 4 个竖屏 tab 内容：玻璃卡片/按钮组件统一读取开关
-                                        LocalLiquidGlass provides liquidGlass
+                                        LocalLiquidGlass provides liquidGlass,
+                                        // 画布模式：玻璃卡磨砂减淡，只透上面的环境画布
+                                        com.iptv.scanner.editor.pro.ui.theme.LocalGlassOnCanvas provides true
                                     ) {
                                         val aptvScheme = MaterialTheme.colorScheme.copy(
                                             primary = AptvAccent,

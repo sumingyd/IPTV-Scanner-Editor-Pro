@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -60,6 +61,13 @@ import kotlin.math.ceil
 /** 背景层 HazeState：由播放器/主页根布局 provide，玻璃面板读取后对背景取景模糊 */
 val LocalHazeState = compositionLocalOf<HazeState?> { null }
 
+/**
+ * 「画布模式」：玻璃卡直接浮在带环境光斑的页面画布上（竖屏 4 个 tab 内容区）。
+ * true 时玻璃自身磨砂底减淡、光斑增强 —— 玻璃只透下面画布，不再各自带底色（iOS 观感）。
+ * Dialog/独立窗口保持 false（底下无画布，需要自持底色保证可读性）。
+ */
+val LocalGlassOnCanvas = compositionLocalOf { false }
+
 /** 判断当前设备是否支持实时 backdrop blur（API 31+ RenderEffect） */
 internal fun isLiquidBlurSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
@@ -93,6 +101,10 @@ fun LiquidGlassSurface(
     // 浅色模式白上白不可辨 —— 提高玻璃不透明度 + 投影浮起 + 深色描边
     val darkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val glassBase = if (darkTheme) DarkGlass else LightGlass
+    // 画布模式：磨砂底减淡（透出页面画布），光斑增强（环境色更明显）
+    val onCanvas = LocalGlassOnCanvas.current
+    val frostAlpha = if (onCanvas) 0.40f else 1f
+    val glowScale = if (onCanvas) 1.7f else 1f
 
     Box(
         modifier = if (enabled && !darkTheme) {
@@ -120,13 +132,18 @@ fun LiquidGlassSurface(
                         }
                 )
             } else {
-                Box(modifier = Modifier.matchParentSize().background(glassBase.frostBrush))
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .graphicsLayer { alpha = frostAlpha }
+                        .background(glassBase.frostBrush)
+                )
             }
             // 层 2：环境彩色光斑 —— 模拟玻璃下透出的模糊世界（iOS 控制中心的灵魂）
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .drawBehind { drawAmbientGlow(size, glassBase) }
+                    .drawBehind { drawAmbientGlow(size, glassBase, glowScale) }
             )
             // 层 3：噪点颗粒（iOS 玻璃质感关键）—— 平铺绘制，保持锐利
             noise?.let {
@@ -224,13 +241,13 @@ private val GlowBlue = Color(0x2E5B8CFF)
 private val GlowPurple = Color(0x24C084FC)
 private val GlowTeal = Color(0x1F34D399)
 
-/** 环境彩色光斑：三色 radial 模拟玻璃下透出的模糊内容色彩 */
-private fun DrawScope.drawAmbientGlow(size: Size, base: GlassBase) {
+/** 环境彩色光斑：三色 radial 模拟玻璃下透出的模糊内容色彩；glowScale 画布模式下增强 */
+private fun DrawScope.drawAmbientGlow(size: Size, base: GlassBase, glowScale: Float = 1f) {
     val r = size.minDimension
     // 左上：蓝
     drawCircle(
         brush = Brush.radialGradient(
-            listOf(GlowBlue.copy(alpha = GlowBlue.alpha * base.glowAlpha), Color.Transparent)
+            listOf(GlowBlue.copy(alpha = GlowBlue.alpha * base.glowAlpha * glowScale), Color.Transparent)
         ),
         radius = r * 0.9f,
         center = Offset(size.width * 0.12f, size.height * 0.05f)
@@ -238,7 +255,7 @@ private fun DrawScope.drawAmbientGlow(size: Size, base: GlassBase) {
     // 右中：紫粉
     drawCircle(
         brush = Brush.radialGradient(
-            listOf(GlowPurple.copy(alpha = GlowPurple.alpha * base.glowAlpha), Color.Transparent)
+            listOf(GlowPurple.copy(alpha = GlowPurple.alpha * base.glowAlpha * glowScale), Color.Transparent)
         ),
         radius = r * 0.8f,
         center = Offset(size.width * 0.92f, size.height * 0.55f)
@@ -246,7 +263,7 @@ private fun DrawScope.drawAmbientGlow(size: Size, base: GlassBase) {
     // 左下：青绿
     drawCircle(
         brush = Brush.radialGradient(
-            listOf(GlowTeal.copy(alpha = GlowTeal.alpha * base.glowAlpha), Color.Transparent)
+            listOf(GlowTeal.copy(alpha = GlowTeal.alpha * base.glowAlpha * glowScale), Color.Transparent)
         ),
         radius = r * 0.75f,
         center = Offset(size.width * 0.2f, size.height * 1.0f)
