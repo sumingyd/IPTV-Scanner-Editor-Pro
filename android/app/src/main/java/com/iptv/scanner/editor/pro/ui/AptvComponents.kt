@@ -87,13 +87,22 @@ internal fun AptvGlassChip(
 ) {
     val liquidGlass = LocalLiquidGlass.current
     if (liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported()) {
-        com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
-            enabled = true,
-            cornerRadius = cornerRadius,
-            staticGlass = true,
-            fallbackColor = Color.Transparent,
+        // 轻量单层玻璃（与玻璃按钮同风格）：小部件上叠加厚霜/双描边会出现「两层玻璃」观感
+        val shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius)
+        androidx.compose.foundation.layout.Box(
             modifier = modifier
-        ) { content() }
+                .clip(shape)
+                .background(Color.White.copy(alpha = 0.10f), shape)
+                .border(1.dp, Color.White.copy(alpha = 0.28f), shape)
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        0f to Color.White.copy(alpha = 0.12f),
+                        1f to Color.Transparent
+                    ),
+                    shape
+                ),
+            content = content
+        )
     } else {
         androidx.compose.foundation.layout.Box(modifier = modifier, content = content)
     }

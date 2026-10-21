@@ -747,15 +747,20 @@ viewModel.mpv.setMute(savedMute)
                             // 频道播放：currentCh 不为 null；本地视频：currentCh 为 null 但 displayInfo.name 有值
                             val hasMini = fileLoaded2 && (currentCh != null || displayInfo.name.isNotEmpty())
                             if (hasMini) {
-                                MiniPlayerBar(
-                                    viewModel = viewModel,
-                                    channelName = currentCh?.name ?: displayInfo.name,
-                                    channelLogo = currentCh?.logo ?: "",
-                                    groupName = currentCh?.group ?: "",
-                                    isPaused = paused2,
-                                    onClick = { viewModel.showPlayerScreen() },
-                                    onPlayPause = { viewModel.mpv.togglePause() }
-                                )
+                                // Mini 条在内容区 provider 之外，需单独提供玻璃开关
+                                androidx.compose.runtime.CompositionLocalProvider(
+                                    LocalLiquidGlass provides liquidGlass
+                                ) {
+                                    MiniPlayerBar(
+                                        viewModel = viewModel,
+                                        channelName = currentCh?.name ?: displayInfo.name,
+                                        channelLogo = currentCh?.logo ?: "",
+                                        groupName = currentCh?.group ?: "",
+                                        isPaused = paused2,
+                                        onClick = { viewModel.showPlayerScreen() },
+                                        onPlayPause = { viewModel.mpv.togglePause() }
+                                    )
+                                }
                             }
                             // 内容区域（iOS 式淡入淡出转场）
                             // 内容延伸到底部，底部 tab 栏悬浮其上 —— tab 栏对滚动内容实时真模糊
