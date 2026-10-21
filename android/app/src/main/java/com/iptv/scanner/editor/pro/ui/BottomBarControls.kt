@@ -201,7 +201,19 @@ internal fun PortraitBottomTabBar(
                 modifier = Modifier
                     .height(54.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .then(if (isSelected) Modifier.border(1.dp, accentColor.copy(alpha = 0.50f), RoundedCornerShape(10.dp)) else Modifier)
+                    .then(
+                        if (isSelected) Modifier
+                            .background(Color.White.copy(alpha = 0.20f), RoundedCornerShape(10.dp))
+                            .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    0f to Color.White.copy(alpha = 0.22f),
+                                    1f to Color.Transparent
+                                ),
+                                RoundedCornerShape(10.dp)
+                            )
+                        else Modifier
+                    )
                     .clickable {
                         viewModel.setPortraitTab(tab)
                     }

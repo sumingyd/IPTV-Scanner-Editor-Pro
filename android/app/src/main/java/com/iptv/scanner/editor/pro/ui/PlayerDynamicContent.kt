@@ -228,14 +228,23 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
             ) {
                 tabs.forEachIndexed { index, label ->
                     val isSelected = index == selectedTab
-                    // 与首页底部 tab 栏同款：选中项红字 + 红色描边圆角块
+                    // iOS 分段控件式选中：白亮玻璃凸起块（磨砂+白描边+高光），而非描边换色
                     val tabShape = RoundedCornerShape(10.dp)
                     androidx.compose.foundation.layout.Box(
                         modifier = Modifier
                             .weight(1f)
                             .clip(tabShape)
                             .then(
-                                if (isSelected) Modifier.border(1.dp, AptvAccent.copy(alpha = 0.50f), tabShape)
+                                if (isSelected) Modifier
+                                    .background(Color.White.copy(alpha = 0.20f), tabShape)
+                                    .border(1.dp, Color.White.copy(alpha = 0.45f), tabShape)
+                                    .background(
+                                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                                            0f to Color.White.copy(alpha = 0.22f),
+                                            1f to Color.Transparent
+                                        ),
+                                        tabShape
+                                    )
                                 else Modifier
                             )
                             .clickable { selectedTab = index }
@@ -244,7 +253,7 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) AptvAccent else oc.textSecondary,
+                            color = if (isSelected) Color.White else oc.textSecondary,
                             fontSize = 13.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             textAlign = TextAlign.Center,
@@ -254,8 +263,6 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
                 }
             }
         }
-        // 分隔线
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
         // Tab 内容（iOS 式淡入淡出转场）
         Box(modifier = Modifier.fillMaxSize()) {
             if (isLocalFile) {

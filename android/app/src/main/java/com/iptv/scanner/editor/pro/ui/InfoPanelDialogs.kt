@@ -586,7 +586,7 @@ private fun MediaBadge(
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
     ) {
         Text(
-            text = label,
+            text = label.uppercase(),
             color = fg,
             fontSize = 9.sp,
             fontWeight = FontWeight.Medium,
