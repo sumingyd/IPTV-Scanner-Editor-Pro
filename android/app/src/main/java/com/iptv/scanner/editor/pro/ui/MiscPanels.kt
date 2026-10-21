@@ -267,9 +267,9 @@ fun ExitConfirmDialog(viewModel: AppViewModel) {
                 cornerRadius = 22.dp,
                 staticGlass = true,
                 fallbackColor = MaterialTheme.colorScheme.surface,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = if (glass) 0.88f else 1f))
+                // 注意：这里不能再叠加 modifier.background —— 方角背景画在圆角裁剪之外，
+                // 会在弹窗圆角外露出黑色直角；非玻璃态由 fallbackColor 提供圆角实底
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,

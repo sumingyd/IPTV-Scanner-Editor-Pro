@@ -1007,7 +1007,12 @@ internal fun AppViewModel.closeAllPanels() {
 
 internal fun AppViewModel.closeAnyPanel(): Boolean {
     val hadOpen = anyPanelOpen
-    closeAllPanels()
+    // 仅在有面板打开时执行关闭：
+    // closeAllPanels 的副作用（showControlsAutoHide 拉起控制条）会让 BACK 键
+    // 随即被 controlsVisible 判断消费（拉起→收起），导致退出确认弹窗永远弹不出
+    if (hadOpen) {
+        closeAllPanels()
+    }
     return hadOpen
 }
 
