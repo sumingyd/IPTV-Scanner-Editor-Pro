@@ -192,18 +192,18 @@ internal fun MiniPlayerBar(
     }
     val progTitle = currentProgram?.title?.ifEmpty { null } ?: "精彩节目"
 
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-        shape = RoundedCornerShape(12.dp),
+    // Mini 播放条：玻璃底座（磨砂+描边），关闭/降级回落原 surfaceVariant 实底
+    AptvGlassChip(
+        cornerRadius = 12.dp,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp)
             .height(48.dp)
-            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
+                .clickable(onClick = onClick)
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

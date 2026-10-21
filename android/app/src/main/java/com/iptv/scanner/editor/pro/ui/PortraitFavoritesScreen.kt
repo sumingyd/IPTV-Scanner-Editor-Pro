@@ -80,20 +80,27 @@ internal fun PortraitFavoritesScreen(
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.weight(1f))
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = "刷新预览",
-                tint = AptvAccent,
-                modifier = Modifier
-                    .size(22.dp)
-                    .clickable { viewModel.loadThumbnailPaths() }
-            )
+            // 刷新预览：玻璃圆形按钮
+            AptvGlassChip(cornerRadius = 16.dp, modifier = Modifier.size(32.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { viewModel.loadThumbnailPaths() },
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "刷新预览",
+                        tint = AptvAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
 
-        // 搜索框
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+        // 搜索框：玻璃底座
+        AptvGlassChip(
+            cornerRadius = 10.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)

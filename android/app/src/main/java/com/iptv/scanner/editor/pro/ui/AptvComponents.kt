@@ -76,6 +76,30 @@ internal fun AptvSectionHeader(title: String) {
 }
 
 /**
+ * 玻璃底座容器：液态玻璃开启时把内容包成静态玻璃（磨砂+描边+高光），
+ * 关闭/降级时原样透传（无任何背景）。用于头部按钮、搜索框、Mini 播放条等小部件。
+ */
+@Composable
+internal fun AptvGlassChip(
+    modifier: Modifier = Modifier,
+    cornerRadius: androidx.compose.ui.unit.Dp = 20.dp,
+    content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit
+) {
+    val liquidGlass = LocalLiquidGlass.current
+    if (liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported()) {
+        com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+            enabled = true,
+            cornerRadius = cornerRadius,
+            staticGlass = true,
+            fallbackColor = Color.Transparent,
+            modifier = modifier
+        ) { content() }
+    } else {
+        androidx.compose.foundation.layout.Box(modifier = modifier, content = content)
+    }
+}
+
+/**
  * 玻璃胶囊按钮：液态玻璃开启时为半透明磨砂 + 白描边 + 顶部高光（iOS 拟态玻璃按钮），
  * 关闭/降级时回落到 Material3 OutlinedButton 原样式。
  * 与 material3.OutlinedButton 同签名，面板文件删除 import 即可零改动切换。

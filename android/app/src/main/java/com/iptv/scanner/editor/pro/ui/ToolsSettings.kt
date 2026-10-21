@@ -244,21 +244,31 @@ internal fun PortraitToolsScreen(
                 color = AptvAccent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.clickable { editMode = !editMode }
+                modifier = Modifier
+                    .clickable { editMode = !editMode }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             )
             Spacer(modifier = Modifier.weight(1f))
-            Icon(
-                Icons.Default.Refresh,
-                contentDescription = "刷新源与频道",
-                tint = AptvAccent,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable {
-                        viewModel.loadSources()
-                        viewModel.loadEpgSources()
-                        viewModel.loadChannels()
-                    }
-            )
+            // 刷新源与频道：玻璃圆形按钮
+            AptvGlassChip(cornerRadius = 16.dp, modifier = Modifier.size(32.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable {
+                            viewModel.loadSources()
+                            viewModel.loadEpgSources()
+                            viewModel.loadChannels()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "刷新源与频道",
+                        tint = AptvAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
 
         }
         Text(

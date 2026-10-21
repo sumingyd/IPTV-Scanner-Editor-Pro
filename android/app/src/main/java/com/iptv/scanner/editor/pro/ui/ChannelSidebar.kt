@@ -281,62 +281,73 @@ internal fun PortraitListScreen(
                 .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 左侧：分组入口（APTV 用源名行做分组切换）
-            Text(
-                text = if (selectedGroup.isEmpty()) "全部分组" else selectedGroup,
-                color = AptvAccent,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { showGroupSheet = true }
-            )
+            // 左侧：分组入口（APTV 用源名行做分组切换）—— 玻璃胶囊
+            AptvGlassChip(cornerRadius = 14.dp, modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (selectedGroup.isEmpty()) "全部分组" else selectedGroup,
+                    color = AptvAccent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .clickable { showGroupSheet = true }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(10.dp))
             // 右侧：源切换（多源切换，对齐 APTV 配置切换）—— 玻璃圆形按钮
-            IconButton(onClick = { showSourceSheet = true }) {
-                Icon(
-                    imageVector = Icons.Default.SwapHoriz,
-                    contentDescription = "切换订阅源",
-                    tint = AptvAccent,
-                    modifier = Modifier.size(20.dp)
-                )
+            AptvGlassChip(cornerRadius = 18.dp, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = { showSourceSheet = true }, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.SwapHoriz,
+                        contentDescription = "切换订阅源",
+                        tint = AptvAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(6.dp))
             // 右侧：视图切换 + 预览图菜单
-            IconButton(
-                onClick = {
-                    viewModel.setListViewMode(
-                        if (viewMode == ListViewMode.LIST) ListViewMode.THUMBNAIL
-                        else ListViewMode.LIST
+            AptvGlassChip(cornerRadius = 18.dp, modifier = Modifier.size(36.dp)) {
+                IconButton(
+                    onClick = {
+                        viewModel.setListViewMode(
+                            if (viewMode == ListViewMode.LIST) ListViewMode.THUMBNAIL
+                            else ListViewMode.LIST
+                        )
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (viewMode == ListViewMode.LIST) Icons.Default.GridView else Icons.Default.ViewList,
+                        contentDescription = "切换视图",
+                        tint = AptvAccent,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-            ) {
-                Icon(
-                    imageVector = if (viewMode == ListViewMode.LIST) Icons.Default.GridView else Icons.Default.ViewList,
-                    contentDescription = "切换视图",
-                    tint = AptvAccent,
-                    modifier = Modifier.size(20.dp)
-                )
             }
             Spacer(modifier = Modifier.width(2.dp))
-            IconButton(onClick = { viewMenuExpanded = true }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "预览图菜单",
-                    tint = AptvAccent,
-                    modifier = Modifier.size(20.dp)
-                )
+            AptvGlassChip(cornerRadius = 18.dp, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = { viewMenuExpanded = true }, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "预览图菜单",
+                        tint = AptvAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(6.dp))
-            IconButton(onClick = { viewModel.loadChannels() }) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "刷新频道",
-                    tint = AptvAccent,
-                    modifier = Modifier.size(20.dp)
-                )
+            AptvGlassChip(cornerRadius = 18.dp, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = { viewModel.loadChannels() }, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "刷新频道",
+                        tint = AptvAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
         Text(
@@ -350,9 +361,9 @@ internal fun PortraitListScreen(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-            shape = RoundedCornerShape(10.dp),
+        // 搜索框：玻璃底座（磨砂+描边），关闭时回落原 surfaceVariant 实底
+        AptvGlassChip(
+            cornerRadius = 10.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
