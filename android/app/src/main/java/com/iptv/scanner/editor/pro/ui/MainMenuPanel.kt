@@ -403,6 +403,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             GlassPanel(
                 liquidGlass = liquidGlass,
                 cornerRadius = 10.dp,
+                overlayDark = true,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .fillMaxHeight()
@@ -411,10 +412,9 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                     .focusable()
             ) {
                 // 列序（面板靠右显示，层级从右往左）：最右=一级分组列，往左=二级条目列
+                // 不叠加实底 scrim：会盖住玻璃的磨砂/光斑/噪点质感
                 Row(
-                    modifier = Modifier
-                        .wrapContentWidth()
-                        .background(Color(0x99000000), RoundedCornerShape(10.dp))
+                    modifier = Modifier.wrapContentWidth()
                 ) {
                     // 左列：二级条目（当前选中分组下的菜单项）
                     if (currentSection != null && currentSection.entries.isNotEmpty()) {

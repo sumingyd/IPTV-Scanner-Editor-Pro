@@ -94,7 +94,7 @@ private val ACCENT_CYAN = Color(0xFF00BCD4)
 private val ICON_BG = Color(0x32FFFFFF)
 
 /** 面板可读性底色：玻璃霜层上垫深色底，避免亮色视频背景下文字看不清 */
-private val TV_PANEL_SCRIM = Color(0x99000000)
+// 玻璃面板不再叠加实底 scrim：深色可读性由玻璃材质 overlayDark 暗玻璃霜层提供
 /** 栏间分隔条颜色 */
 private val TV_DIVIDER = Color(0x24FFFFFF)
 
@@ -305,13 +305,13 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                     GlassPanel(
                         liquidGlass = liquidGlass,
                         cornerRadius = 10.dp,
+                        overlayDark = true,
                         modifier = Modifier.fillMaxHeight()
                     ) {
-                        // 玻璃霜层上垫深色可读性底色（亮色视频背景下保证文字清晰）
+                        // 玻璃材质自带暗色霜层（overlayDark），不再叠加实底 scrim ——
+                        // 叠加深色底衬会盖住磨砂/光斑/噪点，让玻璃退化成"只有透明度"的观感
                         Row(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .background(TV_PANEL_SCRIM, RoundedCornerShape(10.dp))
+                            modifier = Modifier.fillMaxHeight()
                         ) {
                             // 第一列：分组列表
                             if (showGroups) {
@@ -513,6 +513,7 @@ private fun SourceSwitchColumn(
         enabled = liquidGlass && isLiquidBlurSupported(),
         cornerRadius = 10.dp,
         staticGlass = true,
+        overlayDark = true,
         fallbackColor = Color(0xE6222226),
         modifier = modifier.fillMaxHeight()
     ) {
@@ -629,10 +630,11 @@ private fun QuickMenuColumn(
         enabled = liquidGlass && isLiquidBlurSupported(),
         cornerRadius = 10.dp,
         staticGlass = true,
+        overlayDark = true,
         fallbackColor = Color(0xE6222226),
-        modifier = modifier.fillMaxHeight().padding(end = 6.dp)
+        modifier = modifier.fillMaxHeight()
     ) {
-        // 轻量单层玻璃：不再额外垫深色底衬，避免与玻璃卡叠加成"双层玻璃"观感
+        // 轻量单层玻璃：不额外垫深色底衬，避免双层叠加观感
         // （fallbackColor 已提供底色，图标为白色高对比，可读性足够）
         Column(
             modifier = Modifier
@@ -1109,10 +1111,9 @@ private fun MenuColumn(
         color = Color.Transparent,
         modifier = modifier.fillMaxHeight()
     ) {
+        // 玻璃质感由外层 GlassPanel（overlayDark 暗玻璃）提供，此处不再叠加实底 scrim
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(TV_PANEL_SCRIM, RoundedCornerShape(10.dp))
+            modifier = Modifier.fillMaxSize()
         ) {
             Text(
                 text = "主菜单",

@@ -112,7 +112,7 @@ private val SIDEBAR_GRADIENT_END = Color(0xFF052D49)
 private val ICON_BG = Color(0x32FFFFFF)
 private val TIME_BG = Color(0x26000000)
 /** 底栏可读性底色：玻璃霜层上垫深色底 */
-private val TV_BAR_SCRIM = Color(0x99000000)
+// 底栏不再叠加实底 scrim：深色可读性由玻璃材质 overlayDark 暗玻璃霜层提供
 /** 行间分隔条颜色 */
 private val TV_ROW_DIVIDER = Color(0x1FFFFFFF)
 
@@ -406,11 +406,10 @@ private fun TvBottomBar(
         } else null
     }
 
-    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 8.dp) {
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 8.dp, overlayDark = true) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(TV_BAR_SCRIM, RoundedCornerShape(8.dp))
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

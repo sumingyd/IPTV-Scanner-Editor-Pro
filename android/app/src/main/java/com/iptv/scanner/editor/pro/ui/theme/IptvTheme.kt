@@ -264,12 +264,14 @@ fun GlassPanel(
     liquidGlass: Boolean,
     modifier: Modifier = Modifier,
     cornerRadius: androidx.compose.ui.unit.Dp = 10.dp,
+    overlayDark: Boolean = false,
     content: @Composable () -> Unit
 ) {
     LiquidGlassSurface(
         enabled = liquidGlass && isLiquidBlurSupported(),
         cornerRadius = cornerRadius,
         staticGlass = true,
+        overlayDark = overlayDark,
         fallbackColor = Color(0xF0222222),
         modifier = modifier
     ) {

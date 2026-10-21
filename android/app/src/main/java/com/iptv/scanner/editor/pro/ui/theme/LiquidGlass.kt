@@ -225,18 +225,20 @@ private val DarkGlass = GlassBase(
 private val OverlayGlass = GlassBase(
     blurTint = Color(0x66000000),          // 黑 40%
     fallbackSolid = Color(0xCC1A1C22),
+    // 视频是 SurfaceView（硬件合成层）无法被采样做背景模糊 —— 霜层必须足够厚
+    // （65%→50% 带蓝调）才能同时给出玻璃质感与白字可读性；太薄会退化成"只有透明度"
     frostBrush = Brush.verticalGradient(
-        listOf(Color(0x59000000), Color(0x47000000), Color(0x3D000000))
+        listOf(Color(0xA60D1016), Color(0x8F111922), Color(0x80131A20))
     ),
     glossBrush = Brush.verticalGradient(
-        0f to Color.White.copy(alpha = 0.10f),
-        0.35f to Color.White.copy(alpha = 0.03f),
+        0f to Color.White.copy(alpha = 0.20f),
+        0.35f to Color.White.copy(alpha = 0.06f),
         0.7f to Color.Transparent,
-        1f to Color.Black.copy(alpha = 0.10f)
+        1f to Color.Black.copy(alpha = 0.12f)
     ),
-    glowAlpha = 0.35f,
-    borderTop = 0.30f, borderMid = 0.08f, borderBottom = 0.16f,
-    innerHighlight = 0.10f
+    glowAlpha = 0.5f,
+    borderTop = 0.40f, borderMid = 0.10f, borderBottom = 0.20f,
+    innerHighlight = 0.12f
 )
 
 /** 浅色主题：更实的白玻璃 + 阴影浮起（由外部 shadow 提供）+ 深色底边可辨 */
