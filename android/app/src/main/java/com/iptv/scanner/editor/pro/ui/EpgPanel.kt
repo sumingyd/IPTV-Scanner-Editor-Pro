@@ -21,6 +21,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -60,6 +67,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.data.IptvEpgProgram
 import com.iptv.scanner.editor.pro.player.CatchupHelper
+import com.iptv.scanner.editor.pro.ui.theme.LocalHazeState
+import com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface
+import com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import com.iptv.scanner.editor.pro.ui.theme.tvTextField
 import kotlinx.coroutines.delay
@@ -84,23 +94,10 @@ import java.util.Locale
  */
 @Composable
 fun EpgPanel(viewModel: AppViewModel, compact: Boolean = false) {
-    val currentChannel by viewModel.currentChannel.collectAsState()
-    val playbackState by viewModel.playbackState.collectAsState()
-    val epgTrimmed by viewModel.currentEpg.collectAsState()
-    val epg = remember(epgTrimmed, viewModel.epgCacheVersion.value) {
-        viewModel.getFullEpgForCurrent()
-    }
-    val loading by viewModel.epgLoading.collectAsState()
-    val currentIdx by viewModel.currentIdx.collectAsState()
-
     // 自动检测横屏模式：横屏时使用更窄的侧边栏布局
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val effectiveCompact = compact || isLandscape
-
-
-    // EPG 日期切换（±7 天，0=今天）
-    var epgDateOffset by remember { mutableStateOf(0) }
 
     // TV 焦点管理：面板打开时请求焦点到关闭按钮，确保 DPAD 可操作。
     val closeFocusRequester = remember { FocusRequester() }
@@ -127,7 +124,30 @@ fun EpgPanel(viewModel: AppViewModel, compact: Boolean = false) {
         modifier = surfaceModifier
     ) {
         Column(modifier = Modifier.fillMaxSize().then(if (effectiveCompact) Modifier else Modifier.systemBarsPadding())) {
-            // 标题栏已移除（活动区域内显示不需要标题）
+            EpgPanelBody(viewModel)
+        }
+    }
+}
+
+/**
+ * EPG 面板主体：日期切换栏（±7 天）+ 节目列表。
+ * 横屏/TV 左侧抽屉（EpgPanel）与竖屏底部弹层（PortraitEpgBottomSheet）共用。
+ */
+@Composable
+private fun EpgPanelBody(viewModel: AppViewModel) {
+    val currentChannel by viewModel.currentChannel.collectAsState()
+    val playbackState by viewModel.playbackState.collectAsState()
+    val epgTrimmed by viewModel.currentEpg.collectAsState()
+    val epg = remember(epgTrimmed, viewModel.epgCacheVersion.value) {
+        viewModel.getFullEpgForCurrent()
+    }
+    val loading by viewModel.epgLoading.collectAsState()
+    val currentIdx by viewModel.currentIdx.collectAsState()
+
+    // EPG 日期切换（±7 天，0=今天）
+    var epgDateOffset by remember { mutableStateOf(0) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
 
             // -----------------------------------------------------------------
             // 日期切换栏（±7 天）
@@ -223,6 +243,103 @@ fun EpgPanel(viewModel: AppViewModel, compact: Boolean = false) {
                                 handleProgramClick(program, viewModel)
                             }
                         )
+                    }
+                }
+            }
+        }
+    }
+
+/**
+ * 竖屏播放页 EPG 底部弹层：iOS sheet 风格，从底部滑入的液态玻璃卡片。
+ * 点击频道行「节目单」按钮 / 主菜单「节目单 EPG」时以该样式呈现（横屏/TV 仍用左侧抽屉 EpgPanel）。
+ * 蒙层点击或系统返回关闭；玻璃关闭时降级为实底面板。
+ */
+@Composable
+fun PortraitEpgBottomSheet(viewModel: AppViewModel) {
+    val liquidGlass = LocalLiquidGlass.current
+    val hazeState = LocalHazeState.current
+    val useGlass = liquidGlass && isLiquidBlurSupported() && hazeState != null
+
+    // 进入动画：蒙层淡入 + 卡片从底部滑入
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val scrimAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(260),
+        label = "epg-sheet-scrim"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.55f * scrimAlpha))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { viewModel.toggleEpgPanel() }
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(260)
+            ),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(200)
+            ),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
+            ) {
+                // 玻璃卡下垫主题色半透明实底：正下方是频道列表同字号白字，
+                // 仅靠霜层（白 25~40%）会叠字；实底压暗后玻璃质感层（高光/噪点/描边）保留
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.74f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+                ) {
+                    LiquidGlassSurface(
+                        enabled = useGlass,
+                        cornerRadius = 24.dp,
+                        // 播放页经 movableContent 移动，与标题栏/控制条一致使用静态玻璃；
+                        // 实时 blur 在此采样失效会导致整卡透明、底层文字穿透
+                        staticGlass = true,
+                        fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+                        modifier = Modifier.matchParentSize()
+                    ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // 顶部抓握条
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(44.dp)
+                                    .height(5.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                                        RoundedCornerShape(3.dp)
+                                    )
+                            )
+                        }
+                        // 磨砂底上的可读性提升：次要文字提亮、primary 用主题红
+                        val sheetScheme = MaterialTheme.colorScheme.copy(
+                            primary = AptvAccent,
+                            onPrimary = Color.White,
+                            onSurfaceVariant = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
+                        )
+                        MaterialTheme(colorScheme = sheetScheme) {
+                            EpgPanelBody(viewModel)
+                        }
+                    }
                     }
                 }
             }

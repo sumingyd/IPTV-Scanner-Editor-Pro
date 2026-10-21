@@ -983,9 +983,13 @@ viewModel.mpv.setMute(savedMute)
             ChannelsPanel(viewModel = viewModel)
         }
 
-        // 节目单面板（菜单 → 节目单 EPG）
+        // 节目单面板：竖屏用底部弹层玻璃样式，横屏/TV 保持左侧抽屉
         if (epgPanelOpen) {
-            EpgPanel(viewModel = viewModel)
+            if (isLandscape) {
+                EpgPanel(viewModel = viewModel)
+            } else {
+                PortraitEpgBottomSheet(viewModel = viewModel)
+            }
         }
 
         // 文件浏览器（全屏覆盖，SAF 不可用时的替代方案）
