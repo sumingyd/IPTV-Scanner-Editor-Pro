@@ -244,95 +244,7 @@ fun ExitConfirmDialog(viewModel: AppViewModel) {
     val activity = context as? android.app.Activity
     val isAptv = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
 
-    if (isAptv) {
-        // iOS APTV 风格：居中圆角卡片 + 纵向操作列表
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { viewModel.dismissExitConfirm() },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "退出应用",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "请选择退出方式：",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(20.dp))
-                    // PiP
-                    if (activity != null &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                        activity.packageManager.hasSystemFeature("android.software.picture_in_picture")
-                    ) {
-                        Text(
-                            text = "画中画",
-                            fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                viewModel.dismissExitConfirm()
-                                try {
-                                    val builder = android.app.PictureInPictureParams.Builder()
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        builder.setAutoEnterEnabled(true)
-                                        builder.setSeamlessResizeEnabled(true)
-                                    }
-                                    activity.enterPictureInPictureMode(builder.build())
-                                } catch (e: Exception) {
-                                    Log.e("ExitConfirmDialog", "PiP failed", e)
-                                }
-                            }.padding(vertical = 12.dp)
-                        )
-                    }
-                    // 立即退出
-                    Text(
-                        text = "立即退出",
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            viewModel.dismissExitConfirm()
-                            viewModel.stopPlay()
-                            activity?.finishAffinity()
-                        }.padding(vertical = 12.dp)
-                    )
-                    // 打开设置
-                    Text(
-                        text = "打开设置",
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            viewModel.dismissExitConfirm()
-                            viewModel.togglePlayerSettings()
-                        }.padding(vertical = 12.dp)
-                    )
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                    // 取消
-                    Text(
-                        text = "取消",
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth().clickable { viewModel.dismissExitConfirm() }
-                            .padding(vertical = 12.dp)
-                    )
-                }
-            }
-        }
-    } else {
-        // iOS 风格玻璃退出弹窗：圆角玻璃卡片 + 居中标题 + 竖排选项（独立窗口走静态玻璃）
+    // iOS 风格玻璃退出弹窗：圆角玻璃卡片 + 居中标题 + 竖排选项（独立窗口走静态玻璃）
         val glass = LocalLiquidGlass.current &&
             com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported() &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -344,7 +256,7 @@ fun ExitConfirmDialog(viewModel: AppViewModel) {
                 fallbackColor = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = if (glass) 0.72f else 1f))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = if (glass) 0.88f else 1f))
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -400,7 +312,6 @@ fun ExitConfirmDialog(viewModel: AppViewModel) {
                 }
             }
         }
-    }
 }
 
 /** 退出弹窗选项行：全宽点击 + 居中文字（iOS ActionSheet 样式） */
