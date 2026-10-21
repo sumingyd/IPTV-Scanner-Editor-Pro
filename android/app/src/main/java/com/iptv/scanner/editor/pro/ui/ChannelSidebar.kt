@@ -792,13 +792,20 @@ private fun ChannelListPanel(
             val hasThumb = thumbPath != null && File(thumbPath).exists()
             val latency = latencyMap[channel.url]
 
-            Surface(
-                color = if (isCurrent) AptvAccent.copy(alpha = 0.12f)
+            // 频道行：圆角玻璃卡片（磨砂+光斑+描边），当前播放行叠加品牌色高亮
+            com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+                enabled = LocalLiquidGlass.current && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
+                cornerRadius = 12.dp,
+                staticGlass = true,
+                fallbackColor = if (isCurrent) AptvAccent.copy(alpha = 0.12f)
                     else MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .background(
+                        if (isCurrent) AptvAccent.copy(alpha = 0.10f) else Color.Transparent,
+                        RoundedCornerShape(12.dp)
+                    )
                     .combinedClickable(
                         onClick = { if (idx >= 0) viewModel.playChannel(idx) },
                         onLongClick = {
@@ -966,24 +973,35 @@ private fun ChannelThumbnailPanel(
             } else null
             val channelGroup = channel.group.ifEmpty { "未分组" }
 
-            Surface(
-                color = if (isCurrent) AptvAccent.copy(alpha = 0.12f) else Color.Transparent,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.combinedClickable(
-                    onClick = { if (idx >= 0) viewModel.playChannel(idx) },
-                    onLongClick = {
-                        if (idx >= 0) {
-                            viewModel.toggleFavoriteByIndex(idx)
+            // 宫格卡：圆角玻璃卡片（磨砂+光斑+描边），当前播放卡叠加品牌色高亮
+            com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+                enabled = LocalLiquidGlass.current && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
+                cornerRadius = 12.dp,
+                staticGlass = true,
+                fallbackColor = if (isCurrent) AptvAccent.copy(alpha = 0.12f)
+                    else MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier
+                    .background(
+                        if (isCurrent) AptvAccent.copy(alpha = 0.10f) else Color.Transparent,
+                        RoundedCornerShape(12.dp)
+                    )
+                    .combinedClickable(
+                        onClick = { if (idx >= 0) viewModel.playChannel(idx) },
+                        onLongClick = {
+                            if (idx >= 0) {
+                                viewModel.toggleFavoriteByIndex(idx)
+                            }
                         }
-                    }
-                )
+                    )
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                // 内缩边距：四周露出玻璃边框，预览图圆角内嵌（iOS 卡片风格）
+                Column(modifier = Modifier.fillMaxWidth().padding(5.dp)) {
                     // 预览图/台标区域（16:9）
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(16f / 9f)
+                            .clip(RoundedCornerShape(9.dp))
                             .background(Color.Black)
                     ) {
                         if (hasThumb) {
