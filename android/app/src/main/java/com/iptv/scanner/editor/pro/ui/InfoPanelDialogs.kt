@@ -726,6 +726,8 @@ fun PortraitPanelDialog(
                                 onPrimary = Color.White,
                                 primaryContainer = AptvAccent.copy(alpha = 0.15f),
                                 onPrimaryContainer = AptvAccent,
+                                // 玻璃页面上次要文字提亮，保证磨砂底上的可读性
+                                onSurfaceVariant = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
                             )
                             MaterialTheme(colorScheme = aptvScheme) {
                                 scaledContent()

@@ -130,11 +130,8 @@ fun AboutPanel(viewModel: AppViewModel) {
         onClose = { viewModel.toggleAboutPanel() }
     ) {
         SettingsGroup("版本信息") {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            // 玻璃化：版本信息表用 APTV 玻璃卡（静态磨砂+描边），替代原 surfaceVariant 实底
+            AptvGroupCard {
                 Column(modifier = Modifier.padding(16.dp)) {
                     InfoRow("应用名称", "ISEP")
                     InfoRow("版本", currentVersion)
