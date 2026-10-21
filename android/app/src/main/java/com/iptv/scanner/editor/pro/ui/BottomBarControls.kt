@@ -254,13 +254,12 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
     val currentIdx by viewModel.currentIdx.collectAsState()
     val oc = rememberPlayerOverlayColors()
 
-    // 标题栏：暗玻璃条（白字可读 + 视频透出），跟随玻璃开关，降级为原实底
+    // 标题栏：玻璃条（亮磨砂，跟随玻璃开关），降级为原实底
     val liquidGlass by viewModel.liquidGlass.collectAsState()
     LiquidGlassSurface(
         enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
         cornerRadius = 14.dp,
         staticGlass = true,
-        overlayDark = true,
         fallbackColor = oc.topBarBg.copy(alpha = 0.80f),
         modifier = Modifier
             .fillMaxWidth()
@@ -388,13 +387,12 @@ internal fun PortraitControlsV2(viewModel: AppViewModel) {
     var dragging by remember { mutableStateOf(false) }
     var dragPercent by remember { mutableStateOf(0f) }
 
-    // 控制条：暗玻璃条（白字可读 + 视频透出），跟随玻璃开关，降级为原实底
+    // 控制条：玻璃条（亮磨砂，跟随玻璃开关），降级为原实底
     val liquidGlass by viewModel.liquidGlass.collectAsState()
     LiquidGlassSurface(
         enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
         cornerRadius = 14.dp,
         staticGlass = true,
-        overlayDark = true,
         fallbackColor = oc.infoBarBg.copy(alpha = 0.80f),
         modifier = Modifier
             .fillMaxWidth()

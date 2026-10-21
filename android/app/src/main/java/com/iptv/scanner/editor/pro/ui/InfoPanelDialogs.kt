@@ -490,13 +490,12 @@ internal fun PortraitMediaInfoBar(viewModel: AppViewModel) {
         return
     }
 
-    // 媒体信息行：暗玻璃条（与标题栏/控制条同材质），降级为原实底
+    // 媒体信息行：玻璃条（亮磨砂），降级为原实底
     val liquidGlass by viewModel.liquidGlass.collectAsState()
     com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
         enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
         cornerRadius = 12.dp,
         staticGlass = true,
-        overlayDark = true,
         fallbackColor = oc.infoBarBg,
         modifier = Modifier
             .fillMaxWidth()

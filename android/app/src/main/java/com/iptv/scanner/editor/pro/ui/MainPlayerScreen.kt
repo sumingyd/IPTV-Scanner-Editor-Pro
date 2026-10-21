@@ -724,9 +724,52 @@ viewModel.mpv.setMute(savedMute)
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .background(MaterialTheme.colorScheme.background)
                         ) {
-                            androidx.compose.runtime.CompositionLocalProvider(LocalAptvStyle provides true) {
+                            // 播放页下半面板区：同首页的环境画布（渐变+三色光斑），玻璃只磨砂透画布
+                            val panelCanvasDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .drawBehind {
+                                        drawRect(
+                                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                                if (panelCanvasDark) listOf(
+                                                    androidx.compose.ui.graphics.Color(0xFF0B0F1A),
+                                                    androidx.compose.ui.graphics.Color(0xFF151B2C)
+                                                ) else listOf(
+                                                    androidx.compose.ui.graphics.Color(0xFFE9EEF7),
+                                                    androidx.compose.ui.graphics.Color(0xFFF9FBFF)
+                                                )
+                                            )
+                                        )
+                                        val g = if (panelCanvasDark) 0.32f else 0.15f
+                                        drawCircle(
+                                            brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                                listOf(androidx.compose.ui.graphics.Color(0x5B8CFF).copy(alpha = g), androidx.compose.ui.graphics.Color.Transparent)
+                                            ),
+                                            radius = size.width * 0.85f,
+                                            center = androidx.compose.ui.geometry.Offset(size.width * 0.15f, size.height * 0.12f)
+                                        )
+                                        drawCircle(
+                                            brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                                listOf(androidx.compose.ui.graphics.Color(0xC084FC).copy(alpha = g * 0.85f), androidx.compose.ui.graphics.Color.Transparent)
+                                            ),
+                                            radius = size.width * 0.75f,
+                                            center = androidx.compose.ui.geometry.Offset(size.width * 0.95f, size.height * 0.52f)
+                                        )
+                                        drawCircle(
+                                            brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                                listOf(androidx.compose.ui.graphics.Color(0x34D399).copy(alpha = g * 0.7f), androidx.compose.ui.graphics.Color.Transparent)
+                                            ),
+                                            radius = size.width * 0.7f,
+                                            center = androidx.compose.ui.geometry.Offset(size.width * 0.2f, size.height * 0.95f)
+                                        )
+                                    }
+                            ) {}
+                            androidx.compose.runtime.CompositionLocalProvider(
+                                LocalAptvStyle provides true,
+                                com.iptv.scanner.editor.pro.ui.theme.LocalGlassOnCanvas provides true
+                            ) {
                                 PortraitPlayerDynamicContent(viewModel = viewModel)
                             }
                         }
