@@ -652,9 +652,12 @@ viewModel.mpv.setMute(savedMute)
                             }
                     ) {}
                     // 播放器 + 控制栏（始终在组合树中，Surface 不被销毁）
+                    // 整列都浮在画布上：玻璃统一走 canvas 模式（磨砂减淡，避免叠加发白）
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        com.iptv.scanner.editor.pro.ui.theme.LocalGlassOnCanvas provides true
+                    ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         PortraitInfoBarV2(viewModel = viewModel)
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
                         // 视频渲染层：画布上的圆角视频窗口（边距/圆角与玻璃条一致；
                         // API31+ SurfaceView 支持按 View outline 圆角裁剪）
                         Box(
@@ -764,7 +767,6 @@ viewModel.mpv.setMute(savedMute)
                         }
                         PortraitMediaInfoBar(viewModel = viewModel)
                         PortraitControlsV2(viewModel = viewModel)
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(oc.divider))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -774,10 +776,17 @@ viewModel.mpv.setMute(savedMute)
                                 LocalAptvStyle provides true,
                                 com.iptv.scanner.editor.pro.ui.theme.LocalGlassOnCanvas provides true
                             ) {
-                                PortraitPlayerDynamicContent(viewModel = viewModel)
+                                // 面板次要文字/图标提亮（玻璃底上可读）
+                                val panelScheme = MaterialTheme.colorScheme.copy(
+                                    onSurfaceVariant = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
+                                )
+                                MaterialTheme(colorScheme = panelScheme) {
+                                    PortraitPlayerDynamicContent(viewModel = viewModel)
+                                }
                             }
                         }
                     }
+                    }   // LocalGlassOnCanvas provider 闭合
 
                     if (showHome) {
                         // 首页 UI 覆盖播放器（不透明背景完全遮盖播放器）

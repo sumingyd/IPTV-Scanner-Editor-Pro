@@ -329,6 +329,7 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
                 }
             }
             // 右侧：收藏 + 投屏 + 信息按钮
+            val toastCtx = androidx.compose.ui.platform.LocalContext.current
             IconButton(
                 onClick = { viewModel.toggleFavorite() },
                 modifier = Modifier.size(36.dp)
@@ -341,7 +342,7 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
                 )
             }
             IconButton(
-                onClick = { viewModel.showOsd("投屏", "功能开发中") },
+                onClick = { android.widget.Toast.makeText(toastCtx, "投屏功能开发中，敬请期待", android.widget.Toast.LENGTH_SHORT).show() },
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
