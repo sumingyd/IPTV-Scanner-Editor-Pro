@@ -722,29 +722,31 @@ fun PortraitPanelDialog(
             ) {
                 androidx.compose.animation.AnimatedVisibility(
                     visible = pushVisible,
-                    enter = androidx.compose.animation.slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = androidx.compose.animation.core.tween(220)
+                    enter = androidx.compose.animation.slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = androidx.compose.animation.core.tween(240)
                     ),
-                    exit = androidx.compose.animation.slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = androidx.compose.animation.core.tween(180)
+                    exit = androidx.compose.animation.slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = androidx.compose.animation.core.tween(200)
                     ),
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.76f)
                 ) {
-                    // push 页：近全屏圆角玻璃卡片（iOS sheet 风格）—— 静态磨砂+光斑+描边，
-                    // 底层界面透出朦胧可见；四周留边+大圆角避免直角观感
+                    // 底部弹出的 sheet（iOS detents 风格）：从底部滑入，占屏最多 76%，
+                    // 全圆角悬浮卡片 —— 静态磨砂+光斑+描边，底层界面透出朦胧可见
                     val liquidGlass = LocalLiquidGlass.current
                     val useGlass = liquidGlass && isAndroid12Plus
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f))
                             .clickable(
                                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                                 indication = null
                             ) { }
-                            .padding(start = 10.dp, end = 10.dp, top = 42.dp, bottom = 10.dp)
+                            .padding(start = 10.dp, end = 10.dp, top = 0.dp, bottom = 8.dp)
                     ) {
                         com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
                             enabled = useGlass,
@@ -774,9 +776,20 @@ fun PortraitPanelDialog(
                             }
                         }
                     }
+                    // 顶部 grabber：sheet 拖拽指示条
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 6.dp)
+                            .size(width = 36.dp, height = 4.dp)
+                            .background(
+                                Color.White.copy(alpha = 0.35f),
+                                RoundedCornerShape(2.dp)
+                            )
+                    )
                 }
             }
         }
-    }
-    }   // push 页外层 scrim Box 闭合
+    }   // 底部 sheet 外层 scrim Box 闭合
+    }   // else（竖屏分支）闭合
 }
