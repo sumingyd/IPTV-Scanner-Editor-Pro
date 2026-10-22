@@ -522,7 +522,19 @@ class MpvController : MPVLib.EventObserver, Player, MpvControllerHost {
                 "vo" to safeGet("vo"),
                 "videoPrimaries" to safeGet("video-params/primaries"),
                 "videoGamma" to safeGet("video-params/gamma"),
-                "videoColorRange" to safeGet("video-params/color-range")
+                "videoColorRange" to safeGet("video-params/color-range"),
+                // 扩展信息：音频细节、像素格式、实际渲染性能、流元数据
+                "audioSampleRate" to safeGet("audio-params/samplerate"),
+                "audioChannels" to safeGet("audio-params/channel-layout"),
+                "pixelFormat" to safeGet("video-params/pixelformat"),
+                "colorspace" to safeGet("video-params/colorspace"),
+                "renderFps" to safeGetDouble("estimated-vf-fps"),
+                "droppedFrames" to safeGet("decoder-frame-drop-count"),
+                "cacheSpeed" to safeGetDouble("cache-speed"),
+                "mediaTitle" to safeGet("media-title"),
+                "serviceName" to safeGet("metadata/by-key/service_name"),
+                "serviceProvider" to safeGet("metadata/by-key/service_provider"),
+                "trackCount" to safeGet("track-list/count")
             )
         } catch (e: Throwable) {
             Log.w(TAG, "getMediaInfo failed: ${e.message}")

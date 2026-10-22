@@ -1103,9 +1103,26 @@ private fun PortraitPlayerInfoPanel(
         v("containerFormat")?.let { "封装格式" to it.uppercase() },
         mediaInfo["hwdec"]?.takeIf { it.isNotEmpty() && it != "null" }?.let { "解码方式" to if (it == "no") "软解" else "硬解(${it})" },
         v("vo")?.let { "视频输出" to it },
+        v("pixelFormat")?.let { "像素格式" to it },
+        v("colorspace")?.let { "色彩空间" to it.uppercase() },
         v("videoPrimaries")?.let { "色彩域" to it.uppercase() },
         v("videoGamma")?.let { "传输特性" to when (it) { "pq" -> "PQ(HDR10)"; "hlg" -> "HLG"; else -> it.uppercase() } },
-        v("videoColorRange")?.let { "色彩范围" to when (it) { "limited" -> "Limited"; "full" -> "Full"; else -> it } }
+        v("videoColorRange")?.let { "色彩范围" to when (it) { "limited" -> "Limited"; "full" -> "Full"; else -> it } },
+        // 音频细节
+        v("audioSampleRate")?.let { "采样率" to (it.toDoubleOrNull()?.let { hz -> String.format("%.1f kHz", hz / 1000) } ?: it) },
+        v("audioChannels")?.let { "声道" to when (it.lowercase()) { "stereo" -> "立体声"; "mono" -> "单声道"; else -> it } },
+        // 流元数据（MPEGTS 广播信息）
+        v("serviceName")?.let { "电视台" to it },
+        v("serviceProvider")?.let { "运营商" to it },
+        v("trackCount")?.let { "轨道数" to it }
+    )
+
+    // 网络与渲染性能
+    val networkRows = listOfNotNull(
+        v("droppedFrames")?.let { "解码丢帧" to "$it 帧" },
+        v("renderFps")?.let { "实际帧率" to String.format("%.1f", it.toDoubleOrNull() ?: 0.0) },
+        v("cacheSpeed")?.let { "缓存速度" to (it.toDoubleOrNull()?.let { b -> String.format("%.0f KB/s", b / 1024) } ?: it) },
+        v("mediaTitle")?.let { "流标题" to it }
     )
 
     /** 两列信息网格：一行两项，紧凑无滑动 */
@@ -1176,6 +1193,16 @@ private fun PortraitPlayerInfoPanel(
                 fontWeight = FontWeight.Bold
             )
             TwoColGrid(mediaRows)
+
+            if (networkRows.isNotEmpty()) {
+                Text(
+                    text = "网络与性能",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold
+                )
+                TwoColGrid(networkRows)
+            }
         }
     }
 }
