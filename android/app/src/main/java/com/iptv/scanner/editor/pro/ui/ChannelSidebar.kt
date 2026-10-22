@@ -170,6 +170,15 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import java.io.File
 
 /**
+ * 频道卡片徽章黑名单：容器格式（TS/MP4/MKV 等）与传输协议（HTTP/UDP 等）
+ * 对用户没有选择价值，不作为徽章显示；仅保留分辨率/帧率/码率等有价值的标识
+ */
+private val badgeDisplayBlocklist = setOf(
+    "TS", "MP4", "MKV", "AVI", "FLV", "WEBM",
+    "HTTP", "HTTPS", "RTSP", "UDP", "RTP", "RTMP"
+)
+
+/**
  * 竖屏列表页：APTV风格全屏布局，支持分组底部弹窗、订阅源选择、列表/宫格模式
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -900,13 +909,18 @@ private fun ChannelListPanel(
                                 overflow = TextOverflow.Ellipsis
                             )
                         } ?: Text("精彩节目", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 11.sp, maxLines = 1)
-                        // 第3行：媒体标识badge（圆角矩形，与竖屏播放界面一致）
+                        // 第3行：媒体标识badge（圆角矩形；协议/容器格式无价值不显示；回看用文字徽章）
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             mediaInfoMap[channel.url]?.split(" ")?.forEach { badge ->
-                                if (badge.isNotEmpty()) {
+                                if (badge.isNotEmpty() && badge !in badgeDisplayBlocklist) {
                                     Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp)) {
                                         Text(badge, color = AptvAccent, fontSize = 9.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
                                     }
+                                }
+                            }
+                            if (canCatchup) {
+                                Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp)) {
+                                    Text("回看", color = AptvAccent, fontSize = 9.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
                                 }
                             }
                             if (isFav) {
@@ -916,22 +930,16 @@ private fun ChannelListPanel(
                             }
                         }
                     }
-                    // 第三列：回看图标 + 台标
-                    if (canCatchup || channel.logo.isNotEmpty()) {
+                    // 第三列：台标（回看已改为文字徽章）
+                    if (channel.logo.isNotEmpty()) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            if (canCatchup) {
-                                Icon(Icons.Default.History, contentDescription = "可回看", tint = AptvAccent, modifier = Modifier.size(16.dp))
-                            }
-                            if (channel.logo.isNotEmpty()) {
-                                if (canCatchup) Spacer(modifier = Modifier.height(2.dp))
-                                AsyncImage(
-                                    model = channel.logo,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(22.dp).clip(RoundedCornerShape(2.dp)),
-                                    contentScale = ContentScale.Fit
-                                )
-                            }
+                            AsyncImage(
+                                model = channel.logo,
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp).clip(RoundedCornerShape(2.dp)),
+                                contentScale = ContentScale.Fit
+                            )
                         }
                     }
                     // 删除按钮
@@ -1071,15 +1079,28 @@ private fun ChannelThumbnailPanel(
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        // 第1行：频道名称
-                        Text(
-                            text = channel.name,
-                            color = if (isCurrent) AptvAccent else MaterialTheme.colorScheme.onSurface,
-                            fontSize = 12.sp,
-                            fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        // 第1行：台标 + 频道名称
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (channel.logo.isNotEmpty()) {
+                                AsyncImage(
+                                    model = channel.logo,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(width = 26.dp, height = 16.dp)
+                                        .clip(RoundedCornerShape(2.dp)),
+                                    contentScale = ContentScale.Fit
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                            }
+                            Text(
+                                text = channel.name,
+                                color = if (isCurrent) AptvAccent else MaterialTheme.colorScheme.onSurface,
+                                fontSize = 12.sp,
+                                fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                         // 第2行：当前节目名称
                         currentProgram?.let { prog ->
                             Text(
@@ -1090,10 +1111,20 @@ private fun ChannelThumbnailPanel(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        // 第3行：媒体标识badge（圆角矩形，与列表模式一致）
+                        // 第3行：分组 + 媒体标识 + 回看（全部文字徽章；协议/容器格式无价值不显示）
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), shape = RoundedCornerShape(3.dp)) {
+                                Text(
+                                    channelGroup,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 8.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp).widthIn(max = 64.dp)
+                                )
+                            }
                             mediaInfoMap[channel.url]?.split(" ")?.forEach { badge ->
-                                if (badge.isNotEmpty()) {
+                                if (badge.isNotEmpty() && badge !in badgeDisplayBlocklist) {
                                     Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
                                         Text(badge, color = AptvAccent, fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
                                     }
@@ -1101,9 +1132,7 @@ private fun ChannelThumbnailPanel(
                             }
                             if (canCatchup) {
                                 Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)) {
-                                        Icon(Icons.Default.History, contentDescription = "可回看", tint = AptvAccent, modifier = Modifier.size(10.dp))
-                                    }
+                                    Text("回看", color = AptvAccent, fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
                                 }
                             }
                             if (isFav) {
