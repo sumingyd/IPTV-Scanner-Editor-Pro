@@ -66,7 +66,9 @@ class MainActivityCompose : ComponentActivity() {
         // 触控区域边界（占屏幕比例）
         private const val LEFT_REGION_BOUND = 0.3f
         private const val RIGHT_REGION_BOUND = 0.7f
-        private const val BOTTOM_REGION_BOUND = 0.85f
+        // 底部热区占屏幕高度 20%：0.85 时手机横屏仅约 62dp，比底栏本身还矮，
+        // 点击底栏上半部落进中央区被误判为暂停
+        private const val BOTTOM_REGION_BOUND = 0.80f
         private const val SIDEBAR_CLOSE_BOUND = 0.82f
         // 触控阈值
         private const val SLIDE_THRESHOLD = 80f
@@ -297,9 +299,9 @@ class MainActivityCompose : ComponentActivity() {
                         val dpiScale = (resources.configuration.screenHeightDp / 720f).coerceIn(0.70f, 1f)
                         val pxPerDp = density * dpiScale
                         val closeBound = minOf(w * SIDEBAR_CLOSE_BOUND, sidebarWidthDp * pxPerDp + 8f * pxPerDp)
-                        // 面板垂直范围：top 10dp、bottom 100dp（与 TvLayout 布局一致）；
+                        // 面板垂直范围：top 10dp、bottom 10dp（与 TvLayout 贴底布局一致）；
                         // 上下留白与面板右侧区域点击均关闭面板
-                        val inPanelV = y > 10f * pxPerDp && y < h - 100f * pxPerDp
+                        val inPanelV = y > 10f * pxPerDp && y < h - 10f * pxPerDp
                         if (x < closeBound && inPanelV) return super.dispatchTouchEvent(ev)
                         viewModel.setLandscapeSidebarVisible(false)
                         return true
@@ -308,8 +310,8 @@ class MainActivityCompose : ComponentActivity() {
                         // 右侧主菜单宽度（dp）：130一级列+1分隔+150二级列+16右边距
                         val dpiScale = (resources.configuration.screenHeightDp / 720f).coerceIn(0.70f, 1f)
                         val pxPerDp = density * dpiScale
-                        // 面板垂直范围：top 10dp、bottom 80dp（与 MainMenuPanel 布局一致）
-                        val inMenuV = y > 10f * pxPerDp && y < h - 80f * pxPerDp
+                        // 面板垂直范围：top 10dp、bottom 10dp（与 MainMenuPanel 贴底布局一致）
+                        val inMenuV = y > 10f * pxPerDp && y < h - 10f * pxPerDp
                         if (x > w - (MENU_PANEL_WIDTH_DP * pxPerDp + 8f * pxPerDp) && inMenuV) return super.dispatchTouchEvent(ev)
                         viewModel.toggleMenuPanel()
                         return true
