@@ -969,6 +969,12 @@ internal var currentIsLocalFile: Boolean
     /** 频谱数据（0-1 归一化，32 个频段） */
     internal val _audioSpectrum = MutableStateFlow(FloatArray(32) { 0f })
     val audioSpectrum: StateFlow<FloatArray> = _audioSpectrum.asStateFlow()
+    /** 频谱不可用原因（空=正常）。真频谱失败时给用户明确提示，绝不提供模拟数据 */
+    internal val _audioSpectrumError = MutableStateFlow("")
+    val audioSpectrumError: StateFlow<String> = _audioSpectrumError.asStateFlow()
+    fun setAudioSpectrumError(msg: String) {
+        _audioSpectrumError.value = msg
+    }
 
     /** 歌词面板 */
     internal val _lyricsOpen = MutableStateFlow(false)

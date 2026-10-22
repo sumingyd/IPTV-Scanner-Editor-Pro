@@ -224,10 +224,25 @@ private fun EpgPanelBody(viewModel: AppViewModel) {
                     cal.add(Calendar.DAY_OF_MONTH, 1)
                     val dayEndMs = cal.timeInMillis
 
-                    val dateFiltered = epg.filter { p ->
+                    val dateFiltered0 = epg.filter { p ->
                         val startMs = parseTimeToMs(p.start, p.startTs)
                         val endMs = parseTimeToMs(p.end.ifEmpty { p.stop }, p.stopTs)
                         startMs > 0 && endMs > startMs && startMs < dayEndMs && endMs > dayStartMs
+                    }
+                    // 跨天定位：凌晨时段（0点后）正在播的节目属于昨天的节目单，
+                    // EPG 数据跨天空档时今天列表查不到当前节目 → 无法定位高亮。
+                    // 把昨天最后几个节目前置合并到「今天」列表头部，保证定位连续
+                    val dateFiltered = if (epgDateOffset == 0 && dateFiltered0.isNotEmpty()) {
+                        val todayFirst = dateFiltered0.minOfOrNull { parseTimeToMs(it.start, it.startTs) } ?: Long.MAX_VALUE
+                        val yesterdayTail = epg.filter { p ->
+                            val s = parseTimeToMs(p.start, p.startTs)
+                            val e = parseTimeToMs(p.end.ifEmpty { p.stop }, p.stopTs)
+                            s > 0 && e > s && e in 1 until todayFirst && s >= dayStartMs - 24 * 3600_000L
+                        }
+                        if (yesterdayTail.isEmpty()) dateFiltered0
+                        else yesterdayTail.takeLast(3) + dateFiltered0
+                    } else {
+                        dateFiltered0
                     }
 
                     if (dateFiltered.isEmpty()) {
@@ -391,10 +406,26 @@ private fun EpgList(
             programs.indexOfFirst { p -> p.start == catchupProgram.start && p.title == catchupProgram.title }
         } else {
             // 直播模式：高亮当前时间正在播放的节目
-            programs.indexOfFirst { p ->
+            val ongoing = programs.indexOfFirst { p ->
                 val startMs = parseTimeToMs(p.start, p.startTs)
                 val endMs = parseTimeToMs(p.end.ifEmpty { p.stop }, p.stopTs)
                 startMs > 0 && endMs > startMs && now >= startMs && now < endMs
+            }
+            if (ongoing >= 0) {
+                ongoing
+            } else {
+                // 跨天/数据空档兜底：无进行中节目时（凌晨时段当前节目在昨天
+                // 节目单里且 EPG 数据有空档），高亮最近结束的节目作为定位锚点
+                var lastEnded = -1
+                var lastEndMs = Long.MIN_VALUE
+                programs.forEachIndexed { idx, p ->
+                    val e = parseTimeToMs(p.end.ifEmpty { p.stop }, p.stopTs)
+                    if (e in 1 until now && e > lastEndMs) {
+                        lastEndMs = e
+                        lastEnded = idx
+                    }
+                }
+                lastEnded
             }
         }
     }

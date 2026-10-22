@@ -943,22 +943,11 @@ internal fun AppViewModel.exportClip(startTime: Double, duration: Double, format
 
 internal fun AppViewModel.toggleAudioVisualizer() {
     _audioVisualizerOpen.value = !_audioVisualizerOpen.value
-    if (_audioVisualizerOpen.value) {
-        // 检查 RECORD_AUDIO 权限
-        val app = getApplication<Application>()
-        val hasPermission = android.content.pm.PackageManager.PERMISSION_GRANTED ==
-            androidx.core.content.ContextCompat.checkSelfPermission(app, android.Manifest.permission.RECORD_AUDIO)
-        if (hasPermission) {
-            startSpectrumSampling()
-        } else {
-            // 没有权限，直接用 MPV fallback 模式
-            Log.w(AppViewModel.TAG, "RECORD_AUDIO permission not granted, using MPV fallback for spectrum")
-            startSpectrumSampling()
-        }
-    } else {
+    if (!_audioVisualizerOpen.value) {
         stopSpectrumSampling()
         showControlsAutoHide()
     }
+    // 权限请求与采样启动由 AudioVisualizerPanel 在组合时处理
 }
 
 internal fun AppViewModel.startSpectrumSampling() {
@@ -1020,34 +1009,13 @@ internal fun AppViewModel.startSpectrumSampling() {
     }
     
     if (!visualizerStarted) {
-        // fallback：Visualizer 不可用时用模拟频谱
-        spectrumJob = viewModelScope.launch {
-            while (_audioVisualizerOpen.value) {
-                try {
-                    if (mpv.fileLoaded.value) {
-                        val volume = mpv.getPropertyDouble("volume") ?: 100.0
-                        val volFactor = (volume / 100.0).coerceIn(0.0, 1.0).toFloat()
-                        val timeMs = System.currentTimeMillis()
-                        val spectrum = FloatArray(32) { i ->
-                            // 模拟常见频谱：低频强高频弱 + 随机波动
-                            val t = timeMs / 1000.0
-                            // 基础衰减：低频高、高频低（模拟音乐能量分布）
-                            val baseDecay = kotlin.math.exp(-i.toDouble() * 0.05)
-                            // 多个频率叠加产生自然变化
-                            val wave1 = kotlin.math.sin(t * 3.0 + i * 0.4) * 0.3
-                            val wave2 = kotlin.math.sin(t * 7.0 + i * 0.9) * 0.2
-                            val wave3 = kotlin.math.sin(t * 13.0 + i * 1.5) * 0.15
-                            // 随机微波动
-                            val noise = (kotlin.math.sin(t * 23.0 + i * 3.7) * 0.1)
-                            val amp = ((baseDecay + wave1 + wave2 + wave3 + noise) * volFactor).toFloat()
-                            amp.coerceIn(0.02f, 1f)
-                        }
-                        _audioSpectrum.value = spectrum
-                    }
-                } catch (_: Exception) {}
-                kotlinx.coroutines.delay(16) // ~60fps
-            }
-        }
+        // Visualizer 不可用（缺 RECORD_AUDIO 权限/音频接口异常）：给出明确提示。
+        // 绝不提供模拟数据——假频谱会误导用户以为听到了真实声音
+        _audioSpectrum.value = FloatArray(32) { 0f }
+        _audioSpectrumError.value = "无法获取实时音频数据\n系统 Visualizer 接口不可用（需要麦克风权限）"
+        Log.w(AppViewModel.TAG, "Visualizer unavailable, showing error state")
+    } else {
+        _audioSpectrumError.value = ""
     }
 }
 

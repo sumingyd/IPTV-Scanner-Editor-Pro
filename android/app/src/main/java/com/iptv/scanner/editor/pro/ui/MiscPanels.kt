@@ -101,6 +101,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -1165,8 +1166,32 @@ private fun BookmarkRow(
 @Composable
 fun AudioVisualizerPanel(viewModel: AppViewModel) {
     val spectrum by viewModel.audioSpectrum.collectAsState()
+    val spectrumError by viewModel.audioSpectrumError.collectAsState()
     val mpv = viewModel.mpv
     val fileLoaded by mpv.fileLoaded.collectAsState()
+
+    // RECORD_AUDIO 是系统 Visualizer（真频谱）的硬性权限要求，
+    // 打开面板时请求，授权后立即启动采样
+    val context = LocalContext.current
+    val permLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.startSpectrumSampling()
+        } else {
+            viewModel.setAudioSpectrumError("未授予麦克风权限\n系统 Visualizer 接口需要该权限才能获取真实频谱")
+        }
+    }
+    LaunchedEffect(Unit) {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.RECORD_AUDIO
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            viewModel.startSpectrumSampling()
+        } else {
+            permLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+        }
+    }
 
     PanelScaffold(
         title = "音频可视化",
@@ -1192,6 +1217,27 @@ fun AudioVisualizerPanel(viewModel: AppViewModel) {
         val primaryColor = MaterialTheme.colorScheme.primary
         val outlineColor = MaterialTheme.colorScheme.outlineVariant
 
+        if (spectrumError.isNotEmpty()) {
+            // 真频谱不可用：明确提示原因（不提供模拟数据）
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clip(RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    spectrumError,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        } else {
         // 频谱画布（美化版：渐变色 + 圆角条 + 底部镜像反射 + 中线）
         Canvas(
             modifier = Modifier
@@ -1251,6 +1297,8 @@ fun AudioVisualizerPanel(viewModel: AppViewModel) {
                     )
                 }
             }
+
+        } // spectrumError else 分支结束
 
             // 信息行
             Row(
