@@ -78,7 +78,9 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         voInUse = vo
         savedConfigDir = configDir
         savedCacheDir = cacheDir
-        savedHwdec = hwdec
+        // houdini 转译层（x86 模拟器）强制软解：硬解码器 teardown 会 SIGSEGV
+        val effectiveHwdec = sanitizeHwdec(hwdec)
+        savedHwdec = effectiveHwdec
         myGeneration = ++instanceState.activeGeneration
         Log.i(TAG, "initialize: generation=$myGeneration, vo=$vo, hwdec=$hwdec")
 
@@ -87,7 +89,7 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             Log.i(TAG, "initialize: reusing existing native mpv instance (generation=$myGeneration)")
             try {
                 // 运行时更新 hwdec（vo 由 surfaceCreated 设置，此时 surface 还没创建）
-                MPVLib.setPropertyString("hwdec", hwdec)
+                MPVLib.setPropertyString("hwdec", effectiveHwdec)
                 // 更新日志等级（运行时可切换）
                 updateLogLevel()
             } catch (e: Throwable) {
@@ -129,7 +131,7 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             MPVLib.setOptionString(opt, cacheDir)
 
         MPVLib.setOptionString("vo", vo)
-        MPVLib.setOptionString("hwdec", hwdec)
+        MPVLib.setOptionString("hwdec", effectiveHwdec)
         // keep-open=always：stop 期间也保留最后一帧，避免换台黑屏闪烁。
         // 与 PC 端不同，Android 端在 loadfile 前会发送 stop（对齐 PC 端 play_file 的逻辑），
         // 用 always 确保 stop → loadfile 之间画面不消失。
@@ -512,6 +514,41 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         const val DEFAULT_HWDEC = "auto-copy"
 
         internal val sharedState = MpvInstanceState()
+
+        /** houdini 检测结果缓存 */
+        @Volatile
+        private var houdiniDetected: Boolean? = null
+
+        /**
+         * 是否运行在 houdini ARM 转译层上（x86 模拟器执行 arm64 libmpv）。
+         * 转译层下 MediaCodec 硬解码器的销毁（切台 stop / loadfile replace /
+         * mpv_terminate_destroy 均触发）会 SIGSEGV 空指针（fault addr 0x48，
+         * backtrace 全在 libhoudini.so 内部），唯一规避是禁用硬解走软解。
+         * 真机（原生 arm64）不存在 houdini，不受影响。
+         */
+        fun isHoudiniTranslation(): Boolean {
+            val cached = houdiniDetected
+            if (cached != null) return cached
+            val detected = try {
+                java.io.File("/system/vendor/lib64/libhoudini.so").exists() ||
+                    java.io.File("/system/lib64/libhoudini.so").exists() ||
+                    java.io.File("/system/lib/libhoudini.so").exists() ||
+                    android.os.Build.HARDWARE.contains("ranchu")
+            } catch (_: Throwable) {
+                false
+            }
+            houdiniDetected = detected
+            return detected
+        }
+
+        /** 返回应生效的 hwdec 值：houdini 转译环境强制软解，避免硬解码器 teardown 崩溃 */
+        fun sanitizeHwdec(hwdec: String): String =
+            if (hwdec != "no" && isHoudiniTranslation()) {
+                Log.w(TAG, "hwdec: houdini translation layer detected -> force software decode (avoid MediaCodec teardown SIGSEGV)")
+                "no"
+            } else {
+                hwdec
+            }
     }
 
     /**

@@ -233,10 +233,12 @@ class MpvController : MPVLib.EventObserver, Player, MpvControllerHost {
     // -----------------------------------------------------------------
     fun setVoAndHwdec(vo: String, hwdec: String): String? {
         val hasFile = _fileLoaded.value
+        // houdini 转译层（x86 模拟器）强制软解：硬解码器 teardown 会 SIGSEGV
+        val effectiveHwdec = MPVView.sanitizeHwdec(hwdec)
         postOnUiThread {
             try {
-                MPVLib.setPropertyString("hwdec", hwdec)
-                _hwdecCache = hwdec
+                MPVLib.setPropertyString("hwdec", effectiveHwdec)
+                _hwdecCache = effectiveHwdec
                 mpvView?.reattachSurfaceWithVo(vo)
                 _voCache = vo
 
