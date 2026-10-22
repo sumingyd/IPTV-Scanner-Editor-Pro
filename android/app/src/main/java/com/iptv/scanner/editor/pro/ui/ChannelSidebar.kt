@@ -919,8 +919,12 @@ private fun ChannelListPanel(
                                 }
                             }
                             if (canCatchup) {
+                                // 回看徽章带天数（有天数数据时显示「回看7天」）
+                                val catchupText = channel.catchupDays.trim().toIntOrNull()?.let { days ->
+                                    if (days > 0) "回看${days}天" else "回看"
+                                } ?: "回看"
                                 Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp)) {
-                                    Text("回看", color = AptvAccent, fontSize = 9.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
+                                    Text(catchupText, color = AptvAccent, fontSize = 9.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
                                 }
                             }
                             if (isFav) {
@@ -1056,6 +1060,23 @@ private fun ChannelThumbnailPanel(
                                 Text("${latency}ms", color = latColor, fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
                             }
                         }
+                        // 右下角分组悬浮标识（与延迟左下对称）
+                        if (channelGroup.isNotEmpty()) {
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)
+                            ) {
+                                Text(
+                                    channelGroup,
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    fontSize = 8.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp).widthIn(max = 72.dp)
+                                )
+                            }
+                        }
                         // 右上角：播放中
                         if (isCurrent) {
                             Surface(
@@ -1075,23 +1096,13 @@ private fun ChannelThumbnailPanel(
                             }
                         }
                     }
-                    // 下方紧凑信息区
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
+                    // 下方紧凑信息区：左侧文字信息 + 右侧台标
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 第1行：台标 + 频道名称
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (channel.logo.isNotEmpty()) {
-                                AsyncImage(
-                                    model = channel.logo,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(width = 26.dp, height = 16.dp)
-                                        .clip(RoundedCornerShape(2.dp)),
-                                    contentScale = ContentScale.Fit
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                            }
+                        Column(modifier = Modifier.weight(1f)) {
+                            // 第1行：频道名称
                             Text(
                                 text = channel.name,
                                 color = if (isCurrent) AptvAccent else MaterialTheme.colorScheme.onSurface,
@@ -1100,46 +1111,52 @@ private fun ChannelThumbnailPanel(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                        }
-                        // 第2行：当前节目名称
-                        currentProgram?.let { prog ->
-                            Text(
-                                text = if (prog.title.isNotEmpty()) prog.title else "精彩节目",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (prog.title.isNotEmpty()) 1f else 0.6f),
-                                fontSize = 10.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        // 第3行：分组 + 媒体标识 + 回看（全部文字徽章；协议/容器格式无价值不显示）
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Surface(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), shape = RoundedCornerShape(3.dp)) {
+                            // 第2行：当前节目名称
+                            currentProgram?.let { prog ->
                                 Text(
-                                    channelGroup,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 8.sp,
+                                    text = if (prog.title.isNotEmpty()) prog.title else "精彩节目",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (prog.title.isNotEmpty()) 1f else 0.6f),
+                                    fontSize = 10.sp,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp).widthIn(max = 64.dp)
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
-                            mediaInfoMap[channel.url]?.split(" ")?.forEach { badge ->
-                                if (badge.isNotEmpty() && badge !in badgeDisplayBlocklist) {
+                            // 第3行：媒体标识 + 回看 + 收藏（全部文字徽章；协议/容器格式无价值不显示）
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                mediaInfoMap[channel.url]?.split(" ")?.forEach { badge ->
+                                    if (badge.isNotEmpty() && badge !in badgeDisplayBlocklist) {
+                                        Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
+                                            Text(badge, color = AptvAccent, fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                        }
+                                    }
+                                }
+                                if (canCatchup) {
+                                    // 回看徽章带天数（有天数数据时显示「回看7天」）
+                                    val catchupText = channel.catchupDays.trim().toIntOrNull()?.let { days ->
+                                        if (days > 0) "回看${days}天" else "回看"
+                                    } ?: "回看"
                                     Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
-                                        Text(badge, color = AptvAccent, fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                        Text(catchupText, color = AptvAccent, fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                    }
+                                }
+                                if (isFav) {
+                                    Surface(color = Color(0xFFFFC107).copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
+                                        Text("收藏", color = Color(0xFFFFC107), fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
                                     }
                                 }
                             }
-                            if (canCatchup) {
-                                Surface(color = AptvAccent.copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
-                                    Text("回看", color = AptvAccent, fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
-                                }
-                            }
-                            if (isFav) {
-                                Surface(color = Color(0xFFFFC107).copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
-                                    Text("收藏", color = Color(0xFFFFC107), fontSize = 8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
-                                }
-                            }
+                        }
+                        // 右侧台标：占用信息区右侧空白，垂直居中
+                        if (channel.logo.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            AsyncImage(
+                                model = channel.logo,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(width = 42.dp, height = 26.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                contentScale = ContentScale.Fit
+                            )
                         }
                     }
                 }
