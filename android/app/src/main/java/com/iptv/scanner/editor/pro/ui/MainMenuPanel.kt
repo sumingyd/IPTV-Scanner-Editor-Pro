@@ -20,7 +20,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -74,6 +78,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
@@ -402,40 +408,49 @@ fun MainMenuPanel(viewModel: AppViewModel) {
         ) {
             GlassPanel(
                 liquidGlass = liquidGlass,
-                cornerRadius = 10.dp,
+                cornerRadius = 16.dp,
                 overlayDark = true,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .fillMaxHeight()
                     .padding(end = 16.dp, top = 10.dp, bottom = 10.dp)
                     .focusRequester(menuFocusRequester)
                     .focusable()
             ) {
+                // 轻量暗色底衬：保证磨砂质感的同时提升文字可读性
+                // （视频内容透过玻璃时不再与菜单文字混叠）
+                Box(modifier = Modifier.background(Color(0x8C0A1219))) {
+                // 高度自适应内容（heightIn 限高，超长时列内滚动兜底）；
+                // 分隔线用 drawBehind 画在列右缘，高度=列可视高度，不会撑大面板
                 // 列序（面板靠右显示，层级从右往左）：最右=一级分组列，往左=二级条目列
-                // 不叠加实底 scrim：会盖住玻璃的磨砂/光斑/噪点质感
                 Row(
-                    modifier = Modifier.wrapContentWidth()
+                    modifier = Modifier.wrapContentWidth().heightIn(max = configuration.screenHeightDp.dp - 20.dp)
                 ) {
                     // 左列：二级条目（当前选中分组下的菜单项）
                     if (currentSection != null && currentSection.entries.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxHeight().width(150.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)
+                        Column(
+                            modifier = Modifier.width(168.dp)
+                                .drawBehind {
+                                    drawLine(
+                                        Color(0x40FFFFFF),
+                                        Offset(size.width, 0f),
+                                        Offset(size.width, size.height),
+                                        1.dp.toPx()
+                                    )
+                                }
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 6.dp)
                         ) {
-                            itemsIndexed(
-                                items = currentSection.entries,
-                                key = { idx, entry -> currentSection.title + "_" + entry.title + "_" + idx }
-                            ) { idx, entry ->
+                            currentSection.entries.forEachIndexed { idx, entry ->
                                 val isRightSelected = activeColumn == 1 && idx == safeLeftIdx
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                                        .clip(RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                                        .clip(RoundedCornerShape(8.dp))
                                         .then(
                                             when {
-                                                isRightSelected -> Modifier.tvGlassSelected(6)
-                                                entry.highlight -> Modifier.background(AptvAccent.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
+                                                isRightSelected -> Modifier.tvGlassSelected(8)
+                                                entry.highlight -> Modifier.background(AptvAccent.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                                                 else -> Modifier
                                             }
                                         )
@@ -444,61 +459,85 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                                             leftSelectedIdx = idx
                                             entry.onClick()
                                         }
-                                        .padding(horizontal = 12.dp, vertical = 11.dp),
+                                        .padding(horizontal = 8.dp, vertical = 9.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    Icon(
+                                        imageVector = entry.icon,
+                                        contentDescription = null,
+                                        tint = if (isRightSelected || entry.highlight) Color.White else AptvAccent.copy(alpha = 0.9f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(7.dp))
                                     Text(
                                         text = entry.title,
                                         color = if (isRightSelected || entry.highlight) Color.White else Color(0xE6FFFFFF),
-                                        fontSize = 15.sp,
+                                        fontSize = 14.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f)
                                     )
                                     if (entry.isToggle) {
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Box(
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        // 大写开关徽章（ON/OFF）
+                                        Text(
+                                            text = if (entry.toggleValue) "ON" else "OFF",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (entry.toggleValue) Color.White else Color(0x99FFFFFF),
                                             modifier = Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(if (entry.toggleValue) AptvAccent else Color(0x60FFFFFF))
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (entry.toggleValue) AptvAccent else Color(0x33FFFFFF))
+                                                .padding(horizontal = 4.dp, vertical = 1.dp)
                                         )
                                     }
                                 }
                             }
                         }
                     }
-                    // 列间分隔线
-                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color(0x40FFFFFF)))
-
-                    // 右列（最右=一级）：主菜单分组
-                    LazyColumn(
-                        modifier = Modifier.fillMaxHeight().width(130.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)
+                    // 右列（最右=一级）：主菜单分组（图标 + 标题），左缘分隔线
+                    Column(
+                        modifier = Modifier.width(136.dp)
+                            .drawBehind {
+                                drawLine(
+                                    Color(0x40FFFFFF),
+                                    Offset(0f, 0f),
+                                    Offset(0f, size.height),
+                                    1.dp.toPx()
+                                )
+                            }
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = 6.dp)
                     ) {
-                        itemsIndexed(sections) { idx, section ->
+                        sections.forEachIndexed { idx, section ->
                             val isSelected = idx == safeIdx
-                            val isLeftActive = activeColumn == 0 && isSelected
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                                    .clip(RoundedCornerShape(8.dp))
                                     .then(
-                                        if (isSelected) Modifier.tvGlassSelected(6)
-                                        else Modifier.background(Color.Transparent)
+                                        if (isSelected) Modifier.tvGlassSelected(8)
+                                        else Modifier
                                     )
                                     .clickable {
                                         activeColumn = 0
                                         selectedSectionIdx = idx
                                     }
-                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                    .padding(horizontal = 9.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Icon(
+                                    imageVector = section.icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) Color.White else AptvAccent.copy(alpha = 0.9f),
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Spacer(modifier = Modifier.width(7.dp))
                                 Text(
                                     text = section.title,
                                     color = if (isSelected) Color.White else Color(0xE6FFFFFF),
-                                    fontSize = 16.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -507,6 +546,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                         }
                     }
                 }
+                } // 暗色底衬 Box
             }
 
         }
@@ -686,6 +726,7 @@ private data class MenuEntry(
 
 private data class MenuSection(
     val title: String,
+    val icon: ImageVector,
     val entries: List<MenuEntry>
 )
 
@@ -759,7 +800,7 @@ private fun buildMenuSections(
         ))
     }
     sourceEntries.add(MenuEntry(Icons.Default.Settings, "订阅源管理", "添加、编辑、删除 M3U 订阅源", onSources))
-    val lineSection = MenuSection(title = "订阅源", entries = sourceEntries)
+    val lineSection = MenuSection(title = "订阅源", icon = Icons.Default.Web, entries = sourceEntries)
 
     // 多画面分组
     val multiViewEntries = mutableListOf<MenuEntry>()
@@ -777,10 +818,11 @@ private fun buildMenuSections(
         multiViewEntries.add(MenuEntry(Icons.Default.GridView, "四画面", "2x2 网格", { onEnterMultiView(MultiViewLayout.QUAD) }))
         multiViewEntries.add(MenuEntry(Icons.Default.GridView, "九画面", "3x3 网格", { onEnterMultiView(MultiViewLayout.NINE) }))
     }
-    val multiViewSection = MenuSection(title = "多画面", entries = multiViewEntries)
+    val multiViewSection = MenuSection(title = "多画面", icon = Icons.Default.ViewModule, entries = multiViewEntries)
 
     val playbackSettingsSection = MenuSection(
         title = "播放设置",
+        icon = Icons.Default.PlayCircle,
         entries = listOf(
             MenuEntry(Icons.Default.Settings, "播放器设置", "内核 / VO / HWDEC / HDR", onSettings),
             MenuEntry(Icons.Default.ClosedCaption, "字幕", "轨 / 显示 / 延迟 / 缩放", onSubtitle),
@@ -791,6 +833,7 @@ private fun buildMenuSections(
     )
     val channelSection = MenuSection(
         title = "频道管理",
+        icon = Icons.AutoMirrored.Filled.ListAlt,
         entries = listOf(
             MenuEntry(Icons.AutoMirrored.Filled.ListAlt, "频道列表", "订阅 / 本地 / 收藏 / 历史", onChannels, highlight = true),
             MenuEntry(Icons.Default.CalendarMonth, "节目单 EPG", "当前频道节目 / 日期切换", onEpg),
@@ -806,6 +849,7 @@ private fun buildMenuSections(
     )
     val subscribeSection = MenuSection(
         title = "订阅管理",
+        icon = Icons.Default.Link,
         entries = listOf(
             MenuEntry(Icons.Default.CalendarMonth, "EPG 订阅源", "管理节目单订阅地址", onEpgSources),
             MenuEntry(Icons.Default.Link, "打开网络流", "输入 M3U/M3U8 URL", onOpenUrl),
@@ -814,6 +858,7 @@ private fun buildMenuSections(
     )
     val displaySection = MenuSection(
         title = "显示设置",
+        icon = Icons.Default.ViewInAr,
         entries = listOf(
             MenuEntry(Icons.Default.ViewInAr, "视图", "视频比例 / OSD", onView),
             MenuEntry(Icons.Default.DarkMode, "深色模式", "沉浸式播放体验", onThemeDark, highlight = true),
@@ -831,6 +876,7 @@ private fun buildMenuSections(
     )
     val toolSection = MenuSection(
         title = "工具设置",
+        icon = Icons.Default.Tune,
         entries = listOf(
             MenuEntry(Icons.Default.Tune, "工具", "搜索 / 提醒 / 续播 / 书签", onTools),
             MenuEntry(Icons.Default.ScreenshotMonitor, "截图", "单张 / 连拍 / 含字幕", onScreenshot),
@@ -843,6 +889,7 @@ private fun buildMenuSections(
     )
     val otherSection = MenuSection(
         title = "其他设置",
+        icon = Icons.Default.Settings,
         entries = listOf(
             MenuEntry(Icons.Default.Movie, "打开本地文件", "播放视频/音频文件", onOpenLocalVideo),
             MenuEntry(Icons.Default.History, "最近打开", "最近打开的列表/视频", onRecent),
