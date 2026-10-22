@@ -70,19 +70,15 @@ class MpvPlaybackController(private val host: MpvControllerHost) {
                 // 向 mpv 核心连发两条 loadfile，可能触发 native 崩溃
                 return@postOnUiThread
             } else if (host.isFileLoaded()) {
-                try {
-                    MPVLib.setPropertyString("demuxer-max-bytes", "16MiB")
-                    // 先 pause 再 stop：旧流正在解码坏帧时（如 hevc PPS out of range 刷屏），
-                    // stop 触发解码线程销毁会与解码循环竞态，产生 SIGSEGV 空指针
-                    // （fault addr 0x48）。先让解码线程在 run loop 安全点暂停可大幅降低概率。
-                    MPVLib.setPropertyBoolean("pause", true)
-                    MPVLib.command(arrayOf("stop"))
-                    Log.i(TAG, "playFile: pre-stop before loadfile (channel switch, releasing old decoder/VO)")
-                    host.getMpvView()?.asView()?.postDelayed(Runnable { if (pendingLoadUrl == url) doLoadFile() }, 300L) ?: doLoadFile()
-                    return@postOnUiThread
-                } catch (e: Throwable) {
-                    Log.w(TAG, "playFile: pre-stop failed: ${e.message}")
-                }
+                // 正常切台不显式 stop：旧流正在解码坏帧时（hevc PPS out of range 等），
+                // stop 触发解码线程 teardown 与解码循环竞态，SIGSEGV 空指针（fault 0x48），
+                // pause 也无法规避（崩溃发生在 stop 后 8ms）。
+                // 改为单条 loadfile（mpv 默认 replace 模式），由 mpv 核心在
+                // playback abort 安全路径上终止旧文件并释放解码器/VO。
+                MPVLib.setPropertyString("demuxer-max-bytes", "16MiB")
+                Log.i(TAG, "playFile: loadfile replace (channel switch, mpv-managed teardown)")
+                doLoadFile()
+                return@postOnUiThread
             }
             doLoadFile()
         }
