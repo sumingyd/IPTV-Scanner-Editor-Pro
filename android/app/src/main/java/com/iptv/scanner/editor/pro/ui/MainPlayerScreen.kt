@@ -356,6 +356,16 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
         }
     }
 
+    // 旋转到竖屏时关闭横屏专属侧边栏：landscapeSidebarVisible 在 anyPanelOpen
+    // 组合列表里，横屏开着侧边栏旋转到竖屏后该 flag 卡在 true（竖屏 UI 不渲染
+    // 侧边栏），会让竖屏视频覆盖层被 !anyPanelOpen 条件隐藏，点击视频无法
+    // 呼出暂停/全屏按钮
+    LaunchedEffect(isLandscape) {
+        if (!isLandscape && viewModel.landscapeSidebarVisible.value) {
+            viewModel.setLandscapeSidebarVisible(false)
+        }
+    }
+
     val anyFullScreenPanel by remember {
         derivedStateOf {
             menuPanelOpen || sourceManagerOpen || playerSettingsOpen ||
