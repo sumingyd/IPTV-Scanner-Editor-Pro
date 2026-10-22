@@ -973,14 +973,18 @@ internal fun AppViewModel.startSpectrumSampling() {
                 val bands = 32
                 val spectrum = FloatArray(bands) { 0f }
                 val n = fft.size / 2  // FFT bin 数量（不含 DC）
-                // 跳过 bin 0（DC 分量，总是最大且无意义）
-                // 使用对数分频段：低频段窄、高频段宽，符合人耳感知
+                // bin 0 为 DC 分量（无意义），从 bin 1 开始。
+                // 几何（对数）分布：band i 覆盖 [lo, hi)，并 coerceAtLeast(lo+1)
+                // 保证每个频段至少 1 个 bin——旧公式 pow(n, i/bands)+1 在低频段
+                // 会出现 hi<=lo 的空区间，导致左侧低频柱恒为零
+                val minBin = 1
+                val maxBin = n - 1
                 for (i in 0 until bands) {
-                    // 对数映射：band i 对应的 bin 范围
-                    val startBin = (Math.pow(n.toDouble(), i.toDouble() / bands) + 1).toInt()
-                    val endBin = (Math.pow(n.toDouble(), (i + 1).toDouble() / bands) + 1).toInt().coerceAtMost(n)
+                    val lo = minBin + Math.floor(Math.pow((maxBin - minBin).toDouble(), i.toDouble() / bands)).toInt()
+                    val hi = (minBin + Math.floor(Math.pow((maxBin - minBin).toDouble(), (i + 1).toDouble() / bands)))
+                        .toInt().coerceAtLeast(lo + 1).coerceAtMost(maxBin + 1)
                     var maxMag = 0f
-                    for (j in startBin until endBin) {
+                    for (j in lo until hi) {
                         val idx = j * 2
                         if (idx + 1 < fft.size) {
                             val re = fft[idx].toFloat()
@@ -989,10 +993,9 @@ internal fun AppViewModel.startSpectrumSampling() {
                             if (mag > maxMag) maxMag = mag
                         }
                     }
-                    // 对数缩放：更灵敏，更像常见频谱仪
-                    // mag 范围约 0~9052（Visualizer FFT 最大值），用 log 映射到 0~1
+                    // 对数缩放映射到 0~1（FFT 幅值实际峰值量级约几千）
                     val normalized = if (maxMag > 0.1f) {
-                        (kotlin.math.log10(maxMag + 1) / kotlin.math.log10(9052f)).coerceIn(0f, 1f)
+                        (kotlin.math.log10(maxMag + 1) / kotlin.math.log10(4000f)).coerceIn(0f, 1f)
                     } else 0f
                     spectrum[i] = normalized
                 }
