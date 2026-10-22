@@ -387,7 +387,7 @@ internal fun AppViewModel.clearLocalChannels() {
     }
 }
 
-internal fun AppViewModel.restoreLastChannel() {
+internal fun AppViewModel.restoreLastChannel(autoPlayFirstFallback: Boolean) {
     if (_currentIdx.value >= 0) {
         // 已经在播放（可能被其他逻辑触发），不重复恢复
         return
@@ -419,7 +419,13 @@ internal fun AppViewModel.restoreLastChannel() {
             Log.i(AppViewModel.TAG, "restoreLastChannel: last URL '$lastUrl' not found in ${channels.size} channels, playing first")
         }
     }
-    // 回退（未开启续播或找不到上次频道）：默认播放第一个频道，避免横屏黑屏等待
+    // 回退（未开启续播或找不到上次频道）：仅横屏（TV 风格）默认播放第一个频道，
+    // 避免黑屏等待；竖屏停留在频道列表首页，由用户自行选台进入播放页
+    // （playChannel 会将 showHome 置 false，竖屏自动播放会直接跳进播放页，体验突兀）
+    if (!autoPlayFirstFallback) {
+        Log.i(AppViewModel.TAG, "restoreLastChannel: portrait startup, skip auto-play fallback")
+        return
+    }
     playChannel(0, silent = true)
 }
 

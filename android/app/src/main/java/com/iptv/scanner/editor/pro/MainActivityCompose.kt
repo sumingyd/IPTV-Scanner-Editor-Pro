@@ -158,8 +158,11 @@ class MainActivityCompose : ComponentActivity() {
                             delay(200L)
                         }
                         if (viewModel.channels.value.isNotEmpty() && viewModel.currentIdx.value < 0) {
-                            // 优先按 URL 恢复上次播放的频道，找不到则播放第一个
-                            viewModel.restoreLastChannel()
+                            // 优先按 URL 恢复上次播放的频道；未开启续播时仅横屏（TV 风格）
+                            // 回退播放第一个频道，竖屏停留首页由用户自行选台
+                            val isLandscape = resources.configuration.orientation ==
+                                android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                            viewModel.restoreLastChannel(autoPlayFirstFallback = isLandscape)
                             Log.i(TAG, "Auto-restored last channel")
                         }
                     }
