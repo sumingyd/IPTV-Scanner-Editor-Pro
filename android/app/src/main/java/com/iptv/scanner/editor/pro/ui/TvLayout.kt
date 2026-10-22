@@ -77,9 +77,6 @@ import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
-
-private val TV_BOTTOM_BAR_HEIGHT = 100.dp
-
 /**
  * 根据点击位置计算多画面视口索引。
  * DUAL: 左=0, 右=1
@@ -211,7 +208,9 @@ fun TvPlayerLayout(
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
             val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-            Box(modifier = Modifier.fillMaxHeight().fillMaxWidth(0.82f).padding(start = 16.dp, top = 10.dp, bottom = TV_BOTTOM_BAR_HEIGHT)) {
+            // 底栏与侧边栏互斥显示（showOverlays && !sidebarVisible），无需预留底栏高度，
+            // 侧边栏直接贴到屏幕底部，避免底部空出一大块
+            Box(modifier = Modifier.fillMaxHeight().fillMaxWidth(0.82f).padding(start = 16.dp, top = 10.dp, bottom = 10.dp)) {
                 TvUnifiedPanel(viewModel = viewModel)
             }
         }

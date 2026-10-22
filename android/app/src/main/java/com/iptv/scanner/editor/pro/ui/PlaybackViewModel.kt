@@ -392,11 +392,7 @@ internal fun AppViewModel.restoreLastChannel() {
         // 已经在播放（可能被其他逻辑触发），不重复恢复
         return
     }
-    if (!userPrefs.isAutoResumeOnStart()) {
-        Log.i(AppViewModel.TAG, "restoreLastChannel: auto-resume disabled by user, skipping")
-        return
-    }
-    // 外部标志文件：如果存在则跳过自动续播（用于测试/调试）
+    // 外部标志文件：如果存在则跳过自动播放（用于测试/调试）
     try {
         val extDir = android.os.Environment.getExternalStorageDirectory()
         val flagFile = java.io.File(extDir, "Android/data/com.iptv.scanner.editor.pro/files/ISEP/skip_auto_resume")
@@ -410,17 +406,20 @@ internal fun AppViewModel.restoreLastChannel() {
     val channels = _channels.value
     if (channels.isEmpty()) return
 
-    val lastUrl = userPrefs.getLastChannelUrl()
-    if (lastUrl.isNotEmpty()) {
-        val lastIdx = channels.indexOfFirst { it.url == lastUrl }
-        if (lastIdx >= 0) {
-            Log.i(AppViewModel.TAG, "restoreLastChannel: restoring '$lastUrl' at idx=$lastIdx")
-            playChannel(lastIdx, silent = true)
-            return
+    // 开启了自动续播且能找到上次频道 → 恢复上次频道
+    if (userPrefs.isAutoResumeOnStart()) {
+        val lastUrl = userPrefs.getLastChannelUrl()
+        if (lastUrl.isNotEmpty()) {
+            val lastIdx = channels.indexOfFirst { it.url == lastUrl }
+            if (lastIdx >= 0) {
+                Log.i(AppViewModel.TAG, "restoreLastChannel: restoring '$lastUrl' at idx=$lastIdx")
+                playChannel(lastIdx, silent = true)
+                return
+            }
+            Log.i(AppViewModel.TAG, "restoreLastChannel: last URL '$lastUrl' not found in ${channels.size} channels, playing first")
         }
-        Log.i(AppViewModel.TAG, "restoreLastChannel: last URL '$lastUrl' not found in ${channels.size} channels, playing first")
     }
-    // 回退：播放第一个频道
+    // 回退（未开启续播或找不到上次频道）：默认播放第一个频道，避免横屏黑屏等待
     playChannel(0, silent = true)
 }
 

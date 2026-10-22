@@ -407,7 +407,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .fillMaxHeight()
-                    .padding(end = 16.dp, top = 10.dp, bottom = 80.dp)
+                    .padding(end = 16.dp, top = 10.dp, bottom = 10.dp)
                     .focusRequester(menuFocusRequester)
                     .focusable()
             ) {
