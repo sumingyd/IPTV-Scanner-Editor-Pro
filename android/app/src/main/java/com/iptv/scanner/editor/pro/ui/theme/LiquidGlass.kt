@@ -200,7 +200,9 @@ private class GlassBase(
     val borderTop: Float,
     val borderMid: Float,
     val borderBottom: Float,
-    val innerHighlight: Float
+    val innerHighlight: Float,
+    // 描边基色：深色主题白描边（暗底上白线可辨），浅色主题深描边（白底上白线不可见）
+    val borderTint: Color = Color.White
 )
 
 /** 深色主题：iOS 控制中心式灰白磨砂玻璃，彩色光斑透出感强 */
@@ -241,12 +243,13 @@ private val OverlayGlass = GlassBase(
     innerHighlight = 0.12f
 )
 
-/** 浅色主题：更实的白玻璃 + 阴影浮起（由外部 shadow 提供）+ 深色底边可辨 */
+/** 浅色主题：更实的白玻璃 + 阴影浮起（由外部 shadow 提供）+ 深色描边可辨 */
 private val LightGlass = GlassBase(
     blurTint = Color(0x8CFFFFFF),          // 白 55%
     fallbackSolid = Color(0xFFE8EAF0),
+    // 静态玻璃霜层：整体提亮（白 82%→72%→66%），减少画布灰底透出导致的「发灰」观感
     frostBrush = Brush.verticalGradient(
-        listOf(Color(0xA6FFFFFF), Color(0x8CFFFFFF), Color(0x80FFFFFF))
+        listOf(Color(0xD1FFFFFF), Color(0xB8FFFFFF), Color(0xA8FFFFFF))
     ),
     glossBrush = Brush.verticalGradient(
         0f to Color.White.copy(alpha = 0.30f),
@@ -255,8 +258,10 @@ private val LightGlass = GlassBase(
         1f to Color.Black.copy(alpha = 0.04f)
     ),
     glowAlpha = 0.85f,
-    borderTop = 0.75f, borderMid = 0.18f, borderBottom = 0.10f,
-    innerHighlight = 0.10f
+    // 深色描边：白底上白描边不可见，改用深灰蓝提供轮廓（顶部仍保留弱高光感）
+    borderTop = 0.30f, borderMid = 0.12f, borderBottom = 0.18f,
+    innerHighlight = 0.10f,
+    borderTint = Color(0xFF525B6B)
 )
 
 /** 环境彩色光斑基色 */
@@ -298,9 +303,9 @@ private fun DrawScope.drawLensingBorder(size: Size, radiusPx: Float, base: Glass
     val w = 1.2.dp.toPx()
     drawRoundRect(
         brush = Brush.verticalGradient(
-            0f to Color.White.copy(alpha = base.borderTop),
-            0.5f to Color.White.copy(alpha = base.borderMid),
-            1f to Color.White.copy(alpha = base.borderBottom)
+            0f to base.borderTint.copy(alpha = base.borderTop),
+            0.5f to base.borderTint.copy(alpha = base.borderMid),
+            1f to base.borderTint.copy(alpha = base.borderBottom)
         ),
         cornerRadius = CornerRadius(radiusPx, radiusPx),
         style = Stroke(width = w)

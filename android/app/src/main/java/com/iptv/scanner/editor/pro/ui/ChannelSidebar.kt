@@ -1146,17 +1146,23 @@ private fun ChannelThumbnailPanel(
                                 }
                             }
                         }
-                        // 右侧台标：占用信息区右侧空白，垂直居中
+                        // 右侧台标：占用信息区右侧空白，垂直居中（浅灰衬底防幽灵化）
                         if (channel.logo.isNotEmpty()) {
                             Spacer(modifier = Modifier.width(4.dp))
-                            AsyncImage(
-                                model = channel.logo,
-                                contentDescription = null,
+                            Box(
                                 modifier = Modifier
                                     .size(width = 42.dp, height = 26.dp)
-                                    .clip(RoundedCornerShape(3.dp)),
-                                contentScale = ContentScale.Fit
-                            )
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AsyncImage(
+                                    model = channel.logo,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize().padding(2.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
                         }
                     }
                 }
@@ -1197,16 +1203,22 @@ internal fun PortraitChannelListItem(
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 台标
+        // 台标（浅灰衬底：防止白色台标在浅色玻璃上幽灵化，与 Mini 播放条一致）
         if (channel.logo.isNotEmpty()) {
-            AsyncImage(
-                model = channel.logo,
-                contentDescription = channel.name,
+            Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                contentScale = ContentScale.Fit
-            )
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = channel.logo,
+                    contentDescription = channel.name,
+                    modifier = Modifier.fillMaxSize().padding(2.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
             Spacer(modifier = Modifier.width(8.dp))
         } else {
             // 无台标占位

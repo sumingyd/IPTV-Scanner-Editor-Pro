@@ -867,7 +867,8 @@ viewModel.mpv.setMute(savedMute)
                                                         )
                                                     )
                                                 )
-                                                val g = if (canvasDark) 0.32f else 0.15f
+                                                // 浅色画布光斑需更明显：白底上淡光斑易被吞没，玻璃无内容可透会失去质感
+                                                val g = if (canvasDark) 0.32f else 0.24f
                                                 drawCircle(
                                                     brush = androidx.compose.ui.graphics.Brush.radialGradient(
                                                         listOf(androidx.compose.ui.graphics.Color(0x5B8CFF).copy(alpha = g), androidx.compose.ui.graphics.Color.Transparent)

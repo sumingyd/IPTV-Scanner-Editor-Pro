@@ -254,7 +254,8 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) Color.White else oc.textSecondary,
+                            // 选中态用品牌色文字（白亮玻璃凸起上白字不可读，与底部 TAB 栏一致）
+                            color = if (isSelected) AptvAccent else oc.textSecondary,
                             fontSize = 13.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             textAlign = TextAlign.Center,
