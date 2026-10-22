@@ -1160,6 +1160,64 @@ private fun BookmarkRow(
     }
 }
 /**
+ * 经典频谱仪画布：底部升起的渐变柱 + 顶部缓降峰值点。
+ * 供音频可视化面板与播放信息 Tab 共用。
+ */
+@Composable
+internal fun SpectrumCanvas(spectrum: FloatArray, modifier: Modifier = Modifier) {
+    // 峰值缓存：经典频谱仪的缓降峰值标记（60fps 下每帧回落 0.009）
+    val peaks = remember { FloatArray(32) { 0f } }
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val outlineColor = MaterialTheme.colorScheme.outlineVariant
+    Canvas(modifier) {
+        val barCount = spectrum.size
+        if (barCount == 0) return@Canvas
+        val barWidth = size.width / barCount
+        val gap = barWidth * 0.25f
+        val actualBarWidth = barWidth - gap
+        val bottomY = size.height * 0.92f
+        val maxBarHeight = size.height * 0.82f
+        // 垂直渐变：底部橙红主色 → 顶部亮橙
+        val barBrush = androidx.compose.ui.graphics.Brush.verticalGradient(
+            colors = listOf(
+                primaryColor,
+                Color(0xFFFF8A50),
+                Color(0xFFFFC66B)
+            ),
+            startY = bottomY - maxBarHeight,
+            endY = bottomY
+        )
+        // 底部基线
+        drawLine(
+            color = outlineColor.copy(alpha = 0.25f),
+            start = androidx.compose.ui.geometry.Offset(0f, bottomY),
+            end = androidx.compose.ui.geometry.Offset(size.width, bottomY),
+            strokeWidth = 1.5f
+        )
+
+        spectrum.forEachIndexed { i, amplitude ->
+            val x = i * barWidth + gap / 2
+            val barHeight = (amplitude * maxBarHeight).coerceAtLeast(3f)
+            // 柱子从底部长出
+            drawRoundRect(
+                brush = barBrush,
+                topLeft = androidx.compose.ui.geometry.Offset(x, bottomY - barHeight),
+                size = androidx.compose.ui.geometry.Size(actualBarWidth, barHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(actualBarWidth * 0.35f, actualBarWidth * 0.35f)
+            )
+            // 顶部缓降峰值点：升起即时跟随，回落缓慢（约 1.8 秒落底）
+            peaks[i] = maxOf(peaks[i] - 0.009f, amplitude)
+            val peakY = bottomY - (peaks[i] * maxBarHeight).coerceAtLeast(3f) - actualBarWidth * 0.9f
+            drawRoundRect(
+                color = Color(0xFFFFC66B).copy(alpha = 0.9f),
+                topLeft = androidx.compose.ui.geometry.Offset(x, peakY),
+                size = androidx.compose.ui.geometry.Size(actualBarWidth, actualBarWidth * 0.28f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(actualBarWidth * 0.14f, actualBarWidth * 0.14f)
+            )
+        }
+    }
+}
+/**
  * 音频可视化面板（与 PC 端 audio_visual 对齐）。
  * 实时频谱波形 Canvas 绘制。
  */
@@ -1238,67 +1296,18 @@ fun AudioVisualizerPanel(viewModel: AppViewModel) {
                 )
             }
         } else {
-        // 峰值缓存：经典频谱仪的缓降峰值标记（60fps 下每帧回落 0.009）
-        val peaks = remember { FloatArray(32) { 0f } }
-        // 频谱画布（经典频谱仪：底部升起的渐变柱 + 顶部缓降峰值点）
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(240.dp)
-                .background(
-                    MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .clip(RoundedCornerShape(12.dp))
-        ) {
-            val barCount = spectrum.size
-            if (barCount == 0) return@Canvas
-            val barWidth = size.width / barCount
-            val gap = barWidth * 0.25f
-            val actualBarWidth = barWidth - gap
-            val bottomY = size.height * 0.92f
-            val maxBarHeight = size.height * 0.82f
-            // 垂直渐变：底部橙红主色 → 顶部亮橙
-            val barBrush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                colors = listOf(
-                    primaryColor,
-                    Color(0xFFFF8A50),
-                    Color(0xFFFFC66B)
-                ),
-                startY = bottomY - maxBarHeight,
-                endY = bottomY
+            SpectrumCanvas(
+                spectrum = spectrum,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clip(RoundedCornerShape(12.dp))
             )
-            // 底部基线
-            drawLine(
-                color = outlineColor.copy(alpha = 0.25f),
-                start = androidx.compose.ui.geometry.Offset(0f, bottomY),
-                end = androidx.compose.ui.geometry.Offset(size.width, bottomY),
-                strokeWidth = 1.5f
-            )
-
-            spectrum.forEachIndexed { i, amplitude ->
-                val x = i * barWidth + gap / 2
-                val barHeight = (amplitude * maxBarHeight).coerceAtLeast(3f)
-                // 柱子从底部长出
-                drawRoundRect(
-                    brush = barBrush,
-                    topLeft = androidx.compose.ui.geometry.Offset(x, bottomY - barHeight),
-                    size = androidx.compose.ui.geometry.Size(actualBarWidth, barHeight),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(actualBarWidth * 0.35f, actualBarWidth * 0.35f)
-                )
-                // 顶部缓降峰值点：升起即时跟随，回落缓慢（约 1.8 秒落底）
-                peaks[i] = maxOf(peaks[i] - 0.009f, amplitude)
-                val peakY = bottomY - (peaks[i] * maxBarHeight).coerceAtLeast(3f) - actualBarWidth * 0.9f
-                drawRoundRect(
-                    color = Color(0xFFFFC66B).copy(alpha = 0.9f),
-                    topLeft = androidx.compose.ui.geometry.Offset(x, peakY),
-                    size = androidx.compose.ui.geometry.Size(actualBarWidth, actualBarWidth * 0.28f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(actualBarWidth * 0.14f, actualBarWidth * 0.14f)
-                )
-            }
         }
-
-        } // spectrumError else 分支结束
 
             // 信息行
             Row(

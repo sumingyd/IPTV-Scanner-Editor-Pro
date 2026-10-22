@@ -2,6 +2,7 @@ package com.iptv.scanner.editor.pro.ui
 
 import android.content.Context
 import android.content.res.Configuration
+import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.key
 import androidx.compose.ui.window.Dialog
@@ -347,34 +348,47 @@ internal fun ChannelInfoDialog(viewModel: AppViewModel) {
     val isAptv = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
     val accentColor = if (isAptv) AptvAccent else oc.accent
 
-AlertDialog(
-onDismissRequest = { viewModel.toggleChannelInfo() },
-containerColor = if (isAptv) MaterialTheme.colorScheme.surface else oc.topBarBg.copy(alpha = 0.80f),
-shape = RoundedCornerShape(20.dp),
-modifier = Modifier.border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(20.dp)),
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (currentChannel != null && currentChannel!!.logo.isNotEmpty()) {
-                    AsyncImage(
-                        model = currentChannel!!.logo,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        contentScale = ContentScale.Fit
+    // 玻璃化弹窗（与退出确认弹窗同模式）：独立 window 走静态玻璃，
+    // 非玻璃态由 fallbackColor 提供圆角实底，不叠加 background 防黑直角
+    val glass = LocalLiquidGlass.current &&
+        com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported() &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    Dialog(onDismissRequest = { viewModel.toggleChannelInfo() }) {
+        com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+            enabled = glass,
+            cornerRadius = 20.dp,
+            staticGlass = true,
+            fallbackColor = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // 标题行：台标 + 频道名
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (currentChannel != null && currentChannel!!.logo.isNotEmpty()) {
+                        AsyncImage(
+                            model = currentChannel!!.logo,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(
+                        text = currentChannel?.name ?: "频道信息",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text(
-                    text = currentChannel?.name ?: "频道信息",
-                    color = if (isAptv) MaterialTheme.colorScheme.onSurface else oc.textPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.height(12.dp))
+
                 currentChannel?.let { ch ->
                     InfoRow("频道名", ch.name, oc, isAptv)
                     if (ch.group.isNotEmpty()) InfoRow("分类", ch.group, oc, isAptv)
@@ -385,18 +399,18 @@ modifier = Modifier.border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerS
                     if (videoWidth > 0 && videoHeight > 0) {
                         InfoRow("视频尺寸", "${videoWidth}x${videoHeight}", oc, isAptv)
                     }
-if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
-    if (ch.catchupDays.isNotEmpty()) InfoRow("回看天数", ch.catchupDays, oc, isAptv)
-}
-if (ch.source.isNotEmpty()) InfoRow("来源", ch.source, oc, isAptv)
-// 状态字段仅在有实际状态时显示（去掉“待检测”）
-if (ch.status.isNotEmpty() && ch.status != "待检测") InfoRow("状态", ch.status, oc, isAptv)
-InfoRow("URL", ch.url, oc, isAptv)
-// 回看 URL
-if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
-    val catchupUrl = if (ch.catchupSource.isNotEmpty()) ch.catchupSource else ch.catchup
-    InfoRow("回看URL", catchupUrl, oc, isAptv)
-}
+                    if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
+                        if (ch.catchupDays.isNotEmpty()) InfoRow("回看天数", ch.catchupDays, oc, isAptv)
+                    }
+                    if (ch.source.isNotEmpty()) InfoRow("来源", ch.source, oc, isAptv)
+                    // 状态字段仅在有实际状态时显示（去掉“待检测”）
+                    if (ch.status.isNotEmpty() && ch.status != "待检测") InfoRow("状态", ch.status, oc, isAptv)
+                    InfoRow("URL", ch.url, oc, isAptv)
+                    // 回看 URL
+                    if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
+                        val catchupUrl = if (ch.catchupSource.isNotEmpty()) ch.catchupSource else ch.catchup
+                        InfoRow("回看URL", catchupUrl, oc, isAptv)
+                    }
                     // 当前节目
                     if (currentProgram != null && currentProgram.title.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -408,7 +422,7 @@ if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
                         )
                         Text(
                             text = currentProgram.title,
-                            color = if (isAptv) MaterialTheme.colorScheme.onSurface else oc.textPrimary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(top = 2.dp)
                         )
@@ -416,20 +430,26 @@ if (ch.catchup.isNotEmpty() && ch.catchup != "none") {
                 } ?: run {
                     Text(
                         text = "未选择频道",
-                        color = if (isAptv) MaterialTheme.colorScheme.onSurfaceVariant else oc.textSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
                     )
                 }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { viewModel.toggleChannelInfo() }
-            ) {
-                Text("关闭", color = if (isAptv) Color.White else MaterialTheme.colorScheme.onSecondary)
+
+                Spacer(modifier = Modifier.height(16.dp))
+                // 关闭按钮（右对齐）
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = { viewModel.toggleChannelInfo() }
+                    ) {
+                        Text("关闭", color = Color.White)
+                    }
+                }
             }
         }
-    )
+    }
 }
 @Composable
 internal fun InfoRow(label: String, value: String, oc: PlayerOverlayColors, isAptv: Boolean = false) {

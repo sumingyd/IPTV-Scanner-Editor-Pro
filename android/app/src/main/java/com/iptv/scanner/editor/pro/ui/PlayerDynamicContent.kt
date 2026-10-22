@@ -75,6 +75,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.derivedStateOf
@@ -1033,6 +1034,8 @@ private fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
 
 // -----------------------------------------------------------------
 // 播放信息面板（竖屏播放页 Tab）
+// 布局：顶部频谱（免开可视化面板即看）+ 两列紧凑信息网格，
+// 全部字段中文翻译，面板高度内完整展示无需滑动
 @Composable
 private fun PortraitPlayerInfoPanel(
     viewModel: AppViewModel,
@@ -1053,25 +1056,126 @@ private fun PortraitPlayerInfoPanel(
     }
     val mediaInfo = remember(tick) { player.getMediaInfo() }
 
-    // APTV 风格：圆角分组卡 + 灰色小字分组节头
+    // 频谱：信息 Tab 打开期间持续采样（已有权限直接启动，离开 Tab 停止）
+    val spectrum by viewModel.audioSpectrum.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    DisposableEffect(Unit) {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.RECORD_AUDIO
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) viewModel.startSpectrumSampling()
+        onDispose { viewModel.stopSpectrumSampling() }
+    }
+
+    // ---- 值格式化 ----
+    val fmtBitrate: (String?) -> String? = { v ->
+        v?.takeIf { it.isNotEmpty() && it != "null" && it != "0" }?.let {
+            it.toLongOrNull()?.let { b ->
+                if (b > 1_000_000) String.format("%.1f Mbps", b / 1e6) else "${b / 1000} kbps"
+            } ?: it
+        }
+    }
+    val fmtSec: (String?) -> String? = { v ->
+        v?.takeIf { it.isNotEmpty() && it != "null" }?.let {
+            it.toDoubleOrNull()?.let { s -> String.format("%.1f s", s) } ?: it
+        }
+    }
+
+    // ---- 翻译后的字段列表（label to value，空值跳过）----
+    fun v(key: String): String? =
+        mediaInfo[key]?.takeIf { it.isNotEmpty() && it != "null" && it != "0" && it != "0.000" }
+
+    val playbackRows = listOf(
+        "分辨率" to if (videoWidth > 0) "${videoWidth}×${videoHeight}" else "未知",
+        "时长" to formatTime(duration),
+        "当前位置" to formatTime(timePos),
+        "进度" to (if (duration > 0) "${(timePos / duration * 100).toInt()}%" else "0%")
+    )
+    val mediaRows = listOfNotNull(
+        v("videoCodec")?.let { "视频编码" to it.uppercase() },
+        v("audioCodec")?.let { "音频编码" to it.uppercase() },
+        v("fps")?.let { "帧率" to (it.toFloatOrNull()?.let { f -> if (f == f.toInt().toFloat()) "${f.toInt()}" else String.format("%.2f", f) } ?: it) },
+        v("displayFps")?.let { "屏幕刷新" to String.format("%.1f", it.toDoubleOrNull() ?: 0.0) },
+        fmtBitrate(v("bitrate"))?.let { "视频码率" to it },
+        fmtBitrate(v("audioBitrate"))?.let { "音频码率" to it },
+        fmtSec(v("cacheDuration"))?.let { "缓冲时长" to it },
+        v("avdiff")?.let { "音画偏移" to (it.toDoubleOrNull()?.let { d -> String.format("%.0f ms", d * 1000) } ?: it) },
+        v("containerFormat")?.let { "封装格式" to it.uppercase() },
+        mediaInfo["hwdec"]?.takeIf { it.isNotEmpty() && it != "null" }?.let { "解码方式" to if (it == "no") "软解" else "硬解(${it})" },
+        v("vo")?.let { "视频输出" to it },
+        v("videoPrimaries")?.let { "色彩域" to it.uppercase() },
+        v("videoGamma")?.let { "传输特性" to when (it) { "pq" -> "PQ(HDR10)"; "hlg" -> "HLG"; else -> it.uppercase() } },
+        v("videoColorRange")?.let { "色彩范围" to when (it) { "limited" -> "Limited"; "full" -> "Full"; else -> it } }
+    )
+
+    /** 两列信息网格：一行两项，紧凑无滑动 */
+    @Composable
+    fun TwoColGrid(rows: List<Pair<String, String>>) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            rows.chunked(2).forEach { pair ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    pair.forEach { (label, value) ->
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "$label ",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = value,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    if (pair.size == 1) Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+
     AptvGroupCard(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            item { AptvSectionHeader(stringResource(R.string.info_playback)) }
-            item { InfoRow(label = stringResource(R.string.info_resolution), value = if (videoWidth > 0) "${videoWidth}x${videoHeight}" else stringResource(R.string.info_unknown)) }
-            item { InfoRow(label = stringResource(R.string.info_duration), value = formatTime(duration)) }
-            item { InfoRow(label = stringResource(R.string.info_current_position), value = formatTime(timePos)) }
-            item {
-                val progress = if (duration > 0) (timePos / duration * 100).toInt() else 0
-                InfoRow(label = stringResource(R.string.info_progress), value = "$progress%")
-            }
-            item { AptvSectionHeader(stringResource(R.string.info_media_info)) }
-            mediaInfo.forEach { (key, value) ->
-                item { InfoRow(label = key, value = value.orEmpty()) }
-            }
+            // 顶部频谱区（玻璃卡内嵌：经典频谱仪样式）
+            SpectrumCanvas(
+                spectrum = spectrum,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(96.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    .clip(RoundedCornerShape(10.dp))
+            )
+
+            Text(
+                text = stringResource(R.string.info_playback),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+            TwoColGrid(playbackRows)
+
+            Text(
+                text = stringResource(R.string.info_media_info),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+            TwoColGrid(mediaRows)
         }
     }
 }
