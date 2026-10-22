@@ -69,6 +69,9 @@ class MainActivityCompose : ComponentActivity() {
         // 底部热区占屏幕高度 20%：0.85 时手机横屏仅约 62dp，比底栏本身还矮，
         // 点击底栏上半部落进中央区被误判为暂停
         private const val BOTTOM_REGION_BOUND = 0.80f
+        // 中央暂停小块：宽/高占屏幕比例（暂停区过大易误触，仅屏幕中心小块触发暂停/播放）
+        private const val PAUSE_ZONE_WIDTH = 0.28f
+        private const val PAUSE_ZONE_HEIGHT = 0.42f
         private const val SIDEBAR_CLOSE_BOUND = 0.82f
         // 触控阈值
         private const val SLIDE_THRESHOLD = 80f
@@ -322,7 +325,9 @@ class MainActivityCompose : ComponentActivity() {
                         viewModel.toggleControls()
                         return true
                     }
-                    // 无任何悬浮窗：分区呼出（左右边缘呼出面板，底部呼出控制条，中央暂停/恢复）
+                    // 无任何悬浮窗：分区呼出（左右边缘呼出面板，底部呼出控制条）；
+                    // 仅屏幕中央小块触发暂停/恢复，小块之外的过渡区域呼出底栏控制条，
+                    // 确保点击画面任意位置都不会误暂停
                     if (y > h * BOTTOM_REGION_BOUND) {
                         viewModel.toggleControls()
                         return true
@@ -335,14 +340,20 @@ class MainActivityCompose : ComponentActivity() {
                     } else if (isRightZone) {
                         viewModel.toggleMenuPanel()
                         return true
-                    } else {
+                    }
+                    // 中央暂停小块：以屏幕中心为基准（宽 28% × 高 42%）
+                    val inCenterZone = kotlin.math.abs(x - w / 2f) <= w * PAUSE_ZONE_WIDTH / 2f &&
+                        kotlin.math.abs(y - h / 2f) <= h * PAUSE_ZONE_HEIGHT / 2f
+                    if (inCenterZone) {
                         // 暂停/恢复以观察到的 paused 状态为准显式设置：
                         // 原 cycle pause 是盲切换，一旦 UI 状态与 mpv 真实状态错位
                         // （如音频焦点抢占后状态不同步），点击中央会"越点越暂停"
                         if (viewModel.mpv.paused.value) viewModel.mpv.setPause(false)
                         else viewModel.mpv.setPause(true)
-                        return true
+                    } else {
+                        viewModel.toggleControls()
                     }
+                    return true
                 }
             }
         }
