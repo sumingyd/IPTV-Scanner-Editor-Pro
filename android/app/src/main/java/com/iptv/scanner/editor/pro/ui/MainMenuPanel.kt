@@ -78,8 +78,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
@@ -416,11 +414,9 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                     .focusRequester(menuFocusRequester)
                     .focusable()
             ) {
-                // 轻量暗色底衬：保证磨砂质感的同时提升文字可读性
-                // （视频内容透过玻璃时不再与菜单文字混叠）
-                Box(modifier = Modifier.background(Color(0x8C0A1219))) {
-                // 高度自适应内容（heightIn 限高，超长时列内滚动兜底）；
-                // 分隔线用 drawBehind 画在列右缘，高度=列可视高度，不会撑大面板
+                // 两列各自为独立圆角暗衬卡片、高度自适应内容（Top 对齐）：
+                // 条目少的分组左列是小卡片，不再出现整面暗色空白；
+                // 卡片之外露出外层玻璃磨砂，保持质感与可读性的平衡
                 // 列序（面板靠右显示，层级从右往左）：最右=一级分组列，往左=二级条目列
                 Row(
                     modifier = Modifier.wrapContentWidth().heightIn(max = configuration.screenHeightDp.dp - 20.dp)
@@ -429,14 +425,8 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                     if (currentSection != null && currentSection.entries.isNotEmpty()) {
                         Column(
                             modifier = Modifier.width(168.dp)
-                                .drawBehind {
-                                    drawLine(
-                                        Color(0x40FFFFFF),
-                                        Offset(size.width, 0f),
-                                        Offset(size.width, size.height),
-                                        1.dp.toPx()
-                                    )
-                                }
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xB30A1219))
                                 .verticalScroll(rememberScrollState())
                                 .padding(vertical = 6.dp)
                         ) {
@@ -495,17 +485,13 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                             }
                         }
                     }
-                    // 右列（最右=一级）：主菜单分组（图标 + 标题），左缘分隔线
+                    // 两列卡片间距
+                    Spacer(modifier = Modifier.width(6.dp))
+                    // 右列（最右=一级）：主菜单分组（图标 + 标题）
                     Column(
                         modifier = Modifier.width(136.dp)
-                            .drawBehind {
-                                drawLine(
-                                    Color(0x40FFFFFF),
-                                    Offset(0f, 0f),
-                                    Offset(0f, size.height),
-                                    1.dp.toPx()
-                                )
-                            }
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xB30A1219))
                             .verticalScroll(rememberScrollState())
                             .padding(vertical = 6.dp)
                     ) {
@@ -546,7 +532,6 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                         }
                     }
                 }
-                } // 暗色底衬 Box
             }
 
         }
