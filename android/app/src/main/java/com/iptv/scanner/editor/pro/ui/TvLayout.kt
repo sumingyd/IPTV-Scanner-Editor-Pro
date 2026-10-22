@@ -362,7 +362,6 @@ private fun TvBottomBar(
     currentProgram: IptvEpgProgram?,
     epgList: List<IptvEpgProgram>
 ) {
-    val oc = rememberPlayerOverlayColors()
     val mpv = viewModel.mpv
     val liquidGlass by viewModel.liquidGlass.collectAsState()
 
@@ -406,6 +405,9 @@ private fun TvBottomBar(
     }
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 8.dp, overlayDark = true) {
+            // oc 必须在 GlassPanel（DarkOverlayTheme 作用域）内获取：底栏是暗玻璃覆盖层，
+            // 浅色主题下若在外层取色会得到黑字/黑图标，落在暗玻璃上不可读
+            val oc = rememberPlayerOverlayColors()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
