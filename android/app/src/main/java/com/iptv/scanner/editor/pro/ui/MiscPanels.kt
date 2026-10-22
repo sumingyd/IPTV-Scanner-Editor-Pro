@@ -1238,7 +1238,9 @@ fun AudioVisualizerPanel(viewModel: AppViewModel) {
                 )
             }
         } else {
-        // 频谱画布（美化版：渐变色 + 圆角条 + 底部镜像反射 + 中线）
+        // 峰值缓存：经典频谱仪的缓降峰值标记（60fps 下每帧回落 0.009）
+        val peaks = remember { FloatArray(32) { 0f } }
+        // 频谱画布（经典频谱仪：底部升起的渐变柱 + 顶部缓降峰值点）
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1252,51 +1254,49 @@ fun AudioVisualizerPanel(viewModel: AppViewModel) {
             val barCount = spectrum.size
             if (barCount == 0) return@Canvas
             val barWidth = size.width / barCount
-            val gap = barWidth * 0.15f
+            val gap = barWidth * 0.25f
             val actualBarWidth = barWidth - gap
-            val centerY = size.height * 0.5f
-            val maxBarHeight = size.height * 0.42f
-
-            // 中线
+            val bottomY = size.height * 0.92f
+            val maxBarHeight = size.height * 0.82f
+            // 垂直渐变：底部橙红主色 → 顶部亮橙
+            val barBrush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                colors = listOf(
+                    primaryColor,
+                    Color(0xFFFF8A50),
+                    Color(0xFFFFC66B)
+                ),
+                startY = bottomY - maxBarHeight,
+                endY = bottomY
+            )
+            // 底部基线
             drawLine(
-                color = outlineColor.copy(alpha = 0.2f),
-                    start = androidx.compose.ui.geometry.Offset(0f, centerY),
-                    end = androidx.compose.ui.geometry.Offset(size.width, centerY),
-                    strokeWidth = 1f
+                color = outlineColor.copy(alpha = 0.25f),
+                start = androidx.compose.ui.geometry.Offset(0f, bottomY),
+                end = androidx.compose.ui.geometry.Offset(size.width, bottomY),
+                strokeWidth = 1.5f
+            )
+
+            spectrum.forEachIndexed { i, amplitude ->
+                val x = i * barWidth + gap / 2
+                val barHeight = (amplitude * maxBarHeight).coerceAtLeast(3f)
+                // 柱子从底部长出
+                drawRoundRect(
+                    brush = barBrush,
+                    topLeft = androidx.compose.ui.geometry.Offset(x, bottomY - barHeight),
+                    size = androidx.compose.ui.geometry.Size(actualBarWidth, barHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(actualBarWidth * 0.35f, actualBarWidth * 0.35f)
                 )
-
-                spectrum.forEachIndexed { i, amplitude ->
-                    val barHeight = (amplitude * maxBarHeight)
-                    val x = i * barWidth + gap / 2
-
-                    // 上方频谱条（从中心向上）
-                    val topY = centerY - barHeight
-                    // 下方镜像反射（从中心向下，透明度渐减）
-                    val bottomY = centerY + barHeight
-
-                    // 渐变色：低频蓝 → 中频青 → 高频橙
-                    val color = when {
-                        amplitude < 0.33f -> primaryColor.copy(alpha = 0.7f + amplitude * 0.3f)
-                        amplitude < 0.66f -> Color(0xFF00BCD4).copy(alpha = 0.8f)
-                        else -> Color(0xFFFF9800).copy(alpha = 0.9f)
-                    }
-                    val reflectionColor = color.copy(alpha = 0.25f)
-
-                    drawRoundRect(
-                        color = color,
-                        topLeft = androidx.compose.ui.geometry.Offset(x, topY),
-                        size = androidx.compose.ui.geometry.Size(actualBarWidth, barHeight),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(actualBarWidth * 0.3f, actualBarWidth * 0.3f)
-                    )
-                    // 镜像反射
-                    drawRoundRect(
-                        color = reflectionColor,
-                        topLeft = androidx.compose.ui.geometry.Offset(x, centerY),
-                        size = androidx.compose.ui.geometry.Size(actualBarWidth, barHeight),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(actualBarWidth * 0.3f, actualBarWidth * 0.3f)
-                    )
-                }
+                // 顶部缓降峰值点：升起即时跟随，回落缓慢（约 1.8 秒落底）
+                peaks[i] = maxOf(peaks[i] - 0.009f, amplitude)
+                val peakY = bottomY - (peaks[i] * maxBarHeight).coerceAtLeast(3f) - actualBarWidth * 0.9f
+                drawRoundRect(
+                    color = Color(0xFFFFC66B).copy(alpha = 0.9f),
+                    topLeft = androidx.compose.ui.geometry.Offset(x, peakY),
+                    size = androidx.compose.ui.geometry.Size(actualBarWidth, actualBarWidth * 0.28f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(actualBarWidth * 0.14f, actualBarWidth * 0.14f)
+                )
             }
+        }
 
         } // spectrumError else 分支结束
 
