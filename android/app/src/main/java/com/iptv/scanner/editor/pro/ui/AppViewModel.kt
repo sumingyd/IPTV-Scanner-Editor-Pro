@@ -535,7 +535,14 @@ val logLevel: StateFlow<String> = _logLevel.asStateFlow()
 // 注册文件加载错误回调：当 mpv 报告文件加载失败时换源，
 // 添加短暂延迟避免坏流导致 mpv 核心状态未清理就加载下一个流。
 mpvSingleton.onFileError = {
-if (mpv.fileLoaded.value) {
+// 停止态守卫：stopPlay 在 mpv.stop() 前已清空 currentPlaybackUrl，停止后
+// mpv.stop() 触发的 END_FILE(error) 到达时无流可处理，直接跳过。
+// 不能用 mode==IDLE 判断：播放本地视频时 mode 可能仍为 IDLE。
+// 注意 stale 检查在此场景会失效——停止后 mpv getPath() 返回空串，
+// 而 stale 分支要求 mpvPath.isNotEmpty() 才跳过，导致穿透到自动换台逻辑。
+if (currentPlaybackUrl.isEmpty()) {
+    Log.i(TAG, "onFileError: skipped, playback stopped (currentPlaybackUrl empty)")
+} else if (mpv.fileLoaded.value) {
     Log.i(TAG, "onFileError: skipped, file already loaded (stale callback)")
 } else if (playChannelDebounceJob?.isActive == true) {
     Log.i(TAG, "onFileError: skipped, channel switch in progress (debounce job active)")

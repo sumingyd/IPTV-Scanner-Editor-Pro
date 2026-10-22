@@ -66,12 +66,19 @@ class MpvPlaybackController(private val host: MpvControllerHost) {
                 }
                 needPreStop = false
                 doLoadFile()
+                // 必须显式返回：否则落到函数末尾再次执行 doLoadFile()，
+                // 向 mpv 核心连发两条 loadfile，可能触发 native 崩溃
+                return@postOnUiThread
             } else if (host.isFileLoaded()) {
                 try {
                     MPVLib.setPropertyString("demuxer-max-bytes", "16MiB")
+                    // 先 pause 再 stop：旧流正在解码坏帧时（如 hevc PPS out of range 刷屏），
+                    // stop 触发解码线程销毁会与解码循环竞态，产生 SIGSEGV 空指针
+                    // （fault addr 0x48）。先让解码线程在 run loop 安全点暂停可大幅降低概率。
+                    MPVLib.setPropertyBoolean("pause", true)
                     MPVLib.command(arrayOf("stop"))
                     Log.i(TAG, "playFile: pre-stop before loadfile (channel switch, releasing old decoder/VO)")
-                    host.getMpvView()?.asView()?.postDelayed(Runnable { if (pendingLoadUrl == url) doLoadFile() }, 80L) ?: doLoadFile()
+                    host.getMpvView()?.asView()?.postDelayed(Runnable { if (pendingLoadUrl == url) doLoadFile() }, 300L) ?: doLoadFile()
                     return@postOnUiThread
                 } catch (e: Throwable) {
                     Log.w(TAG, "playFile: pre-stop failed: ${e.message}")

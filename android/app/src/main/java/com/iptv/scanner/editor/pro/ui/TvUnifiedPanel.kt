@@ -178,8 +178,11 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
 
     // 焦点频道索引（频道列表中当前聚焦的频道，用于 EPG 跟随显示）
     var focusedChannelIdx by remember { mutableStateOf(currentIdx) }
-    val focusedChannel = remember(focusedChannelIdx, channels) {
-        channels.getOrNull(focusedChannelIdx)
+    // EPG 跟随的频道索引：未聚焦/停止播放后（currentIdx=-1）回退到第一个频道，
+    // 保证 EPG 列始终显示节目单（否则显示"请选择频道"占位，无法点节目进入回看）
+    val epgChannelIdx = if (focusedChannelIdx >= 0) focusedChannelIdx else 0
+    val focusedChannel = remember(epgChannelIdx, channels) {
+        channels.getOrNull(epgChannelIdx)
     }
 
     // 焦点管理：初始焦点在第三列（频道列表）
@@ -218,13 +221,13 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
     }
 
     // 焦点频道变化时刷新 EPG（防抖 300ms，避免快速滚动时大量 EPG 请求堆积导致卡死）
-    LaunchedEffect(focusedChannelIdx) {
+    LaunchedEffect(epgChannelIdx, channels) {
         selectedProgram = null
-        if (focusedChannelIdx >= 0) {
+        if (epgChannelIdx >= 0 && channels.getOrNull(epgChannelIdx) != null) {
             // 防抖：快速滚动时 LaunchedEffect 会被下次焦点变化取消，
             // 只有停留超过 300ms 的频道才会真正触发 EPG 请求
             kotlinx.coroutines.delay(300)
-            viewModel.fetchEpgForChannel(focusedChannelIdx)
+            viewModel.fetchEpgForChannel(epgChannelIdx)
         }
     }
 
@@ -352,6 +355,9 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                                 disableFavorite = osdDisableFavorite,
                                 disableEpg = osdDisableEpg,
                                 onChannelClick = { idx ->
+                                    // 触屏点击不走焦点系统（clickable 不触发焦点回调），
+                                    // 必须手动同步 EPG 跟随频道，否则 EPG 列停留在旧频道节目单
+                                    focusedChannelIdx = idx
                                     if (multiViewState.active) {
                                         viewModel.addChannelToMultiView(idx)
                                     } else {
@@ -378,11 +384,16 @@ fun TvUnifiedPanel(viewModel: AppViewModel) {
                                             val nowSec = System.currentTimeMillis() / 1000L
                                             val isLive = program.startTs <= nowSec && program.stopTs >= nowSec
                                             val isPast = program.stopTs < nowSec
+                                            // 用 epgChannelIdx 而非 focusedChannelIdx：
+                                            // 未聚焦/停止后 EPG 列回退显示第一个频道，
+                                            // 此时 focusedChannelIdx=-1，直接用它会导致播放失败
                                             when {
-                                                isLive -> viewModel.playChannel(focusedChannelIdx)
+                                                isLive -> viewModel.playChannel(epgChannelIdx)
                                                 isPast -> {
-                                                    viewModel.playChannel(focusedChannelIdx)
-                                                    openOverlay { viewModel.startCatchup(program) }
+                                                    // 直接以 epgChannelIdx 进入回看。不能先 playChannel：
+                                                    // 它会加载直播流，与 startCatchup 的回看流形成
+                                                    // 双 loadfile 竞态，回看可能被 superseded 跳过播成直播
+                                                    openOverlay { viewModel.startCatchup(program, epgChannelIdx) }
                                                 }
                                                 else -> viewModel.toggleReminder(program, focusedChannel)
                                             }

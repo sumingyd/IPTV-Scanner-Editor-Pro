@@ -223,20 +223,25 @@ internal fun AppViewModel.stopPlay() {
     consecutiveTimeoutCount = 0
     // 清除当前播放 URL，防止 mpv.stop() 触发的 onFileError 回调自动重连
     currentPlaybackUrl = ""
-    mpv.stop()
+    // 先置 IDLE 再 stop：确保 mpv.stop() 触发的任何同步事件都能看到已停止状态
     _playbackState.value = PlaybackState(mode = PlayMode.IDLE)
+    mpv.stop()
     _currentIdx.value = -1
     _currentEpg.value = emptyList()
     showOsd("已停止")
 }
 
-internal fun AppViewModel.startCatchup(program: IptvEpgProgram) {
-    val idx = _currentIdx.value
+internal fun AppViewModel.startCatchup(program: IptvEpgProgram, channelIdx: Int = Int.MIN_VALUE) {
+    // channelIdx：节目单显示的频道与当前播放频道不一致时（统一面板 EPG 列回退/聚焦跟随），
+    // 由调用方显式指定回看目标频道；默认仍取当前播放频道
+    val idx = if (channelIdx != Int.MIN_VALUE) channelIdx else _currentIdx.value
     if (idx < 0) {
         showOsd("回看", "无当前频道")
         return
     }
     val channel = _channels.value.getOrNull(idx) ?: return
+    // 指定频道进入回看时同步 currentIdx（EPG/OSD/切台基准与回看频道保持一致）
+    if (idx != _currentIdx.value) _currentIdx.value = idx
 
     // 检查频道是否支持回看
     if (!CatchupHelper.isCatchupEnabled(channel)) {
