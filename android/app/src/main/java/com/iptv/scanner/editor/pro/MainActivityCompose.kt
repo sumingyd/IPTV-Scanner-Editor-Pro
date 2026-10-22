@@ -724,10 +724,15 @@ class MainActivityCompose : ComponentActivity() {
      * - setSourceBoundsHint：从视频区域平滑动画过渡到 PiP 窗口
      * - Android 12+：setAutoEnterEnabled + setSeamlessResizeEnabled
      */
-    /** 全屏切换：竖屏→强制横屏，横屏→跟随传感器（可回竖屏） */
+    /** 全屏切换：竖屏→强制横屏，横屏→跟随传感器（可回竖屏）。
+     * 大屏设备（sw>=600dp）系统会忽略 requestedOrientation，此时由
+     * forceLandscapeLayout 驱动应用内伪横屏布局，保证全屏按钮始终有效。 */
     fun toggleFullscreen() {
         try {
-            if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) {
+            val portrait = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
+            Log.i(TAG, "toggleFullscreen: portrait=$portrait -> forceLandscape=$portrait")
+            viewModel.setForceLandscapeLayout(portrait)
+            if (portrait) {
                 requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             } else {
                 requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED

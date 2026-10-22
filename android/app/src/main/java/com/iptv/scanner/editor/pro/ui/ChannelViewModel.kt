@@ -968,6 +968,7 @@ internal fun AppViewModel.resetAllPanelStates() {
         _aboutPanelOpen.value = false
         _updateDialogOpen.value = false
         _exitConfirmOpen.value = false
+        _dlnaPanelOpen.value = false
         _openUrlDialogOpen.value = false
         _mappingPanelOpen.value = false
         _avSyncPanelOpen.value = false

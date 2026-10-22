@@ -980,6 +980,17 @@ internal var currentIsLocalFile: Boolean
     internal val _currentLyricLine = MutableStateFlow(-1)
     val currentLyricLine: StateFlow<Int> = _currentLyricLine.asStateFlow()
 
+    // DLNA 投屏状态流（需在 anyPanelOpenFlow 组合之前初始化）
+    internal val _dlnaPanelOpen = MutableStateFlow(false)
+    val dlnaPanelOpen: StateFlow<Boolean> = _dlnaPanelOpen.asStateFlow()
+    internal val _dlnaScanning = MutableStateFlow(false)
+    val dlnaScanning: StateFlow<Boolean> = _dlnaScanning.asStateFlow()
+    internal val _dlnaDevices = MutableStateFlow<List<com.iptv.scanner.editor.pro.player.DlnaDevice>>(emptyList())
+    val dlnaDevices: StateFlow<List<com.iptv.scanner.editor.pro.player.DlnaDevice>> = _dlnaDevices.asStateFlow()
+    /** 当前投播中的设备（null=未投屏） */
+    internal val _dlnaConnected = MutableStateFlow<com.iptv.scanner.editor.pro.player.DlnaDevice?>(null)
+    val dlnaConnected: StateFlow<com.iptv.scanner.editor.pro.player.DlnaDevice?> = _dlnaConnected.asStateFlow()
+
     val anyPanelOpenFlow: StateFlow<Boolean> = combine(
         _channelsPanelOpen, _epgPanelOpen, _menuPanelOpen, _tvUnifiedPanelOpen,
         _fileBrowserOpen, _sourceManagerOpen, _playerSettingsOpen, _videoSettingsOpen,
@@ -989,6 +1000,7 @@ internal var currentIsLocalFile: Boolean
         _reminderPanelOpen, _resumePanelOpen, _bookmarkPanelOpen, _epgTimelineOpen,
         _searchPanelOpen, _streamQualityPanelOpen, _recentPanelOpen, _clipExportPanelOpen,
         _audioVisualizerOpen, _lyricsOpen, _exitConfirmOpen, _channelInfoOpen,
+        _dlnaPanelOpen,
         _openUrlDialogOpen, _updateDialogOpen, _landscapeSidebarVisible, _playerToolsOpen
     ) { arr -> arr.any { it } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -1011,6 +1023,89 @@ internal var currentIsLocalFile: Boolean
 
     fun toggleFullscreen() {
         onToggleFullscreen?.invoke()
+    }
+
+    /**
+     * 应用内强制横屏布局。
+     *
+     * 大屏设备（sw>=600dp，Android 12L+）系统会忽略 Activity 的
+     * requestedOrientation 请求，导致「点击全屏按钮屏幕不旋转」。
+     * 该状态让 UI 在物理方向不变时也渲染横屏播放布局（应用内伪全屏），
+     * 与系统旋转成功时（configuration 变为横屏）的效果对齐。
+     */
+    internal val _forceLandscapeLayout = MutableStateFlow(false)
+    val forceLandscapeLayout: StateFlow<Boolean> = _forceLandscapeLayout.asStateFlow()
+    fun setForceLandscapeLayout(value: Boolean) {
+        _forceLandscapeLayout.value = value
+    }
+
+    // ------------------------------------------------------------------
+    // DLNA 投屏：搜索局域网电视/盒子，把当前频道流推给电视播放
+    // ------------------------------------------------------------------
+    fun toggleDlnaPanel() {
+        _dlnaPanelOpen.value = !_dlnaPanelOpen.value
+        if (_dlnaPanelOpen.value) scanDlna()
+    }
+
+    fun dismissDlnaPanel() {
+        _dlnaPanelOpen.value = false
+    }
+
+    /** SSDP 搜索局域网 DLNA 设备 */
+    fun scanDlna() {
+        if (_dlnaScanning.value) return
+        _dlnaScanning.value = true
+        _dlnaDevices.value = emptyList()
+        viewModelScope.launch {
+            val devices = try {
+                com.iptv.scanner.editor.pro.player.DlnaCast.search(getApplication())
+            } catch (e: Exception) {
+                Log.e(TAG, "scanDlna failed", e)
+                emptyList()
+            }
+            _dlnaDevices.value = devices
+            _dlnaScanning.value = false
+            if (devices.isEmpty()) showOsd("投屏", "未发现设备，请确认电视与本机在同一网络")
+        }
+    }
+
+    /** 投播当前频道到指定设备 */
+    fun castToDevice(device: com.iptv.scanner.editor.pro.player.DlnaDevice) {
+        val url = getCurrentPlaybackUrl()
+        if (url.isEmpty()) {
+            showOsd("投屏", "请先选择要播放的频道")
+            return
+        }
+        val chName = channels.value.getOrNull(_currentIdx.value)?.name ?: "IPTV"
+        showOsd("投屏中", "正在连接 ${device.name}")
+        viewModelScope.launch {
+            val ok = try {
+                com.iptv.scanner.editor.pro.player.DlnaCast.cast(device, url, chName)
+            } catch (e: Exception) {
+                Log.e(TAG, "castToDevice failed", e)
+                false
+            }
+            if (ok) {
+                _dlnaConnected.value = device
+                _dlnaPanelOpen.value = false
+                showOsd("投屏成功", "正在 ${device.name} 上播放")
+            } else {
+                showOsd("投屏失败", "设备无响应，请重试")
+            }
+        }
+    }
+
+    /** 停止电视端播放并断开投屏 */
+    fun stopDlnaCast() {
+        val device = _dlnaConnected.value ?: return
+        viewModelScope.launch {
+            try {
+                com.iptv.scanner.editor.pro.player.DlnaCast.stop(device)
+            } catch (_: Exception) {
+            }
+            _dlnaConnected.value = null
+            showOsd("投屏已断开", device.name)
+        }
     }
 
     /** 刷新 UI 状态 */

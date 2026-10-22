@@ -264,6 +264,7 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
     val currentChannel by viewModel.currentChannel.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
+    val dlnaConnected by viewModel.dlnaConnected.collectAsState()
     val oc = rememberPlayerOverlayColors()
 
     // 标题栏：玻璃条（亮磨砂，跟随玻璃开关），降级为原实底
@@ -354,13 +355,13 @@ internal fun PortraitInfoBarV2(viewModel: AppViewModel) {
                 )
             }
             IconButton(
-                onClick = { android.widget.Toast.makeText(toastCtx, "投屏功能开发中，敬请期待", android.widget.Toast.LENGTH_SHORT).show() },
+                onClick = { viewModel.toggleDlnaPanel() },
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     Icons.Default.Cast,
                     contentDescription = "投屏",
-                    tint = oc.iconTint,
+                    tint = if (dlnaConnected != null) AptvAccent else oc.iconTint,
                     modifier = Modifier.size(22.dp)
                 )
             }

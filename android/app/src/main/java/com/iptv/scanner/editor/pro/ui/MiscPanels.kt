@@ -345,6 +345,102 @@ private fun ExitOptionRow(label: String, tint: Color = Color.Unspecified, bold: 
         )
     }
 }
+
+/**
+ * DLNA 投屏设备面板：SSDP 搜索局域网电视/盒子，点击设备把当前频道投播到电视。
+ * 玻璃弹窗风格与退出确认弹窗一致（独立窗口走静态玻璃）。
+ */
+@Composable
+fun DlnaCastPanel(viewModel: AppViewModel) {
+    val open by viewModel.dlnaPanelOpen.collectAsState()
+    if (!open) return
+
+    val devices by viewModel.dlnaDevices.collectAsState()
+    val scanning by viewModel.dlnaScanning.collectAsState()
+    val connected by viewModel.dlnaConnected.collectAsState()
+
+    val glass = LocalLiquidGlass.current &&
+        com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported() &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    Dialog(onDismissRequest = { viewModel.dismissDlnaPanel() }) {
+        com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+            enabled = glass,
+            cornerRadius = 22.dp,
+            staticGlass = true,
+            fallbackColor = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 20.dp, bottom = 10.dp)
+            ) {
+                Text("投屏到电视", fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (scanning) "正在搜索局域网设备..." else "点击设备开始投播当前频道",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                // 设备列表（最多显示区域限制，超出滚动）
+                if (devices.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(88.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            if (scanning) "搜索中..." else "未发现设备",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 260.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        devices.forEach { device ->
+                            val isConnected = connected?.host == device.host && connected?.name == device.name
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (isConnected) viewModel.stopDlnaCast() else viewModel.castToDevice(device)
+                                    }
+                                    .padding(horizontal = 20.dp, vertical = 13.dp)
+                            ) {
+                                Text(
+                                    if (isConnected) "${device.name}（投播中，点击断开）" else device.name,
+                                    color = if (isConnected) AptvAccent else MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 15.sp,
+                                    fontWeight = if (isConnected) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                                Text(
+                                    device.host,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                        }
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                // 重新搜索
+                ExitOptionRow(if (scanning) "搜索中..." else "重新搜索") {
+                    if (!scanning) viewModel.scanDlna()
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                ExitOptionRow("取消", bold = true) {
+                    viewModel.dismissDlnaPanel()
+                }
+            }
+        }
+    }
+}
 // =================================================================
 // 工具面板
 // =================================================================

@@ -248,13 +248,17 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val portraitTab by viewModel.portraitTab.collectAsState()
     val landscapeSidebarVisible by viewModel.landscapeSidebarVisible.collectAsState()
     val multiViewState by viewModel.multiViewState.collectAsState()
+    // 应用内伪全屏：大屏设备忽略 requestedOrientation 时仍渲染横屏布局
+    val forceLandscape by viewModel.forceLandscapeLayout.collectAsState()
 
     // 横竖屏判定（供 BACK 处理使用；横屏 TV 风格无首页 UI）
     val isLandscape =
         androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
         android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    /** 布局横屏 = 真实横屏 或 应用内伪全屏 */
+    val layoutLandscape = isLandscape || forceLandscape
 
-    // 系统返回键处理：侧边栏→退出多画面→返回首页→退出确认
+    // 系统返回键处理：侧边栏→退出伪全屏→退出多画面→返回首页→退出确认
     BackHandler(enabled = true) {
         when {
             landscapeSidebarVisible || channelsPanelOpen || epgPanelOpen || menuPanelOpen || tvUnifiedPanelOpen ||
@@ -267,13 +271,17 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
             audioVisualizerOpen || lyricsOpen || channelInfoOpen || openUrlDialogOpen -> {
                 viewModel.closeAllPanels()
             }
+            forceLandscape && !isLandscape -> {
+                // 伪全屏（物理竖屏 + 横屏布局）：BACK 先退出伪全屏回竖屏布局
+                viewModel.setForceLandscapeLayout(false)
+            }
             multiViewState.active -> {
                 viewModel.exitMultiView()
             }
             !showHome -> {
                 // 竖屏有首页可回；横屏（TV 风格）不渲染首页 UI，
                 // 直接弹退出确认给用户明确反馈，避免第一按毫无响应
-                if (isLandscape) {
+                if (layoutLandscape) {
                     viewModel.showExitConfirm()
                 } else {
                     viewModel.showHomeScreen()
@@ -383,7 +391,7 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
     // 竖屏：手机竖屏观看
     // 横屏：手机横屏 + TV横屏，统一侧边栏风格，支持触控+遥控器
-    val portraitSplit = isPortrait && !multiViewState.active
+    val portraitSplit = isPortrait && !multiViewState.active && !forceLandscape
 
     // 全局EPG预加载（竖屏+横屏统一）：频道加载后立即预加载，15秒后重试
     val globalChannels by viewModel.channels.collectAsState()
@@ -1204,6 +1212,9 @@ if (lyricsOpen) {
 
         // 退出确认对话框（BACK 键退出时提示：立即退出 / 进入 PiP）
         ExitConfirmDialog(viewModel = viewModel)
+
+        // DLNA 投屏设备面板（信息栏/底部栏"投屏"按钮触发）
+        DlnaCastPanel(viewModel = viewModel)
 
         // 频道信息详情对话框（信息栏"信息"按钮触发）
         if (channelInfoOpen) {
