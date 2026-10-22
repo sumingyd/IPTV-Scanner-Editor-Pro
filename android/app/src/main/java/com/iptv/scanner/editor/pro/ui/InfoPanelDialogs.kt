@@ -671,7 +671,8 @@ fun PortraitPanelDialog(
                     fallbackColor = oc.topBarBg.copy(alpha = 0.85f),
                     modifier = Modifier.matchParentSize()
                 ) {
-                    accentedContent()
+                    // 暗玻璃弹窗：文字强制白系（浅色主题下 onSurface 会变黑字不可读）
+                    com.iptv.scanner.editor.pro.ui.theme.DarkOverlayTheme { accentedContent() }
                 }
             }
         }
@@ -698,7 +699,8 @@ fun PortraitPanelDialog(
                     fallbackColor = oc.topBarBg.copy(alpha = 0.80f),
                     modifier = Modifier.matchParentSize()
                 ) {
-                    accentedContent()
+                    // 暗玻璃弹窗：文字强制白系（浅色主题下 onSurface 会变黑字不可读）
+                    com.iptv.scanner.editor.pro.ui.theme.DarkOverlayTheme { accentedContent() }
                 }
             }
         }

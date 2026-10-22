@@ -85,6 +85,7 @@ import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import com.iptv.scanner.editor.pro.ui.theme.tvGlassSelected
 import com.iptv.scanner.editor.pro.ui.theme.GlassPanel
+import com.iptv.scanner.editor.pro.ui.theme.DarkOverlayTheme
 import com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface
 import com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported
 import java.util.Locale
@@ -537,11 +538,12 @@ private fun SourceSwitchColumn(
         fallbackColor = Color(0xE6222226),
         modifier = modifier.fillMaxHeight()
     ) {
-        // 轻量单层玻璃：不额外垫深色底衬，避免双层叠加观感
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)
-        ) {
+        DarkOverlayTheme {
+            // 轻量单层玻璃：不额外垫深色底衬，避免双层叠加观感
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)
+            ) {
             items(items = sources, key = { it.url }) { src ->
                 val isSelected = src.url == selectedSource
                 val sourceName = src.name.ifEmpty { src.url.substringAfterLast('/').take(6) }
@@ -570,6 +572,7 @@ private fun SourceSwitchColumn(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
             }
         }
     }
@@ -656,24 +659,26 @@ private fun QuickMenuColumn(
         fallbackColor = Color(0xE6222226),
         modifier = modifier.fillMaxHeight()
     ) {
-        // 轻量单层玻璃：不额外垫深色底衬，避免双层叠加观感
-        // （fallbackColor 已提供底色，图标为白色高对比，可读性足够）
-        // fillMaxWidth：占满玻璃条宽度，否则 Box 内内容默认靠左上，图标列整体偏左不居中
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .padding(vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
-        ) {
-            QuickMenuIcon(Icons.Default.Web, "订阅", channelsTab == ChannelTab.SUB) { onTabChange(ChannelTab.SUB) }
-            QuickMenuIcon(Icons.Default.VideoLibrary, "本地", channelsTab == ChannelTab.LOCAL) { onTabChange(ChannelTab.LOCAL) }
+        DarkOverlayTheme {
+            // 轻量单层玻璃：不额外垫深色底衬，避免双层叠加观感
+            // （fallbackColor 已提供底色，图标为白色高对比，可读性足够）
+            // fillMaxWidth：占满玻璃条宽度，否则 Box 内内容默认靠左上，图标列整体偏左不居中
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .padding(vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+            ) {
+                QuickMenuIcon(Icons.Default.Web, "订阅", channelsTab == ChannelTab.SUB) { onTabChange(ChannelTab.SUB) }
+                QuickMenuIcon(Icons.Default.VideoLibrary, "本地", channelsTab == ChannelTab.LOCAL) { onTabChange(ChannelTab.LOCAL) }
 
-            QuickMenuIcon(
-                if (controlsPinned) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                "OSD", controlsPinned, onOsd
-            )
+                QuickMenuIcon(
+                    if (controlsPinned) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    "OSD", controlsPinned, onOsd
+                )
+            }
         }
     }
 }

@@ -149,6 +149,22 @@ fun isDarkTheme(): Boolean {
 }
 
 /**
+ * 横屏视频覆盖层面板（暗玻璃 overlayDark）专用主题。
+ *
+ * 这些面板悬浮在视频上，永远呈暗色玻璃 + 白字；但内部文字若用
+ * MaterialTheme.colorScheme.onSurface 系，会在浅色主题下变黑/深灰，
+ * 落在暗玻璃上几乎不可读。此 helper 强制文字色为白系，明暗主题通用。
+ */
+@Composable
+fun DarkOverlayTheme(content: @Composable () -> Unit) {
+    val scheme = MaterialTheme.colorScheme.copy(
+        onSurface = Color(0xFFE9EDF4),
+        onSurfaceVariant = Color(0xFF9AA4B2)
+    )
+    MaterialTheme(colorScheme = scheme, content = content)
+}
+
+/**
  * 播放器控制层覆盖颜色 — 随主题自适应。
  *
  * 视频控制层叠在视频上方，需要遮罩保证对比度：
@@ -275,7 +291,13 @@ fun GlassPanel(
         fallbackColor = Color(0xF0222222),
         modifier = modifier
     ) {
-        content()
+        if (overlayDark) {
+            // 暗玻璃面板文字强制白系：面板悬浮在视频上永远呈暗底，
+            // 内部若用主题 onSurface 会在浅色主题下变黑字导致不可读
+            DarkOverlayTheme { content() }
+        } else {
+            content()
+        }
     }
 }
 
