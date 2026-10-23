@@ -96,6 +96,11 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+
+        debug {
+            // debug 包使用独立包名，可与正式版共存安装（真机测试不覆盖用户正式版数据）
+            applicationIdSuffix ".debug"
+        }
     }
 
     /* 自定义 APK 输出文件名：按 ABI 命名
