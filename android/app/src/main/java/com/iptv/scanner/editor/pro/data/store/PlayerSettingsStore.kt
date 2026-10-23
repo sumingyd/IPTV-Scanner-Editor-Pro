@@ -260,13 +260,13 @@ class PlayerSettingsStore(
         private const val DEFAULT_HWDEC_VALUE = "auto-copy"
 
         /**
-         * arm32（armeabi-v7a）TV 设备：FFmpeg n8.0.1 的 mediacodec copy 解码路径
-         * 存在 native 空指针崩溃（Sony BRAVIA VH21 实测 SIGSEGV fault addr 0x18，
-         * 启动自动播放后数秒即崩）；vo=gpu+软解 与 mediacodec_embed 直接渲染均正常。
-         * TV 场景下 mediacodec_embed（硬解直接渲染）性能最优，故该类设备默认走 embed。
+         * arm32（armeabi-v7a）TV 设备：MediaCodec 硬解码器运行中的 teardown
+         * 存在 native 空指针崩溃（Sony BRAVIA VH21 实测，无论 mediacodec copy
+         * 还是 mediacodec_embed 直渲，vo 切换/换台触发解码器销毁即 SIGSEGV，
+         * fault addr 0x18/0x24，OMX.MTK 解码器区域）。唯一稳定路径是软解，
+         * 与 houdini 转译层同构规避：默认 hwdec=no（sanitizeHwdec 双保险强制）。
          */
-        private const val EMBED_VO_VALUE = "mediacodec_embed"
-        private const val EMBED_HWDEC_VALUE = "mediacodec"
+        private const val TV_ARM32_HWDEC_VALUE = "no"
     }
 
     /** 是否为 arm32 TV 设备（仅 armeabi-v7a 主 ABI 的电视/盒子） */
@@ -279,7 +279,7 @@ class PlayerSettingsStore(
             android.os.Build.SUPPORTED_ABIS.none { it == "arm64-v8a" }
     }
 
-    private fun defaultVo(): String = if (isArm32Tv()) EMBED_VO_VALUE else DEFAULT_VO_VALUE
+    private fun defaultVo(): String = DEFAULT_VO_VALUE
 
-    private fun defaultHwdec(): String = if (isArm32Tv()) EMBED_HWDEC_VALUE else DEFAULT_HWDEC_VALUE
+    private fun defaultHwdec(): String = if (isArm32Tv()) TV_ARM32_HWDEC_VALUE else DEFAULT_HWDEC_VALUE
 }

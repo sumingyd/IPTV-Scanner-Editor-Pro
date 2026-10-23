@@ -1,6 +1,8 @@
 package com.iptv.scanner.editor.pro.mpv
 
 import android.content.Context
+import android.app.UiModeManager
+import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.util.AttributeSet
 import android.util.Log
@@ -34,6 +36,11 @@ class MPVView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : SurfaceView(context, attrs), SurfaceHolder.Callback, MPVViewLike {
+
+    init {
+        // 首个实例构造时检测 arm32 TV（sanitizeHwdec 依赖该标记强制软解）
+        if (arm32TvDetected == null) arm32TvDetected = computeArm32Tv(context.applicationContext)
+    }
 
     /** mpv 实例状态（共享单例，所有 MPVView/MPVTextureView 引用同一份） */
     val instanceState = sharedState
@@ -519,6 +526,24 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
         @Volatile
         private var houdiniDetected: Boolean? = null
 
+        /** arm32 TV 检测结果缓存（首个 MPVView 实例初始化时计算） */
+        @Volatile
+        private var arm32TvDetected: Boolean? = null
+
+        /**
+         * 是否为 arm32 TV 设备（TV 模式 + armeabi-v7a 主 ABI 且无 arm64）。
+         * 由首个 MPVView 实例构造时计算（UiModeManager 需要 Context）。
+         */
+        private fun computeArm32Tv(context: Context): Boolean = try {
+            val uiMode = (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)
+                ?.currentModeType
+            val isTv = uiMode == Configuration.UI_MODE_TYPE_TELEVISION
+            val abis = android.os.Build.SUPPORTED_ABIS
+            isTv && abis.any { it.startsWith("armeabi") } && abis.none { it == "arm64-v8a" }
+        } catch (_: Throwable) {
+            false
+        }
+
         /**
          * 是否运行在 houdini ARM 转译层上（x86 模拟器执行 arm64 libmpv）。
          * 转译层下 MediaCodec 硬解码器的销毁（切台 stop / loadfile replace /
@@ -541,10 +566,10 @@ override var onSurfaceAboutToDestroy: (() -> Unit)? = null
             return detected
         }
 
-        /** 返回应生效的 hwdec 值：houdini 转译环境强制软解，避免硬解码器 teardown 崩溃 */
+        /** 返回应生效的 hwdec 值：houdini 转译 / arm32 TV 强制软解，避免硬解码器 teardown 崩溃 */
         fun sanitizeHwdec(hwdec: String): String =
-            if (hwdec != "no" && isHoudiniTranslation()) {
-                Log.w(TAG, "hwdec: houdini translation layer detected -> force software decode (avoid MediaCodec teardown SIGSEGV)")
+            if (hwdec != "no" && (isHoudiniTranslation() || arm32TvDetected == true)) {
+                Log.w(TAG, "hwdec: houdini=${isHoudiniTranslation()} arm32Tv=$arm32TvDetected -> force software decode (avoid MediaCodec teardown SIGSEGV)")
                 "no"
             } else {
                 hwdec
