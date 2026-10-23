@@ -14,9 +14,18 @@ def _suppress_qfont_pointsize_warning(msg_type, context, msg):
     if msg_type == QtMsgType.QtWarningMsg and 'setPointSize' in msg and 'Point size <= 0' in msg:
         return
     if msg_type == QtMsgType.QtWarningMsg:
-        sys.stderr.write(f"Qt Warning: {msg}\n")
-    elif msg_type == QtMsgType.QtCritical:
-        sys.stderr.write(f"Qt Critical: {msg}\n")
+        tag = 'Qt Warning'
+    elif msg_type == QtMsgType.QtCriticalMsg:
+        tag = 'Qt Critical'
+    else:
+        return
+    # PyInstaller --windowed 模式下 sys.stderr 为 None，直接写入会崩溃
+    stream = sys.stderr if sys.stderr is not None else sys.__stderr__
+    if stream is not None:
+        try:
+            stream.write(f"{tag}: {msg}\n")
+        except Exception:
+            pass
 
 
 def main():
