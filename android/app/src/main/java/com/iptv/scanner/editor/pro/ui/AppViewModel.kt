@@ -1057,21 +1057,34 @@ internal var currentIsLocalFile: Boolean
         _dlnaPanelOpen.value = false
     }
 
-    /** SSDP 搜索局域网 DLNA 设备 */
-    fun scanDlna() {
+    /**
+     * SSDP 搜索局域网 DLNA 设备。
+     * @param host 非空时向该 IP 发单播 M-SEARCH（组播被路由器/模拟器 NAT 拦截时的兜底）
+     */
+    fun scanDlna(host: String? = null) {
         if (_dlnaScanning.value) return
         _dlnaScanning.value = true
         _dlnaDevices.value = emptyList()
         viewModelScope.launch {
             val devices = try {
-                com.iptv.scanner.editor.pro.player.DlnaCast.search(getApplication())
+                if (host.isNullOrBlank()) {
+                    com.iptv.scanner.editor.pro.player.DlnaCast.search(getApplication())
+                } else {
+                    com.iptv.scanner.editor.pro.player.DlnaCast.searchHost(getApplication(), host.trim())
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "scanDlna failed", e)
                 emptyList()
             }
             _dlnaDevices.value = devices
             _dlnaScanning.value = false
-            if (devices.isEmpty()) showOsd("投屏", "未发现设备，请确认电视与本机在同一网络")
+            if (devices.isEmpty()) {
+                showOsd(
+                    "投屏",
+                    if (host.isNullOrBlank()) "未发现设备，请确认电视与本机在同一网络"
+                    else "未发现设备，请确认电视 IP 是否正确且已开启投屏"
+                )
+            }
         }
     }
 

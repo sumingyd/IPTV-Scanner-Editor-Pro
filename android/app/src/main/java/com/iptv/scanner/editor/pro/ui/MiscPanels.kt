@@ -360,6 +360,21 @@ fun DlnaCastPanel(viewModel: AppViewModel) {
     val scanning by viewModel.dlnaScanning.collectAsState()
     val connected by viewModel.dlnaConnected.collectAsState()
 
+    var manualMode by remember { mutableStateOf(false) }
+    var manualIp by remember { mutableStateOf("") }
+    // 搜索到设备后收起手动输入区
+    LaunchedEffect(devices) {
+        if (devices.isNotEmpty()) manualMode = false
+    }
+    val submitManual: () -> Unit = {
+        val ip = manualIp.trim()
+        if (Regex("""^(\d{1,3}\.){3}\d{1,3}$""").matches(ip)) {
+            viewModel.scanDlna(ip)
+        } else {
+            viewModel.showOsd("投屏", "请输入正确的电视 IP，例如 192.168.1.100")
+        }
+    }
+
     val glass = LocalLiquidGlass.current &&
         com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported() &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -375,7 +390,14 @@ fun DlnaCastPanel(viewModel: AppViewModel) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 20.dp, bottom = 10.dp)
             ) {
-                Text("投屏到电视", fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                // Dialog 内没有 Surface 提供 LocalContentColor（默认黑色），
+                // 深色模式下必须显式使用主题色，否则标题在暗玻璃上不可读
+                Text(
+                    "投屏到电视",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp
+                )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     if (scanning) "正在搜索局域网设备..." else "点击设备开始投播当前频道",
@@ -386,15 +408,25 @@ fun DlnaCastPanel(viewModel: AppViewModel) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
                 // 设备列表（最多显示区域限制，超出滚动）
                 if (devices.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(88.dp),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             if (scanning) "搜索中..." else "未发现设备",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
+                        if (!scanning) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "请确认电视与本机在同一 Wi-Fi，不同网段可手动输入电视 IP",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                fontSize = 12.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            )
+                        }
                     }
                 } else {
                     Column(
@@ -428,6 +460,29 @@ fun DlnaCastPanel(viewModel: AppViewModel) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
                         }
                     }
+                }
+                // 手动输入电视 IP：组播被路由器/模拟器 NAT 拦截时的兜底搜索
+                if (manualMode) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                    OutlinedTextField(
+                        value = manualIp,
+                        onValueChange = { manualIp = it.filter { c -> c.isDigit() || c == '.' } },
+                        singleLine = true,
+                        placeholder = { Text("电视 IP，例如 192.168.1.100", fontSize = 13.sp) },
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                            .tvTextField()
+                    )
+                    if (!scanning) {
+                        ExitOptionRow("搜索该 IP") { submitManual() }
+                    }
+                } else if (!scanning) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                    ExitOptionRow("手动输入电视 IP") { manualMode = true }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
                 // 重新搜索
