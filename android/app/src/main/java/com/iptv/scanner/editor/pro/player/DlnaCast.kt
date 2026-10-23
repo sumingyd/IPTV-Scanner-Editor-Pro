@@ -129,7 +129,11 @@ object DlnaCast {
                 val dest = InetAddress.getByName(directHost)
                 repeat(2) { round ->
                     SEARCH_TARGETS.forEach { target ->
-                        try { socket.send(searchPacket(target, dest)) } catch (_: Exception) {}
+                        try {
+                            socket.send(searchPacket(target, dest))
+                        } catch (e: Exception) {
+                            Log.w(TAG, "unicast send failed (${e.javaClass.simpleName}): ${e.message}")
+                        }
                     }
                     if (round == 0) Thread.sleep(400)
                 }
@@ -165,9 +169,16 @@ object DlnaCast {
     }
 
     private fun searchPacket(target: String, dest: InetAddress): DatagramPacket {
+        // HOST 头按目标地址填写：组播时为组播地址，单播时为目标 IP
+        // （RFC 2368 要求单播 M-SEARCH 的 HOST 指向探测目标）
+        val host = if (dest is java.net.Inet4Address && !dest.isMulticastAddress) {
+            dest.hostAddress ?: SSDP_ADDR
+        } else {
+            SSDP_ADDR
+        }
         val payload = buildString {
             append("M-SEARCH * HTTP/1.1\r\n")
-            append("HOST: $SSDP_ADDR:$SSDP_PORT\r\n")
+            append("HOST: $host:$SSDP_PORT\r\n")
             append("MAN: \"ssdp:discover\"\r\n")
             append("MX: 2\r\n")
             append("ST: $target\r\n")
