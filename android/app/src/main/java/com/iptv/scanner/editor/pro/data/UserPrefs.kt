@@ -49,7 +49,7 @@ class UserPrefs private constructor() {
         favoriteStore = FavoriteStore(prefs)
         historyStore = HistoryStore(prefs)
         queueStore = QueueStore(prefs)
-        playerSettingsStore = PlayerSettingsStore(prefs)
+        playerSettingsStore = PlayerSettingsStore(prefs, context.applicationContext)
         epgSettingsStore = EpgSettingsStore(prefs)
         networkSettingsStore = NetworkSettingsStore(prefs)
         bookmarkStore = BookmarkStore(prefs)

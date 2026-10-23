@@ -1,5 +1,8 @@
 package com.iptv.scanner.editor.pro.data.store
 
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
 import android.content.SharedPreferences
 import com.iptv.scanner.editor.pro.data.ChannelPlayerSettings
 import com.iptv.scanner.editor.pro.data.SpeedConfig
@@ -10,22 +13,25 @@ import org.json.JSONObject
  *
  * 与 MPVView.DEFAULT_VO / DEFAULT_HWDEC 默认值对齐（字符串常量避免反向依赖 mpv 层）。
  */
-class PlayerSettingsStore(private val prefs: SharedPreferences) {
+class PlayerSettingsStore(
+    private val prefs: SharedPreferences,
+    private val appContext: Context? = null
+) {
 
     // -----------------------------------------------------------------
     // vo / hwdec
     // -----------------------------------------------------------------
 
-    /** 获取持久化的 video output，默认 "gpu" */
-    fun getVo(): String = prefs.getString(KEY_VO, DEFAULT_VO_VALUE) ?: DEFAULT_VO_VALUE
+    /** 获取持久化的 video output，未持久化时按设备类型给默认值 */
+    fun getVo(): String = prefs.getString(KEY_VO, null)?.takeIf { it.isNotEmpty() } ?: defaultVo()
 
     fun setVo(vo: String) {
         prefs.edit().putString(KEY_VO, vo).apply()
     }
 
-    /** 获取持久化的 hwdec 模式，默认 "auto-copy" */
+    /** 获取持久化的 hwdec 模式，未持久化时按设备类型给默认值 */
     fun getHwdec(): String =
-        prefs.getString(KEY_HWDEC, DEFAULT_HWDEC_VALUE) ?: DEFAULT_HWDEC_VALUE
+        prefs.getString(KEY_HWDEC, null)?.takeIf { it.isNotEmpty() } ?: defaultHwdec()
 
     fun setHwdec(hwdec: String) {
         prefs.edit().putString(KEY_HWDEC, hwdec).apply()
@@ -252,5 +258,28 @@ class PlayerSettingsStore(private val prefs: SharedPreferences) {
         // 与 MPVView.DEFAULT_VO / DEFAULT_HWDEC 保持一致（字符串常量避免反向依赖 mpv 层）
         private const val DEFAULT_VO_VALUE = "gpu"
         private const val DEFAULT_HWDEC_VALUE = "auto-copy"
+
+        /**
+         * arm32（armeabi-v7a）TV 设备：FFmpeg n8.0.1 的 mediacodec copy 解码路径
+         * 存在 native 空指针崩溃（Sony BRAVIA VH21 实测 SIGSEGV fault addr 0x18，
+         * 启动自动播放后数秒即崩）；vo=gpu+软解 与 mediacodec_embed 直接渲染均正常。
+         * TV 场景下 mediacodec_embed（硬解直接渲染）性能最优，故该类设备默认走 embed。
+         */
+        private const val EMBED_VO_VALUE = "mediacodec_embed"
+        private const val EMBED_HWDEC_VALUE = "mediacodec"
     }
+
+    /** 是否为 arm32 TV 设备（仅 armeabi-v7a 主 ABI 的电视/盒子） */
+    private fun isArm32Tv(): Boolean {
+        val ctx = appContext ?: return false
+        val uiMode = (ctx.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)
+            ?.currentModeType
+        if (uiMode != Configuration.UI_MODE_TYPE_TELEVISION) return false
+        return android.os.Build.SUPPORTED_ABIS.any { it.startsWith("armeabi") } &&
+            android.os.Build.SUPPORTED_ABIS.none { it == "arm64-v8a" }
+    }
+
+    private fun defaultVo(): String = if (isArm32Tv()) EMBED_VO_VALUE else DEFAULT_VO_VALUE
+
+    private fun defaultHwdec(): String = if (isArm32Tv()) EMBED_HWDEC_VALUE else DEFAULT_HWDEC_VALUE
 }
