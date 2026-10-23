@@ -154,14 +154,21 @@ fun isDarkTheme(): Boolean {
  * 这些面板悬浮在视频上，永远呈暗色玻璃 + 白字；但内部文字若用
  * MaterialTheme.colorScheme.onSurface 系，会在浅色主题下变黑/深灰，
  * 落在暗玻璃上几乎不可读。此 helper 强制文字色为白系，明暗主题通用。
+ *
+ * 同时提供 LocalDarkOverlay 标记：rememberPlayerOverlayColors 读取后
+ * 直接返回白系配色（其浅色分支是硬编码黑字，colorScheme 覆盖管不到）。
  */
+val LocalDarkOverlay = androidx.compose.runtime.staticCompositionLocalOf { false }
+
 @Composable
 fun DarkOverlayTheme(content: @Composable () -> Unit) {
     val scheme = MaterialTheme.colorScheme.copy(
         onSurface = Color(0xFFE9EDF4),
         onSurfaceVariant = Color(0xFF9AA4B2)
     )
-    MaterialTheme(colorScheme = scheme, content = content)
+    androidx.compose.runtime.CompositionLocalProvider(LocalDarkOverlay provides true) {
+        MaterialTheme(colorScheme = scheme, content = content)
+    }
 }
 
 /**
@@ -193,6 +200,26 @@ data class PlayerOverlayColors(
 @Composable
 @ReadOnlyComposable
 fun rememberPlayerOverlayColors(): PlayerOverlayColors {
+    // 暗玻璃覆盖层（底栏/侧栏/信息弹窗）：永远白字白图标。
+    // 浅色分支的硬编码黑字是给实底浅色面板用的，落在暗玻璃上不可读
+    if (LocalDarkOverlay.current) {
+        val aptv = LocalAptvStyle.current
+        val accent = if (aptv) AptvAccent else AccentDark
+        return PlayerOverlayColors(
+            scrim = Color(0x66000000),
+            topBarBg = Color(0xF0303548),
+            infoBarBg = Color(0xD0181C28),
+            iconTint = Color.White,
+            iconTintActive = if (aptv) AptvAccent else Color(0xFFFFA500),
+            textPrimary = Color(0xFFE9EDF4),
+            textSecondary = Color(0xFF9AA4B2),
+            accent = accent,
+            trackInactive = Color(0xFF3A3A5C),
+            badgeBg = accent.copy(alpha = 0.15f),
+            badgeText = Color(0xFFE9EDF4),
+            divider = Color(0xFF2A2A4E),
+        )
+    }
     val dark = isDarkTheme()
     if (LocalAptvStyle.current) {
         return PlayerOverlayColors(
