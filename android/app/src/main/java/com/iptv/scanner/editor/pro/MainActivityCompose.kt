@@ -467,6 +467,9 @@ class MainActivityCompose : ComponentActivity() {
             // （按键分发下 Compose BackHandler 不生效，BACK 统一走此处）
             if (viewModel.stylePickerOpen.value) {
                 viewModel.setStylePickerOpen(false)
+                // 未确定即关闭：清预览，底栏恢复已确定样式并回到常规自动隐藏
+                viewModel.setStylePreview(null)
+                viewModel.showControlsAutoHide()
                 return true
             }
             if (viewModel.closeAnyPanel()) {

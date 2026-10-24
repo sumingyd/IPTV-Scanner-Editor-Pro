@@ -929,6 +929,7 @@ internal fun AppViewModel.toggleMenuPanel() {
     if (!_menuPanelOpen.value) {
         // 菜单关闭时同步收起菜单内的底栏样式选择弹窗，避免下次打开菜单时残留
         _stylePickerOpen.value = false
+        _stylePreview.value = null
         showControlsAutoHide()
     }
 }
@@ -959,6 +960,7 @@ internal fun AppViewModel.resetAllPanelStates() {
         _epgPanelOpen.value = false
         _menuPanelOpen.value = false
         _stylePickerOpen.value = false
+        _stylePreview.value = null
         _tvUnifiedPanelOpen.value = false
         _fileBrowserOpen.value = false
         _sourceManagerOpen.value = false

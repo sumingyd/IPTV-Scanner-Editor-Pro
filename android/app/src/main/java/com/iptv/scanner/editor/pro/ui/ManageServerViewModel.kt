@@ -140,6 +140,8 @@ internal fun AppViewModel.showControlsAutoHide() {
         tvControlsAutoHideJob?.cancel()
         tvControlsAutoHideJob = viewModelScope.launch {
             delay(4_000L)
+            // 底栏样式选择弹窗打开期间：底栏作为实时预览保持显示，不自动隐藏
+            if (_stylePickerOpen.value) return@launch
             _controlsVisible.value = false
         }
     }

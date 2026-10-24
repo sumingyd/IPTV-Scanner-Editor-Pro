@@ -320,6 +320,10 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             bottomBarStyleValue = bottomBarStyle,
             onSelectBottomBarStyle = {
                 stylePickerIdx = bottomBarStyle
+                // 打开弹窗即进入实时预览：底栏显示出来并按当前样式渲染，
+                // 后续随弹窗焦点切换实时变化（BACK 未确定则恢复原样式）
+                viewModel.setStylePreview(bottomBarStyle)
+                viewModel.showControlsAutoHide()
                 viewModel.setStylePickerOpen(true)
             },
             hasCurrentChannel = currentChannel != null,
@@ -365,9 +369,15 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 if (showStylePicker) {
                     return@onPreviewKeyEvent when (event.type) {
                         KeyEventType.KeyDown -> when (event.key) {
-                            Key.DirectionUp -> { stylePickerIdx = (stylePickerIdx + 3) % 4; true }
+                            Key.DirectionUp -> {
+                                stylePickerIdx = (stylePickerIdx + 3) % 4
+                                viewModel.setStylePreview(stylePickerIdx)  // 底栏实时跟随焦点预览
+                                true
+                            }
                             Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight -> {
-                                stylePickerIdx = (stylePickerIdx + 1) % 4; true
+                                stylePickerIdx = (stylePickerIdx + 1) % 4
+                                viewModel.setStylePreview(stylePickerIdx)
+                                true
                             }
                             Key.DirectionCenter, Key.Enter -> true  // 应用延迟到 KeyUp（防焦点迁移误触发）
                             else -> false
@@ -375,6 +385,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                         KeyEventType.KeyUp -> when (event.key) {
                             Key.DirectionCenter, Key.Enter -> {
                                 viewModel.setBottomBarStyle(stylePickerIdx)
+                                viewModel.setStylePreview(null)  // 已确定，退出预览态
                                 true
                             }
                             else -> false
@@ -557,6 +568,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                     onSelect = {
                         stylePickerIdx = it
                         viewModel.setBottomBarStyle(it)
+                        viewModel.setStylePreview(null)  // 触控点击即确定，退出预览态
                     },
                     onDismiss = { viewModel.setStylePickerOpen(false) }
                 )
@@ -579,6 +591,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 onSelect = {
                     stylePickerIdx = it
                     viewModel.setBottomBarStyle(it)
+                    viewModel.setStylePreview(null)
                 },
                 onDismiss = { viewModel.setStylePickerOpen(false) }
             )

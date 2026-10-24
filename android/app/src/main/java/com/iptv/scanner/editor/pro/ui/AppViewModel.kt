@@ -441,6 +441,11 @@ internal var switchPlayJob: Job? = null
     val stylePickerOpen: StateFlow<Boolean> = _stylePickerOpen.asStateFlow()
     fun setStylePickerOpen(value: Boolean) { _stylePickerOpen.value = value }
 
+    /** 底栏样式实时预览：非 null 时底栏按该样式渲染并跟随弹窗焦点切换，null=用已确定样式 */
+    internal val _stylePreview = MutableStateFlow<Int?>(null)
+    val stylePreview: StateFlow<Int?> = _stylePreview.asStateFlow()
+    fun setStylePreview(value: Int?) { _stylePreview.value = value }
+
     /** 文件浏览器面板（SAF 不可用时的替代方案，浏览本地 M3U/媒体文件） */
     internal val _fileBrowserOpen = MutableStateFlow(false)
     val fileBrowserOpen: StateFlow<Boolean> = _fileBrowserOpen.asStateFlow()

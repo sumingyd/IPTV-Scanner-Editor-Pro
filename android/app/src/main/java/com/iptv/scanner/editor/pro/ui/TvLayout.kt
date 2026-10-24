@@ -209,6 +209,8 @@ fun TvPlayerLayout(
     // 横屏全屏：隐藏系统状态栏和导航栏（滑动可临时唤出）；首页覆盖时保持可见
     val context = LocalContext.current
     val bottomBarStyle by viewModel.bottomBarStyle.collectAsState()
+    // 弹窗实时预览样式：非 null 时底栏按预览样式渲染（BACK 未确定则恢复已确定样式）
+    val stylePreview by viewModel.stylePreview.collectAsState()
     DisposableEffect(homeOverlay) {
         val activity = context as? Activity
         val window = activity?.window
@@ -304,7 +306,7 @@ fun TvPlayerLayout(
                     playbackMode = playbackState.mode,
                     currentProgram = currentProgram,
                     epgList = currentEpg,
-                    style = bottomBarStyle
+                    style = stylePreview ?: bottomBarStyle
                 )
             }
         }
