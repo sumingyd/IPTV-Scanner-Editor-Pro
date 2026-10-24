@@ -935,6 +935,168 @@ internal fun BottomBarStyleMiniPreview(style: Int, modifier: Modifier = Modifier
                     }
                 }
             }
+            // 样式 M：广播电视式 —— 贴底全宽：左大台标 | 中节目行列 | 右徽章+大时钟
+            12 -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(20.dp, 12.dp).clip(RoundedCornerShape(2.dp)).background(lineDim))
+                Spacer(Modifier.width(4.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Box(Modifier.size(26.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(20.dp, 2.dp).background(lineDim))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(24.dp, 2.dp).background(lineDim.copy(alpha = 0.6f)))
+                }
+                Spacer(Modifier.width(4.dp))
+                Column(horizontalAlignment = Alignment.End) {
+                    Row {
+                        Box(Modifier.size(6.dp, 2.dp).background(AptvAccent))
+                        Spacer(Modifier.width(2.dp))
+                        Box(Modifier.size(6.dp, 2.dp).background(lineDim))
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(16.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(line))
+                }
+            }
+            // 样式 N：机顶盒 OSD 式 —— 上区台标+EPG+REC+大时钟，底部技术参数行
+            13 -> Column(verticalArrangement = Arrangement.Center) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(14.dp, 8.dp).clip(RoundedCornerShape(1.dp)).background(lineDim))
+                    Spacer(Modifier.width(4.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Box(Modifier.size(18.dp, 2.dp).background(line))
+                        Spacer(Modifier.height(2.dp))
+                        Box(Modifier.size(12.dp, 2.dp).background(lineDim))
+                    }
+                    Box(Modifier.size(12.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(AptvAccent))
+                }
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(24.dp, 1.5.dp).background(lineDim.copy(alpha = 0.5f)))
+                    Spacer(Modifier.width(3.dp))
+                    Box(Modifier.size(6.dp, 1.5.dp).background(lineDim))
+                    Spacer(Modifier.width(3.dp))
+                    Box(Modifier.size(6.dp, 1.5.dp).background(lineDim))
+                }
+            }
+            // 样式 O：影院 EPG 卡式 —— 左大台标 | 右频道名+正在播放+简介+下一节目
+            14 -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(22.dp, 16.dp).clip(RoundedCornerShape(2.dp)).background(lineDim))
+                Spacer(Modifier.width(5.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(16.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                        Spacer(Modifier.weight(1f))
+                        Box(Modifier.size(8.dp, 2.dp).background(AptvAccent))
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(28.dp, 2.dp).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(22.dp, 2.dp).background(lineDim))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(18.dp, 2.dp).background(lineDim.copy(alpha = 0.6f)))
+                }
+            }
+            // 样式 P：仪表盘 OSD 式 —— 左大台标+日期 | 中节目+彩条进度 | 右大时钟
+            15 -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(18.dp, 10.dp).clip(RoundedCornerShape(1.dp)).background(lineDim))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(12.dp, 1.5.dp).background(lineDim.copy(alpha = 0.6f)))
+                }
+                Spacer(Modifier.width(4.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Box(Modifier.size(20.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.fillMaxWidth().height(2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(lineDim)) {
+                        Box(
+                            Modifier.fillMaxWidth(0.5f).fillMaxHeight().background(
+                                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    listOf(AptvAccent, Color(0xFF3D82F7))
+                                )
+                            )
+                        )
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(14.dp, 1.5.dp).background(lineDim.copy(alpha = 0.5f)))
+                }
+                Spacer(Modifier.width(4.dp))
+                Box(Modifier.size(14.dp, 5.dp).clip(RoundedCornerShape(2.dp)).background(AptvAccent))
+            }
+            // 样式 Q：海报卡片式 —— 顶部细进度 + 左方台标 | 右频道名+三行节目 | 右端按钮点
+            16 -> Column {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(lineDim)) {
+                    Box(Modifier.fillMaxWidth(0.4f).fillMaxHeight().background(AptvAccent))
+                }
+                Spacer(Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(14.dp).clip(RoundedCornerShape(2.dp)).background(lineDim))
+                    Spacer(Modifier.width(4.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Box(Modifier.size(16.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
+                        Spacer(Modifier.height(2.dp))
+                        Box(Modifier.size(22.dp, 1.5.dp).background(lineDim))
+                        Spacer(Modifier.height(1.dp))
+                        Box(Modifier.size(18.dp, 1.5.dp).background(lineDim.copy(alpha = 0.6f)))
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row {
+                            Box(Modifier.size(4.dp).clip(CircleShape).background(lineDim))
+                            Spacer(Modifier.width(2.dp))
+                            Box(Modifier.size(5.dp).clip(CircleShape).background(AptvAccent))
+                            Spacer(Modifier.width(2.dp))
+                            Box(Modifier.size(4.dp).clip(CircleShape).background(lineDim))
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Row {
+                            Box(Modifier.size(4.dp).clip(CircleShape).background(lineDim))
+                            Spacer(Modifier.width(2.dp))
+                            Box(Modifier.size(4.dp).clip(CircleShape).background(lineDim))
+                        }
+                    }
+                }
+            }
+            // 样式 R：节目时间轴式 —— 左频道块 | 中三档节目点线时间轴 | 右大时钟+按钮
+            17 -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(14.dp, 8.dp).clip(RoundedCornerShape(1.dp)).background(lineDim))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(10.dp, 1.5.dp).background(lineDim.copy(alpha = 0.6f)))
+                }
+                Spacer(Modifier.width(4.dp))
+                Box(Modifier.width(0.5.dp).height(16.dp).background(lineDim))
+                Spacer(Modifier.width(4.dp))
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(AptvAccent))
+                        Spacer(Modifier.width(3.dp))
+                        Box(Modifier.size(18.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                        Spacer(Modifier.width(3.dp))
+                        Box(Modifier.size(14.dp, 1.5.dp).background(lineDim))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim.copy(alpha = 0.5f)))
+                        Spacer(Modifier.width(3.dp))
+                        Box(Modifier.size(12.dp, 1.5.dp).background(lineDim.copy(alpha = 0.6f)))
+                    }
+                }
+                Spacer(Modifier.width(4.dp))
+                Box(Modifier.width(0.5.dp).height(16.dp).background(lineDim))
+                Spacer(Modifier.width(4.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(12.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Row {
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                        Spacer(Modifier.width(2.dp))
+                        Box(Modifier.size(4.dp).clip(CircleShape).background(AptvAccent))
+                        Spacer(Modifier.width(2.dp))
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                    }
+                }
+            }
             // 样式 A：信息详情式 —— 左台标 + 右三行信息
             else -> Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(14.dp, 12.dp).clip(RoundedCornerShape(2.dp)).background(lineDim))
