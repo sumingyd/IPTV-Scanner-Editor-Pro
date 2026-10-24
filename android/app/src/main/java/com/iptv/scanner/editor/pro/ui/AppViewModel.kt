@@ -128,7 +128,9 @@ enum class EpgTimelineRange { ALL, FAVORITES, CURRENT_GROUP }
 data class EpgTimelineRow(
     val channelIdx: Int,
     val channelName: String,
-    val programs: List<IptvEpgProgram>
+    val programs: List<IptvEpgProgram>,
+    /** 节目数据是否已加载（懒加载骨架行=false，可见窗口内由 ensureEpgTimelineRowsLoaded 填充） */
+    val programsLoaded: Boolean = true
 )
 
 enum class SearchScope { ALL, CHANNELS, PROGRAMS }
@@ -882,6 +884,12 @@ internal var currentIsLocalFile: Boolean
     internal val _epgTimelineRows = MutableStateFlow<List<EpgTimelineRow>>(emptyList())
     val epgTimelineRows: StateFlow<List<EpgTimelineRow>> = _epgTimelineRows.asStateFlow()
 
+    /** EPG 时间线按行懒加载：进行中的行索引（防同窗口重复并发加载） */
+    internal val epgTimelinePendingRows = mutableSetOf<Int>()
+
+    /** EPG 时间线数据代次：范围/日期切换时递增，使仍在途的旧懒加载结果失效 */
+    internal var epgTimelineGeneration = 0
+
     internal val _epgTimelineRange = MutableStateFlow(EpgTimelineRange.ALL)
     val epgTimelineRange: StateFlow<EpgTimelineRange> = _epgTimelineRange.asStateFlow()
 
@@ -1225,15 +1233,26 @@ internal var currentIsLocalFile: Boolean
     fun setLandscapeSplitMode(value: Boolean) {
         _landscapeSplitMode.value = value
         userPrefs.setLandscapeSplitMode(value)
+        // 进入分屏：全屏专属悬浮层（左右侧边栏/主菜单/全屏底栏/样式预览弹窗）全部收起。
+        // 这些悬浮窗仅在全屏布局可呼出，若状态残留会导致分屏内 anyPanelOpen=true
+        // 拦截 DPAD 切台/seek，表现为分屏页方向键失灵
+        if (value) {
+            _landscapeSidebarVisible.value = false
+            _menuPanelOpen.value = false
+            _stylePickerOpen.value = false
+            _stylePreview.value = null
+            _controlsVisible.value = false
+            _controlsPinned.value = false
+        }
     }
 
-    // 全屏播放页 TV 底栏布局样式（0=信息详情式[默认] 1=单行紧凑式 2=居中控制台式 3=左信息右控制式）
+    // 全屏播放页 TV 底栏布局样式（0..11，名称与结构见 TvLayout.TV_BOTTOM_BAR_STYLES 单一数据源）
     internal val _bottomBarStyle = MutableStateFlow(userPrefs.getBottomBarStyle())
     val bottomBarStyle: StateFlow<Int> = _bottomBarStyle.asStateFlow()
 
-    /** 设置底栏布局样式（设置页切换） */
+    /** 设置底栏布局样式（设置页/样式弹窗切换，0..TV_BOTTOM_BAR_STYLES.size-1） */
     fun setBottomBarStyle(value: Int) {
-        _bottomBarStyle.value = value.coerceIn(0, 3)
+        _bottomBarStyle.value = value.coerceIn(0, TV_BOTTOM_BAR_STYLES.size - 1)
         userPrefs.setBottomBarStyle(value)
     }
 
@@ -1340,7 +1359,8 @@ internal var currentIsLocalFile: Boolean
                 _epgTimelineOpen.value || _searchPanelOpen.value ||
                 _streamQualityPanelOpen.value ||
                 _recentPanelOpen.value || _clipExportPanelOpen.value ||
-                _audioVisualizerOpen.value || _lyricsOpen.value
+                _audioVisualizerOpen.value || _lyricsOpen.value ||
+                _stylePickerOpen.value
 
     /** 打开文件浏览器面板（SAF 不可用时的替代方案） */
     /** 打开应用内文件浏览器选择音视频文件播放（SAF 不可用时的兜底） */

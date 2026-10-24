@@ -101,6 +101,15 @@ class MainActivityCompose : ComponentActivity() {
     /** TV 模式判断：结合 UiMode 状态（含 leanback/forceTvMode/无触屏检测），避免手机横屏误判为 TV */
     private fun isTvMode(): Boolean = viewModel.uiMode.value == UiMode.TV
 
+    /**
+     * 全屏播放页判断：左右侧边栏与全屏底栏仅在全屏布局可呼出。
+     * 分屏模式（分屏首页/分屏播放页）下返回 false；多画面布局属于全屏形态，返回 true。
+     * 与 TvPlayerLayout 的 useSplit = splitModePref && !multiActive 对齐。
+     */
+    private fun isFullscreenPlayback(): Boolean {
+        return !viewModel.landscapeSplitMode.value || viewModel.multiViewState.value.active
+    }
+
     @Suppress("DEPRECATION")
     private val viewModel: AppViewModel by viewModels {
         AppViewModel.factory(application)
@@ -413,7 +422,8 @@ class MainActivityCompose : ComponentActivity() {
                     if (viewModel.landscapeSidebarVisible.value) {
                         return super.dispatchKeyEvent(event)
                     }
-                    if (!viewModel.anyPanelOpen) {
+                    // 统一侧边栏仅全屏播放页可呼出；分屏模式 OK 键交给 Compose 焦点系统
+                    if (!viewModel.anyPanelOpen && isFullscreenPlayback()) {
                         viewModel.setLandscapeSidebarVisible(true)
                         Log.i(TAG, "dispatchKeyEvent: DPAD_CENTER open sidebar")
                         return true
@@ -506,6 +516,8 @@ class MainActivityCompose : ComponentActivity() {
 
         // MENU 键：侧边栏风格 — TV/PHONE 都打开右侧设置菜单
         if (keyCode == KeyEvent.KEYCODE_MENU) {
+            // 主菜单仅全屏布局可呼出：分屏模式（分屏首页/分屏播放页）下 MENU 键不响应
+            if (isLandscapeMode() && !isFullscreenPlayback()) return true
             when {
                 viewModel.menuPanelOpen.value -> {
                     viewModel.closeAllPanels()
@@ -526,8 +538,8 @@ class MainActivityCompose : ComponentActivity() {
             return true
         }
 
-        // 左方向键：侧边栏风格 — TV模式下打开左侧频道列表
-        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && isTvMode()) {
+        // 左方向键：侧边栏风格 — TV模式下打开左侧频道列表（仅全屏播放页可呼出）
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && isTvMode() && isFullscreenPlayback()) {
             // 仅在全屏播放（无任何面板打开）时，左方向键打开频道列表
             if (!viewModel.landscapeSidebarVisible.value && !viewModel.menuPanelOpen.value && !viewModel.anyPanelOpen) {
                 viewModel.setLandscapeSidebarVisible(true)
@@ -725,8 +737,8 @@ class MainActivityCompose : ComponentActivity() {
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
             okKeyLongPressed = true
-            // TV 模式：长按显示控制层（auto-hide）
-            if (isTvMode() && !viewModel.anyPanelOpen) {
+            // TV 模式：长按显示控制层（auto-hide），仅全屏播放页（全屏底栏为全屏专属）
+            if (isTvMode() && !viewModel.anyPanelOpen && isFullscreenPlayback()) {
                 viewModel.showControlsAutoHide()
                 Log.i(TAG, "Long press OK: show controls")
                 return true
@@ -748,6 +760,10 @@ class MainActivityCompose : ComponentActivity() {
                 return true
             }
             if (viewModel.anyPanelOpen) {
+                return super.onKeyUp(keyCode, event)
+            }
+            // 侧边栏仅全屏布局可呼出：分屏模式（手机横屏分屏）短按 OK 不再呼出
+            if (isLandscapeMode() && !isFullscreenPlayback()) {
                 return super.onKeyUp(keyCode, event)
             }
             // 短按 OK 键：打开侧边栏（替代统一面板，适配无菜单键遥控器）

@@ -723,9 +723,8 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
                 AptvRow(Icons.Default.AspectRatio, "全屏底栏样式", trailing = {
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = when (bottomBarStyle) {
-                                1 -> "单行紧凑式"; 2 -> "居中控制台式"; 3 -> "左信息右控制式"; else -> "信息详情式"
-                            },
+                            text = TV_BOTTOM_BAR_STYLES.firstOrNull { it.first == bottomBarStyle }?.second
+                                ?: "信息详情式",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp
                         )
@@ -733,7 +732,7 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
                         BottomBarStyleMiniPreview(bottomBarStyle, modifier = Modifier.width(88.dp))
                     }
                 }) {
-                    viewModel.setBottomBarStyle((bottomBarStyle + 1) % 4)
+                    viewModel.setBottomBarStyle((bottomBarStyle + 1) % TV_BOTTOM_BAR_STYLES.size)
                 }
                 AptvSwitchRow(Icons.Default.AutoAwesome, "液态玻璃", checked = liquidGlass, onCheckedChange = { viewModel.setLiquidGlass(it) })
                 AptvSwitchRow(Icons.Default.PowerSettingsNew, "开机自启动", checked = bootStart, onCheckedChange = { viewModel.setBootStart(it) })

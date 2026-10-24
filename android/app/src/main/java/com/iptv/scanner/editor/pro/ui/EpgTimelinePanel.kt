@@ -290,6 +290,9 @@ maxLines = 1
                         horizontalScroll = horizontalScroll,
                         verticalScroll = verticalScroll,
                         channels = channelsCh,
+                        onVisibleRows = { from, to ->
+                            viewModel.ensureEpgTimelineRowsLoaded(from, to)
+                        },
                         onProgramClick = { program ->
                             handleTimelineProgramClick(program, viewModel)
                         }
@@ -484,6 +487,9 @@ private fun EpgTimelinePanelAptvInner(viewModel: AppViewModel, glassContainer: B
                         horizontalScroll = horizontalScroll,
                         verticalScroll = verticalScroll,
                         channels = channelsCh,
+                        onVisibleRows = { from, to ->
+                            viewModel.ensureEpgTimelineRowsLoaded(from, to)
+                        },
                         onProgramClick = { program ->
                             handleTimelineProgramClick(program, viewModel)
                         }
@@ -526,6 +532,7 @@ private fun TimelineGrid(
     horizontalScroll: androidx.compose.foundation.ScrollState,
     verticalScroll: androidx.compose.foundation.ScrollState,
     channels: List<com.iptv.scanner.editor.pro.data.IptvChannel> = emptyList(),
+    onVisibleRows: (Int, Int) -> Unit = { _, _ -> },
     onProgramClick: (IptvEpgProgram) -> Unit
 ) {
     val density = LocalDensity.current
@@ -671,10 +678,13 @@ private fun TimelineGrid(
         // 主体：频道名列 + 网格（同步垂直滚动）
         // -----------------------------------------------------------------
         Row(modifier = Modifier.weight(1f)) {
-            // 左侧频道名列（垂直滚动同步）
+            // 左侧频道名列（垂直滚动同步）；视口高度由 onSizeChanged 记录，
+            // 供频道列窗口化渲染与 EPG 数据懒加载使用
+            val channelViewPortHeight = remember { mutableStateOf(0f) }
             Box(
                 modifier = Modifier
                     .width(channelNameWidthDp)
+                    .onSizeChanged { channelViewPortHeight.value = it.height.toFloat() }
                     .verticalScroll(verticalScroll)
             ) {
                 TimelineChannelColumn(
@@ -683,7 +693,10 @@ private fun TimelineGrid(
                     channels = channels,
                     rowHeightDp = rowHeightDp,
                     isLandscape = isLandscape,
-                    surfaceVariantArgb = surfaceVariantArgb
+                    surfaceVariantArgb = surfaceVariantArgb,
+                    verticalScroll = verticalScroll,
+                    viewPortHeightState = channelViewPortHeight,
+                    onVisibleRows = onVisibleRows
                 )
             }
 
@@ -829,7 +842,10 @@ private fun TimelineGrid(
 // dalvik VerifyError "copy1 v46<-v272"，必须保持每个方法精简）
 // -----------------------------------------------------------------
 
-/** 频道列：台号 + 台标 + 频道名三段式，行高与网格行同步 */
+/** 频道列：台号 + 台标 + 频道名三段式，行高与网格行同步。
+ *  窗口化渲染：仅组合可视行（±3 行余量），其余用 Spacer 占位——
+ *  每行含 AsyncImage 台标，频道多时全量组合会明显卡顿。
+ *  同时以可视窗口回调驱动 EPG 节目数据按行懒加载。 */
 @Composable
 private fun TimelineChannelColumn(
     rows: List<EpgTimelineRow>,
@@ -837,11 +853,31 @@ private fun TimelineChannelColumn(
     channels: List<com.iptv.scanner.editor.pro.data.IptvChannel>,
     rowHeightDp: androidx.compose.ui.unit.Dp,
     isLandscape: Boolean,
-    surfaceVariantArgb: Int
+    surfaceVariantArgb: Int,
+    verticalScroll: androidx.compose.foundation.ScrollState,
+    viewPortHeightState: androidx.compose.runtime.State<Float>,
+    onVisibleRows: (Int, Int) -> Unit
 ) {
     val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val density = LocalDensity.current
+    val rowHeightPx = with(density) { rowHeightDp.toPx() }
+    val viewPortHeightPx = viewPortHeightState.value
+    // 可见行窗口（±3 行余量）：滚动位置变化时本 composable 重组合，窗口随之收窄/扩张
+    val firstVisible = (((verticalScroll.value / rowHeightPx).toInt()) - 3).coerceAtLeast(0)
+    val lastVisible = (((verticalScroll.value + viewPortHeightPx) / rowHeightPx).toInt() + 3)
+        .coerceIn(0, rows.size - 1)
+    // EPG 数据懒加载触发：窗口变化时通知外层填充该范围未加载的节目数据
+    LaunchedEffect(firstVisible, lastVisible, rows) {
+        if (rows.isNotEmpty()) onVisibleRows(firstVisible, lastVisible)
+    }
     Column {
-        rows.forEach { row ->
+        if (rows.isEmpty()) return@Column
+        // 顶部占位：跳过未进入窗口的行，保持总高度与 rows.size × rowHeight 一致
+        if (firstVisible > 0) {
+            Spacer(modifier = Modifier.height(with(density) { (firstVisible * rowHeightPx).toDp() }))
+        }
+        rows.forEachIndexed { idx, row ->
+            if (idx < firstVisible || idx > lastVisible) return@forEachIndexed
             val isCurrent = row.channelIdx == currentIdx
             val ch = channels.getOrNull(row.channelIdx)
             Box(
@@ -905,6 +941,10 @@ private fun TimelineChannelColumn(
                     )
                 }
             }
+        }
+        // 底部占位
+        if (lastVisible < rows.size - 1) {
+            Spacer(modifier = Modifier.height(with(density) { ((rows.size - 1 - lastVisible) * rowHeightPx).toDp() }))
         }
     }
 }
@@ -1083,19 +1123,22 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTimelineProgram
                     )
                 }
 
-                // 节目标题（宽度 > 40px 才绘制）：选中/当前块白字（橙红底），其余随主题
+                // 节目标题（宽度 > 40px 才绘制）：多行断行显示（横屏 80dp 行高可容 2-3 行，
+                // 竖屏 30dp 自动退化为单行），选中/当前块白字（橙红底），其余随主题
                 if (blockWidth > 40f) {
                     val textPaint = when {
                         isSelected -> programTextPaintSelected
                         isCurrent -> programTextPaintCurrent
                         else -> programTextPaint
                     }
-                    val title = ellipsizeText(program.title, textPaint, blockWidth - 8f)
-                    canvas.nativeCanvas.drawText(
-                        title,
-                        x1 + 4f,
-                        y + rowHeightPx / 2 + textPaint.textSize / 3,
-                        textPaint
+                    drawProgramTitleMultiLine(
+                        canvas = canvas,
+                        title = program.title,
+                        paint = textPaint,
+                        x = x1 + 4f,
+                        blockTop = y + 4f,
+                        blockWidth = blockWidth - 8f,
+                        blockHeight = rowHeightPx - 8f
                     )
                 }
             }
@@ -1179,14 +1222,62 @@ private fun parseTimelineTimeMs(iso: String, ts: Long): Long {
     return iso.toLongOrNull()?.let { if (it > 1_000_000_000_000L) it else it * 1000 } ?: 0
 }
 
-/** 文本截断（避免节目标题超出节目块宽度） */
-private fun ellipsizeText(text: String, paint: android.graphics.Paint, maxWidth: Float): String {
-    if (paint.measureText(text) <= maxWidth) return text
-    val ellipsis = "..."
-    val ellipsisWidth = paint.measureText(ellipsis)
-    var end = text.length
-    while (end > 0 && paint.measureText(text, 0, end) + ellipsisWidth > maxWidth) {
-        end--
+/** 节目标题多行绘制：按块内宽度断行，块内垂直居中；竖屏矮行高自动退化为单行 */
+private fun drawProgramTitleMultiLine(
+    canvas: androidx.compose.ui.graphics.Canvas,
+    title: String,
+    paint: android.graphics.Paint,
+    x: Float,
+    blockTop: Float,
+    blockWidth: Float,
+    blockHeight: Float
+) {
+    if (title.isEmpty() || blockWidth <= 0f || blockHeight <= 0f) return
+    val lineHeight = paint.textSize * 1.25f
+    val maxLines = (blockHeight / lineHeight).toInt().coerceAtLeast(1)
+    val lines = breakTextIntoLines(title, paint, blockWidth, maxLines)
+    if (lines.isEmpty()) return
+    val fm = paint.fontMetrics
+    val lineAscent = -fm.ascent
+    val totalHeight = lines.size * lineHeight
+    // 首行基线：块内整体垂直居中后下移一个 ascent（fontMetrics 基线定位）
+    var textY = blockTop + (blockHeight - totalHeight) / 2f + lineAscent
+    for (line in lines) {
+        canvas.nativeCanvas.drawText(line, x, textY, paint)
+        textY += lineHeight
     }
-    return if (end > 0) text.substring(0, end) + ellipsis else ""
+}
+
+/** 按最大宽度与行数上限断行（CJK 可任意断点）；末行放不下剩余文本时截断加省略号 */
+private fun breakTextIntoLines(
+    title: String, paint: android.graphics.Paint, maxWidth: Float, maxLines: Int
+): List<String> {
+    if (paint.measureText(title) <= maxWidth) return listOf(title)
+    val lines = mutableListOf<String>()
+    var start = 0
+    while (start < title.length && lines.size < maxLines) {
+        val isLastLine = lines.size == maxLines - 1
+        // 找到从 start 起一行能容纳的最大字符数（measureText 的 end 为排他边界）
+        var end = start + 1
+        while (end <= title.length && paint.measureText(title, start, end) <= maxWidth) {
+            end++
+        }
+        var lineEnd = end - 1
+        if (lineEnd <= start) lineEnd = start + 1  // 单字符超宽也强制放下，避免死循环
+        if (isLastLine && lineEnd < title.length) {
+            // 末行仍放不下剩余文本：回退宽度给省略号
+            val ellipsis = "…"
+            var le = lineEnd
+            while (le > start &&
+                paint.measureText(title, start, le) + paint.measureText(ellipsis) > maxWidth
+            ) {
+                le--
+            }
+            return if (le > start) lines + listOf(title.substring(start, le) + ellipsis)
+            else lines + listOf(ellipsis)
+        }
+        lines.add(title.substring(start, lineEnd))
+        start = lineEnd
+    }
+    return lines
 }

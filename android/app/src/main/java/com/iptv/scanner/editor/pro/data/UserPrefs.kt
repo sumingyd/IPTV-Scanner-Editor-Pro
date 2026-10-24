@@ -225,12 +225,12 @@ class UserPrefs private constructor() {
     }
 
     // -----------------------------------------------------------------
-    // 全屏播放页 TV 底栏布局样式（0=信息详情式[默认] 1=单行紧凑式 2=居中控制台式 3=左信息右控制式）
+    // 全屏播放页 TV 底栏布局样式（0..11，名称与结构见 TvLayout.TV_BOTTOM_BAR_STYLES）
     // -----------------------------------------------------------------
 
     fun getBottomBarStyle(): Int = prefs.getInt(KEY_BOTTOM_BAR_STYLE, 0)
     fun setBottomBarStyle(value: Int) {
-        prefs.edit().putInt(KEY_BOTTOM_BAR_STYLE, value.coerceIn(0, 3)).apply()
+        prefs.edit().putInt(KEY_BOTTOM_BAR_STYLE, value.coerceIn(0, 11)).apply()
     }
 
     // -----------------------------------------------------------------

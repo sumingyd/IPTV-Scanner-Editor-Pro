@@ -511,50 +511,97 @@ internal fun AppViewModel.loadEpgTimeline() {
         return
     }
 
-    // 选中日期的 [dayStartMs, dayEndMs) 时间范围
-    val cal = java.util.Calendar.getInstance().apply {
-        add(java.util.Calendar.DAY_OF_MONTH, _epgTimelineDateOffset.value)
-        set(java.util.Calendar.HOUR_OF_DAY, 0)
-        set(java.util.Calendar.MINUTE, 0)
-        set(java.util.Calendar.SECOND, 0)
-        set(java.util.Calendar.MILLISECOND, 0)
+    // 懒加载优化：只建空行骨架（不解析任何 EPG），节目数据由 TimelineGrid 可视窗口
+    // 触发 ensureEpgTimelineRowsLoaded 按需填充。此前一次性为全部频道解析/过滤 EPG，
+    // 频道多时切 tab/开面板明显卡顿；行骨架本身可即时渲染（台标/频道名不依赖 EPG）。
+    epgTimelineGeneration++
+    epgTimelinePendingRows.clear()
+    _epgTimelineLoading.value = false
+    _epgTimelineRows.value = selectedChannels.map { channel ->
+        EpgTimelineRow(
+            channelIdx = channels.indexOf(channel),
+            channelName = channel.name,
+            programs = emptyList(),
+            programsLoaded = false
+        )
     }
-    val dayStartMs = cal.timeInMillis
-    val dayEndMs = dayStartMs + 24 * 60 * 60 * 1000L
+    _epgTimelineStatus.value = "${selectedChannels.size} 频道 · 节目滚动加载"
+}
 
-    _epgTimelineLoading.value = true
-    _epgTimelineStatus.value = "加载中...（${selectedChannels.size} 频道）"
+/**
+ * EPG 时间线按行懒加载：填充 [fromRow, toRow] 可视窗口内未加载的节目数据。
+ * 由 TimelineGrid 可视行窗口变化时调用；命中 epgCache 直接复用，
+ * 未命中走 repository.getEpg（与 preloadEpgForAllChannels 共用缓存）。
+ */
+internal fun AppViewModel.ensureEpgTimelineRowsLoaded(fromRow: Int, toRow: Int) {
+    val rows = _epgTimelineRows.value
+    if (rows.isEmpty() || fromRow > toRow) return
+    val upper = toRow.coerceAtMost(rows.size - 1)
+    val targets = (fromRow.coerceAtLeast(0)..upper).filter { i ->
+        !rows[i].programsLoaded && i !in epgTimelinePendingRows
+    }
+    if (targets.isEmpty()) return
+    synchronized(epgTimelinePendingRows) { epgTimelinePendingRows.addAll(targets) }
+    val gen = epgTimelineGeneration
 
     viewModelScope.launch {
-        val rows = withContext(Dispatchers.IO) {
-            selectedChannels.map { channel ->
-                val idx = channels.indexOf(channel)
-                // 复用缓存（fetchEpgForCurrent 已缓存的频道直接用）
-                val allPrograms = epgCache[idx] ?: run {
+        val channels = _channels.value
+        // 选中日期的 [dayStartMs, dayEndMs) 时间范围（与行骨架同日）
+        val cal = java.util.Calendar.getInstance().apply {
+            add(java.util.Calendar.DAY_OF_MONTH, _epgTimelineDateOffset.value)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val dayStartMs = cal.timeInMillis
+        val dayEndMs = dayStartMs + 24 * 60 * 60 * 1000L
+
+        for (i in targets) {
+            // 代次已变（用户切了范围/日期）：丢弃剩余加载，避免写入过期数据
+            if (epgTimelineGeneration != gen) break
+            val row = _epgTimelineRows.value.getOrNull(i) ?: continue
+            if (row.programsLoaded) continue
+            val channel = channels.getOrNull(row.channelIdx)
+            val programs = if (channel == null) emptyList() else withContext(Dispatchers.IO) {
+                epgCache[row.channelIdx] ?: run {
                     repository.getEpg(
                         channelName = channel.name,
                         tvgId = channel.tvgId,
                         tvgName = channel.tvgName,
                         commaName = channel.name
                     ).getOrDefault(IptvEpgList()).programmes.also {
-                        if (it.isNotEmpty()) epgCache[idx] = it
+                        if (it.isNotEmpty()) epgCache[row.channelIdx] = it
                     }
                 }
-                // 按日期过滤（与当天有交集的节目）
-                val filtered = allPrograms.filter { p ->
-                    val startMs = parseEpgTimeMs(p.start, p.startTs)
-                    val endMs = parseEpgTimeMs(p.end.ifEmpty { p.stop }, p.stopTs)
-                    if (startMs <= 0 || endMs <= 0) false
-                    else startMs < dayEndMs && endMs > dayStartMs
-                }
-                EpgTimelineRow(idx, channel.name, filtered)
             }
+            if (epgTimelineGeneration != gen) break
+            // 按日期过滤（与当天有交集的节目）
+            val filtered = programs.filter { p ->
+                val startMs = parseEpgTimeMs(p.start, p.startTs)
+                val endMs = parseEpgTimeMs(p.end.ifEmpty { p.stop }, p.stopTs)
+                if (startMs <= 0 || endMs <= 0) false
+                else startMs < dayEndMs && endMs > dayStartMs
+            }
+            markEpgTimelineRowLoaded(i, row.channelIdx, row.channelName, filtered)
         }
-        _epgTimelineRows.value = rows
-        _epgTimelineLoading.value = false
-        val totalPrograms = rows.sumOf { it.programs.size }
-        _epgTimelineStatus.value = "${rows.size} 频道 / $totalPrograms 节目"
     }
+}
+
+/** 将行 i 标记为已加载并写入节目数据（行若已被重建/填充则跳过写入，仅解除 pending 标记） */
+private fun AppViewModel.markEpgTimelineRowLoaded(
+    i: Int, channelIdx: Int, channelName: String, programs: List<IptvEpgProgram>
+) {
+    val cur = _epgTimelineRows.value
+    val row = cur.getOrNull(i)
+    if (row != null && !row.programsLoaded &&
+        row.channelIdx == channelIdx && row.channelName == channelName
+    ) {
+        _epgTimelineRows.value = cur.toMutableList().also {
+            it[i] = row.copy(programs = programs, programsLoaded = true)
+        }
+    }
+    synchronized(epgTimelinePendingRows) { epgTimelinePendingRows.remove(i) }
 }
 
 internal fun AppViewModel.parseEpgTimeMs(iso: String, ts: Long): Long {

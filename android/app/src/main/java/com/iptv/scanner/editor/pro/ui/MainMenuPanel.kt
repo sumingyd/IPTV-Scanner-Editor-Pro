@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -370,12 +372,12 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                     return@onPreviewKeyEvent when (event.type) {
                         KeyEventType.KeyDown -> when (event.key) {
                             Key.DirectionUp -> {
-                                stylePickerIdx = (stylePickerIdx + 3) % 4
+                                stylePickerIdx = (stylePickerIdx + TV_BOTTOM_BAR_STYLES.size - 1) % TV_BOTTOM_BAR_STYLES.size
                                 viewModel.setStylePreview(stylePickerIdx)  // 底栏实时跟随焦点预览
                                 true
                             }
                             Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight -> {
-                                stylePickerIdx = (stylePickerIdx + 1) % 4
+                                stylePickerIdx = (stylePickerIdx + 1) % TV_BOTTOM_BAR_STYLES.size
                                 viewModel.setStylePreview(stylePickerIdx)
                                 true
                             }
@@ -911,12 +913,8 @@ private fun buildMenuSections(
             MenuEntry(
                 Icons.Default.AspectRatio,
                 "全屏底栏样式",
-                when (bottomBarStyleValue) {
-                    1 -> "当前：单行紧凑式 · 点击选择"
-                    2 -> "当前：居中控制台式 · 点击选择"
-                    3 -> "当前：左信息右控制式 · 点击选择"
-                    else -> "当前：信息详情式 · 点击选择"
-                },
+                "当前：" + (TV_BOTTOM_BAR_STYLES.firstOrNull { it.first == bottomBarStyleValue }?.second
+                    ?: "信息详情式") + " · 点击选择",
                 onSelectBottomBarStyle
             )
         )
@@ -1095,53 +1093,64 @@ private fun BottomBarStylePickerOverlay(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
 
-                listOf(
-                    0 to "信息详情式",
-                    1 to "单行紧凑式",
-                    2 to "居中控制台式",
-                    3 to "左信息右控制式"
-                ).forEach { (style, name) ->
-                    val isSel = style == pickerIdx
-                    val isCurrent = style == current
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .then(if (isSel) Modifier.tvGlassSelected(8) else Modifier)
-                            .clickable { onSelect(style) }
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // 单选点：选中为实心 accent 圆，未选中为描边空心圆
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .then(
-                                    if (isSel) Modifier.background(AptvAccent)
-                                    else Modifier.border(1.5.dp, Color(0x80FFFFFF), CircleShape)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isSel) {
-                                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color.White))
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = name,
-                            color = if (isSel) Color.White else Color(0xE6FFFFFF),
-                            fontSize = 15.sp,
-                            fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (isCurrent) {
-                            Text(text = "当前", color = AptvAccent, fontSize = 11.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        BottomBarStyleMiniPreview(style, modifier = Modifier.width(110.dp))
+                // 全部样式列出（单一数据源 TV_BOTTOM_BAR_STYLES），超出高度可滚动避免溢出；
+                // 遥控器环绕移动选中项时列表自动跟随滚动，保证选中项始终可见
+                val pickerListState = rememberLazyListState()
+                LaunchedEffect(pickerIdx) {
+                    if (pickerIdx in TV_BOTTOM_BAR_STYLES.indices) {
+                        pickerListState.animateScrollToItem(pickerIdx)
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                LazyColumn(
+                    state = pickerListState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                ) {
+                    itemsIndexed(TV_BOTTOM_BAR_STYLES) { _, entry ->
+                        val (style, name) = entry
+                        val isSel = style == pickerIdx
+                        val isCurrent = style == current
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .then(if (isSel) Modifier.tvGlassSelected(8) else Modifier)
+                                .clickable { onSelect(style) }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 单选点：选中为实心 accent 圆，未选中为描边空心圆
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .then(
+                                        if (isSel) Modifier.background(AptvAccent)
+                                        else Modifier.border(1.5.dp, Color(0x80FFFFFF), CircleShape)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSel) {
+                                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color.White))
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = name,
+                                color = if (isSel) Color.White else Color(0xE6FFFFFF),
+                                fontSize = 15.sp,
+                                fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isCurrent) {
+                                Text(text = "当前", color = AptvAccent, fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            BottomBarStyleMiniPreview(style, modifier = Modifier.width(110.dp))
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))

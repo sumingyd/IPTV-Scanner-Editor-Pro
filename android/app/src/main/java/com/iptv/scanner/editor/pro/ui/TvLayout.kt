@@ -64,6 +64,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
@@ -77,6 +79,7 @@ import com.iptv.scanner.editor.pro.player.PlayMode
 import com.iptv.scanner.editor.pro.player.PlaybackState
 import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
+import com.iptv.scanner.editor.pro.ui.theme.PlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.GlassPanel
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import kotlinx.coroutines.delay
@@ -211,6 +214,9 @@ fun TvPlayerLayout(
     val bottomBarStyle by viewModel.bottomBarStyle.collectAsState()
     // 弹窗实时预览样式：非 null 时底栏按预览样式渲染（BACK 未确定则恢复已确定样式）
     val stylePreview by viewModel.stylePreview.collectAsState()
+    // 样式弹窗打开期间底栏不抢焦点：预览底栏的 requestFocus 会夺走菜单面板焦点，
+    // 导致弹窗 onPreviewKeyEvent 的 DOWN/UP/OK 路由失效
+    val stylePickerOpen by viewModel.stylePickerOpen.collectAsState()
     DisposableEffect(homeOverlay) {
         val activity = context as? Activity
         val window = activity?.window
@@ -306,7 +312,8 @@ fun TvPlayerLayout(
                     playbackMode = playbackState.mode,
                     currentProgram = currentProgram,
                     epgList = currentEpg,
-                    style = stylePreview ?: bottomBarStyle
+                    style = stylePreview ?: bottomBarStyle,
+                    grabFocus = stylePreview == null && !stylePickerOpen
                 )
             }
         }
@@ -431,19 +438,31 @@ private fun TvBottomBar(
     playbackMode: PlayMode,
     currentProgram: IptvEpgProgram?,
     epgList: List<IptvEpgProgram>,
-    style: Int = 0
+    style: Int = 0,
+    grabFocus: Boolean = true
 ) {
     // 底栏呼出时把焦点落到播放/暂停键：DPAD 直接在底栏内移动焦点（Activity dispatchKeyEvent 已放行），
     // 不再需要 TAB 键临时导航。AnimatedVisibility 内每次呼出都是新组合，effect 重新执行。
+    // grabFocus=false（样式弹窗预览态）时跳过：预览底栏一旦抢焦点会破坏菜单面板的弹窗按键路由
     val barFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(80)
-        runCatching { barFocus.requestFocus() }
+    LaunchedEffect(grabFocus) {
+        if (grabFocus) {
+            kotlinx.coroutines.delay(80)
+            runCatching { barFocus.requestFocus() }
+        }
     }
     when (style) {
         1 -> TvBottomBarStyleB(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
         2 -> TvBottomBarStyleC(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
         3 -> TvBottomBarStyleD(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        4 -> TvBottomBarStyleE(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        5 -> TvBottomBarStyleF(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        6 -> TvBottomBarStyleG(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        7 -> TvBottomBarStyleH(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        8 -> TvBottomBarStyleI(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        9 -> TvBottomBarStyleJ(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        10 -> TvBottomBarStyleK(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        11 -> TvBottomBarStyleL(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
         else -> TvBottomBarStyleA(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
     }
 }
@@ -1104,6 +1123,692 @@ private fun TvBottomBarStyleD(
                 IconButton(onClick = { viewModel.setLandscapeSplitMode(true) }, modifier = Modifier.size(30.dp).tvFocusBorder()) {
                     Icon(Icons.Default.FullscreenExit, "返回分屏", tint = oc.iconTint, modifier = Modifier.size(16.dp))
                 }
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------
+// 底栏样式清单 + 共享构件（新增样式：在此登记 → TvBottomBar when 分支 →
+// BottomBarStyleMiniPreview 缩微预览 三处同步）
+// -----------------------------------------------------------------
+
+/** 全屏底栏样式清单：id + 名称（样式弹窗/设置页/迷你预览共用） */
+internal val TV_BOTTOM_BAR_STYLES: List<Pair<Int, String>> = listOf(
+    0 to "信息详情式",
+    1 to "单行紧凑式",
+    2 to "居中控制台式",
+    3 to "左信息右控制式",
+    4 to "极简悬浮式",
+    5 to "双行大台标式",
+    6 to "进度优先式",
+    7 to "左控制右信息式",
+    8 to "三段等分式",
+    9 to "极简信息式",
+    10 to "控制台双行式",
+    11 to "卡片网格式"
+)
+
+/** 共享：状态标签（时移/回看/直播），无媒体时 null */
+private fun tvBarStatusTag(fileLoaded: Boolean, playbackMode: PlayMode, showExitCatchup: Boolean): Pair<String, Color>? = when {
+    !fileLoaded -> null
+    playbackMode == PlayMode.TIMESHIFT -> "时移" to Color(0xFF2979FF)
+    showExitCatchup -> "回看" to Color(0xFFFFA500)
+    else -> "直播" to AptvAccent
+}
+
+/** 共享：距当前节目结束的剩余时间文案 */
+private fun tvBarRemainText(tick: Long, currentProgram: IptvEpgProgram?): String? {
+    if (currentProgram != null && currentProgram.stopTs > 0) {
+        val diff = currentProgram.stopTs - tick / 1000L
+        if (diff > 0) {
+            val min = diff / 60
+            return if (min > 0) "距结束 ${min}分钟" else "距结束 ${diff}秒"
+        }
+    }
+    return null
+}
+
+/** 共享：当前时间位置文案（直播=系统时间，回看/时移=播放位置） */
+private fun tvBarPosText(
+    tick: Long, timePos: Double, playbackMode: PlayMode, showExitCatchup: Boolean,
+    fmt: java.text.SimpleDateFormat
+): String = if (playbackMode == PlayMode.LIVE && !showExitCatchup) {
+    fmt.format(java.util.Date(tick))
+} else if (timePos > 0) {
+    fmt.format(java.util.Date((timePos * 1000L).toLong()))
+} else ""
+
+/** 共享：台标块（logo 或频道名前两字兜底），尺寸/字号可调 */
+@Composable
+private fun TvBarLogo(displayInfo: ChannelDisplayInfo, width: Dp, height: Dp, textSp: TextUnit = 13.sp) {
+    Box(
+        modifier = Modifier.size(width, height).clip(RoundedCornerShape(5.dp)).background(ICON_BG),
+        contentAlignment = Alignment.Center
+    ) {
+        if (displayInfo.logo.isNotEmpty()) {
+            AsyncImage(
+                model = displayInfo.logo, contentDescription = displayInfo.name,
+                modifier = Modifier.fillMaxSize().padding(3.dp), contentScale = ContentScale.Fit
+            )
+        } else {
+            Text(
+                text = displayInfo.name.take(2).ifEmpty { "·" },
+                color = Color.White, fontSize = textSp, fontWeight = FontWeight.Bold, maxLines = 1
+            )
+        }
+    }
+}
+
+/** 共享：状态+暂停标签组 */
+@Composable
+private fun TvBarTags(statusTag: Pair<String, Color>?, paused: Boolean, fileLoaded: Boolean, sp: TextUnit = 11.sp) {
+    if (statusTag != null) {
+        Surface(color = statusTag.second.copy(alpha = 0.25f), shape = RoundedCornerShape(4.dp)) {
+            Text(
+                text = statusTag.first, color = statusTag.second, fontSize = sp,
+                fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+        }
+    }
+    if (paused && fileLoaded) {
+        if (statusTag != null) Spacer(modifier = Modifier.width(4.dp))
+        Surface(color = Color(0x30FFFFFF), shape = RoundedCornerShape(4.dp)) {
+            Text("暂停", color = Color.White, fontSize = sp, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp))
+        }
+    }
+}
+
+/** 共享：细进度条（宽度由 modifier 决定） */
+@Composable
+private fun TvBarThinProgress(progress: Float, modifier: Modifier = Modifier, height: Dp = 3.dp) {
+    Box(
+        modifier = modifier
+            .height(height)
+            .clip(RoundedCornerShape(height / 2))
+            .background(Color(0x30FFFFFF))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progress)
+                .clip(RoundedCornerShape(height / 2))
+                .background(AptvAccent)
+        )
+    }
+}
+
+/** 共享：横排控制按钮组（上一台/播放/下一台/停止/返回分屏），barFocus 为初始焦点落点 */
+@Composable
+private fun TvBarControls(
+    viewModel: AppViewModel,
+    paused: Boolean,
+    barFocus: FocusRequester?,
+    oc: PlayerOverlayColors,
+    showPrevNext: Boolean = true,
+    buttonSize: Dp = 32.dp,
+    playSize: Dp = 36.dp,
+    iconSize: Dp = 17.dp,
+    playIconSize: Dp = 20.dp,
+    spacing: Dp = 4.dp
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing)) {
+        if (showPrevNext) {
+            IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(buttonSize).tvFocusBorder()) {
+                Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(iconSize))
+            }
+        }
+        IconButton(
+            onClick = { viewModel.mpv.setPause(!paused) },
+            modifier = Modifier
+                .size(playSize)
+                .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
+                .tvFocusBorder()
+        ) {
+            Icon(
+                if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(playIconSize)
+            )
+        }
+        if (showPrevNext) {
+            IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(buttonSize).tvFocusBorder()) {
+                Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(iconSize))
+            }
+        }
+        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(buttonSize).tvFocusBorder()) {
+            Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(iconSize))
+        }
+        IconButton(onClick = { viewModel.setLandscapeSplitMode(true) }, modifier = Modifier.size(buttonSize).tvFocusBorder()) {
+            Icon(Icons.Default.FullscreenExit, "返回分屏", tint = oc.iconTint, modifier = Modifier.size(iconSize))
+        }
+    }
+}
+
+/** 底栏样式 E：极简悬浮式 —— 居中胶囊按钮组，仅保留小台标+频道号，观看时几乎不遮挡画面 */
+@Composable
+private fun TvBottomBarStyleE(
+    viewModel: AppViewModel,
+    displayInfo: ChannelDisplayInfo,
+    paused: Boolean,
+    fileLoaded: Boolean,
+    videoWidth: Int,
+    videoHeight: Int,
+    showExitCatchup: Boolean,
+    playbackMode: PlayMode,
+    currentProgram: IptvEpgProgram?,
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
+) {
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 22.dp, overlayDark = true) {
+        val oc = rememberPlayerOverlayColors()
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            TvBarLogo(displayInfo, 44.dp, 26.dp, 11.sp)
+            if (displayInfo.idx >= 0) {
+                Text(
+                    text = String.format("%03d", displayInfo.idx + 1),
+                    color = AptvAccent, fontSize = 13.sp, fontWeight = FontWeight.Medium
+                )
+            }
+            Box(modifier = Modifier.width(1.dp).height(22.dp).background(TV_ROW_DIVIDER))
+            TvBarControls(
+                viewModel, paused, barFocus, oc,
+                buttonSize = 34.dp, playSize = 40.dp, iconSize = 18.dp, playIconSize = 24.dp, spacing = 6.dp
+            )
+        }
+    }
+}
+
+/** 底栏样式 F：双行大台标式 —— 行1 大台标+频道信息，行2 节目进度+控制按钮 */
+@Composable
+private fun TvBottomBarStyleF(
+    viewModel: AppViewModel,
+    displayInfo: ChannelDisplayInfo,
+    paused: Boolean,
+    fileLoaded: Boolean,
+    videoWidth: Int,
+    videoHeight: Int,
+    showExitCatchup: Boolean,
+    playbackMode: PlayMode,
+    currentProgram: IptvEpgProgram?,
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
+) {
+    val mpv = viewModel.mpv
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) { while (true) { tick = System.currentTimeMillis(); delay(1000L) } }
+    val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 10.dp, overlayDark = true) {
+        val oc = rememberPlayerOverlayColors()
+        val timePos by mpv.timePos.collectAsState()
+        val duration by mpv.duration.collectAsState()
+        val progress = computeTvBarProgress(currentProgram, timePos, duration)
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TvBarLogo(displayInfo, 72.dp, 40.dp, 15.sp)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (displayInfo.idx >= 0) {
+                            Text(text = String.format("%03d", displayInfo.idx + 1), color = AptvAccent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Spacer(modifier = Modifier.width(5.dp))
+                        }
+                        Text(
+                            text = displayInfo.name.ifEmpty { "未选择频道" },
+                            color = oc.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        TvBarTags(statusTag, paused, fileLoaded)
+                    }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = currentProgram?.title?.ifEmpty { null } ?: "精彩节目",
+                        color = oc.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val remainText = tvBarRemainText(tick, currentProgram)
+                if (progress != null) {
+                    TvBarThinProgress(progress, Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(8.dp))
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+                if (remainText != null) {
+                    Text(text = remainText, color = AptvAccent, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                TvBarControls(viewModel, paused, barFocus, oc, buttonSize = 30.dp, playSize = 34.dp, iconSize = 16.dp)
+            }
+        }
+    }
+}
+
+/** 底栏样式 G：进度优先式 —— 频道/节目信息、全宽粗进度条、居中按钮组（类 YouTube TV） */
+@Composable
+private fun TvBottomBarStyleG(
+    viewModel: AppViewModel,
+    displayInfo: ChannelDisplayInfo,
+    paused: Boolean,
+    fileLoaded: Boolean,
+    videoWidth: Int,
+    videoHeight: Int,
+    showExitCatchup: Boolean,
+    playbackMode: PlayMode,
+    currentProgram: IptvEpgProgram?,
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
+) {
+    val mpv = viewModel.mpv
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) { while (true) { tick = System.currentTimeMillis(); delay(1000L) } }
+    val fullTimeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 12.dp, overlayDark = true) {
+        val oc = rememberPlayerOverlayColors()
+        val timePos by mpv.timePos.collectAsState()
+        val duration by mpv.duration.collectAsState()
+        val progress = computeTvBarProgress(currentProgram, timePos, duration)
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // 行1：频道信息居中
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (displayInfo.idx >= 0) {
+                    Text(text = String.format("%03d", displayInfo.idx + 1), color = AptvAccent, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text(
+                    text = displayInfo.name.ifEmpty { "未选择频道" },
+                    color = oc.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                if (currentProgram?.title?.isNotEmpty() == true) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "·", color = Color(0x80FFFFFF), fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = currentProgram.title,
+                        color = oc.textSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(7.dp))
+            // 行2：全宽粗进度条 + 两端时间
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                val posText = tvBarPosText(tick, timePos, playbackMode, showExitCatchup, fullTimeFmt)
+                if (posText.isNotEmpty()) {
+                    Text(text = posText, color = Color(0xFFa0a0a0), fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                if (progress != null) {
+                    TvBarThinProgress(progress, Modifier.weight(1f), height = 5.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+                val remainText = tvBarRemainText(tick, currentProgram)
+                if (remainText != null) Text(text = remainText, color = AptvAccent, fontSize = 11.sp)
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            // 行3：居中按钮组
+            TvBarControls(
+                viewModel, paused, barFocus, oc,
+                buttonSize = 34.dp, playSize = 44.dp, iconSize = 19.dp, playIconSize = 26.dp, spacing = 14.dp
+            )
+        }
+    }
+}
+
+/** 底栏样式 H：左控制右信息式 —— 样式 D 的镜像：左侧按钮组 | 右侧信息两行 */
+@Composable
+private fun TvBottomBarStyleH(
+    viewModel: AppViewModel,
+    displayInfo: ChannelDisplayInfo,
+    paused: Boolean,
+    fileLoaded: Boolean,
+    videoWidth: Int,
+    videoHeight: Int,
+    showExitCatchup: Boolean,
+    playbackMode: PlayMode,
+    currentProgram: IptvEpgProgram?,
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
+) {
+    val mpv = viewModel.mpv
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 8.dp, overlayDark = true) {
+        val oc = rememberPlayerOverlayColors()
+        val timePos by mpv.timePos.collectAsState()
+        val duration by mpv.duration.collectAsState()
+        val progress = computeTvBarProgress(currentProgram, timePos, duration)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TvBarControls(viewModel, paused, barFocus, oc, buttonSize = 32.dp, playSize = 36.dp, iconSize = 18.dp)
+            Spacer(modifier = Modifier.width(10.dp))
+            Box(modifier = Modifier.width(1.dp).height(36.dp).background(TV_ROW_DIVIDER))
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (displayInfo.idx >= 0) {
+                        Text(text = String.format("%03d", displayInfo.idx + 1), color = AptvAccent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.width(5.dp))
+                    }
+                    Text(
+                        text = displayInfo.name.ifEmpty { "未选择频道" },
+                        color = oc.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    TvBarTags(statusTag, paused, fileLoaded, sp = 10.sp)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = currentProgram?.title?.ifEmpty { null } ?: "精彩节目",
+                        color = oc.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (progress != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        TvBarThinProgress(progress, Modifier.width(110.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 底栏样式 I：三段等分式 —— 台标频道 | 节目进度 | 控制 三段，竖分隔线隔开 */
+@Composable
+private fun TvBottomBarStyleI(
+    viewModel: AppViewModel,
+    displayInfo: ChannelDisplayInfo,
+    paused: Boolean,
+    fileLoaded: Boolean,
+    videoWidth: Int,
+    videoHeight: Int,
+    showExitCatchup: Boolean,
+    playbackMode: PlayMode,
+    currentProgram: IptvEpgProgram?,
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
+) {
+    val mpv = viewModel.mpv
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) { while (true) { tick = System.currentTimeMillis(); delay(1000L) } }
+    val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+    val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 10.dp, overlayDark = true) {
+        val oc = rememberPlayerOverlayColors()
+        val timePos by mpv.timePos.collectAsState()
+        val duration by mpv.duration.collectAsState()
+        val progress = computeTvBarProgress(currentProgram, timePos, duration)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 段1：台标 + 频道名（竖排）
+            Column(modifier = Modifier.weight(0.85f), horizontalAlignment = Alignment.CenterHorizontally) {
+                TvBarLogo(displayInfo, 64.dp, 30.dp, 12.sp)
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = (if (displayInfo.idx >= 0) "${displayInfo.idx + 1} " else "") + displayInfo.name.ifEmpty { "未选择频道" },
+                    color = oc.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
+            Box(modifier = Modifier.width(1.dp).height(44.dp).background(TV_ROW_DIVIDER))
+            Spacer(modifier = Modifier.width(10.dp))
+            // 段2：节目名 + 进度 + 时段
+            Column(modifier = Modifier.weight(1.15f)) {
+                Text(
+                    text = currentProgram?.title?.ifEmpty { null } ?: "精彩节目",
+                    color = oc.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                if (progress != null) TvBarThinProgress(progress, Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (currentProgram != null && currentProgram.stopTs > 0) {
+                        Text(
+                            text = "${timeFmt.format(java.util.Date(currentProgram.startTs * 1000L))}-${timeFmt.format(java.util.Date(currentProgram.stopTs * 1000L))}",
+                            color = Color(0xFFa0a0a0), fontSize = 10.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    TvBarTags(statusTag, paused, fileLoaded, sp = 9.sp)
+                }
+            }
+            Box(modifier = Modifier.width(1.dp).height(44.dp).background(TV_ROW_DIVIDER))
+            Spacer(modifier = Modifier.width(8.dp))
+            // 段3：控制按钮
+            TvBarControls(viewModel, paused, barFocus, oc, buttonSize = 30.dp, playSize = 34.dp, iconSize = 16.dp, spacing = 2.dp)
+        }
+    }
+}
+
+/** 底栏样式 J：极简信息式 —— 单行居中大字频道·节目 OSD，右端仅播放/停止/返回分屏 */
+@Composable
+private fun TvBottomBarStyleJ(
+    viewModel: AppViewModel,
+    displayInfo: ChannelDisplayInfo,
+    paused: Boolean,
+    fileLoaded: Boolean,
+    videoWidth: Int,
+    videoHeight: Int,
+    showExitCatchup: Boolean,
+    playbackMode: PlayMode,
+    currentProgram: IptvEpgProgram?,
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
+) {
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 14.dp, overlayDark = true) {
+        val oc = rememberPlayerOverlayColors()
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (displayInfo.idx >= 0) {
+                    Text(text = String.format("%03d", displayInfo.idx + 1), color = AptvAccent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text(
+                    text = displayInfo.name.ifEmpty { "未选择频道" },
+                    color = oc.textPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                if (currentProgram?.title?.isNotEmpty() == true) {
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = currentProgram.title,
+                        color = oc.textSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            TvBarControls(
+                viewModel, paused, barFocus, oc,
+                showPrevNext = false, buttonSize = 32.dp, playSize = 38.dp, iconSize = 17.dp, playIconSize = 22.dp
+            )
+        }
+    }
+}
+
+/** 底栏样式 K：控制台双行式 —— 行1 居中按钮组，行2 频道信息+节目+进度（样式 C 的倒置） */
+@Composable
+private fun TvBottomBarStyleK(
+    viewModel: AppViewModel,
+    displayInfo: ChannelDisplayInfo,
+    paused: Boolean,
+    fileLoaded: Boolean,
+    videoWidth: Int,
+    videoHeight: Int,
+    showExitCatchup: Boolean,
+    playbackMode: PlayMode,
+    currentProgram: IptvEpgProgram?,
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
+) {
+    val mpv = viewModel.mpv
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 12.dp, overlayDark = true) {
+        val oc = rememberPlayerOverlayColors()
+        val timePos by mpv.timePos.collectAsState()
+        val duration by mpv.duration.collectAsState()
+        val progress = computeTvBarProgress(currentProgram, timePos, duration)
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // 行1：居中按钮组
+            TvBarControls(
+                viewModel, paused, barFocus, oc,
+                buttonSize = 36.dp, playSize = 46.dp, iconSize = 20.dp, playIconSize = 27.dp, spacing = 14.dp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            // 行2：信息单行
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                if (displayInfo.idx >= 0) {
+                    Text(text = String.format("%03d", displayInfo.idx + 1), color = AptvAccent, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.width(5.dp))
+                }
+                Text(
+                    text = displayInfo.name.ifEmpty { "未选择频道" },
+                    color = oc.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                TvBarTags(statusTag, paused, fileLoaded, sp = 10.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = currentProgram?.title?.ifEmpty { null } ?: "精彩节目",
+                    color = oc.textSecondary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                if (progress != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TvBarThinProgress(progress, Modifier.width(90.dp))
+                }
+            }
+        }
+    }
+}
+
+/** 底栏样式 L：卡片网格式 —— 左信息块（频道/节目/粗进度）+ 右 2x2 按钮网格 + 返回分屏 */
+@Composable
+private fun TvBottomBarStyleL(
+    viewModel: AppViewModel,
+    displayInfo: ChannelDisplayInfo,
+    paused: Boolean,
+    fileLoaded: Boolean,
+    videoWidth: Int,
+    videoHeight: Int,
+    showExitCatchup: Boolean,
+    playbackMode: PlayMode,
+    currentProgram: IptvEpgProgram?,
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
+) {
+    val mpv = viewModel.mpv
+    val liquidGlass by viewModel.liquidGlass.collectAsState()
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) { while (true) { tick = System.currentTimeMillis(); delay(1000L) } }
+    val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+
+    GlassPanel(liquidGlass = liquidGlass, cornerRadius = 10.dp, overlayDark = true) {
+        val oc = rememberPlayerOverlayColors()
+        val timePos by mpv.timePos.collectAsState()
+        val duration by mpv.duration.collectAsState()
+        val progress = computeTvBarProgress(currentProgram, timePos, duration)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 左信息块
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (displayInfo.idx >= 0) {
+                        Text(text = String.format("%03d", displayInfo.idx + 1), color = AptvAccent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.width(5.dp))
+                    }
+                    Text(
+                        text = displayInfo.name.ifEmpty { "未选择频道" },
+                        color = oc.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    TvBarTags(statusTag, paused, fileLoaded, sp = 10.sp)
+                }
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = currentProgram?.title?.ifEmpty { null } ?: "精彩节目",
+                    color = oc.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                val remainText = tvBarRemainText(tick, currentProgram)
+                if (remainText != null) {
+                    Text(text = remainText, color = AptvAccent, fontSize = 10.sp)
+                    Spacer(modifier = Modifier.height(3.dp))
+                }
+                if (progress != null) TvBarThinProgress(progress, Modifier.fillMaxWidth(), height = 4.dp)
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            // 右 2x2 按钮网格
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                        Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(18.dp))
+                    }
+                    IconButton(
+                        onClick = { viewModel.mpv.setPause(!paused) },
+                        modifier = Modifier
+                            .size(34.dp)
+                            .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
+                            .tvFocusBorder()
+                    ) {
+                        Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(19.dp))
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                        Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(18.dp))
+                    }
+                    IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                        Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(17.dp))
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(modifier = Modifier.width(1.dp).height(44.dp).background(TV_ROW_DIVIDER))
+            Spacer(modifier = Modifier.width(6.dp))
+            // 返回分屏（竖排右侧）
+            IconButton(onClick = { viewModel.setLandscapeSplitMode(true) }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                Icon(Icons.Default.FullscreenExit, "返回分屏", tint = oc.iconTint, modifier = Modifier.size(18.dp))
             }
         }
     }
