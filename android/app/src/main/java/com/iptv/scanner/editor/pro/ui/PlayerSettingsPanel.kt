@@ -89,8 +89,10 @@ fun PlayerSettingsPanel(viewModel: AppViewModel) {
     ) {
         val useDualColumn = maxWidth > 500.dp
 
+        // 弹窗玻璃底座由 PortraitPanelDialog 提供（TV/横屏静态玻璃、竖屏底部 sheet），
+        // 此处根容器必须透明，否则会盖住磨砂质感变回实底面板
         Surface(
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            color = Color.Transparent,
             modifier = Modifier.fillMaxSize()
         ) {
             Column(
@@ -241,8 +243,9 @@ private fun PlayerSettingsLeftColumn(viewModel: AppViewModel) {
         )
     }
     Spacer(modifier = Modifier.height(8.dp))
+    // 半透明小卡：透出弹窗玻璃底座，保持磨砂层次感
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -465,7 +468,7 @@ private fun PlayerSettingsRightColumn(viewModel: AppViewModel) {
     Spacer(modifier = Modifier.height(20.dp))
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -488,7 +491,7 @@ private fun PlayerSettingsRightColumn(viewModel: AppViewModel) {
     Spacer(modifier = Modifier.height(20.dp))
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {

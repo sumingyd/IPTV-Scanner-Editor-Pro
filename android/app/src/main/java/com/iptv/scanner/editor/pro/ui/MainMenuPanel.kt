@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -119,6 +120,7 @@ fun MainMenuPanel(viewModel: AppViewModel) {
     val currentChannel by viewModel.currentChannel.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
     val liquidGlass by viewModel.liquidGlass.collectAsState()
+    val bottomBarStyle by viewModel.bottomBarStyle.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val osdShowTime by viewModel.osdShowTime.collectAsState()
     val osdShowNetSpeed by viewModel.osdShowNetSpeed.collectAsState()
@@ -305,6 +307,8 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             showListIcon = osdShowListIcon,
             showBottomIcon = osdShowBottomIcon,
             liquidGlassValue = liquidGlass,
+            bottomBarStyleValue = bottomBarStyle,
+            onToggleBottomBarStyle = { viewModel.setBottomBarStyle((bottomBarStyle + 1) % 4) },
             hasCurrentChannel = currentChannel != null,
             isFavorite = isFavorite,
             sources = sources,
@@ -730,6 +734,8 @@ private fun buildMenuSections(
     onToggleShowListIcon: () -> Unit,
     onToggleShowBottomIcon: () -> Unit,
     onToggleLiquidGlass: () -> Unit,
+    bottomBarStyleValue: Int = 0,
+    onToggleBottomBarStyle: () -> Unit = {},
     showTime: Boolean,
     showNetSpeed: Boolean,
     hideChannelNum: Boolean,
@@ -826,7 +832,18 @@ private fun buildMenuSections(
             MenuEntry(Icons.Default.Info, "关闭收藏", "不显示收藏星标", onToggleDisableFavorite, isToggle = true, toggleValue = disableFavorite),
             MenuEntry(Icons.Default.Info, "列表图标", "频道列表显示台标", onToggleShowListIcon, isToggle = true, toggleValue = showListIcon),
             MenuEntry(Icons.Default.Info, "底部图标", "底部信息栏显示图标", onToggleShowBottomIcon, isToggle = true, toggleValue = showBottomIcon),
-            MenuEntry(Icons.Default.AutoAwesome, "液态玻璃", "UI背景半透明玻璃质感", onToggleLiquidGlass, isToggle = true, toggleValue = liquidGlassValue)
+            MenuEntry(Icons.Default.AutoAwesome, "液态玻璃", "UI背景半透明玻璃质感", onToggleLiquidGlass, isToggle = true, toggleValue = liquidGlassValue),
+            MenuEntry(
+                Icons.Default.AspectRatio,
+                "全屏底栏样式",
+                when (bottomBarStyleValue) {
+                    1 -> "当前：单行紧凑式"
+                    2 -> "当前：居中控制台式"
+                    3 -> "当前：左信息右控制式"
+                    else -> "当前：信息详情式"
+                },
+                onToggleBottomBarStyle
+            )
         )
     )
     val toolSection = MenuSection(
