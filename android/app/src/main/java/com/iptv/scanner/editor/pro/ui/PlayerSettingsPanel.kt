@@ -545,19 +545,13 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
     val groupMd by viewModel.groupMode.collectAsState()
     val perChannelEnabled by viewModel.perChannelSettingsEnabled.collectAsState()
 
-    // 全屏覆盖页：Dialog 独立窗口无法采样主窗口背景 —— 静态光泽玻璃，可模糊透出下层界面观感
+    // 全屏覆盖页（竖屏弹窗）：Dialog 独立窗口无法采样主窗口背景 —— 静态光泽玻璃，可模糊透出下层界面观感。
+    // 分屏详情宿主内（LocalSplitDetailEmbedded）：不包整块玻璃底座，让 SettingsGroup 分组卡片一块一块呈现
     val liquidGlass = com.iptv.scanner.editor.pro.ui.LocalLiquidGlass.current
     val useGlass = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported() &&
         android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-    com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
-        enabled = useGlass,
-        cornerRadius = 0.dp,
-        staticGlass = true,
-        fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = if (useGlass) 0.82f else 1f))
-    ) {
+    val embedded = LocalSplitDetailEmbedded.current
+    val body: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -861,5 +855,20 @@ private fun PlayerSettingsPanelAptv(viewModel: AppViewModel) {
 
             Spacer(modifier = Modifier.height(20.dp))
         }
+    }
+    if (embedded) {
+        // 分屏详情宿主内：透出画布，SettingsGroup 分组卡片直接一块一块呈现
+        body()
+    } else {
+        // 竖屏弹窗：整块静态玻璃底座（Dialog 独立窗口无法采样主窗口背景）
+        com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+            enabled = useGlass,
+            cornerRadius = 0.dp,
+            staticGlass = true,
+            fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = if (useGlass) 0.82f else 1f))
+        ) { body() }
     }
 }

@@ -884,32 +884,48 @@ private fun OverviewStatCard(label: String, value: String) {
 // -----------------------------------------------------------------
 
 /**
- * 横屏分屏详情路由：设置/工具页点击左侧项 → 子面板内容渲染到右侧详情区，
+ * 分屏详情宿主内渲染标记：面板据此省去整块玻璃底座（让 SettingsGroup 分组卡片直接呈现），
+ * 二级工具项点击时路由到第三列（splitDetailPush）而非弹窗。
+ */
+internal val LocalSplitDetailEmbedded = androidx.compose.runtime.compositionLocalOf { false }
+
+/**
+ * 横屏分屏详情路由（栈结构）：设置/工具页点击左侧项 → 子面板内容渲染到右侧详情区，
  * 而不是弹中央 Dialog；竖屏仍走 PortraitPanelDialog 弹窗。
- * 关闭时机：BACK（MainPlayerScreen 返回首分支）/ 切 tab（homeTab effect）/
- * 面板内 X（open 流变 false，SplitDetailHost 联动清除）。
+ * 二级入口（面板内工具项）push 到栈顶 → 宿主渲染三列（左列表 + 中一级面板 + 右子面板）。
+ * 关闭时机：BACK（逐级 pop）/ 切 tab（homeTab effect 清栈）/
+ * 面板内 X（open 流变 false，SplitDetailHost 联动移除该级及其后条目）。
  */
 internal object LandscapeSplitDetail {
-    var content by androidx.compose.runtime.mutableStateOf<(@Composable () -> Unit)?>(null)
-        private set
-    /** 当前详情面板对应的 open 状态流（面板内 X → toggle → false → 宿主联动清除） */
-    var openState by androidx.compose.runtime.mutableStateOf<kotlinx.coroutines.flow.StateFlow<Boolean>?>(null)
-        private set
+    class Entry(
+        val panel: @Composable () -> Unit,
+        /** 关联的 open 状态流（面板内 X → toggle → false → 宿主联动移除）；无则仅 BACK 关闭 */
+        val openFlow: kotlinx.coroutines.flow.StateFlow<Boolean>?
+    )
+    val stack = androidx.compose.runtime.mutableStateListOf<Entry>()
 
-    fun show(panel: @Composable () -> Unit, openFlow: kotlinx.coroutines.flow.StateFlow<Boolean>) {
-        content = panel
-        openState = openFlow
+    fun push(panel: @Composable () -> Unit, openFlow: kotlinx.coroutines.flow.StateFlow<Boolean>?) {
+        stack.add(Entry(panel, openFlow))
+    }
+
+    /** 弹出栈顶（BACK 返回上一级） */
+    fun pop() {
+        if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex)
+    }
+
+    /** 移除指定索引及其后的所有条目（面板 X 关闭联动） */
+    fun removeFrom(index: Int) {
+        while (stack.size > index) stack.removeAt(stack.lastIndex)
     }
 
     fun clear() {
-        content = null
-        openState = null
+        stack.clear()
     }
 }
 
 /**
- * 面板入口点击分流：横屏（真实横屏布局的首页）→ 右侧详情路由（并确保 open=true，
- * 使面板内 X 的 toggle 能正确翻转为关闭）；竖屏/伪横屏 → 原弹窗 toggle。
+ * 面板入口点击分流（一级入口）：横屏（真实横屏布局的首页）→ 清栈后压入右侧详情路由
+ * （并确保 open=true，使面板内 X 的 toggle 能正确翻转为关闭）；竖屏/伪横屏 → 原弹窗 toggle。
  */
 internal fun splitDetailOrToggle(
     isLandscape: Boolean,
@@ -921,29 +937,60 @@ internal fun splitDetailOrToggle(
         toggle()
         return
     }
-    LandscapeSplitDetail.show(panel, openFlow)
+    LandscapeSplitDetail.clear()
+    LandscapeSplitDetail.push(panel, openFlow)
     if (!openFlow.value) toggle()
 }
 
 /**
- * 设置/工具页右侧详情宿主：有详情时渲染子面板（静态玻璃卡片底座，面板自带标题/关闭钮），
- * 无详情时显示系统概览。面板内 X 关闭（open→false）时自动清除详情回落概览。
+ * 面板内二级入口（三列展开）：不清栈，把子面板压入第三列。
+ * 子面板 open 流当前为 false 时先调 ensureOpen 置 true，保证 X 关闭联动正确。
+ */
+internal fun splitDetailPush(
+    openFlow: kotlinx.coroutines.flow.StateFlow<Boolean>,
+    panel: @Composable () -> Unit,
+    ensureOpen: () -> Unit
+) {
+    LandscapeSplitDetail.push(panel, openFlow)
+    if (!openFlow.value) ensureOpen()
+}
+
+/**
+ * 设置/工具页右侧详情宿主：栈空显示系统概览；
+ * 1 级详情渲染单列；≥2 级渲染三列（中列 = 前一级面板，右列 = 最后压入的子面板）。
+ * 面板内 X 关闭（open→false）时自动移除该级及其后条目，回落概览。
  */
 @Composable
 private fun SplitDetailHost(viewModel: AppViewModel) {
-    val detail = LandscapeSplitDetail.content
-    val openFlow = LandscapeSplitDetail.openState
-    if (detail == null || openFlow == null) {
-        LandscapeSystemOverviewPanel(viewModel = viewModel)
-        return
+    val stack = LandscapeSplitDetail.stack
+    // open 联动：任一级面板内 X 关闭（open→false）→ 移除该级及其后的所有条目
+    stack.forEachIndexed { idx, entry ->
+        val flow = entry.openFlow ?: return@forEachIndexed
+        val open by flow.collectAsState()
+        androidx.compose.runtime.LaunchedEffect(open, idx, stack.size) {
+            if (!open) LandscapeSplitDetail.removeFrom(idx)
+        }
     }
-    val open by openFlow.collectAsState()
-    if (!open) {
-        // 面板内 X 已关闭：回落系统概览（详情路由保留，BACK 时清除）
+    if (stack.isEmpty()) {
         LandscapeSystemOverviewPanel(viewModel = viewModel)
         return
     }
     // 不包整块玻璃底座：面板内 SettingsGroup 在 APTV 作用域下已自动分组卡片化，
     // 整块玻璃会把卡片底衬盖平（观感 = 一大块板），此处透出画布让分组卡片「一块一块」呈现
-    Box(modifier = Modifier.fillMaxSize()) { detail() }
+    androidx.compose.runtime.CompositionLocalProvider(LocalSplitDetailEmbedded provides true) {
+        if (stack.size == 1) {
+            Box(modifier = Modifier.fillMaxSize()) { stack[0].panel() }
+        } else {
+            // 三列：中列 = 前一级面板（点击二级项的面板），右列 = 最后压入的子面板
+            Row(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.weight(0.46f).fillMaxHeight()) {
+                    stack[stack.size - 2].panel()
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Box(modifier = Modifier.weight(0.54f).fillMaxHeight()) {
+                    stack.last().panel()
+                }
+            }
+        }
+    }
 }

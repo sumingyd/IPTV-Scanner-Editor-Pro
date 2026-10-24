@@ -243,6 +243,50 @@ fun OpenUrlDialog(viewModel: AppViewModel) {
     }
 }
 /**
+ * 打开网络流面板内容（横屏分屏详情路由用，非 Dialog）：
+ * 与 [OpenUrlDialog] 横屏分支内容一致，但渲染为右侧详情面板（自带标题/关闭钮）。
+ */
+@Composable
+fun OpenUrlPanelContent(viewModel: AppViewModel) {
+    var url by remember { mutableStateOf("") }
+    PanelScaffold(
+        title = "打开网络流",
+        subtitle = "输入 M3U/M3U8/HLS/RTSP/RTMP 等协议 URL",
+        onClose = { viewModel.toggleOpenUrlDialog() }
+    ) {
+        SettingsGroup("流地址") {
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it },
+                placeholder = { Text("https://example.com/stream.m3u8") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().tvTextField()
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedButton(
+                onClick = { viewModel.toggleOpenUrlDialog() },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("取消", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Spacer(modifier = Modifier.width(8.dp))
+            OutlinedButton(
+                onClick = {
+                    if (url.isNotBlank()) {
+                        viewModel.playUrl(url.trim())
+                        url = ""
+                    }
+                },
+                modifier = Modifier.tvFocusBorder()
+            ) { Text("播放", color = MaterialTheme.colorScheme.primary) }
+        }
+    }
+}
+/**
  * 退出确认对话框：按 BACK 键退出时提示选择退出方式。
  * - 进入画中画：继续在小窗口中观看
  * - 立即退出：直接退出应用
@@ -617,6 +661,8 @@ private fun ToolEntryRow(tool: ToolEntry) {
 /**
  * 播放工具面板：播放时常用工具入口（截图/切片/EPG时间线/搜索/提醒/续播/书签/可视化/歌词）。
  * 从控制条"播放工具"按钮或设置页"播放工具"项进入，与 [ToolsPanel] 的通用工具列表互补。
+ * 横屏分屏详情内：工具项点击 push 到第三列（左列表 + 中工具面板 + 右子面板）；
+ * 竖屏/弹窗场景保持原 toggle 弹窗行为。
  */
 @Composable
 fun PlayerToolsPanel(viewModel: AppViewModel) {
@@ -626,39 +672,46 @@ fun PlayerToolsPanel(viewModel: AppViewModel) {
         onClose = { viewModel.togglePlayerToolsPanel() },
         scrollable = false
     ) {
+        // 分屏详情内二级入口走第三列 push；否则原弹窗 toggle
+        val embedded = LocalSplitDetailEmbedded.current
+        fun routeOrToggle(flow: kotlinx.coroutines.flow.StateFlow<Boolean>, panel: @Composable () -> Unit, toggle: () -> Unit) {
+            if (embedded) splitDetailPush(flow, panel, toggle) else toggle()
+        }
         val tools = listOf(
             ToolEntry("截图", "截取当前画面", Icons.Default.CameraAlt) {
-                viewModel.toggleScreenshotPanel()
+                routeOrToggle(viewModel.screenshotPanelOpen, { ScreenshotPanel(viewModel) }) { viewModel.toggleScreenshotPanel() }
             },
             ToolEntry("切片导出", "截取视频片段", Icons.Default.Movie) {
-                viewModel.toggleClipExportPanel()
+                routeOrToggle(viewModel.clipExportPanelOpen, { ClipExportPanel(viewModel) }) { viewModel.toggleClipExportPanel() }
             },
             ToolEntry("EPG 时间线", "节目时间线视图", Icons.Default.CalendarMonth) {
-                viewModel.toggleEpgTimelinePanel()
+                routeOrToggle(viewModel.epgTimelineOpen, { EpgTimelinePanel(viewModel = viewModel) }) { viewModel.toggleEpgTimelinePanel() }
             },
             ToolEntry("搜索", "全局搜索频道和节目", Icons.Default.Search) {
-                viewModel.toggleSearchPanel()
+                routeOrToggle(viewModel.searchPanelOpen, { SearchPanel(viewModel) }) { viewModel.toggleSearchPanel() }
             },
             ToolEntry("提醒管理", "节目提醒列表", Icons.Default.Notifications) {
-                viewModel.toggleReminderPanel()
+                routeOrToggle(viewModel.reminderPanelOpen, { ReminderPanel(viewModel) }) { viewModel.toggleReminderPanel() }
             },
             ToolEntry("续播位置", "本地文件/点播断点续播", Icons.Default.History) {
-                viewModel.toggleResumePanel()
+                routeOrToggle(viewModel.resumePanelOpen, { ResumePanel(viewModel) }) { viewModel.toggleResumePanel() }
             },
             ToolEntry("书签管理", "播放位置书签", Icons.Default.Bookmark) {
-                viewModel.toggleBookmarkPanel()
+                routeOrToggle(viewModel.bookmarkPanelOpen, { BookmarkPanel(viewModel) }) { viewModel.toggleBookmarkPanel() }
             },
             ToolEntry("音频可视化", "频谱/波形可视化", Icons.Default.Analytics) {
-                viewModel.toggleAudioVisualizer()
+                routeOrToggle(viewModel.audioVisualizerOpen, { AudioVisualizerPanel(viewModel) }) { viewModel.toggleAudioVisualizer() }
             },
             ToolEntry("歌词", "加载/显示歌词", Icons.Default.Subtitles) {
-                viewModel.toggleLyricsPanel()
+                routeOrToggle(viewModel.lyricsOpen, { LyricsPanel(viewModel = viewModel) }) { viewModel.toggleLyricsPanel() }
             }
         )
-        LazyColumn(modifier = Modifier.fillMaxWidth()) {
-            items(tools) { tool ->
-                ToolEntryRow(tool)
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        SettingsGroup("工具列表") {
+            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                items(tools) { tool ->
+                    ToolEntryRow(tool)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                }
             }
         }
     }

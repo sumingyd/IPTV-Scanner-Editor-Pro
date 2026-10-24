@@ -156,13 +156,15 @@ fun MappingPanel(viewModel: AppViewModel) {
     ) {
         Text(text = statusText, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            label = { Text("搜索（标准名 / 原始名 / 分组）") },
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).tvTextField(),
-            singleLine = true
-        )
+        SettingsGroup("搜索过滤") {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("搜索（标准名 / 原始名 / 分组）") },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).tvTextField(),
+                singleLine = true
+            )
+        }
 
         if (mappingLoading) {
             Box(
@@ -181,15 +183,17 @@ fun MappingPanel(viewModel: AppViewModel) {
                     (entry.groupName?.contains(searchQuery, ignoreCase = true) ?: false)
                 }
             }
-            DescText("共 ${filtered.size} 条${if (searchQuery.isNotBlank()) "（已过滤）" else ""}")
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)
-            ) {
-                items(filtered) { entry ->
-                    MappingEntryRow(
-                        entry = entry,
-                        onDelete = { viewModel.deleteMapping(entry.standardName, entry.rawName) }
-                    )
+            SettingsGroup("映射列表") {
+                DescText("共 ${filtered.size} 条${if (searchQuery.isNotBlank()) "（已过滤）" else ""}")
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)
+                ) {
+                    items(filtered) { entry ->
+                        MappingEntryRow(
+                            entry = entry,
+                            onDelete = { viewModel.deleteMapping(entry.standardName, entry.rawName) }
+                        )
+                    }
                 }
             }
         }
@@ -650,35 +654,47 @@ fun RecentFilesPanel(viewModel: AppViewModel) {
         onClose = { viewModel.toggleRecentPanel() }
     ) {
         if (recentFiles.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("暂无最近打开记录", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+            // 空状态也包分组玻璃卡片，与有内容时观感一致（不出现整块空白）
+            SettingsGroup("最近文件") {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(40.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("暂无最近打开记录", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    }
+                }
             }
             return@PanelScaffold
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            // 清空按钮
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+        SettingsGroup("最近文件") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                OutlinedButton(
-                    onClick = { viewModel.clearRecentFiles() },
-                    modifier = Modifier.tvFocusBorder()
+                // 清空按钮
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("清空", color = Color(0xFFE57373), fontSize = 12.sp)
+                    OutlinedButton(
+                        onClick = { viewModel.clearRecentFiles() },
+                        modifier = Modifier.tvFocusBorder()
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("清空", color = Color(0xFFE57373), fontSize = 12.sp)
+                    }
                 }
-            }
             // 最近打开列表
             recentFiles.forEach { entry ->
                 val typeIcon = when (entry.type) {
@@ -743,6 +759,7 @@ fun RecentFilesPanel(viewModel: AppViewModel) {
                     }
                 }
             }
+        }
         }
     }
 }

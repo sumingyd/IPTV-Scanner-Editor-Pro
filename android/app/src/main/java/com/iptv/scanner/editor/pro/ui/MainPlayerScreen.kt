@@ -261,9 +261,9 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     // 系统返回键处理：右侧详情面板→侧边栏→退出伪全屏→退出多画面→返回首页→退出确认
     BackHandler(enabled = true) {
         when {
-            LandscapeSplitDetail.content != null -> {
-                // 横屏首页右侧详情面板（设置/工具 master-detail）：BACK 先关详情
-                LandscapeSplitDetail.clear()
+            LandscapeSplitDetail.stack.isNotEmpty() -> {
+                // 横屏首页右侧详情面板（设置/工具 master-detail）：BACK 逐级返回（三列→两列→概览）
+                LandscapeSplitDetail.pop()
             }
             landscapeSidebarVisible || channelsPanelOpen || epgPanelOpen || menuPanelOpen || tvUnifiedPanelOpen ||
             fileBrowserOpen || sourceManagerOpen || playerSettingsOpen || videoSettingsOpen ||
@@ -1248,7 +1248,10 @@ if (lyricsOpen) {
         }
 
         // 打开网络流 URL 对话框（AlertDialog，独立 window，自身控制可见性）
-        OpenUrlDialog(viewModel = viewModel)
+        // 横屏首页：入口已路由到右侧详情（OpenUrlPanelContent），不再弹窗
+        if (!(isLandscape && showHome)) {
+            OpenUrlDialog(viewModel = viewModel)
+        }
 
         // 新版本更新提示对话框（发现新版本时自动弹出，也可从"关于"面板手动触发）
         UpdateDialog(viewModel = viewModel)

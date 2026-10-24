@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -293,6 +294,7 @@ internal fun AptvRow(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (disabled) Modifier else Modifier.clickable(onClick = onClick))
+            .tvFocusBorder()
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -344,6 +346,9 @@ internal fun AptvSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // 遥控器友好：整行可点切换开关 + 焦点边框
+            .clickable { onCheckedChange(!checked) }
+            .tvFocusBorder()
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

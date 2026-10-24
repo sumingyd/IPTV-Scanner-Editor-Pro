@@ -225,6 +225,15 @@ class UserPrefs private constructor() {
     }
 
     // -----------------------------------------------------------------
+    // 全屏播放页 TV 底栏布局样式（0=信息详情式[默认] 1=单行紧凑式 2=居中控制台式 3=左信息右控制式）
+    // -----------------------------------------------------------------
+
+    fun getBottomBarStyle(): Int = prefs.getInt(KEY_BOTTOM_BAR_STYLE, 0)
+    fun setBottomBarStyle(value: Int) {
+        prefs.edit().putInt(KEY_BOTTOM_BAR_STYLE, value.coerceIn(0, 3)).apply()
+    }
+
+    // -----------------------------------------------------------------
     // 二级分组模式（0=传统, 1=列表分组, 2=二级模式1, 3=二级模式2）
     // -----------------------------------------------------------------
 
@@ -462,6 +471,7 @@ class UserPrefs private constructor() {
         private const val KEY_BOOT_START = "boot_start"
         private const val KEY_SPLIT_MODE = "split_mode"
         private const val KEY_LANDSCAPE_SPLIT_MODE = "landscape_split_mode"
+        private const val KEY_BOTTOM_BAR_STYLE = "bottom_bar_style"
         private const val KEY_GROUP_MODE = "group_mode"
         private const val DEFAULT_GROUP_MODE = 3
 

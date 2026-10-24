@@ -1217,6 +1217,16 @@ internal var currentIsLocalFile: Boolean
         userPrefs.setLandscapeSplitMode(value)
     }
 
+    // 全屏播放页 TV 底栏布局样式（0=信息详情式[默认] 1=单行紧凑式 2=居中控制台式 3=左信息右控制式）
+    internal val _bottomBarStyle = MutableStateFlow(userPrefs.getBottomBarStyle())
+    val bottomBarStyle: StateFlow<Int> = _bottomBarStyle.asStateFlow()
+
+    /** 设置底栏布局样式（设置页切换） */
+    fun setBottomBarStyle(value: Int) {
+        _bottomBarStyle.value = value.coerceIn(0, 3)
+        userPrefs.setBottomBarStyle(value)
+    }
+
     // 二级分组模式（与侧边栏 GROUP_PARS_SET_SELECT 对齐）
 
     /** 分组模式（0-3） */

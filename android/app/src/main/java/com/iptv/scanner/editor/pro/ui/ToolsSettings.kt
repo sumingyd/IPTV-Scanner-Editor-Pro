@@ -627,7 +627,7 @@ internal fun PortraitToolsScreen(
                 ))
             }
             AptvRow(Icons.Default.Link, stringResource(R.string.tools_open_network_stream), stringResource(R.string.tools_open_network_stream_desc)) {
-                viewModel.toggleOpenUrlDialog()
+                splitDetailOrToggle(isLandscape, viewModel.openUrlDialogOpen, { OpenUrlPanelContent(viewModel) }) { viewModel.toggleOpenUrlDialog() }
             }
             AptvRow(Icons.Default.History, stringResource(R.string.tools_recent), stringResource(R.string.tools_recent_desc)) {
                 splitDetailOrToggle(isLandscape, viewModel.recentPanelOpen, { RecentFilesPanel(viewModel = viewModel) }) { viewModel.toggleRecentPanel() }
@@ -687,6 +687,7 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
     val playerType by viewModel.playerType.collectAsState()
     val liquidGlass by viewModel.liquidGlass.collectAsState()
     val bootStart by viewModel.bootStart.collectAsState()
+    val bottomBarStyle by viewModel.bottomBarStyle.collectAsState()
     val isMpv = playerType == PlayerType.MPV
     // 横屏（TV/平板）首页：面板入口走右侧详情路由（master-detail），竖屏走弹窗
     val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
@@ -717,6 +718,12 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
                 }
                 AptvRow(Icons.Default.Replay, stringResource(R.string.settings_auto_resume), value = if (autoResume) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled)) {
                     viewModel.setAutoResume(!autoResume)
+                }
+                // 横屏全屏播放页底栏布局样式（点击循环切换）
+                AptvRow(Icons.Default.AspectRatio, "全屏底栏样式", value = when (bottomBarStyle) {
+                    1 -> "单行紧凑式"; 2 -> "居中控制台式"; 3 -> "左信息右控制式"; else -> "信息详情式"
+                }) {
+                    viewModel.setBottomBarStyle((bottomBarStyle + 1) % 4)
                 }
                 AptvSwitchRow(Icons.Default.AutoAwesome, "液态玻璃", checked = liquidGlass, onCheckedChange = { viewModel.setLiquidGlass(it) })
                 AptvSwitchRow(Icons.Default.PowerSettingsNew, "开机自启动", checked = bootStart, onCheckedChange = { viewModel.setBootStart(it) })

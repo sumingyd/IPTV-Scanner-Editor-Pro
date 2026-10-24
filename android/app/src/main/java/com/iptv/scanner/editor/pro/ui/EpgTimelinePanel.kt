@@ -55,6 +55,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -86,12 +87,12 @@ fun EpgTimelinePanel(viewModel: AppViewModel, glassContainer: Boolean = false) {
         return
     }
     if (glassContainer) {
-        // 拟态玻璃底座：整块面板包静态玻璃卡片（横屏首页分屏右列场景）
+        // 拟态玻璃底座：与 TAB 栏一致的真模糊玻璃（haze 实时取景，非静态发暗玻璃）
+        val liquidGlass by viewModel.liquidGlass.collectAsState()
         com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
-            enabled = true,
+            enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
             cornerRadius = 20.dp,
-            staticGlass = true,
-            fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
             modifier = Modifier.fillMaxSize()
         ) {
             EpgTimelinePanelInner(viewModel)
@@ -309,15 +310,15 @@ maxLines = 1
 @Composable
 private fun EpgTimelinePanelAptv(viewModel: AppViewModel, glassContainer: Boolean = false) {
     if (glassContainer) {
-        // 拟态玻璃底座：整块面板包静态玻璃卡片（横屏首页分屏右列场景）
+        // 拟态玻璃底座：与 TAB 栏一致的真模糊玻璃（haze 实时取景，非静态发暗玻璃）
+        val liquidGlass by viewModel.liquidGlass.collectAsState()
         com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
-            enabled = true,
+            enabled = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported(),
             cornerRadius = 20.dp,
-            staticGlass = true,
-            fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
             modifier = Modifier.fillMaxSize()
         ) {
-            EpgTimelinePanelAptvInner(viewModel)
+            EpgTimelinePanelAptvInner(viewModel, glassContainer = true)
         }
         return
     }
@@ -326,7 +327,7 @@ private fun EpgTimelinePanelAptv(viewModel: AppViewModel, glassContainer: Boolea
 
 /** EPG 面板主体（APTV 分支内容） */
 @Composable
-private fun EpgTimelinePanelAptvInner(viewModel: AppViewModel) {
+private fun EpgTimelinePanelAptvInner(viewModel: AppViewModel, glassContainer: Boolean = false) {
     val rows by viewModel.epgTimelineRows.collectAsState()
     val loading by viewModel.epgTimelineLoading.collectAsState()
     val range by viewModel.epgTimelineRange.collectAsState()
@@ -373,7 +374,12 @@ private fun EpgTimelinePanelAptvInner(viewModel: AppViewModel) {
         }
     }
 
-    Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), modifier = Modifier.fillMaxSize()) {
+    // 玻璃容器场景透出磨砂玻璃（外层 LiquidGlassSurface 提供底），否则自持实底
+    Surface(
+        color = if (glassContainer) Color.Transparent
+        else MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        modifier = Modifier.fillMaxSize()
+    ) {
         Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
             // 标题栏 + 工具栏（日期切换 / 刷新 / 关闭）
             AptvPanelHeader(
@@ -533,8 +539,11 @@ private fun TimelineGrid(
     val scope = rememberCoroutineScope()
 
     // TV 焦点状态：选中的行索引和该行内的节目索引
-    var selectedRow by remember { mutableStateOf(-1) }
-    var selectedProgramIdx by remember { mutableStateOf(-1) }
+    // （MutableState 承载：方向键处理抽为顶层函数时可直接传引用，避免超长方法触发 VerifyError）
+    val selectedRowState = remember { mutableStateOf(-1) }
+    val selectedProgramIdxState = remember { mutableStateOf(-1) }
+    var selectedRow by selectedRowState
+    var selectedProgramIdx by selectedProgramIdxState
     val gridFocusRequester = remember { FocusRequester() }
 
     // 选中日期的 0:00 时间戳（毫秒）
@@ -660,78 +669,25 @@ private fun TimelineGrid(
                     .width(channelNameWidthDp)
                     .verticalScroll(verticalScroll)
             ) {
-                Column {
-                    rows.forEach { row ->
-                        val isCurrent = row.channelIdx == currentIdx
-                        val ch = channels.getOrNull(row.channelIdx)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                // 行高与网格行同步（横屏 80dp/竖屏 30dp），避免频道列与节目条错位
-                                .height(rowHeightDp)
-                                .background(
-                                    if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                    else Color(surfaceVariantArgb)
-                                )
-                                .padding(horizontal = 6.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            // 台号 + 台标 + 频道名（台标带圆角衬底，避免浅色主题下白色 logo 幽灵化）
-                            // 横屏大行高下台标/字号同步放大，避免 80dp 行内 22dp 小台标显空
-                            val logoSize = if (isLandscape) 34.dp else 22.dp
-                            val logoCorner = if (isLandscape) 7.dp else 4.dp
-                            val numWidth = if (isLandscape) 26.dp else 20.dp
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "${row.channelIdx + 1}",
-                                    color = if (isCurrent) MaterialTheme.colorScheme.primary else onSurfaceVariantColor,
-                                    fontSize = if (isLandscape) 12.sp else 9.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.width(numWidth)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(logoSize)
-                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(logoCorner))
-                                        .background(MaterialTheme.colorScheme.background),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (!ch?.logo.isNullOrEmpty()) {
-                                        coil.compose.AsyncImage(
-                                            model = ch!!.logo,
-                                            contentDescription = null,
-                                            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(2.dp)
-                                        )
-                                    } else {
-                                        Text(
-                                            text = row.channelName.take(1),
-                                            color = onSurfaceVariantColor,
-                                            fontSize = if (isLandscape) 14.sp else 10.sp
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.width(7.dp))
-                                Text(
-                                    text = row.channelName,
-                                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = if (isLandscape) 13.sp else 10.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal
-                                )
-                            }
-                        }
-                    }
-                }
+                TimelineChannelColumn(
+                    rows = rows,
+                    currentIdx = currentIdx,
+                    channels = channels,
+                    rowHeightDp = rowHeightDp,
+                    isLandscape = isLandscape,
+                    surfaceVariantArgb = surfaceVariantArgb
+                )
             }
 
             // 主网格 Canvas（双向滚动 + 点击检测 + TV 方向键导航）
+            // onSizeChanged 放在 scroll 之前：记录的是视口尺寸（非滚动内容尺寸），
+            // 供 Canvas 绘制时裁剪可视区外行/节目块，避免全量绘制造成切 tab 卡顿
+            var gridViewPortWidth by remember { mutableStateOf(0f) }
+            var gridViewPortHeight by remember { mutableStateOf(0f) }
             Box(
                 modifier = Modifier
                     .weight(1f)
+                    .onSizeChanged { gridViewPortWidth = it.width.toFloat(); gridViewPortHeight = it.height.toFloat() }
                     .horizontalScroll(horizontalScroll)
                     .verticalScroll(verticalScroll)
                     .focusRequester(gridFocusRequester)
@@ -751,65 +707,19 @@ private fun TimelineGrid(
                             }
                             return@onPreviewKeyEvent false
                         }
-                        if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                        when (e.key) {
-                            Key.DirectionUp -> {
-                                if (selectedRow > 0) {
-                                    selectedRow--
-                                    // 选中行的节目数可能不同，clamp selectedProgramIdx
-                                    val progs = rows.getOrNull(selectedRow)?.programs ?: emptyList()
-                                    if (selectedProgramIdx >= progs.size) selectedProgramIdx = (progs.size - 1).coerceAtLeast(0)
-                                    // 滚动到选中行
-                                    val target = selectedRow * rowHeightPx.toInt()
-                                    scope.launch { kotlin.runCatching { verticalScroll.animateScrollTo(target) } }
-                                    true
-                                } else false
-                            }
-                            Key.DirectionDown -> {
-                                if (selectedRow < rows.size - 1) {
-                                    selectedRow++
-                                    val progs = rows.getOrNull(selectedRow)?.programs ?: emptyList()
-                                    if (selectedProgramIdx >= progs.size) selectedProgramIdx = (progs.size - 1).coerceAtLeast(0)
-                                    val target = selectedRow * rowHeightPx.toInt()
-                                    scope.launch { kotlin.runCatching { verticalScroll.animateScrollTo(target) } }
-                                    true
-                                } else false
-                            }
-                            Key.DirectionLeft -> {
-                                val progs = rows.getOrNull(selectedRow)?.programs ?: emptyList()
-                                if (selectedProgramIdx > 0) {
-                                    selectedProgramIdx--
-                                    // 滚动到选中节目
-                                    val prog = progs.getOrNull(selectedProgramIdx)
-                                    if (prog != null) {
-                                        val startMs = parseTimelineTimeMs(prog.start, prog.startTs)
-                                        val x = ((startMs - dayStartMs).coerceAtLeast(0) / 3600000.0).toFloat() * hourWidthPx
-                                        val target = (x - 100).toInt().coerceAtLeast(0)
-                                        scope.launch { kotlin.runCatching { horizontalScroll.animateScrollTo(target) } }
-                                    }
-                                    true
-                                } else false
-                            }
-                            Key.DirectionRight -> {
-                                val progs = rows.getOrNull(selectedRow)?.programs ?: emptyList()
-                                if (selectedProgramIdx < progs.size - 1) {
-                                    selectedProgramIdx++
-                                    val prog = progs.getOrNull(selectedProgramIdx)
-                                    if (prog != null) {
-                                        val startMs = parseTimelineTimeMs(prog.start, prog.startTs)
-                                        val x = ((startMs - dayStartMs).coerceAtLeast(0) / 3600000.0).toFloat() * hourWidthPx
-                                        val target = (x - 100).toInt().coerceAtLeast(0)
-                                        scope.launch { kotlin.runCatching { horizontalScroll.animateScrollTo(target) } }
-                                    }
-                                    true
-                                } else false
-                            }
-                            Key.DirectionCenter, Key.Enter -> {
-                                // KeyDown 仅消费事件，点击延迟到 KeyUp 触发（见函数开头注释）
-                                rows.getOrNull(selectedRow)?.programs?.getOrNull(selectedProgramIdx) != null
-                            }
-                            else -> false
-                        }
+                        // 方向键导航抽为顶层函数（避免超长方法触发 VerifyError）
+                        handleTimelineNavKey(
+                            e = e,
+                            rows = rows,
+                            rowHeightPx = rowHeightPx,
+                            hourWidthPx = hourWidthPx,
+                            dayStartMs = dayStartMs,
+                            verticalScroll = verticalScroll,
+                            horizontalScroll = horizontalScroll,
+                            scope = scope,
+                            selectedRowState = selectedRowState,
+                            selectedProgramIdxState = selectedProgramIdxState
+                        )
                     }
             ) {
                 Canvas(
@@ -847,88 +757,43 @@ private fun TimelineGrid(
                     // 背景
                     drawRect(Color(surfaceArgb))
 
-                    // 水平网格线（行分隔）
-                    for (i in 0..rows.size) {
-                        val y = i * rowHeightPx
-                        drawLine(
-                            color = Color(surfaceVariantArgb),
-                            start = Offset(0f, y),
-                            end = Offset(gridWidthPx, y),
-                            strokeWidth = 1f
-                        )
-                    }
+                    // 可视行范围裁剪：只绘制滚动视口内的行（±1 行余量），避免全量绘制卡顿
+                    val firstVisibleRow = ((verticalScroll.value / rowHeightPx).toInt() - 1).coerceAtLeast(0)
+                    val lastVisibleRow = (((verticalScroll.value + gridViewPortHeight) / rowHeightPx).toInt() + 1)
+                        .coerceIn(0, rows.size - 1)
 
-                    // 垂直网格线（小时分隔，每 2 小时加粗）
-                    for (h in 0..24) {
-                        val x = h * hourWidthPx
-                        val color = if (h % 2 == 0) Color(outlineArgb) else Color(surfaceVariantArgb)
-                        drawLine(
-                            color = color,
-                            start = Offset(x, 0f),
-                            end = Offset(x, gridHeightPx),
-                            strokeWidth = if (h % 2 == 0) 1f else 0.8f
-                        )
-                    }
-
-                    // 节目块
-                    drawIntoCanvas { canvas ->
-                        rows.forEachIndexed { rowIdx, row ->
-                            val y = rowIdx * rowHeightPx
-                            row.programs.forEachIndexed { progIdx, program ->
-                                val startMs = parseTimelineTimeMs(program.start, program.startTs)
-                                val endMs = parseTimelineTimeMs(
-                                    program.end.ifEmpty { program.stop }, program.stopTs
-                                )
-                                if (startMs <= 0 || endMs <= startMs) return@forEachIndexed
-
-                                val x1 = ((startMs - dayStartMs).coerceAtLeast(0) / 3600000.0).toFloat() * hourWidthPx
-                                val x2 = ((endMs - dayStartMs).coerceAtMost(24 * 3600000L) / 3600000.0).toFloat() * hourWidthPx
-                                val blockWidth = (x2 - x1).coerceAtLeast(1f)
-                                val isCurrent = now in startMs until endMs
-                                val isPast = now >= endMs
-                                val isSelected = rowIdx == selectedRow && progIdx == selectedProgramIdx
-
-                                // 节目块背景
-                                val bgColor = when {
-                                    isSelected -> tertiaryColor  // 选中：主题 tertiary
-                                    isCurrent -> primaryColor     // 当前：主题 primary
-                                    isPast -> Color(surfaceVariantArgb)  // 过去：随主题变
-                                    else -> secondaryColor.copy(alpha = 0.3f)  // 普通：浅蓝
-                                }
-                                drawRoundRect(
-                                    color = bgColor,
-                                    topLeft = Offset(x1 + 1f, y + 2f),
-                                    size = Size(blockWidth - 2f, rowHeightPx - 4f),
-                                    cornerRadius = CornerRadius(3f, 3f)
-                                )
-
-                                // 选中边框（随主题自适应）
-                                if (isSelected) {
-                                    drawRoundRect(
-                                        color = onSurfaceColor,
-                                        topLeft = Offset(x1 + 1f, y + 2f),
-                                        size = Size(blockWidth - 2f, rowHeightPx - 4f),
-                                        cornerRadius = CornerRadius(3f, 3f),
-                                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                                            width = 2f
-                                        )
-                                    )
-                                }
-
-                                // 节目标题（宽度 > 40px 才绘制）
-                                if (blockWidth > 40f) {
-                                    val textPaint = if (isCurrent) programTextPaintCurrent else programTextPaint
-                                    val title = ellipsizeText(program.title, textPaint, blockWidth - 8f)
-                                    canvas.nativeCanvas.drawText(
-                                        title,
-                                        x1 + 4f,
-                                        y + rowHeightPx / 2 + textPaint.textSize / 3,
-                                        textPaint
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    // 网格线 + 节目块抽为 DrawScope 扩展函数（避免超长方法触发 VerifyError）
+                    drawTimelineGridLines(
+                        firstVisibleRow = firstVisibleRow,
+                        lastVisibleRow = lastVisibleRow,
+                        rowsSize = rows.size,
+                        gridWidthPx = gridWidthPx,
+                        gridHeightPx = gridHeightPx,
+                        rowHeightPx = rowHeightPx,
+                        hourWidthPx = hourWidthPx,
+                        surfaceVariantArgb = surfaceVariantArgb,
+                        outlineArgb = outlineArgb
+                    )
+                    drawTimelineProgramBlocks(
+                        rows = rows,
+                        firstVisibleRow = firstVisibleRow,
+                        lastVisibleRow = lastVisibleRow,
+                        dayStartMs = dayStartMs,
+                        now = now,
+                        hourWidthPx = hourWidthPx,
+                        rowHeightPx = rowHeightPx,
+                        scrollX = horizontalScroll.value.toFloat(),
+                        viewRight = horizontalScroll.value.toFloat() + gridViewPortWidth,
+                        selectedRow = selectedRow,
+                        selectedProgramIdx = selectedProgramIdx,
+                        surfaceVariantArgb = surfaceVariantArgb,
+                        tertiaryColor = tertiaryColor,
+                        primaryColor = primaryColor,
+                        secondaryColor = secondaryColor,
+                        onSurfaceColor = onSurfaceColor,
+                        programTextPaint = programTextPaint,
+                        programTextPaintCurrent = programTextPaintCurrent
+                    )
 
                     // 当前时间竖线（仅今天显示）
                     val dayEndMs = dayStartMs + 24 * 3600000L
@@ -946,6 +811,279 @@ private fun TimelineGrid(
                             canvas.nativeCanvas.drawText(timeLabel, nowX + 4f, 12f, nowLabelPaint)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------
+// 时间线子组件/绘制函数（从 TimelineGrid 拆出：单方法寄存器超 255 会触发
+// dalvik VerifyError "copy1 v46<-v272"，必须保持每个方法精简）
+// -----------------------------------------------------------------
+
+/** 频道列：台号 + 台标 + 频道名三段式，行高与网格行同步 */
+@Composable
+private fun TimelineChannelColumn(
+    rows: List<EpgTimelineRow>,
+    currentIdx: Int,
+    channels: List<com.iptv.scanner.editor.pro.data.IptvChannel>,
+    rowHeightDp: androidx.compose.ui.unit.Dp,
+    isLandscape: Boolean,
+    surfaceVariantArgb: Int
+) {
+    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
+    Column {
+        rows.forEach { row ->
+            val isCurrent = row.channelIdx == currentIdx
+            val ch = channels.getOrNull(row.channelIdx)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // 行高与网格行同步（横屏 80dp/竖屏 30dp），避免频道列与节目条错位
+                    .height(rowHeightDp)
+                    .background(
+                        if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        else Color(surfaceVariantArgb)
+                    )
+                    .padding(horizontal = 6.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                // 台号 + 台标 + 频道名（台标带圆角衬底，避免浅色主题下白色 logo 幽灵化）
+                // 横屏大行高下台标/字号同步放大，避免 80dp 行内 22dp 小台标显空
+                val logoSize = if (isLandscape) 34.dp else 22.dp
+                val logoCorner = if (isLandscape) 7.dp else 4.dp
+                val numWidth = if (isLandscape) 26.dp else 20.dp
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${row.channelIdx + 1}",
+                        color = if (isCurrent) MaterialTheme.colorScheme.primary else onSurfaceVariantColor,
+                        fontSize = if (isLandscape) 12.sp else 9.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.width(numWidth)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(logoSize)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(logoCorner))
+                            .background(MaterialTheme.colorScheme.background),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!ch?.logo.isNullOrEmpty()) {
+                            coil.compose.AsyncImage(
+                                model = ch!!.logo,
+                                contentDescription = null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(2.dp)
+                            )
+                        } else {
+                            Text(
+                                text = row.channelName.take(1),
+                                color = onSurfaceVariantColor,
+                                fontSize = if (isLandscape) 14.sp else 10.sp
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(7.dp))
+                    Text(
+                        text = row.channelName,
+                        color = if (isCurrent) MaterialTheme.colorScheme.primary else onSurfaceVariantColor,
+                        fontSize = if (isLandscape) 13.sp else 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 时间线网格方向键导航：返回 true 表示已消费。OK/Enter 的 KeyDown 仅消费（点击统一在 KeyUp 触发）。 */
+private fun handleTimelineNavKey(
+    e: androidx.compose.ui.input.key.KeyEvent,
+    rows: List<EpgTimelineRow>,
+    rowHeightPx: Float,
+    hourWidthPx: Float,
+    dayStartMs: Long,
+    verticalScroll: androidx.compose.foundation.ScrollState,
+    horizontalScroll: androidx.compose.foundation.ScrollState,
+    scope: kotlinx.coroutines.CoroutineScope,
+    selectedRowState: androidx.compose.runtime.MutableState<Int>,
+    selectedProgramIdxState: androidx.compose.runtime.MutableState<Int>
+): Boolean {
+    if (e.type != KeyEventType.KeyDown) return false
+    val selectedRow = selectedRowState.value
+    val selectedProgramIdx = selectedProgramIdxState.value
+    return when (e.key) {
+        Key.DirectionUp -> {
+            if (selectedRow > 0) {
+                selectedRowState.value = selectedRow - 1
+                // 选中行的节目数可能不同，clamp selectedProgramIdx
+                val progs = rows.getOrNull(selectedRow - 1)?.programs ?: emptyList()
+                if (selectedProgramIdx >= progs.size) selectedProgramIdxState.value = (progs.size - 1).coerceAtLeast(0)
+                val target = (selectedRow - 1) * rowHeightPx.toInt()
+                scope.launch { kotlin.runCatching { verticalScroll.animateScrollTo(target) } }
+                true
+            } else false
+        }
+        Key.DirectionDown -> {
+            if (selectedRow < rows.size - 1) {
+                selectedRowState.value = selectedRow + 1
+                val progs = rows.getOrNull(selectedRow + 1)?.programs ?: emptyList()
+                if (selectedProgramIdx >= progs.size) selectedProgramIdxState.value = (progs.size - 1).coerceAtLeast(0)
+                val target = (selectedRow + 1) * rowHeightPx.toInt()
+                scope.launch { kotlin.runCatching { verticalScroll.animateScrollTo(target) } }
+                true
+            } else false
+        }
+        Key.DirectionLeft -> {
+            val progs = rows.getOrNull(selectedRow)?.programs ?: emptyList()
+            if (selectedProgramIdx > 0) {
+                selectedProgramIdxState.value = selectedProgramIdx - 1
+                // 滚动到选中节目
+                val prog = progs.getOrNull(selectedProgramIdx - 1)
+                if (prog != null) {
+                    val startMs = parseTimelineTimeMs(prog.start, prog.startTs)
+                    val x = ((startMs - dayStartMs).coerceAtLeast(0) / 3600000.0).toFloat() * hourWidthPx
+                    scope.launch { kotlin.runCatching { horizontalScroll.animateScrollTo((x - 100).toInt().coerceAtLeast(0)) } }
+                }
+                true
+            } else false
+        }
+        Key.DirectionRight -> {
+            val progs = rows.getOrNull(selectedRow)?.programs ?: emptyList()
+            if (selectedProgramIdx < progs.size - 1) {
+                selectedProgramIdxState.value = selectedProgramIdx + 1
+                val prog = progs.getOrNull(selectedProgramIdx + 1)
+                if (prog != null) {
+                    val startMs = parseTimelineTimeMs(prog.start, prog.startTs)
+                    val x = ((startMs - dayStartMs).coerceAtLeast(0) / 3600000.0).toFloat() * hourWidthPx
+                    scope.launch { kotlin.runCatching { horizontalScroll.animateScrollTo((x - 100).toInt().coerceAtLeast(0)) } }
+                }
+                true
+            } else false
+        }
+        Key.DirectionCenter, Key.Enter -> rows.getOrNull(selectedRow)?.programs?.getOrNull(selectedProgramIdx) != null
+        else -> false
+    }
+}
+
+/** 网格线绘制：行分隔线仅画可视行，小时分隔线全高 */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTimelineGridLines(
+    firstVisibleRow: Int,
+    lastVisibleRow: Int,
+    rowsSize: Int,
+    gridWidthPx: Float,
+    gridHeightPx: Float,
+    rowHeightPx: Float,
+    hourWidthPx: Float,
+    surfaceVariantArgb: Int,
+    outlineArgb: Int
+) {
+    // 水平网格线（行分隔，仅可视行）
+    for (i in firstVisibleRow..(lastVisibleRow + 1).coerceAtMost(rowsSize)) {
+        val y = i * rowHeightPx
+        drawLine(
+            color = Color(surfaceVariantArgb),
+            start = Offset(0f, y),
+            end = Offset(gridWidthPx, y),
+            strokeWidth = 1f
+        )
+    }
+    // 垂直网格线（小时分隔，每 2 小时加粗）
+    for (h in 0..24) {
+        val x = h * hourWidthPx
+        val color = if (h % 2 == 0) Color(outlineArgb) else Color(surfaceVariantArgb)
+        drawLine(
+            color = color,
+            start = Offset(x, 0f),
+            end = Offset(x, gridHeightPx),
+            strokeWidth = if (h % 2 == 0) 1f else 0.8f
+        )
+    }
+}
+
+/** 节目块绘制：仅可视行 + 水平视口裁剪（±1 小时余量），含背景/选中边框/节目标题 */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTimelineProgramBlocks(
+    rows: List<EpgTimelineRow>,
+    firstVisibleRow: Int,
+    lastVisibleRow: Int,
+    dayStartMs: Long,
+    now: Long,
+    hourWidthPx: Float,
+    rowHeightPx: Float,
+    scrollX: Float,
+    viewRight: Float,
+    selectedRow: Int,
+    selectedProgramIdx: Int,
+    surfaceVariantArgb: Int,
+    tertiaryColor: Color,
+    primaryColor: Color,
+    secondaryColor: Color,
+    onSurfaceColor: Color,
+    programTextPaint: android.graphics.Paint,
+    programTextPaintCurrent: android.graphics.Paint
+) {
+    drawIntoCanvas { canvas ->
+        for (rowIdx in firstVisibleRow..lastVisibleRow) {
+            val row = rows[rowIdx]
+            val y = rowIdx * rowHeightPx
+            row.programs.forEachIndexed { progIdx, program ->
+                val startMs = parseTimelineTimeMs(program.start, program.startTs)
+                val endMs = parseTimelineTimeMs(
+                    program.end.ifEmpty { program.stop }, program.stopTs
+                )
+                if (startMs <= 0 || endMs <= startMs) return@forEachIndexed
+
+                val x1 = ((startMs - dayStartMs).coerceAtLeast(0) / 3600000.0).toFloat() * hourWidthPx
+                val x2 = ((endMs - dayStartMs).coerceAtMost(24 * 3600000L) / 3600000.0).toFloat() * hourWidthPx
+                // 水平裁剪：节目块完全在视口外（±1 小时余量）则跳过
+                if (x2 < scrollX - hourWidthPx || x1 > viewRight + hourWidthPx) return@forEachIndexed
+                val blockWidth = (x2 - x1).coerceAtLeast(1f)
+                val isCurrent = now in startMs until endMs
+                val isPast = now >= endMs
+                val isSelected = rowIdx == selectedRow && progIdx == selectedProgramIdx
+
+                // 节目块背景
+                val bgColor = when {
+                    isSelected -> tertiaryColor  // 选中：主题 tertiary
+                    isCurrent -> primaryColor     // 当前：主题 primary
+                    isPast -> Color(surfaceVariantArgb)  // 过去：随主题变
+                    else -> secondaryColor.copy(alpha = 0.3f)  // 普通：浅蓝
+                }
+                drawRoundRect(
+                    color = bgColor,
+                    topLeft = Offset(x1 + 1f, y + 2f),
+                    size = Size(blockWidth - 2f, rowHeightPx - 4f),
+                    cornerRadius = CornerRadius(3f, 3f)
+                )
+
+                // 选中边框（随主题自适应）
+                if (isSelected) {
+                    drawRoundRect(
+                        color = onSurfaceColor,
+                        topLeft = Offset(x1 + 1f, y + 2f),
+                        size = Size(blockWidth - 2f, rowHeightPx - 4f),
+                        cornerRadius = CornerRadius(3f, 3f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = 2f
+                        )
+                    )
+                }
+
+                // 节目标题（宽度 > 40px 才绘制）
+                if (blockWidth > 40f) {
+                    val textPaint = if (isCurrent) programTextPaintCurrent else programTextPaint
+                    val title = ellipsizeText(program.title, textPaint, blockWidth - 8f)
+                    canvas.nativeCanvas.drawText(
+                        title,
+                        x1 + 4f,
+                        y + rowHeightPx / 2 + textPaint.textSize / 3,
+                        textPaint
+                    )
                 }
             }
         }

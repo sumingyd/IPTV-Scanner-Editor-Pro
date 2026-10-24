@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.VolumeOff
@@ -301,49 +302,66 @@ internal fun TvSplitLayout(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    // 行1：节目名 + 直播状态 + 进度条 + 时间范围 + 静音 + 播放/暂停 + 下一台
+                    // 行1（信息行）：频道号 + 频道名 + spacer + 节目时间范围（对齐全屏底栏第1行）
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                // 直播/回看红点
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(RoundedCornerShape(3.dp))
-                                        .background(AptvAccent)
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text(
-                                    text = currentProgram?.title?.ifEmpty { null }
-                                        ?: displayInfo.name.ifEmpty { "精彩节目" },
-                                    color = oc.textPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                            }
+                        if (displayInfo.idx >= 0) {
+                            Text(
+                                text = String.format("%03d", displayInfo.idx + 1),
+                                color = AptvAccent,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Box(modifier = Modifier.width(1.dp).height(12.dp).background(Color(0x40FFFFFF)))
+                            Spacer(modifier = Modifier.width(5.dp))
                         }
-                        // 进度条 + 时间范围（有节目时显示）
+                        Text(
+                            text = displayInfo.name.ifEmpty { "未选择频道" },
+                            color = oc.textPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
                         if (currentProgram != null && currentProgram.stopTs > 0) {
-                            val timeRange = remember(currentProgram) {
-                                val start = timeFmt.format(java.util.Date(currentProgram.startTs * 1000L))
-                                val end = timeFmt.format(java.util.Date(currentProgram.stopTs * 1000L))
-                                "$start-$end"
-                            }
+                            Text(
+                                text = "${timeFmt.format(java.util.Date(currentProgram.startTs * 1000L))}-${timeFmt.format(java.util.Date(currentProgram.stopTs * 1000L))}",
+                                color = oc.textSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
+                    // 行间分隔条
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 5.dp).height(1.dp).background(Color(0x1FFFFFFF)))
+
+                    // 行2（进度行）：节目名 + 细进度条（对齐全屏底栏第2行）
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = currentProgram?.title?.ifEmpty { null } ?: "精彩节目",
+                            color = oc.textSecondary,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (currentProgram != null && currentProgram.stopTs > currentProgram.startTs) {
                             val progress = remember(tick, currentProgram) {
                                 val nowSec = System.currentTimeMillis() / 1000L
                                 val total = (currentProgram.stopTs - currentProgram.startTs).coerceAtLeast(1)
                                 val elapsed = (nowSec - currentProgram.startTs).coerceIn(0, total)
                                 elapsed.toFloat() / total
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
-                                    .width(120.dp)
+                                    .width(140.dp)
                                     .height(3.dp)
                                     .clip(RoundedCornerShape(1.5.dp))
                                     .background(Color(0x30FFFFFF))
@@ -356,77 +374,43 @@ internal fun TvSplitLayout(
                                         .background(AptvAccent)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = timeRange, color = oc.textSecondary, fontSize = 12.sp)
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+
+                    // 行间分隔条
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 5.dp).height(1.dp).background(Color(0x1FFFFFFF)))
+
+                    // 行3（控制行）：上一台/播放暂停/下一台/静音/停止 | spacer | 收藏/播放工具/播放器设置/全屏
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        // 上一台
+                        IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(19.dp))
+                        }
+                        // 播放/暂停
+                        IconButton(onClick = { viewModel.mpv.setPause(!paused) }, modifier = Modifier.size(40.dp).tvFocusBorder()) {
+                            Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(26.dp))
+                        }
+                        // 下一台
+                        IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(19.dp))
+                        }
                         // 静音
-                        IconButton(
-                            onClick = { viewModel.mpv.setMute(!muted) },
-                            modifier = Modifier.size(34.dp).tvFocusBorder()
-                        ) {
+                        IconButton(onClick = { viewModel.mpv.setMute(!muted) }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
                             Icon(
                                 if (muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                                 contentDescription = if (muted) "取消静音" else "静音",
                                 tint = if (muted) oc.iconTintActive else oc.iconTint,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
-                        // 播放/暂停
-                        IconButton(
-                            onClick = { viewModel.mpv.setPause(!paused) },
-                            modifier = Modifier.size(40.dp).tvFocusBorder()
-                        ) {
-                            Icon(
-                                if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                contentDescription = if (paused) "播放" else "暂停",
-                                tint = oc.accent,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-                        // 下一台
-                        IconButton(
-                            onClick = { viewModel.nextChannel() },
-                            modifier = Modifier.size(34.dp).tvFocusBorder()
-                        ) {
-                            Icon(
-                                Icons.Default.SkipNext,
-                                contentDescription = "下一个频道",
-                                tint = oc.iconTint,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    // 行2：停止 + 播放工具 + 播放器设置 + spacer + 收藏 + 全屏
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        IconButton(
-                            onClick = { viewModel.stopPlay() },
-                            modifier = Modifier.size(34.dp).tvFocusBorder()
-                        ) {
+                        // 停止
+                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
                             Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(18.dp))
-                        }
-                        IconButton(
-                            onClick = { viewModel.togglePlayerToolsPanel() },
-                            modifier = Modifier.size(34.dp).tvFocusBorder()
-                        ) {
-                            Icon(Icons.Default.MoreVert, "播放工具", tint = oc.iconTint, modifier = Modifier.size(18.dp))
-                        }
-                        IconButton(
-                            onClick = { viewModel.togglePlayerSettings() },
-                            modifier = Modifier.size(34.dp).tvFocusBorder()
-                        ) {
-                            Icon(Icons.Default.Settings, "播放器设置", tint = oc.iconTint, modifier = Modifier.size(18.dp))
                         }
                         Spacer(modifier = Modifier.weight(1f))
                         // 收藏
-                        IconButton(
-                            onClick = { viewModel.toggleFavorite() },
-                            modifier = Modifier.size(34.dp).tvFocusBorder()
-                        ) {
+                        IconButton(onClick = { viewModel.toggleFavorite() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
                             Icon(
                                 if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = "收藏",
@@ -434,11 +418,16 @@ internal fun TvSplitLayout(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
+                        // 播放工具
+                        IconButton(onClick = { viewModel.togglePlayerToolsPanel() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.MoreVert, "播放工具", tint = oc.iconTint, modifier = Modifier.size(18.dp))
+                        }
+                        // 播放器设置
+                        IconButton(onClick = { viewModel.togglePlayerSettings() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.Settings, "播放器设置", tint = oc.iconTint, modifier = Modifier.size(18.dp))
+                        }
                         // 全屏：切回传统全屏布局
-                        IconButton(
-                            onClick = { viewModel.setLandscapeSplitMode(false) },
-                            modifier = Modifier.size(34.dp).tvFocusBorder()
-                        ) {
+                        IconButton(onClick = { viewModel.setLandscapeSplitMode(false) }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
                             Icon(
                                 Icons.Default.Fullscreen,
                                 contentDescription = "全屏",
