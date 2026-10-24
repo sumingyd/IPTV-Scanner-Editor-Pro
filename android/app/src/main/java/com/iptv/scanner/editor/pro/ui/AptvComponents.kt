@@ -737,7 +737,7 @@ internal fun BottomBarStyleMiniPreview(style: Int, modifier: Modifier = Modifier
                     Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
                 }
             }
-            // 样式 E：极简悬浮式 —— 居中胶囊内三控制点
+            // 样式 E：居中悬浮式 —— 居中胶囊内 台标+文字线+控制点
             4 -> Row(
                 modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -747,17 +747,23 @@ internal fun BottomBarStyleMiniPreview(style: Int, modifier: Modifier = Modifier
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0x26FFFFFF))
-                        .padding(horizontal = 7.dp, vertical = 4.dp),
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(Modifier.size(10.dp, 6.dp).clip(RoundedCornerShape(1.dp)).background(lineDim))
+                    Spacer(Modifier.width(3.dp))
+                    Box(Modifier.size(14.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                    Spacer(Modifier.width(4.dp))
+                    Box(Modifier.width(0.5.dp).height(7.dp).background(lineDim))
+                    Spacer(Modifier.width(3.dp))
                     Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(3.dp))
                     Box(Modifier.size(6.dp).clip(CircleShape).background(AptvAccent))
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(3.dp))
                     Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
                 }
             }
-            // 样式 F：双行大台标式 —— 左大台标 + 右两行文字
+            // 样式 F：大台标信息式 —— 左大台标 + 中两行文字 | 右时钟列
             5 -> Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(18.dp, 14.dp).clip(RoundedCornerShape(2.dp)).background(lineDim))
                 Spacer(Modifier.width(5.dp))
@@ -766,29 +772,39 @@ internal fun BottomBarStyleMiniPreview(style: Int, modifier: Modifier = Modifier
                     Spacer(Modifier.height(3.dp))
                     Box(Modifier.size(16.dp, 2.dp).background(lineDim))
                 }
+                Spacer(Modifier.width(4.dp))
+                Column(horizontalAlignment = Alignment.End) {
+                    Box(Modifier.size(10.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(7.dp, 2.dp).background(lineDim))
+                }
             }
-            // 样式 G：进度优先式 —— 中部粗进度条 + 底部控制点
+            // 样式 G：进度优先式 —— 台标+频道行 / 粗进度条 / 节目+控制行
             6 -> Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp, 6.dp).clip(RoundedCornerShape(1.dp)).background(lineDim))
+                    Spacer(Modifier.width(3.dp))
+                    Box(Modifier.size(16.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                }
+                Spacer(Modifier.height(3.dp))
                 Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(1.5.dp)).background(lineDim)) {
                     Box(Modifier.fillMaxWidth(0.4f).fillMaxHeight().background(AptvAccent))
                 }
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Spacer(Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(14.dp, 2.dp).background(lineDim))
+                    Spacer(Modifier.weight(1f))
                     Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(3.dp))
                     Box(Modifier.size(5.dp).clip(CircleShape).background(line))
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(3.dp))
                     Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
                 }
             }
-            // 样式 H：左控制右信息式 —— 左控制点组 | 竖分隔 | 右两行信息（D 镜像）
+            // 样式 H：左控制右信息式 —— 左控制点组 | 竖分隔 | 右三行信息（D 镜像）
             7 -> Row(verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
@@ -798,57 +814,72 @@ internal fun BottomBarStyleMiniPreview(style: Int, modifier: Modifier = Modifier
                     Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
                 }
                 Spacer(Modifier.width(4.dp))
-                Box(Modifier.width(0.5.dp).height(14.dp).background(lineDim))
+                Box(Modifier.width(0.5.dp).height(16.dp).background(lineDim))
                 Spacer(Modifier.width(4.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Box(Modifier.size(22.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
-                    Spacer(Modifier.height(3.dp))
-                    Box(Modifier.size(14.dp, 2.dp).background(lineDim))
+                    Box(Modifier.size(22.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(16.dp, 2.dp).background(lineDim))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(10.dp, 2.dp).background(lineDim.copy(alpha = 0.7f)))
                 }
             }
-            // 样式 I：三段等分式 —— 信息 | 控制 | 信息 三段均分带竖分隔
+            // 样式 I：三段等分式 —— 台标频道 | 节目进度 | 时钟控制 三段均分带竖分隔
             8 -> Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.size(16.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
+                    Box(Modifier.size(14.dp, 7.dp).clip(RoundedCornerShape(1.dp)).background(lineDim))
                     Spacer(Modifier.height(2.dp))
-                    Box(Modifier.size(10.dp, 2.dp).background(lineDim))
+                    Box(Modifier.size(12.dp, 2.dp).background(line))
                 }
-                Box(Modifier.width(0.5.dp).height(14.dp).background(lineDim))
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
-                    Spacer(Modifier.width(3.dp))
-                    Box(Modifier.size(6.dp).clip(CircleShape).background(AptvAccent))
-                    Spacer(Modifier.width(3.dp))
-                    Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
-                }
-                Box(Modifier.width(0.5.dp).height(14.dp).background(lineDim))
+                Box(Modifier.width(0.5.dp).height(16.dp).background(lineDim))
                 Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.size(16.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
+                    Box(Modifier.size(18.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
                     Spacer(Modifier.height(2.dp))
-                    Box(Modifier.size(10.dp, 2.dp).background(lineDim))
+                    Box(Modifier.fillMaxWidth(0.7f).height(2.dp).background(lineDim))
+                }
+                Box(Modifier.width(0.5.dp).height(16.dp).background(lineDim))
+                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(14.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Row {
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                        Spacer(Modifier.width(2.dp))
+                        Box(Modifier.size(4.dp).clip(CircleShape).background(AptvAccent))
+                        Spacer(Modifier.width(2.dp))
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                    }
                 }
             }
-            // 样式 J：极简信息式 —— 居中大字信息 + 右端控制点组
+            // 样式 J：OSD 大字式 —— 左居中大字信息两行+进度 | 竖分隔 | 右双排控制点
             9 -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
+                Column(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
-                    contentAlignment = Alignment.Center
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Box(Modifier.size(34.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(line))
+                    Box(Modifier.size(30.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(20.dp, 2.dp).background(lineDim))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.fillMaxWidth(0.5f).height(1.5.dp).background(lineDim.copy(alpha = 0.6f)))
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
-                    Spacer(Modifier.width(3.dp))
-                    Box(Modifier.size(5.dp).clip(CircleShape).background(line))
-                    Spacer(Modifier.width(3.dp))
-                    Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row {
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                        Spacer(Modifier.width(2.dp))
+                        Box(Modifier.size(5.dp).clip(CircleShape).background(AptvAccent))
+                        Spacer(Modifier.width(2.dp))
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Row {
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                        Spacer(Modifier.width(2.dp))
+                        Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                    }
                 }
             }
-            // 样式 K：控制台双行式 —— 上控制点组 + 下信息行（C 倒置）
+            // 样式 K：控制台双行式 —— 上控制点组 + 下台标信息行（C 倒置）
             10 -> Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center,
@@ -862,27 +893,45 @@ internal fun BottomBarStyleMiniPreview(style: Int, modifier: Modifier = Modifier
                     Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
                 }
                 Spacer(Modifier.height(3.dp))
-                Box(Modifier.size(20.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(8.dp, 5.dp).clip(RoundedCornerShape(1.dp)).background(lineDim))
+                    Spacer(Modifier.width(3.dp))
+                    Box(Modifier.size(16.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                    Spacer(Modifier.weight(1f))
+                    Box(Modifier.size(10.dp, 2.dp).background(lineDim))
+                }
             }
-            // 样式 L：卡片网格式 —— 左信息块 + 右 2x2 按钮网格
+            // 样式 L：卡片网格式 —— 左信息三行 | 中时钟块 | 右 2x2 按钮网格
             11 -> Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Box(Modifier.size(20.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
-                    Spacer(Modifier.height(3.dp))
-                    Box(Modifier.size(12.dp, 2.dp).background(lineDim))
+                    Box(Modifier.size(22.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(14.dp, 2.dp).background(lineDim))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(10.dp, 2.dp).background(lineDim.copy(alpha = 0.7f)))
                 }
-                Spacer(Modifier.width(5.dp))
+                Spacer(Modifier.width(4.dp))
+                Box(Modifier.width(0.5.dp).height(16.dp).background(lineDim))
+                Spacer(Modifier.width(4.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(12.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(8.dp, 2.dp).background(lineDim))
+                }
+                Spacer(Modifier.width(4.dp))
+                Box(Modifier.width(0.5.dp).height(16.dp).background(lineDim))
+                Spacer(Modifier.width(4.dp))
                 Column {
                     Row {
-                        Box(Modifier.size(8.dp).clip(RoundedCornerShape(1.5.dp)).background(lineDim))
+                        Box(Modifier.size(7.dp).clip(RoundedCornerShape(1.5.dp)).background(lineDim))
                         Spacer(Modifier.width(2.dp))
-                        Box(Modifier.size(8.dp).clip(RoundedCornerShape(1.5.dp)).background(lineDim))
+                        Box(Modifier.size(7.dp).clip(RoundedCornerShape(1.5.dp)).background(lineDim))
                     }
                     Spacer(Modifier.height(2.dp))
                     Row {
-                        Box(Modifier.size(8.dp).clip(RoundedCornerShape(1.5.dp)).background(lineDim))
+                        Box(Modifier.size(7.dp).clip(RoundedCornerShape(1.5.dp)).background(lineDim))
                         Spacer(Modifier.width(2.dp))
-                        Box(Modifier.size(8.dp).clip(RoundedCornerShape(1.5.dp)).background(AptvAccent))
+                        Box(Modifier.size(7.dp).clip(RoundedCornerShape(1.5.dp)).background(AptvAccent))
                     }
                 }
             }
