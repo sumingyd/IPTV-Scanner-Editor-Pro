@@ -181,7 +181,8 @@ internal fun MiniPlayerBar(
     groupName: String,
     isPaused: Boolean,
     onClick: () -> Unit,
-    onPlayPause: () -> Unit
+    onPlayPause: () -> Unit,
+    floating: Boolean = false
 ) {
     val currentIdx by viewModel.currentIdx.collectAsState()
     val epgCacheVersion by viewModel.epgCacheVersion.collectAsState()
@@ -193,12 +194,19 @@ internal fun MiniPlayerBar(
     val progTitle = currentProgram?.title?.ifEmpty { null } ?: "精彩节目"
 
     // Mini 播放条：玻璃底座（磨砂+描边），关闭/降级回落原 surfaceVariant 实底
+    // floating=true：横屏首页顶部悬浮胶囊——按内容收缩宽度（上限 460dp），不占整行
     AptvGlassChip(
         cornerRadius = 12.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-            .height(48.dp)
+        modifier = if (floating) {
+            Modifier
+                .widthIn(max = 460.dp)
+                .height(48.dp)
+        } else {
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+                .height(48.dp)
+        }
     ) {
         Row(
             modifier = Modifier

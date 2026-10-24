@@ -258,9 +258,13 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     /** 布局横屏 = 真实横屏 或 应用内伪全屏 */
     val layoutLandscape = isLandscape || forceLandscape
 
-    // 系统返回键处理：侧边栏→退出伪全屏→退出多画面→返回首页→退出确认
+    // 系统返回键处理：右侧详情面板→侧边栏→退出伪全屏→退出多画面→返回首页→退出确认
     BackHandler(enabled = true) {
         when {
+            LandscapeSplitDetail.content != null -> {
+                // 横屏首页右侧详情面板（设置/工具 master-detail）：BACK 先关详情
+                LandscapeSplitDetail.clear()
+            }
             landscapeSidebarVisible || channelsPanelOpen || epgPanelOpen || menuPanelOpen || tvUnifiedPanelOpen ||
             fileBrowserOpen || sourceManagerOpen || playerSettingsOpen || videoSettingsOpen ||
             audioSettingsOpen || subtitleSettingsOpen || subtitleSearchOpen || playbackPanelOpen ||
@@ -279,10 +283,13 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
                 viewModel.exitMultiView()
             }
             !showHome -> {
-                // 竖屏有首页可回；横屏（TV 风格）不渲染首页 UI，
-                // 直接弹退出确认给用户明确反馈，避免第一按毫无响应
+                // 竖屏有首页可回；横屏（TV 风格）：全屏→分屏→首页→退出确认
                 if (layoutLandscape) {
-                    viewModel.showExitConfirm()
+                    if (!viewModel.landscapeSplitMode.value) {
+                        viewModel.setLandscapeSplitMode(true)
+                    } else {
+                        viewModel.showHomeScreen()
+                    }
                 } else {
                     viewModel.showHomeScreen()
                 }
@@ -295,6 +302,12 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
                 }
             }
         }
+    }
+
+    // 兜底：横屏首页详情路由下，面板内 X（toggle）会把 open 状态残留为 true（弹窗已被
+    // suppress 不显示）；离开首页进入播放页时统一清掉，避免残留弹窗在播放页突然出现
+    LaunchedEffect(showHome) {
+        if (!showHome) viewModel.closeAllPanels()
     }
 
     // SAF 文件选择器 —— 打开播放列表（M3U/M3U8）
@@ -355,10 +368,11 @@ fun MainPlayerScreen(viewModel: AppViewModel) {
     // 修复：关闭自动续播后横屏启动直接进入空白播放页面的问题
     // 使用 landscapeSidebarVisible（与触控分区一致），避免 tvUnifiedPanelOpen 造成双重侧边栏
     // 仅在首次进入时触发一次，用户关闭后不再自动弹出
+    // 首页（showHome）可见时不弹：首页左右双屏已提供频道选择
     val currentIdx by viewModel.currentIdx.collectAsState()
     var autoSidebarTriggered by remember { mutableStateOf(false) }
     LaunchedEffect(isLandscape, fileLoaded, currentIdx) {
-        if (!autoSidebarTriggered && isLandscape && currentIdx < 0 && !fileLoaded && !multiViewState.active) {
+        if (!autoSidebarTriggered && isLandscape && currentIdx < 0 && !fileLoaded && !multiViewState.active && !showHome) {
             autoSidebarTriggered = true
             viewModel.setLandscapeSidebarVisible(true)
         }
@@ -968,13 +982,37 @@ viewModel.mpv.setMute(savedMute)
                         videoAspectRatio = aspectRatio
                     )
                 } else {
-                    // ---- 单画面模式：侧边栏风格沉浸式侧边栏 + 底栏 ----
+                // ---- 单画面模式：侧边栏风格沉浸式侧边栏 + 底栏 ----
+                Box(modifier = Modifier.fillMaxSize()) {
                     TvPlayerLayout(
                         viewModel = viewModel,
                         primaryPlayer = { primaryPlayer() },
-                        videoAspectRatio = aspectRatio
+                        videoAspectRatio = aspectRatio,
+                        homeOverlay = showHome
                     )
+                    // TV/横屏首页：左右双屏（左宫格 + 右EPG + 玻璃TAB），覆盖在播放层上
+                    // （播放器保持组合树中，Surface 不销毁，与竖屏首页策略一致）
+                    if (showHome) {
+                        // DPI 自适应缩放（基准 900dp、下限 0.60）：
+                        // 手机横屏/小平板进一步缩小整页 UI 提升内容密度，TV 端 ≥900dp 不缩放
+                        val homeOrigDensity = androidx.compose.ui.platform.LocalDensity.current
+                        val homeDpiScale = (configuration.screenHeightDp / 900f).coerceIn(0.60f, 1f)
+                        androidx.compose.runtime.CompositionLocalProvider(
+                            androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(
+                                homeOrigDensity.density * homeDpiScale,
+                                homeOrigDensity.fontScale
+                            )
+                        ) {
+                            LandscapeHomeScreen(
+                                viewModel = viewModel,
+                                playlistLauncher = playlistLauncher,
+                                videoLauncher = videoLauncher,
+                                hazeState = hazeState
+                            )
+                        }
+                    }
                 }
+            }
             }
 
         androidx.compose.runtime.CompositionLocalProvider(
@@ -1016,6 +1054,9 @@ viewModel.mpv.setMute(savedMute)
             FileBrowserPanel(viewModel = viewModel)
         }
 
+        // 横屏（真实横屏）首页：设置/工具子面板渲染到右侧详情区（LandscapeSplitDetail），
+        // 不再弹中央 Dialog；竖屏/伪横屏/播放页保持弹窗行为
+        if (!(isLandscape && showHome)) {
         // 订阅源管理
         if (sourceManagerOpen) {
             PortraitPanelDialog(onDismiss = { viewModel.toggleSourceManager() }) {
@@ -1195,6 +1236,7 @@ if (lyricsOpen) {
         LyricsPanel(viewModel = viewModel)
     }
 }
+        }   // 横屏首页 suppress 面板弹窗闭合（设置/工具子面板走右侧详情路由）
 
         // 提醒触发弹窗（节目即将开始时弹出，全屏遮罩）
         if (triggeredReminder != null) {

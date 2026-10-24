@@ -1205,6 +1205,18 @@ internal var currentIsLocalFile: Boolean
 
     /** 切换分屏模式 */
 
+    // 横屏分屏模式（TV/横屏播放页：左视频+控制条，右常驻面板；关闭=传统全屏）
+
+    /** 横屏分屏开关（默认开启；全屏按钮切换） */
+    internal val _landscapeSplitMode = MutableStateFlow(userPrefs.getLandscapeSplitMode())
+    val landscapeSplitMode: StateFlow<Boolean> = _landscapeSplitMode.asStateFlow()
+
+    /** 设置横屏分屏模式 */
+    fun setLandscapeSplitMode(value: Boolean) {
+        _landscapeSplitMode.value = value
+        userPrefs.setLandscapeSplitMode(value)
+    }
+
     // 二级分组模式（与侧边栏 GROUP_PARS_SET_SELECT 对齐）
 
     /** 分组模式（0-3） */

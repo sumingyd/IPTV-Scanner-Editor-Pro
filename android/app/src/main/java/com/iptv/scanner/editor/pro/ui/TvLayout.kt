@@ -117,9 +117,66 @@ private val TV_ROW_DIVIDER = Color(0x1FFFFFFF)
 fun TvPlayerLayout(
     viewModel: AppViewModel,
     primaryPlayer: @Composable () -> Unit,
-    videoAspectRatio: Float
+    videoAspectRatio: Float,
+    homeOverlay: Boolean = false
 ) {
     val oc = rememberPlayerOverlayColors()
+    // 横屏分屏模式（默认开启）：左视频+控制条 / 右常驻面板。
+    // 多画面模式保持全屏（MultiViewOverlay 需要整个屏幕网格）。
+    val splitModePref by viewModel.landscapeSplitMode.collectAsState()
+    val multiActive by viewModel.multiViewState.collectAsState()
+    val useSplitTarget = splitModePref && !multiActive.active
+
+    // movableContent 视频节点（AndroidView）跨布局迁移必须两帧完成：
+    // 同帧「移除旧布局树 + 插入新布局树 + 搬迁节点」会触发 Compose
+    // CopyNodesToNewAnchorLocation → insertAt「already has a parent」崩溃
+    // （ACRA 实测 IllegalStateException at LayoutNode.insertAt）。
+    // 切换时第一帧先摘下视频节点渲染空布局，下一帧再放入新布局；
+    // movable 完全离开组合后状态释放，重新放入即全新节点，不会再撞旧父节点。
+    val useSplitState = remember { androidx.compose.runtime.mutableStateOf(useSplitTarget) }
+    val playerPlacedState = remember { androidx.compose.runtime.mutableStateOf(true) }
+    androidx.compose.runtime.LaunchedEffect(useSplitTarget) {
+        if (useSplitState.value != useSplitTarget) {
+            playerPlacedState.value = false
+            useSplitState.value = useSplitTarget
+            androidx.compose.runtime.withFrameNanos { }
+        }
+        playerPlacedState.value = true
+    }
+    val useSplit = useSplitState.value
+
+    if (useSplit) {
+        // ---- 分屏布局：系统栏保持可见（状态栏时间/电量可读） ----
+        val context = LocalContext.current
+        DisposableEffect(Unit) {
+            val activity = context as? Activity
+            val controller = activity?.window?.let {
+                androidx.core.view.WindowCompat.getInsetsController(it, it.decorView)
+            }
+            controller?.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            onDispose { }
+        }
+        // DPI 自适应缩放（基准 900dp、下限 0.60，与横屏首页一致）：
+        // 手机横屏/小平板缩小分屏 UI 提升内容密度，TV 端 ≥900dp 不缩放
+        val splitOrigDensity = LocalDensity.current
+        val splitDpiScale = (LocalConfiguration.current.screenHeightDp / 900f).coerceIn(0.60f, 1f)
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalDensity provides Density(splitOrigDensity.density * splitDpiScale, splitOrigDensity.fontScale)
+        ) {
+            // 橙红主色作用域：分屏页 accent（播放按钮等）与首页/竖屏 APTV 风格统一
+            androidx.compose.runtime.CompositionLocalProvider(LocalAptvStyle provides true) {
+                TvSplitLayout(
+                    viewModel = viewModel,
+                    primaryPlayer = { if (playerPlacedState.value) primaryPlayer() }
+                )
+            }
+        }
+        return
+    }
+
+    // ---- 以下为传统全屏布局（保持不变） ----
     val sidebarVisible by viewModel.landscapeSidebarVisible.collectAsState()
     val controlsVisible by viewModel.controlsVisible.collectAsState()
     val controlsPinned by viewModel.controlsPinned.collectAsState()
@@ -144,9 +201,9 @@ fun TvPlayerLayout(
     val multiViewState by viewModel.multiViewState.collectAsState()
     val multiViewStateUpdated = rememberUpdatedState(multiViewState)
 
-    // 横屏全屏：隐藏系统状态栏和导航栏（滑动可临时唤出）
+    // 横屏全屏：隐藏系统状态栏和导航栏（滑动可临时唤出）；首页覆盖时保持可见
     val context = LocalContext.current
-    DisposableEffect(Unit) {
+    DisposableEffect(homeOverlay) {
         val activity = context as? Activity
         val window = activity?.window
         val controller = window?.let {
@@ -154,7 +211,11 @@ fun TvPlayerLayout(
         }
         controller?.systemBarsBehavior =
             androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        controller?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        if (homeOverlay) {
+            controller?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
         onDispose {
             controller?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
         }
@@ -170,7 +231,7 @@ fun TvPlayerLayout(
     val scaledDensity = Density(origDensity.density * dpiScale, origDensity.fontScale)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        primaryPlayer()
+        if (playerPlacedState.value) primaryPlayer()
 
         // 触控分区由 Activity dispatchTouchEvent 处理（Compose 无法拦截 AndroidView 触控）
         // 多画面模式下 dispatchTouchEvent 跳过分区toggle，触控直接传递给 MultiViewOverlay

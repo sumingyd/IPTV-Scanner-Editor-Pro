@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
@@ -79,11 +80,30 @@ import java.util.Locale
  * - 频道范围筛选（全部/收藏/当前分组，最多 30 频道）
  */
 @Composable
-fun EpgTimelinePanel(viewModel: AppViewModel) {
+fun EpgTimelinePanel(viewModel: AppViewModel, glassContainer: Boolean = false) {
     if (LocalAptvStyle.current) {
-        EpgTimelinePanelAptv(viewModel)
+        EpgTimelinePanelAptv(viewModel, glassContainer)
         return
     }
+    if (glassContainer) {
+        // 拟态玻璃底座：整块面板包静态玻璃卡片（横屏首页分屏右列场景）
+        com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+            enabled = true,
+            cornerRadius = 20.dp,
+            staticGlass = true,
+            fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            EpgTimelinePanelInner(viewModel)
+        }
+        return
+    }
+    EpgTimelinePanelInner(viewModel)
+}
+
+/** EPG 面板主体（非 APTV 分支内容） */
+@Composable
+private fun EpgTimelinePanelInner(viewModel: AppViewModel) {
     val rows by viewModel.epgTimelineRows.collectAsState()
     val loading by viewModel.epgTimelineLoading.collectAsState()
     val range by viewModel.epgTimelineRange.collectAsState()
@@ -91,6 +111,7 @@ fun EpgTimelinePanel(viewModel: AppViewModel) {
     val status by viewModel.epgTimelineStatus.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
     val density = LocalDensity.current
+    val channelsCh by viewModel.channels.collectAsState()
 
     // TV 焦点管理：面板打开时请求焦点到关闭按钮，确保 DPAD 可操作。
     val closeFocusRequester = remember { FocusRequester() }
@@ -267,12 +288,12 @@ maxLines = 1
                         dateOffset = dateOffset,
                         horizontalScroll = horizontalScroll,
                         verticalScroll = verticalScroll,
+                        channels = channelsCh,
                         onProgramClick = { program ->
                             handleTimelineProgramClick(program, viewModel)
                         }
                     )
-                }
-            }
+                }            }
         }
     }
 }
@@ -286,7 +307,26 @@ maxLines = 1
  * 仅在竖屏 APTV 模式下使用，横屏/TV 仍走 [EpgTimelinePanel] 原有布局。
  */
 @Composable
-private fun EpgTimelinePanelAptv(viewModel: AppViewModel) {
+private fun EpgTimelinePanelAptv(viewModel: AppViewModel, glassContainer: Boolean = false) {
+    if (glassContainer) {
+        // 拟态玻璃底座：整块面板包静态玻璃卡片（横屏首页分屏右列场景）
+        com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface(
+            enabled = true,
+            cornerRadius = 20.dp,
+            staticGlass = true,
+            fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            EpgTimelinePanelAptvInner(viewModel)
+        }
+        return
+    }
+    EpgTimelinePanelAptvInner(viewModel)
+}
+
+/** EPG 面板主体（APTV 分支内容） */
+@Composable
+private fun EpgTimelinePanelAptvInner(viewModel: AppViewModel) {
     val rows by viewModel.epgTimelineRows.collectAsState()
     val loading by viewModel.epgTimelineLoading.collectAsState()
     val range by viewModel.epgTimelineRange.collectAsState()
@@ -294,6 +334,7 @@ private fun EpgTimelinePanelAptv(viewModel: AppViewModel) {
     val status by viewModel.epgTimelineStatus.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
     val density = LocalDensity.current
+    val channelsCh by viewModel.channels.collectAsState()
 
     // 选中日期（基于今天 + offset）
     val selectedDate = remember(dateOffset) {
@@ -370,24 +411,31 @@ private fun EpgTimelinePanelAptv(viewModel: AppViewModel) {
                 }
             )
 
-            // 频道范围选择（FilterChip → SelectionGroup）
-            SettingsGroup("频道范围") {
-                SelectionGroup(
-                    title = "频道范围",
-                    options = listOf(
-                        "ALL" to "全部频道",
-                        "FAVORITES" to "仅收藏",
-                        "CURRENT_GROUP" to "当前分组"
-                    ),
-                    selectedKey = range.name,
-                    onSelect = { key ->
-                        val r = when (key) {
-                            "FAVORITES" -> EpgTimelineRange.FAVORITES
-                            "CURRENT_GROUP" -> EpgTimelineRange.CURRENT_GROUP
-                            else -> EpgTimelineRange.ALL
-                        }
-                        viewModel.setEpgTimelineRange(r)
-                    }
+            // 频道范围（紧凑 FilterChip 行，节省垂直空间）
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "频道范围",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp
+                )
+                FilterChip(
+                    selected = range == EpgTimelineRange.ALL,
+                    onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.ALL) },
+                    label = { Text("全部频道", fontSize = 11.sp) }
+                )
+                FilterChip(
+                    selected = range == EpgTimelineRange.FAVORITES,
+                    onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.FAVORITES) },
+                    label = { Text("仅收藏", fontSize = 11.sp) }
+                )
+                FilterChip(
+                    selected = range == EpgTimelineRange.CURRENT_GROUP,
+                    onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.CURRENT_GROUP) },
+                    label = { Text("当前分组", fontSize = 11.sp) }
                 )
             }
 
@@ -429,12 +477,12 @@ private fun EpgTimelinePanelAptv(viewModel: AppViewModel) {
                         dateOffset = dateOffset,
                         horizontalScroll = horizontalScroll,
                         verticalScroll = verticalScroll,
+                        channels = channelsCh,
                         onProgramClick = { program ->
                             handleTimelineProgramClick(program, viewModel)
                         }
                     )
-                }
-            }
+                }            }
         }
     }
 }
@@ -443,11 +491,14 @@ private fun EpgTimelinePanelAptv(viewModel: AppViewModel) {
 // 时间线网格
 // -----------------------------------------------------------------
 
-/** 网格常量（与 PC 端 HOUR_WIDTH=120 对齐，手机端窄一些） */
-private val HOUR_WIDTH_DP = 60.dp
-private val ROW_HEIGHT_DP = 36.dp
-private val CHANNEL_NAME_WIDTH_DP = 100.dp
-private val TIME_HEADER_HEIGHT_DP = 28.dp
+/** 网格常量（与 PC 端 HOUR_WIDTH=120 对齐，手机端窄一些；行高压缩提升单屏频道数） */
+private val HOUR_WIDTH_DP = 54.dp
+private val ROW_HEIGHT_DP = 30.dp
+private val CHANNEL_NAME_WIDTH_DP = 118.dp
+private val TIME_HEADER_HEIGHT_DP = 24.dp
+// 横屏（TV/平板）加大行高与频道列提升可读性；竖屏保持紧凑密度
+private val ROW_HEIGHT_DP_LAND = 80.dp
+private val CHANNEL_NAME_WIDTH_DP_LAND = 156.dp
 
 /**
  * 时间线网格布局：
@@ -468,11 +519,17 @@ private fun TimelineGrid(
     dateOffset: Int,
     horizontalScroll: androidx.compose.foundation.ScrollState,
     verticalScroll: androidx.compose.foundation.ScrollState,
+    channels: List<com.iptv.scanner.editor.pro.data.IptvChannel> = emptyList(),
     onProgramClick: (IptvEpgProgram) -> Unit
 ) {
     val density = LocalDensity.current
+    // 横屏用加大行高/频道列，竖屏保持紧凑
+    val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val rowHeightDp = if (isLandscape) ROW_HEIGHT_DP_LAND else ROW_HEIGHT_DP
+    val channelNameWidthDp = if (isLandscape) CHANNEL_NAME_WIDTH_DP_LAND else CHANNEL_NAME_WIDTH_DP
     val hourWidthPx = with(density) { HOUR_WIDTH_DP.toPx() }
-    val rowHeightPx = with(density) { ROW_HEIGHT_DP.toPx() }
+    val rowHeightPx = with(density) { rowHeightDp.toPx() }
     val scope = rememberCoroutineScope()
 
     // TV 焦点状态：选中的行索引和该行内的节目索引
@@ -510,25 +567,25 @@ private fun TimelineGrid(
     val onSurfaceVariantArgb = onSurfaceVariantColor.toArgb()
     val outlineArgb = outlineColor.toArgb()
 
-    // 文本画笔（避免在 Canvas 内重复创建）
+    // 文本画笔（避免在 Canvas 内重复创建）；横屏大行高下字号同步放大
     val timeTextPaint = remember(density, onSurfaceVariantArgb) {
         android.graphics.Paint().apply {
             color = onSurfaceVariantArgb
-            textSize = with(density) { 11.sp.toPx() }
+            textSize = with(density) { (if (isLandscape) 13.sp else 11.sp).toPx() }
             isAntiAlias = true
         }
     }
     val programTextPaint = remember(density, onSurfaceColor) {
         android.graphics.Paint().apply {
             color = onSurfaceColor.toArgb()
-            textSize = with(density) { 10.sp.toPx() }
+            textSize = with(density) { (if (isLandscape) 13.sp else 10.sp).toPx() }
             isAntiAlias = true
         }
     }
     val programTextPaintCurrent = remember(density, onSurfaceColor) {
         android.graphics.Paint().apply {
             color = onSurfaceColor.toArgb()
-            textSize = with(density) { 10.sp.toPx() }
+            textSize = with(density) { (if (isLandscape) 13.sp else 10.sp).toPx() }
             isFakeBoldText = true
             isAntiAlias = true
         }
@@ -536,7 +593,7 @@ private fun TimelineGrid(
     val nowLabelPaint = remember(density) {
         android.graphics.Paint().apply {
             color = errorColor.toArgb()
-            textSize = with(density) { 10.sp.toPx() }
+            textSize = with(density) { (if (isLandscape) 13.sp else 10.sp).toPx() }
             isFakeBoldText = true
             isAntiAlias = true
         }
@@ -550,7 +607,7 @@ private fun TimelineGrid(
             // 左上角空白
             Box(
                 modifier = Modifier
-                    .width(CHANNEL_NAME_WIDTH_DP)
+                    .width(channelNameWidthDp)
                     .height(TIME_HEADER_HEIGHT_DP)
                     .background(Color(surfaceVariantArgb))
             )
@@ -600,31 +657,72 @@ private fun TimelineGrid(
             // 左侧频道名列（垂直滚动同步）
             Box(
                 modifier = Modifier
-                    .width(CHANNEL_NAME_WIDTH_DP)
+                    .width(channelNameWidthDp)
                     .verticalScroll(verticalScroll)
             ) {
                 Column {
                     rows.forEach { row ->
                         val isCurrent = row.channelIdx == currentIdx
+                        val ch = channels.getOrNull(row.channelIdx)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(ROW_HEIGHT_DP)
+                                // 行高与网格行同步（横屏 80dp/竖屏 30dp），避免频道列与节目条错位
+                                .height(rowHeightDp)
                                 .background(
                                     if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                                     else Color(surfaceVariantArgb)
                                 )
-                                .padding(horizontal = 8.dp),
+                                .padding(horizontal = 6.dp),
                             contentAlignment = Alignment.CenterStart
                         ) {
-                            Text(
-                                text = row.channelName,
-                                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal
-                            )
+                            // 台号 + 台标 + 频道名（台标带圆角衬底，避免浅色主题下白色 logo 幽灵化）
+                            // 横屏大行高下台标/字号同步放大，避免 80dp 行内 22dp 小台标显空
+                            val logoSize = if (isLandscape) 34.dp else 22.dp
+                            val logoCorner = if (isLandscape) 7.dp else 4.dp
+                            val numWidth = if (isLandscape) 26.dp else 20.dp
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${row.channelIdx + 1}",
+                                    color = if (isCurrent) MaterialTheme.colorScheme.primary else onSurfaceVariantColor,
+                                    fontSize = if (isLandscape) 12.sp else 9.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.width(numWidth)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(logoSize)
+                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(logoCorner))
+                                        .background(MaterialTheme.colorScheme.background),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (!ch?.logo.isNullOrEmpty()) {
+                                        coil.compose.AsyncImage(
+                                            model = ch!!.logo,
+                                            contentDescription = null,
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(2.dp)
+                                        )
+                                    } else {
+                                        Text(
+                                            text = row.channelName.take(1),
+                                            color = onSurfaceVariantColor,
+                                            fontSize = if (isLandscape) 14.sp else 10.sp
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(7.dp))
+                                Text(
+                                    text = row.channelName,
+                                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = if (isLandscape) 13.sp else 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal
+                                )
+                            }
                         }
                     }
                 }

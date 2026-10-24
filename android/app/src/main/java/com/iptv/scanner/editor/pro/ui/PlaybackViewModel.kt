@@ -414,6 +414,8 @@ internal fun AppViewModel.restoreLastChannel(autoPlayFirstFallback: Boolean) {
             if (lastIdx >= 0) {
                 Log.i(AppViewModel.TAG, "restoreLastChannel: restoring '$lastUrl' at idx=$lastIdx")
                 playChannel(lastIdx, silent = true)
+                // 横屏（TV 风格）：后台恢复播放但停留在首页（Mini 播放条可见），由用户点击进入播放页
+                if (autoPlayFirstFallback) _showHome.value = true
                 return
             }
             Log.i(AppViewModel.TAG, "restoreLastChannel: last URL '$lastUrl' not found in ${channels.size} channels, playing first")
@@ -427,6 +429,8 @@ internal fun AppViewModel.restoreLastChannel(autoPlayFirstFallback: Boolean) {
         return
     }
     playChannel(0, silent = true)
+    // 横屏（TV 风格）：后台播放但停留在首页（Mini 播放条可见），由用户点击进入播放页
+    _showHome.value = true
 }
 
 internal fun AppViewModel.loadUserPrefs() {

@@ -207,6 +207,9 @@ internal fun PortraitToolsScreen(
     val epgSources by viewModel.epgSources.collectAsState()
     val channels by viewModel.channels.collectAsState()
     val liquidGlass by viewModel.liquidGlass.collectAsState()
+    // 横屏（TV/平板）首页：面板入口走右侧详情路由（master-detail），竖屏走弹窗
+    val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     LaunchedEffect(Unit) {
         viewModel.loadSources()
@@ -595,16 +598,16 @@ internal fun PortraitToolsScreen(
         AptvSectionHeader(stringResource(R.string.aptv_group_channel_tools))
         AptvGroupCard {
             AptvRow(Icons.Default.WifiTethering, stringResource(R.string.tools_url_scan), stringResource(R.string.tools_url_scan_desc)) {
-                viewModel.toggleScanPanel()
+                splitDetailOrToggle(isLandscape, viewModel.scanPanelOpen, { ScanPanel(viewModel = viewModel) }) { viewModel.toggleScanPanel() }
             }
             AptvRow(Icons.Default.Save, stringResource(R.string.tools_save_as_m3u), stringResource(R.string.tools_save_as_m3u_desc)) {
                 viewModel.saveAsM3u()
             }
             AptvRow(Icons.Default.CompareArrows, stringResource(R.string.settings_mapping), stringResource(R.string.settings_mapping_desc)) {
-                viewModel.toggleMappingPanel()
+                splitDetailOrToggle(isLandscape, viewModel.mappingPanelOpen, { MappingPanel(viewModel = viewModel) }) { viewModel.toggleMappingPanel() }
             }
             AptvRow(Icons.Default.Wifi, stringResource(R.string.settings_network), stringResource(R.string.settings_network_desc)) {
-                viewModel.toggleNetworkPanel()
+                splitDetailOrToggle(isLandscape, viewModel.networkPanelOpen, { NetworkPanel(viewModel = viewModel) }) { viewModel.toggleNetworkPanel() }
             }
         }
 
@@ -627,7 +630,7 @@ internal fun PortraitToolsScreen(
                 viewModel.toggleOpenUrlDialog()
             }
             AptvRow(Icons.Default.History, stringResource(R.string.tools_recent), stringResource(R.string.tools_recent_desc)) {
-                viewModel.toggleRecentPanel()
+                splitDetailOrToggle(isLandscape, viewModel.recentPanelOpen, { RecentFilesPanel(viewModel = viewModel) }) { viewModel.toggleRecentPanel() }
             }
         }
 
@@ -635,7 +638,7 @@ internal fun PortraitToolsScreen(
         AptvSectionHeader(stringResource(R.string.aptv_group_player_tools))
         AptvGroupCard {
             AptvRow(Icons.Default.Tune, stringResource(R.string.aptv_player_tools), stringResource(R.string.aptv_player_tools_desc)) {
-                viewModel.togglePlayerToolsPanel()
+                splitDetailOrToggle(isLandscape, viewModel.playerToolsOpen, { PlayerToolsPanel(viewModel = viewModel) }) { viewModel.togglePlayerToolsPanel() }
             }
         }
 
@@ -685,6 +688,9 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
     val liquidGlass by viewModel.liquidGlass.collectAsState()
     val bootStart by viewModel.bootStart.collectAsState()
     val isMpv = playerType == PlayerType.MPV
+    // 横屏（TV/平板）首页：面板入口走右侧详情路由（master-detail），竖屏走弹窗
+    val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     androidx.compose.runtime.CompositionLocalProvider(LocalLiquidGlass provides liquidGlass) {
     LazyColumn(
@@ -721,29 +727,47 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
         item {
             AptvGroupCard {
                 AptvRow(Icons.Default.PlayCircle, stringResource(R.string.settings_player), value = playerType.displayName) {
-                    viewModel.togglePlayerSettings()
+                    splitDetailOrToggle(isLandscape, viewModel.playerSettingsOpen, { PlayerSettingsPanel(viewModel = viewModel) }) { viewModel.togglePlayerSettings() }
                 }
-                AptvRow(Icons.Default.Tv, stringResource(R.string.settings_video)) { viewModel.toggleVideoSettings() }
-                AptvRow(Icons.Default.VolumeUp, stringResource(R.string.settings_audio)) { viewModel.toggleAudioSettings() }
-                AptvRow(Icons.Default.Subtitles, stringResource(R.string.settings_subtitle), disabled = !isMpv) { viewModel.toggleSubtitleSettings() }
-                AptvRow(Icons.Default.Tune, stringResource(R.string.settings_playback_settings)) { viewModel.togglePlaybackPanel() }
-                AptvRow(Icons.Default.PhotoCamera, stringResource(R.string.settings_screenshot), disabled = !isMpv) { viewModel.toggleScreenshotPanel() }
-                AptvRow(Icons.Default.Wallpaper, stringResource(R.string.settings_view)) { viewModel.toggleViewSettings() }
+                AptvRow(Icons.Default.Tv, stringResource(R.string.settings_video)) {
+                    splitDetailOrToggle(isLandscape, viewModel.videoSettingsOpen, { VideoSettingsPanel(viewModel = viewModel) }) { viewModel.toggleVideoSettings() }
+                }
+                AptvRow(Icons.Default.VolumeUp, stringResource(R.string.settings_audio)) {
+                    splitDetailOrToggle(isLandscape, viewModel.audioSettingsOpen, { AudioSettingsPanel(viewModel = viewModel) }) { viewModel.toggleAudioSettings() }
+                }
+                AptvRow(Icons.Default.Subtitles, stringResource(R.string.settings_subtitle), disabled = !isMpv) {
+                    splitDetailOrToggle(isLandscape, viewModel.subtitleSettingsOpen, { SubtitleSettingsPanel(viewModel = viewModel) }) { viewModel.toggleSubtitleSettings() }
+                }
+                AptvRow(Icons.Default.Tune, stringResource(R.string.settings_playback_settings)) {
+                    splitDetailOrToggle(isLandscape, viewModel.playbackPanelOpen, { PlaybackPanel(viewModel = viewModel) }) { viewModel.togglePlaybackPanel() }
+                }
+                AptvRow(Icons.Default.PhotoCamera, stringResource(R.string.settings_screenshot), disabled = !isMpv) {
+                    splitDetailOrToggle(isLandscape, viewModel.screenshotPanelOpen, { ScreenshotPanel(viewModel = viewModel) }) { viewModel.toggleScreenshotPanel() }
+                }
+                AptvRow(Icons.Default.Wallpaper, stringResource(R.string.settings_view)) {
+                    splitDetailOrToggle(isLandscape, viewModel.viewSettingsOpen, { ViewSettingsPanel(viewModel = viewModel) }) { viewModel.toggleViewSettings() }
+                }
             }
         }
 
         item { AptvSectionHeader(stringResource(R.string.settings_channels)) }
         item {
             AptvGroupCard {
-                AptvRow(Icons.Default.CompareArrows, stringResource(R.string.settings_mapping)) { viewModel.toggleMappingPanel() }
-                AptvRow(Icons.Default.Wifi, stringResource(R.string.settings_network)) { viewModel.toggleNetworkPanel() }
+                AptvRow(Icons.Default.CompareArrows, stringResource(R.string.settings_mapping)) {
+                    splitDetailOrToggle(isLandscape, viewModel.mappingPanelOpen, { MappingPanel(viewModel = viewModel) }) { viewModel.toggleMappingPanel() }
+                }
+                AptvRow(Icons.Default.Wifi, stringResource(R.string.settings_network)) {
+                    splitDetailOrToggle(isLandscape, viewModel.networkPanelOpen, { NetworkPanel(viewModel = viewModel) }) { viewModel.toggleNetworkPanel() }
+                }
             }
         }
 
         item { AptvSectionHeader(stringResource(R.string.aptv_group_about)) }
         item {
             AptvGroupCard {
-                AptvRow(Icons.Default.Info, stringResource(R.string.settings_about)) { viewModel.toggleAboutPanel() }
+                AptvRow(Icons.Default.Info, stringResource(R.string.settings_about)) {
+                    splitDetailOrToggle(isLandscape, viewModel.aboutPanelOpen, { AboutPanel(viewModel = viewModel) }) { viewModel.toggleAboutPanel() }
+                }
             }
         }
     }

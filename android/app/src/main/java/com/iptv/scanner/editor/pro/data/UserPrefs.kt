@@ -216,6 +216,15 @@ class UserPrefs private constructor() {
     }
 
     // -----------------------------------------------------------------
+    // 横屏分屏模式（TV/横屏播放页：左视频+右常驻面板；关闭=全屏）
+    // -----------------------------------------------------------------
+
+    fun getLandscapeSplitMode(): Boolean = prefs.getBoolean(KEY_LANDSCAPE_SPLIT_MODE, true)
+    fun setLandscapeSplitMode(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LANDSCAPE_SPLIT_MODE, enabled).apply()
+    }
+
+    // -----------------------------------------------------------------
     // 二级分组模式（0=传统, 1=列表分组, 2=二级模式1, 3=二级模式2）
     // -----------------------------------------------------------------
 
@@ -452,6 +461,7 @@ class UserPrefs private constructor() {
 
         private const val KEY_BOOT_START = "boot_start"
         private const val KEY_SPLIT_MODE = "split_mode"
+        private const val KEY_LANDSCAPE_SPLIT_MODE = "landscape_split_mode"
         private const val KEY_GROUP_MODE = "group_mode"
         private const val DEFAULT_GROUP_MODE = 3
 

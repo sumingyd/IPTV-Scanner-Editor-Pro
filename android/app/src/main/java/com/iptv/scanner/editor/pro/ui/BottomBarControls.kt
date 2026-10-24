@@ -174,7 +174,8 @@ import java.io.File
 @Composable
 internal fun PortraitBottomTabBar(
     viewModel: AppViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    centered: Boolean = false
 ) {
     val portraitTab by viewModel.portraitTab.collectAsState()
     // 直接读开关：MainPlayerScreen 的 LocalLiquidGlass provider 不覆盖 tab 栏子树
@@ -233,26 +234,48 @@ internal fun PortraitBottomTabBar(
     }
 
     val useGlass = liquidGlass && com.iptv.scanner.editor.pro.ui.theme.isLiquidBlurSupported()
-    LiquidGlassSurface(
-        enabled = useGlass,
-        cornerRadius = 20.dp,
-        // 真模糊：悬浮于滚动内容之上，hazeEffect 实时取景（HazeState 由 MainPlayerScreen 提供）
-        // 关闭/降级：原 90% surface 实底
-        fallbackColor = bgColor.copy(alpha = 0.90f),
-        modifier = modifier
+    // centered=true：TV/横屏首页用——底部居中悬浮胶囊，只包住 4 个按钮，不占整行；
+    // false（默认）：竖屏全宽底栏，含导航栏避让
+    val barModifier = if (centered) {
+        // 居中胶囊模式：外层 modifier（含父级 align）由包裹 Box 消费，此处从 Modifier 起步避免重复消费
+        Modifier
+            .widthIn(max = 520.dp)
+            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+            .height(62.dp)
+            .shadow(8.dp, tabShape)
+    } else {
+        modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
             .navigationBarsPadding()
             .padding(bottom = 8.dp)
             .height(62.dp)
             .shadow(8.dp, tabShape)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-            content = tabContent
-        )
+    }
+    val barContent: @Composable () -> Unit = {
+        LiquidGlassSurface(
+            enabled = useGlass,
+            cornerRadius = 20.dp,
+            // 真模糊：悬浮于滚动内容之上，hazeEffect 实时取景（HazeState 由 MainPlayerScreen 提供）
+            // 关闭/降级：原 90% surface 实底
+            fallbackColor = bgColor.copy(alpha = 0.90f),
+            modifier = barModifier
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                content = tabContent
+            )
+        }
+    }
+    if (centered) {
+        // 包裹 Box 接收外部 modifier（含 BoxScope.align），否则调用方的贴底对齐会被丢弃导致 TAB 悬到顶部
+        Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+            barContent()
+        }
+    } else {
+        barContent()
     }
 }
 /**

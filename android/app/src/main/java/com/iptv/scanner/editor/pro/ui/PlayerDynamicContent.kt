@@ -322,7 +322,7 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
 }
 /** 本地文件信息面板 */
 @Composable
-private fun PortraitLocalFileInfo(
+internal fun PortraitLocalFileInfo(
     viewModel: AppViewModel,
     duration: Double,
     timePos: Double,
@@ -546,7 +546,7 @@ private fun PortraitLocalFileInfo(
 // -----------------------------------------------------------------
 // 分类列表（竖屏 Tab — 全屏分组选择）
 @Composable
-private fun PortraitCategoryContent(viewModel: AppViewModel, onGroupSelected: () -> Unit = {}) {
+internal fun PortraitCategoryContent(viewModel: AppViewModel, onGroupSelected: () -> Unit = {}) {
     val allGroups by viewModel.groups.collectAsState()
     val selectedGroup by viewModel.selectedGroup.collectAsState()
     val channels by viewModel.channels.collectAsState()
@@ -641,7 +641,7 @@ private fun PortraitCategoryContent(viewModel: AppViewModel, onGroupSelected: ()
 // -----------------------------------------------------------------
 // 频道列表（竖屏 Tab — 仅频道，无分组列）
 @Composable
-private fun PortraitChannelOnlyList(viewModel: AppViewModel) {
+internal fun PortraitChannelOnlyList(viewModel: AppViewModel) {
     val channels by viewModel.channels.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
     val selectedGroup by viewModel.selectedGroup.collectAsState()
@@ -707,7 +707,7 @@ private fun PortraitChannelOnlyList(viewModel: AppViewModel) {
 // -----------------------------------------------------------------
 // EPG 节目单内容（竖屏 Tab — 日期选择 + 节目列表 + 状态标识）
 @Composable
-private fun PortraitEpgContent(viewModel: AppViewModel) {
+internal fun PortraitEpgContent(viewModel: AppViewModel) {
     val loading by viewModel.epgLoading.collectAsState()
     val currentChannel by viewModel.currentChannel.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
@@ -976,7 +976,7 @@ private fun PortraitEpgItem(
     }
 }
 @Composable
-private fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
+internal fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
     val channels by viewModel.channels.collectAsState()
     val history by viewModel.history.collectAsState()
 
@@ -1038,7 +1038,7 @@ private fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
 // 布局：顶部频谱（免开可视化面板即看）+ 两列紧凑信息网格，
 // 全部字段中文翻译，面板高度内完整展示无需滑动
 @Composable
-private fun PortraitPlayerInfoPanel(
+internal fun PortraitPlayerInfoPanel(
     viewModel: AppViewModel,
     duration: Double,
     timePos: Double,

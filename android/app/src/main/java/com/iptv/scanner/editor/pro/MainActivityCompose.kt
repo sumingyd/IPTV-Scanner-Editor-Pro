@@ -209,6 +209,8 @@ class MainActivityCompose : ComponentActivity() {
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
         if (isLandscapeMode()) {
             val multiActive = viewModel.multiViewState.value.active
+            // 横屏首页（左右双屏）：全 Compose 触控，不做分区呼出/暂停拦截
+            if (viewModel.showHome.value && !multiActive) return super.dispatchTouchEvent(ev)
             if (ev.action == android.view.MotionEvent.ACTION_DOWN) {
                 Log.v(TAG, "dispatchTouchEvent: ACTION_DOWN x=${ev.x}, y=${ev.y}, multiActive=$multiActive")
             }
@@ -282,6 +284,8 @@ class MainActivityCompose : ComponentActivity() {
                         // 面板打开时滚动手势交给面板内列表，不做切台判定
                         // （修复：面板列表滚动被误判为滑动切台且 UP 被吞）
                         if (anyPanelOpen) return super.dispatchTouchEvent(ev)
+                        // 分屏模式：右侧面板滚动/视频区滑动手势全部交给 Compose
+                        if (viewModel.landscapeSplitMode.value) return super.dispatchTouchEvent(ev)
                         // 控制条可见时，底栏区域的拖动（进度滑杆等）交给 Compose
                         if (controlsVisible && y > h * BOTTOM_REGION_BOUND) return super.dispatchTouchEvent(ev)
                         // 上下滑动切换频道
@@ -318,6 +322,11 @@ class MainActivityCompose : ComponentActivity() {
                         if (x > w - (MENU_PANEL_WIDTH_DP * pxPerDp + 8f * pxPerDp) && inMenuV) return super.dispatchTouchEvent(ev)
                         viewModel.toggleMenuPanel()
                         return true
+                    }
+                    if (viewModel.landscapeSplitMode.value) {
+                        // 分屏模式：右面板常驻、控制条常驻，视频区手势（暂停/双击全屏/上下滑切台）
+                        // 由 Compose 视频触控层处理；触控全部放行，不做底栏呼出/分区拦截
+                        return super.dispatchTouchEvent(ev)
                     }
                     if (controlsVisible) {
                         // 底栏控制条打开：点击底栏区域交给 Compose 按钮/滑杆；点击其他区域收起底栏
@@ -464,10 +473,10 @@ class MainActivityCompose : ComponentActivity() {
                 viewModel.exitCatchup()
                 return true
             }
-            // 播放器模式返回首页（竖屏有首页可回；横屏无首页 UI，直接弹退出确认）
+            // 播放器模式返回首页（横屏：全屏→回分屏，分屏→回首页；竖屏直接回首页）
             if (!viewModel.showHome.value) {
-                if (isLandscapeMode()) {
-                    viewModel.showExitConfirm()
+                if (isLandscapeMode() && !viewModel.landscapeSplitMode.value) {
+                    viewModel.setLandscapeSplitMode(true)
                 } else {
                     viewModel.showHomeScreen()
                 }

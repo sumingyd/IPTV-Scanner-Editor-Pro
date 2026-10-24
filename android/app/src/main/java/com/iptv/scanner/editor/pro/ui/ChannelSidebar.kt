@@ -956,10 +956,10 @@ private fun ChannelListPanel(
         }
     }
 }
-/** 右侧频道列表（缩略图模式） */
+/** 右侧频道列表（缩略图模式）；横屏首页（LandscapeHomeScreen）左列宫格复用 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ChannelThumbnailPanel(
+internal fun ChannelThumbnailPanel(
     displayChannels: List<IptvChannel>,
     channels: List<IptvChannel>,
     currentIdx: Int,
@@ -972,14 +972,15 @@ private fun ChannelThumbnailPanel(
     onDelete: (Int) -> Unit = {},
     latencyMap: Map<String, Int> = emptyMap(),
     groupList: List<Pair<String, Int>> = emptyList(),
-    mediaInfoMap: Map<String, String> = emptyMap()
+    mediaInfoMap: Map<String, String> = emptyMap(),
+    bottomContentPadding: androidx.compose.ui.unit.Dp = 130.dp
 ) {
     val epgCacheVersion by viewModel.epgCacheVersion.collectAsState()
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 6.dp, top = 4.dp, end = 6.dp, bottom = 130.dp),
+        contentPadding = PaddingValues(start = 6.dp, top = 4.dp, end = 6.dp, bottom = bottomContentPadding),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
