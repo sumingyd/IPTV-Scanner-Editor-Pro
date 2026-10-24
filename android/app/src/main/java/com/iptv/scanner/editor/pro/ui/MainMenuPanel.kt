@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -135,6 +136,15 @@ fun MainMenuPanel(viewModel: AppViewModel) {
     val multiViewState by viewModel.multiViewState.collectAsState()
 
     val isFavorite = currentIdx >= 0 && favorites.contains(currentIdx)
+
+    // 全屏底栏样式选择弹窗：条目点击后弹出单选列表（选中态高亮、选择后保持打开可连续切换）
+    // 开关状态放 ViewModel：BACK 键在 Activity.onKeyDown 统一处理（按键分发下
+    // Compose BackHandler 不生效），需跨层读取
+    val showStylePicker by viewModel.stylePickerOpen.collectAsState()
+    // 弹窗选中项提升到面板层：按键路由统一走外层菜单 Box 的 onPreviewKeyEvent，
+    // 不依赖弹窗卡片自身抢焦点（实测 requestFocus 在菜单 GlassPanel 持有焦点时不可靠，
+    // 焦点会漂移到全屏遮罩的 clickable 上，导致 OK 键误触发 onDismiss 关闭弹窗）
+    var stylePickerIdx by remember { mutableStateOf(bottomBarStyle) }
 
     // SAF 文件选择器
     val playlistLauncher = rememberLauncherForActivityResult(
@@ -308,7 +318,10 @@ fun MainMenuPanel(viewModel: AppViewModel) {
             showBottomIcon = osdShowBottomIcon,
             liquidGlassValue = liquidGlass,
             bottomBarStyleValue = bottomBarStyle,
-            onToggleBottomBarStyle = { viewModel.setBottomBarStyle((bottomBarStyle + 1) % 4) },
+            onSelectBottomBarStyle = {
+                stylePickerIdx = bottomBarStyle
+                viewModel.setStylePickerOpen(true)
+            },
             hasCurrentChannel = currentChannel != null,
             isFavorite = isFavorite,
             sources = sources,
@@ -347,6 +360,28 @@ fun MainMenuPanel(viewModel: AppViewModel) {
         CompositionLocalProvider(LocalDensity provides scaledDensity) {
         Box(
             modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                // 底栏样式选择弹窗打开时：按键由菜单层统一路由给弹窗
+                // （上/下/左/右移动选中项，OK 在 KeyUp 应用；选择后弹窗保持打开可连续切换）
+                if (showStylePicker) {
+                    return@onPreviewKeyEvent when (event.type) {
+                        KeyEventType.KeyDown -> when (event.key) {
+                            Key.DirectionUp -> { stylePickerIdx = (stylePickerIdx + 3) % 4; true }
+                            Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight -> {
+                                stylePickerIdx = (stylePickerIdx + 1) % 4; true
+                            }
+                            Key.DirectionCenter, Key.Enter -> true  // 应用延迟到 KeyUp（防焦点迁移误触发）
+                            else -> false
+                        }
+                        KeyEventType.KeyUp -> when (event.key) {
+                            Key.DirectionCenter, Key.Enter -> {
+                                viewModel.setBottomBarStyle(stylePickerIdx)
+                                true
+                            }
+                            else -> false
+                        }
+                        else -> false
+                    }
+                }
                 when (event.type) {
                     KeyEventType.KeyDown -> when (event.key) {
                         Key.DirectionDown -> {
@@ -513,6 +548,20 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 }
             }
 
+            // 全屏底栏样式选择弹窗：悬浮在菜单之上，选择后保持打开可连续切换
+            if (showStylePicker) {
+                BottomBarStylePickerOverlay(
+                    current = bottomBarStyle,
+                    pickerIdx = stylePickerIdx,
+                    liquidGlass = liquidGlass,
+                    onSelect = {
+                        stylePickerIdx = it
+                        viewModel.setBottomBarStyle(it)
+                    },
+                    onDismiss = { viewModel.setStylePickerOpen(false) }
+                )
+            }
+
         }
         } // CompositionLocalProvider
         return
@@ -521,6 +570,19 @@ fun MainMenuPanel(viewModel: AppViewModel) {
     // PHONE模式：原有全屏覆盖菜单
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val useDualColumn = maxWidth > 500.dp
+        // 竖屏同样支持底栏样式选择弹窗
+        if (showStylePicker) {
+            BottomBarStylePickerOverlay(
+                current = bottomBarStyle,
+                pickerIdx = stylePickerIdx,
+                liquidGlass = liquidGlass,
+                onSelect = {
+                    stylePickerIdx = it
+                    viewModel.setBottomBarStyle(it)
+                },
+                onDismiss = { viewModel.setStylePickerOpen(false) }
+            )
+        }
 
         Surface(
             color = MaterialTheme.colorScheme.surface,
@@ -735,7 +797,7 @@ private fun buildMenuSections(
     onToggleShowBottomIcon: () -> Unit,
     onToggleLiquidGlass: () -> Unit,
     bottomBarStyleValue: Int = 0,
-    onToggleBottomBarStyle: () -> Unit = {},
+    onSelectBottomBarStyle: () -> Unit = {},
     showTime: Boolean,
     showNetSpeed: Boolean,
     hideChannelNum: Boolean,
@@ -837,12 +899,12 @@ private fun buildMenuSections(
                 Icons.Default.AspectRatio,
                 "全屏底栏样式",
                 when (bottomBarStyleValue) {
-                    1 -> "当前：单行紧凑式"
-                    2 -> "当前：居中控制台式"
-                    3 -> "当前：左信息右控制式"
-                    else -> "当前：信息详情式"
+                    1 -> "当前：单行紧凑式 · 点击选择"
+                    2 -> "当前：居中控制台式 · 点击选择"
+                    3 -> "当前：左信息右控制式 · 点击选择"
+                    else -> "当前：信息详情式 · 点击选择"
                 },
-                onToggleBottomBarStyle
+                onSelectBottomBarStyle
             )
         )
     )
@@ -958,6 +1020,125 @@ private fun MenuEntryItem(
                     checkedTrackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
                 )
             )
+        }
+    }
+}
+
+// -----------------------------------------------------------------
+// 全屏底栏样式选择弹窗
+// -----------------------------------------------------------------
+
+/**
+ * 全屏底栏样式单选弹窗：替代原「点击循环切换」——循环式无法预知切到哪个样式、
+ * 也看不到切换效果，必须关菜单呼底栏验证，重复操作繁琐。
+ *
+ * 交互：
+ * - 点击/OK 键应用样式后弹窗保持打开，可连续切换对比；遮罩点击或 BACK 关闭
+ * - 当前选中项高亮（tvGlassSelected 凸起 + 单选点），当前生效样式带「当前」标记
+ * - 每行右侧迷你预览该样式底栏结构（BottomBarStyleMiniPreview）
+ * - TV 遥控器：上下（或左右）移动选项，OK 应用，BACK 关闭
+ */
+@Composable
+private fun BottomBarStylePickerOverlay(
+    current: Int,
+    pickerIdx: Int,
+    liquidGlass: Boolean,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x66000000))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center
+    ) {
+        GlassPanel(
+            liquidGlass = liquidGlass,
+            cornerRadius = 14.dp,
+            overlayDark = true,
+            modifier = Modifier
+                .width(430.dp)
+                .wrapContentWidth()
+                // 拦截卡片内点击，避免透传到遮罩误关闭（不添加焦点目标：
+                // TV 按键由外层菜单 Box 的 onPreviewKeyEvent 统一路由）
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null
+                ) {}
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Text(
+                    text = "全屏底栏样式",
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "选择后立即生效，弹窗保持打开可连续对比切换",
+                    color = Color(0x99FFFFFF),
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                listOf(
+                    0 to "信息详情式",
+                    1 to "单行紧凑式",
+                    2 to "居中控制台式",
+                    3 to "左信息右控制式"
+                ).forEach { (style, name) ->
+                    val isSel = style == pickerIdx
+                    val isCurrent = style == current
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .then(if (isSel) Modifier.tvGlassSelected(8) else Modifier)
+                            .clickable { onSelect(style) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 单选点：选中为实心 accent 圆，未选中为描边空心圆
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .then(
+                                    if (isSel) Modifier.background(AptvAccent)
+                                    else Modifier.border(1.5.dp, Color(0x80FFFFFF), CircleShape)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSel) {
+                                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color.White))
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = name,
+                            color = if (isSel) Color.White else Color(0xE6FFFFFF),
+                            fontSize = 15.sp,
+                            fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (isCurrent) {
+                            Text(text = "当前", color = AptvAccent, fontSize = 11.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        BottomBarStyleMiniPreview(style, modifier = Modifier.width(110.dp))
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "OK 应用 · 返回键关闭",
+                    color = Color(0x80FFFFFF),
+                    fontSize = 11.sp,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
         }
     }
 }

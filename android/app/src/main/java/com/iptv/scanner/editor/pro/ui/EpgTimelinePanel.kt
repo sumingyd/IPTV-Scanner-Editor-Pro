@@ -572,7 +572,6 @@ private fun TimelineGrid(
     val errorColor = MaterialTheme.colorScheme.error
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val primaryColor = MaterialTheme.colorScheme.primary
-    val surfaceArgb = MaterialTheme.colorScheme.surface.toArgb()
     val onSurfaceVariantArgb = onSurfaceVariantColor.toArgb()
     val outlineArgb = outlineColor.toArgb()
 
@@ -591,11 +590,20 @@ private fun TimelineGrid(
             isAntiAlias = true
         }
     }
-    val programTextPaintCurrent = remember(density, onSurfaceColor) {
+    // 当前/选中节目块为橙红底（primary/tertiary），浅色主题下 onSurface 深字对比不足，
+    // 固定使用白字（深浅主题下橙红底均适配白字）
+    val programTextPaintCurrent = remember(density) {
         android.graphics.Paint().apply {
-            color = onSurfaceColor.toArgb()
+            color = android.graphics.Color.WHITE
             textSize = with(density) { (if (isLandscape) 13.sp else 10.sp).toPx() }
             isFakeBoldText = true
+            isAntiAlias = true
+        }
+    }
+    val programTextPaintSelected = remember(density) {
+        android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = with(density) { (if (isLandscape) 13.sp else 10.sp).toPx() }
             isAntiAlias = true
         }
     }
@@ -613,12 +621,12 @@ private fun TimelineGrid(
         // 顶部：时间刻度行（左上角空白 + 时间刻度水平滚动）
         // -----------------------------------------------------------------
         Row(modifier = Modifier.fillMaxWidth()) {
-            // 左上角空白
+            // 左上角空白（半透明衬底：玻璃容器下透出磨砂玻璃，不再自带实底色块）
             Box(
                 modifier = Modifier
                     .width(channelNameWidthDp)
                     .height(TIME_HEADER_HEIGHT_DP)
-                    .background(Color(surfaceVariantArgb))
+                    .background(Color(surfaceVariantArgb).copy(alpha = 0.35f))
             )
             // 时间刻度（水平滚动同步）
             Box(
@@ -633,8 +641,8 @@ private fun TimelineGrid(
                         height = TIME_HEADER_HEIGHT_DP
                     )
                 ) {
-                    // 背景
-                    drawRect(Color(surfaceVariantArgb))
+                    // 背景（半透明：玻璃容器下透出磨砂玻璃）
+                    drawRect(Color(surfaceVariantArgb).copy(alpha = 0.35f))
                     // 每 2 小时一刻度
                     drawIntoCanvas { canvas ->
                         for (h in 0..24 step 2) {
@@ -754,9 +762,7 @@ private fun TimelineGrid(
                             }
                         }
                 ) {
-                    // 背景
-                    drawRect(Color(surfaceArgb))
-
+                    // 背景：不再铺实底色（玻璃容器下透出磨砂玻璃，非玻璃场景透出面板底色）
                     // 可视行范围裁剪：只绘制滚动视口内的行（±1 行余量），避免全量绘制卡顿
                     val firstVisibleRow = ((verticalScroll.value / rowHeightPx).toInt() - 1).coerceAtLeast(0)
                     val lastVisibleRow = (((verticalScroll.value + gridViewPortHeight) / rowHeightPx).toInt() + 1)
@@ -792,7 +798,8 @@ private fun TimelineGrid(
                         secondaryColor = secondaryColor,
                         onSurfaceColor = onSurfaceColor,
                         programTextPaint = programTextPaint,
-                        programTextPaintCurrent = programTextPaintCurrent
+                        programTextPaintCurrent = programTextPaintCurrent,
+                        programTextPaintSelected = programTextPaintSelected
                     )
 
                     // 当前时间竖线（仅今天显示）
@@ -841,10 +848,11 @@ private fun TimelineChannelColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     // 行高与网格行同步（横屏 80dp/竖屏 30dp），避免频道列与节目条错位
+                    // 非当前行半透明衬底：玻璃容器下透出磨砂玻璃，不再自带实底色块
                     .height(rowHeightDp)
                     .background(
                         if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        else Color(surfaceVariantArgb)
+                        else Color(surfaceVariantArgb).copy(alpha = 0.35f)
                     )
                     .padding(horizontal = 6.dp),
                 contentAlignment = Alignment.CenterStart
@@ -1025,7 +1033,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTimelineProgram
     secondaryColor: Color,
     onSurfaceColor: Color,
     programTextPaint: android.graphics.Paint,
-    programTextPaintCurrent: android.graphics.Paint
+    programTextPaintCurrent: android.graphics.Paint,
+    programTextPaintSelected: android.graphics.Paint
 ) {
     drawIntoCanvas { canvas ->
         for (rowIdx in firstVisibleRow..lastVisibleRow) {
@@ -1051,7 +1060,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTimelineProgram
                 val bgColor = when {
                     isSelected -> tertiaryColor  // 选中：主题 tertiary
                     isCurrent -> primaryColor     // 当前：主题 primary
-                    isPast -> Color(surfaceVariantArgb)  // 过去：随主题变
+                    isPast -> Color(surfaceVariantArgb).copy(alpha = 0.45f)  // 过去：半透明随主题变
                     else -> secondaryColor.copy(alpha = 0.3f)  // 普通：浅蓝
                 }
                 drawRoundRect(
@@ -1074,9 +1083,13 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTimelineProgram
                     )
                 }
 
-                // 节目标题（宽度 > 40px 才绘制）
+                // 节目标题（宽度 > 40px 才绘制）：选中/当前块白字（橙红底），其余随主题
                 if (blockWidth > 40f) {
-                    val textPaint = if (isCurrent) programTextPaintCurrent else programTextPaint
+                    val textPaint = when {
+                        isSelected -> programTextPaintSelected
+                        isCurrent -> programTextPaintCurrent
+                        else -> programTextPaint
+                    }
                     val title = ellipsizeText(program.title, textPaint, blockWidth - 8f)
                     canvas.nativeCanvas.drawText(
                         title,

@@ -436,6 +436,11 @@ internal var switchPlayJob: Job? = null
     internal val _menuPanelOpen = MutableStateFlow(false)
     val menuPanelOpen: StateFlow<Boolean> = _menuPanelOpen.asStateFlow()
 
+    /** 主菜单内的「全屏底栏样式」选择弹窗：BACK 键需优先只关它而不关整个菜单 */
+    internal val _stylePickerOpen = MutableStateFlow(false)
+    val stylePickerOpen: StateFlow<Boolean> = _stylePickerOpen.asStateFlow()
+    fun setStylePickerOpen(value: Boolean) { _stylePickerOpen.value = value }
+
     /** 文件浏览器面板（SAF 不可用时的替代方案，浏览本地 M3U/媒体文件） */
     internal val _fileBrowserOpen = MutableStateFlow(false)
     val fileBrowserOpen: StateFlow<Boolean> = _fileBrowserOpen.asStateFlow()

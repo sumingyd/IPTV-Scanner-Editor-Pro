@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -288,6 +289,7 @@ internal fun AptvRow(
     title: String,
     value: String = "",
     disabled: Boolean = false,
+    trailing: (@Composable () -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
     Row(
@@ -321,6 +323,11 @@ internal fun AptvRow(
                 fontSize = 14.sp
             )
             Spacer(modifier = Modifier.width(6.dp))
+        }
+        if (trailing != null) {
+            Spacer(modifier = Modifier.width(4.dp))
+            trailing()
+            Spacer(modifier = Modifier.width(4.dp))
         }
         if (!disabled) {
             Icon(
@@ -658,6 +665,87 @@ internal fun AptvAlertDialog(
                             .clickable(onClick = onConfirm)
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 全屏底栏样式迷你预览：按 4 种底栏样式的结构布局用缩微色块示意，
+ * 供设置页行尾与样式选择弹窗使用（暗玻璃底色，两种主题下均可辨）。
+ */
+@Composable
+internal fun BottomBarStyleMiniPreview(style: Int, modifier: Modifier = Modifier) {
+    val barBg = Color(0xE6141820)      // 近似暗玻璃底
+    val line = Color(0xCCFFFFFF)       // 信息示意线
+    val lineDim = Color(0x59FFFFFF)    // 次级示意线
+    Box(
+        modifier = modifier
+            .height(26.dp)
+            .clip(RoundedCornerShape(5.dp))
+            .background(barBg)
+            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(5.dp))
+            .padding(horizontal = 5.dp, vertical = 4.dp)
+    ) {
+        when (style) {
+            // 样式 B：单行紧凑式 —— 台标 + 频道名 + 进度 + 控制点一行排布
+            1 -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(12.dp, 8.dp).clip(RoundedCornerShape(1.dp)).background(lineDim))
+                Spacer(Modifier.width(3.dp))
+                Box(Modifier.size(14.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                Spacer(Modifier.width(4.dp))
+                Box(Modifier.weight(1f).height(2.dp).background(lineDim))
+                Spacer(Modifier.width(4.dp))
+                repeat(3) {
+                    Box(Modifier.size(4.dp).clip(CircleShape).background(AptvAccent))
+                    if (it < 2) Spacer(Modifier.width(2.dp))
+                }
+            }
+            // 样式 C：居中控制台式 —— 顶部信息行居中 + 中央大控制点组
+            2 -> Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(Modifier.size(20.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                Spacer(Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                    Spacer(Modifier.width(3.dp))
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(AptvAccent))
+                    Spacer(Modifier.width(3.dp))
+                    Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                }
+            }
+            // 样式 D：左信息右控制式 —— 左两行信息 | 竖分隔 | 右控制点组
+            3 -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Box(Modifier.size(22.dp, 3.dp).clip(RoundedCornerShape(1.5.dp)).background(line))
+                    Spacer(Modifier.height(3.dp))
+                    Box(Modifier.size(14.dp, 2.dp).background(lineDim))
+                }
+                Spacer(Modifier.width(4.dp))
+                Box(Modifier.width(0.5.dp).height(14.dp).background(lineDim))
+                Spacer(Modifier.width(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                    Spacer(Modifier.width(3.dp))
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(AptvAccent))
+                    Spacer(Modifier.width(3.dp))
+                    Box(Modifier.size(3.dp).clip(CircleShape).background(lineDim))
+                }
+            }
+            // 样式 A：信息详情式 —— 左台标 + 右三行信息
+            else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(14.dp, 12.dp).clip(RoundedCornerShape(2.dp)).background(lineDim))
+                Spacer(Modifier.width(4.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Box(Modifier.size(18.dp, 2.5.dp).clip(RoundedCornerShape(1.25.dp)).background(line))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(26.dp, 2.dp).background(lineDim))
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.size(12.dp, 2.dp).background(lineDim.copy(alpha = 0.7f)))
                 }
             }
         }

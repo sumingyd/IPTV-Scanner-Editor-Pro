@@ -397,6 +397,14 @@ class MainActivityCompose : ComponentActivity() {
             val isDpad = kc == KeyEvent.KEYCODE_DPAD_UP || kc == KeyEvent.KEYCODE_DPAD_DOWN ||
                     kc == KeyEvent.KEYCODE_DPAD_LEFT || kc == KeyEvent.KEYCODE_DPAD_RIGHT
             if (event.action == KeyEvent.ACTION_DOWN) {
+                // 底栏控制条显示时：DPAD/OK 交给 Compose 焦点系统在底栏内移动焦点/触发按钮，
+                // 不再全局拦截为切台/seek（此前底栏内焦点移动只能暂用 TAB 键）。
+                // 侧边栏打开时底栏被互斥隐藏（TvLayout: showOverlays && !sidebarVisible），不适用。
+                if ((isOk || isDpad) && !viewModel.anyPanelOpen &&
+                    !viewModel.landscapeSidebarVisible.value &&
+                    (viewModel.controlsVisible.value || viewModel.controlsPinned.value)) {
+                    return super.dispatchKeyEvent(event)
+                }
                 if (isOk) {
                     // 侧边栏（TvUnifiedPanel）打开时，DPAD_CENTER 必须传给 Compose 焦点系统，
                     // 让菜单项的 onClick / 频道列表的 onChannelClick 触发。
@@ -455,6 +463,12 @@ class MainActivityCompose : ComponentActivity() {
 
         // BACK 键：先关闭面板 → 再收起底栏控制条 → 再退出多画面 → 再退出回看/时移 → 播放器模式返回首页 → 最后显示退出确认对话框
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // 主菜单内的「全屏底栏样式」选择弹窗打开时：BACK 仅关闭弹窗，保留主菜单
+            // （按键分发下 Compose BackHandler 不生效，BACK 统一走此处）
+            if (viewModel.stylePickerOpen.value) {
+                viewModel.setStylePickerOpen(false)
+                return true
+            }
             if (viewModel.closeAnyPanel()) {
                 return true
             }

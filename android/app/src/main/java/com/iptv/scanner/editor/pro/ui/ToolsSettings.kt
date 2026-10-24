@@ -719,9 +719,19 @@ internal fun PortraitSettingsContent(viewModel: AppViewModel) {
                 AptvRow(Icons.Default.Replay, stringResource(R.string.settings_auto_resume), value = if (autoResume) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled)) {
                     viewModel.setAutoResume(!autoResume)
                 }
-                // 横屏全屏播放页底栏布局样式（点击循环切换）
-                AptvRow(Icons.Default.AspectRatio, "全屏底栏样式", value = when (bottomBarStyle) {
-                    1 -> "单行紧凑式"; 2 -> "居中控制台式"; 3 -> "左信息右控制式"; else -> "信息详情式"
+                // 横屏全屏播放页底栏布局样式（点击循环切换，右侧迷你预览当前样式结构）
+                AptvRow(Icons.Default.AspectRatio, "全屏底栏样式", trailing = {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = when (bottomBarStyle) {
+                                1 -> "单行紧凑式"; 2 -> "居中控制台式"; 3 -> "左信息右控制式"; else -> "信息详情式"
+                            },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        BottomBarStyleMiniPreview(bottomBarStyle, modifier = Modifier.width(88.dp))
+                    }
                 }) {
                     viewModel.setBottomBarStyle((bottomBarStyle + 1) % 4)
                 }

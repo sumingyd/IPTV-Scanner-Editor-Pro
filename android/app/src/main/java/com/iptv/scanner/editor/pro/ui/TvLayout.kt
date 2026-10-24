@@ -41,6 +41,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -429,11 +431,18 @@ private fun TvBottomBar(
     epgList: List<IptvEpgProgram>,
     style: Int = 0
 ) {
+    // 底栏呼出时把焦点落到播放/暂停键：DPAD 直接在底栏内移动焦点（Activity dispatchKeyEvent 已放行），
+    // 不再需要 TAB 键临时导航。AnimatedVisibility 内每次呼出都是新组合，effect 重新执行。
+    val barFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(80)
+        runCatching { barFocus.requestFocus() }
+    }
     when (style) {
-        1 -> TvBottomBarStyleB(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList)
-        2 -> TvBottomBarStyleC(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList)
-        3 -> TvBottomBarStyleD(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList)
-        else -> TvBottomBarStyleA(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList)
+        1 -> TvBottomBarStyleB(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        2 -> TvBottomBarStyleC(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        3 -> TvBottomBarStyleD(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
+        else -> TvBottomBarStyleA(viewModel, displayInfo, paused, fileLoaded, videoWidth, videoHeight, showExitCatchup, playbackMode, currentProgram, epgList, barFocus)
     }
 }
 
@@ -460,7 +469,8 @@ private fun TvBottomBarStyleA(
     showExitCatchup: Boolean,
     playbackMode: PlayMode,
     currentProgram: IptvEpgProgram?,
-    epgList: List<IptvEpgProgram>
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
 ) {
     val mpv = viewModel.mpv
     val liquidGlass by viewModel.liquidGlass.collectAsState()
@@ -665,9 +675,13 @@ private fun TvBottomBarStyleA(
                         }
                         Spacer(modifier = Modifier.width(2.dp))
                         // 播放/暂停按钮：原底栏无播放控制，暂停后用户无从恢复
+                        // barFocus：底栏呼出时初始焦点落点，DPAD 可直接在底栏内移动
                         IconButton(
                             onClick = { viewModel.mpv.setPause(!paused) },
-                            modifier = Modifier.size(30.dp).tvFocusBorder()
+                            modifier = Modifier
+                                .size(30.dp)
+                                .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
+                                .tvFocusBorder()
                         ) {
                             Icon(
                                 if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
@@ -743,7 +757,8 @@ private fun TvBottomBarStyleB(
     showExitCatchup: Boolean,
     playbackMode: PlayMode,
     currentProgram: IptvEpgProgram?,
-    epgList: List<IptvEpgProgram>
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
 ) {
     val mpv = viewModel.mpv
     val liquidGlass by viewModel.liquidGlass.collectAsState()
@@ -831,7 +846,13 @@ private fun TvBottomBarStyleB(
             IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(30.dp).tvFocusBorder()) {
                 Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(16.dp))
             }
-            IconButton(onClick = { viewModel.mpv.setPause(!paused) }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+            IconButton(
+                onClick = { viewModel.mpv.setPause(!paused) },
+                modifier = Modifier
+                    .size(34.dp)
+                    .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
+                    .tvFocusBorder()
+            ) {
                 Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(18.dp))
             }
             IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(30.dp).tvFocusBorder()) {
@@ -862,7 +883,8 @@ private fun TvBottomBarStyleC(
     showExitCatchup: Boolean,
     playbackMode: PlayMode,
     currentProgram: IptvEpgProgram?,
-    epgList: List<IptvEpgProgram>
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
 ) {
     val mpv = viewModel.mpv
     val liquidGlass by viewModel.liquidGlass.collectAsState()
@@ -921,7 +943,13 @@ private fun TvBottomBarStyleC(
                     Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.textPrimary, modifier = Modifier.size(26.dp))
                 }
                 Surface(color = AptvAccent.copy(alpha = 0.18f), shape = androidx.compose.foundation.shape.CircleShape) {
-                    IconButton(onClick = { viewModel.mpv.setPause(!paused) }, modifier = Modifier.size(52.dp).tvFocusBorder()) {
+                    IconButton(
+                        onClick = { viewModel.mpv.setPause(!paused) },
+                        modifier = Modifier
+                            .size(52.dp)
+                            .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
+                            .tvFocusBorder()
+                    ) {
                         Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(30.dp))
                     }
                 }
@@ -973,7 +1001,8 @@ private fun TvBottomBarStyleD(
     showExitCatchup: Boolean,
     playbackMode: PlayMode,
     currentProgram: IptvEpgProgram?,
-    epgList: List<IptvEpgProgram>
+    epgList: List<IptvEpgProgram>,
+    barFocus: FocusRequester? = null
 ) {
     val mpv = viewModel.mpv
     val liquidGlass by viewModel.liquidGlass.collectAsState()
@@ -1055,7 +1084,13 @@ private fun TvBottomBarStyleD(
                 IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
                     Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(18.dp))
                 }
-                IconButton(onClick = { viewModel.mpv.setPause(!paused) }, modifier = Modifier.size(36.dp).tvFocusBorder()) {
+                IconButton(
+                    onClick = { viewModel.mpv.setPause(!paused) },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
+                        .tvFocusBorder()
+                ) {
                     Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(20.dp))
                 }
                 IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
