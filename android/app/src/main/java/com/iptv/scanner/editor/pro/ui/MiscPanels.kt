@@ -1274,14 +1274,16 @@ private fun BookmarkRow(
 @Composable
 internal fun SpectrumCanvas(spectrum: FloatArray, modifier: Modifier = Modifier) {
     // 峰值缓存：经典频谱仪的缓降峰值标记（60fps 下每帧回落 0.009）
-    val peaks = remember { FloatArray(32) { 0f } }
+    // 尺寸跟随频谱频段数（64），避免频段数变化后越界/不匹配
+    val peaks = remember(spectrum.size) { FloatArray(spectrum.size) { 0f } }
     val primaryColor = MaterialTheme.colorScheme.primary
     val outlineColor = MaterialTheme.colorScheme.outlineVariant
     Canvas(modifier) {
         val barCount = spectrum.size
         if (barCount == 0) return@Canvas
         val barWidth = size.width / barCount
-        val gap = barWidth * 0.25f
+        // 64 频段下柱条更细：间隙占槽位 45%（柱条实宽 55%），视觉更精致
+        val gap = barWidth * 0.45f
         val actualBarWidth = barWidth - gap
         val bottomY = size.height * 0.92f
         val maxBarHeight = size.height * 0.82f

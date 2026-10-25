@@ -984,8 +984,8 @@ internal var currentIsLocalFile: Boolean
     /** 音频可视化面板 */
     internal val _audioVisualizerOpen = MutableStateFlow(false)
     val audioVisualizerOpen: StateFlow<Boolean> = _audioVisualizerOpen.asStateFlow()
-    /** 频谱数据（0-1 归一化，32 个频段） */
-    internal val _audioSpectrum = MutableStateFlow(FloatArray(32) { 0f })
+    /** 频谱数据（0-1 归一化，64 个频段） */
+    internal val _audioSpectrum = MutableStateFlow(FloatArray(AppViewModel.AUDIO_SPECTRUM_BANDS) { 0f })
     val audioSpectrum: StateFlow<FloatArray> = _audioSpectrum.asStateFlow()
     /** 频谱不可用原因（空=正常）。真频谱失败时给用户明确提示，绝不提供模拟数据 */
     internal val _audioSpectrumError = MutableStateFlow("")
@@ -1710,6 +1710,8 @@ internal var currentIsLocalFile: Boolean
     companion object {
         internal const val TAG = "AppViewModel"
         internal const val GITHUB_LATEST_API = "https://api.github.com/repos/sumingyd/guangyu/releases/latest"
+        /** 频谱频段数（可视化面板/信息 Tab 等所有界面共用） */
+        internal const val AUDIO_SPECTRUM_BANDS = 64
 
         fun factory(app: Application): ViewModelProvider.AndroidViewModelFactory =
             object : ViewModelProvider.AndroidViewModelFactory(app) {}

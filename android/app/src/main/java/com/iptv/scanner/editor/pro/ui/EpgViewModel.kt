@@ -1017,7 +1017,7 @@ internal fun AppViewModel.startSpectrumSampling() {
             }
             override fun onFftDataCapture(v: android.media.audiofx.Visualizer?, fft: ByteArray?, samplingRate: Int) {
                 if (fft == null) return
-                val bands = 32
+                val bands = AppViewModel.AUDIO_SPECTRUM_BANDS
                 val spectrum = FloatArray(bands) { 0f }
                 val n = fft.size / 2  // FFT bin 数量（不含 DC）
                 // bin 0 为 DC 分量（无意义），从 bin 1 开始。
@@ -1061,7 +1061,7 @@ internal fun AppViewModel.startSpectrumSampling() {
     if (!visualizerStarted) {
         // Visualizer 不可用（缺 RECORD_AUDIO 权限/音频接口异常）：给出明确提示。
         // 绝不提供模拟数据——假频谱会误导用户以为听到了真实声音
-        _audioSpectrum.value = FloatArray(32) { 0f }
+        _audioSpectrum.value = FloatArray(AppViewModel.AUDIO_SPECTRUM_BANDS) { 0f }
         _audioSpectrumError.value = "无法获取实时音频数据\n系统 Visualizer 接口不可用（需要麦克风权限）"
         Log.w(AppViewModel.TAG, "Visualizer unavailable, showing error state")
     } else {

@@ -1059,14 +1059,23 @@ internal fun PortraitPlayerInfoPanel(
     }
     val mediaInfo = remember(tick) { player.getMediaInfo() }
 
-    // 频谱：信息 Tab 打开期间持续采样（已有权限直接启动，离开 Tab 停止）
+    // 频谱：信息 Tab 打开期间持续采样（离开 Tab 停止）。
+    // RECORD_AUDIO 是系统 Visualizer 的硬性要求：未授权时主动弹申请，
+    // 此前仅「已授权才启动」导致从未授权的设备频谱恒为零（一排不动的矮条）
     val spectrum by viewModel.audioSpectrum.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
+    val spectrumPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) viewModel.startSpectrumSampling()
+        else viewModel.setAudioSpectrumError("未授予麦克风权限\n系统 Visualizer 接口需要该权限才能获取真实频谱")
+    }
     DisposableEffect(Unit) {
         val granted = androidx.core.content.ContextCompat.checkSelfPermission(
             context, android.Manifest.permission.RECORD_AUDIO
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         if (granted) viewModel.startSpectrumSampling()
+        else spectrumPermLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
         onDispose { viewModel.stopSpectrumSampling() }
     }
 
@@ -1168,8 +1177,30 @@ internal fun PortraitPlayerInfoPanel(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // 顶部频谱区（玻璃卡内嵌：经典频谱仪样式）
-            SpectrumCanvas(
+            // 顶部频谱区（玻璃卡内嵌：经典频谱仪样式）；
+            // 真频谱不可用（如拒绝麦克风权限）时显示原因，不画误导性的静态条
+            val spectrumError by viewModel.audioSpectrumError.collectAsState()
+            if (spectrumError.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(96.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        .clip(RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = spectrumError,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            } else SpectrumCanvas(
                 spectrum = spectrum,
                 modifier = Modifier
                     .fillMaxWidth()

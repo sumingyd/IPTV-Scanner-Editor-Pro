@@ -83,7 +83,7 @@ internal fun AppViewModel.stopSpectrumSampling() {
     visualizer?.enabled = false
     visualizer?.release()
     visualizer = null
-    _audioSpectrum.value = FloatArray(32) { 0f }
+    _audioSpectrum.value = FloatArray(AppViewModel.AUDIO_SPECTRUM_BANDS) { 0f }
 }
 
 internal fun AppViewModel.toggleLyricsPanel() {
