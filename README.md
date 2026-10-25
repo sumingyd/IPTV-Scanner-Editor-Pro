@@ -10,12 +10,12 @@
 ## 📸 程序截图
 
 
-|  |  |  |  |
-| ----------------- | ----------------- | ----------------- | ----------------- |
-| PC端 | ![](icons/1.png)  | ![](icons/2.png)  | ![](icons/3.png)  |
-| Android竖屏 | ![](icons/4.png)  | ![](icons/5.png)  | ![](icons/6.png)  |
-| Android Pad/DPad | ![](icons/7.png)  | ![](icons/8.png)  | ![](icons/9.png)  |
-| Android全屏 | ![](icons/10.png) | ![](icons/11.png) | ![](icons/12.png) |
+|  |  |  |
+| ----------------- | ----------------- | ----------------- |
+| ![](icons/1.png)  | ![](icons/2.png)  | ![](icons/3.png)  |
+| ![](icons/4.png)  | ![](icons/5.png)  | ![](icons/6.png)  |
+| ![](icons/7.png)  | ![](icons/8.png)  | ![](icons/9.png)  |
+| ![](icons/10.png) | ![](icons/11.png) | ![](icons/12.png) |
 
 ## 📋 功能概览
 
