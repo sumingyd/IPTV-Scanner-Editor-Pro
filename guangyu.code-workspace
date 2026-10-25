@@ -8,5 +8,8 @@
 		"clawMode.mode": "editor",
 		"workbench.activityBar.location": "default",
 		"java.configuration.updateBuildConfiguration": "interactive"
+	},
+	"trae": {
+		"workspaceId": "de7c384ddca19908a6d39eecf4069c22"
 	}
 }
