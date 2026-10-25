@@ -196,8 +196,12 @@ internal fun AppViewModel.startInitialization() {
                         Log.d(AppViewModel.TAG, "status: inited=${status.inited} loading=${status.sourceLoading} total=${status.channelsTotal}")
 
                         // 判断是否完成：
-                        // - inited=true 且 sourceLoading=false → 完成（无论 channels_total 是否为 0）
-                        if (status.inited && !status.sourceLoading) {
+                        // - inited=true 即放行进入主界面，不等订阅源加载完成。
+                        //   大体积内嵌 EPG 或网络不佳时 source_loading 可能持续数分钟，
+                        //   若在此阻塞会触发 60 秒初始化超时导致无法进入 App。
+                        //   订阅源后台加载完成后由 startBackgroundStatusRefresh 检测
+                        //   channels_total 变化并自动重载频道列表。
+                        if (status.inited) {
                             _initState.value = InitState.Ready(status)
                             startBackgroundStatusRefresh()
                             // 加载频道列表和用户偏好

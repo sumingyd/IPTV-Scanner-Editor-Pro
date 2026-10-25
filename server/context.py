@@ -794,7 +794,9 @@ class ServerContext:
         if not self._standalone:
             return
         if time.time() - self._last_load_time > max_age:
-            self._load_channels_from_file()
+            # 异步触发（带 _source_loading 防重入），避免同步 HTTP 拉源阻塞
+            # get_all_channels / get_status_json 轮询导致 Android 端初始化超时
+            self.reload_sources('')
 
     def reload_sources(self, url: str = '') -> bool:
         """重新加载订阅源（独立于扫描整理功能）
@@ -846,6 +848,7 @@ class ServerContext:
 
             all_channels: List[Dict] = []
             errors: List[str] = []  # 记录每个源的加载失败原因
+            epg_urls_from_m3u: List[str] = []  # M3U 内嵌 EPG 地址（后台异步加载，不阻塞频道入库）
             for idx, source in enumerate(sources):
                 src_url = source.get('url', '')
                 if not src_url or not source.get('enabled', True):
@@ -863,18 +866,13 @@ class ServerContext:
                         continue
                     content = load_m3u_from_url_data(resp.content)
                     channels, header_attrs = parse_m3u_content(content)
-                    # 提取 M3U 头部 x-tvg-url 定义的 EPG 地址并自动加载
+                    # 提取 M3U 头部 x-tvg-url 定义的 EPG 地址，稍后统一异步加载。
+                    # EPG 文件可能很大（几十 MB），同步下载会让 source_loading 长时间为 true，
+                    # Android 端启动门禁误判初始化超时导致无法进入主界面。
                     epg_url_from_m3u = header_attrs.get('epg_url', '') if header_attrs else ''
                     if epg_url_from_m3u:
                         logger.info(f"M3U 源 {redact_url(src_url)} 包含 EPG 地址: {redact_url(epg_url_from_m3u)}")
-                        try:
-                            if hasattr(self, '_epg_parser') and self._epg_parser:
-                                self._epg_parser.load_single_epg(epg_url_from_m3u)
-                            else:
-                                from core.subscription_manager import SubscriptionManager
-                                SubscriptionManager().load_single_epg(epg_url_from_m3u)
-                        except Exception as epg_e:
-                            logger.warning(f"加载 M3U 内嵌 EPG 失败: {epg_e}")
+                        epg_urls_from_m3u.append(epg_url_from_m3u)
                     # 更新该源的 last_update 时间戳（无论是否解析到频道，HTTP 拉取已成功）
                     from datetime import datetime
                     config.update_playlist_source_last_update(idx, datetime.now().isoformat())
@@ -925,6 +923,14 @@ class ServerContext:
                     'loaded': len(sources), 'channels': ch_count,
                     'message': f'完成：{ch_count} 个频道'}
             logger.info(f"订阅源加载完成，共 {ch_count} 个频道")
+
+            # M3U 内嵌 EPG 后台异步加载：频道已入库，EPG 下载/解析不阻塞加载完成状态
+            if epg_urls_from_m3u:
+                threading.Thread(
+                    target=self._load_m3u_epg_async,
+                    args=(epg_urls_from_m3u,),
+                    daemon=True,
+                ).start()
         except Exception as e:
             logger.error(f"订阅源加载异常: {e}")
             with self._source_load_lock:
@@ -932,6 +938,18 @@ class ServerContext:
                 self._source_load_status = {
                     'loading': False, 'total': 0, 'loaded': 0,
                     'channels': 0, 'message': f'异常: {e}'}
+
+    def _load_m3u_epg_async(self, epg_urls: List[str]):
+        """后台加载 M3U 内嵌 EPG（不阻塞订阅源加载完成状态）"""
+        for epg_url in epg_urls:
+            try:
+                if hasattr(self, '_epg_parser') and self._epg_parser:
+                    self._epg_parser.load_single_epg(epg_url)
+                else:
+                    from core.subscription_manager import SubscriptionManager
+                    SubscriptionManager().load_single_epg(epg_url)
+            except Exception as epg_e:
+                logger.warning(f"后台加载 M3U 内嵌 EPG 失败: {epg_e}")
 
     def get_source_load_status(self) -> Dict:
         """获取订阅源加载状态"""

@@ -389,8 +389,14 @@ private fun LandscapeChannelSplitContent(viewModel: AppViewModel) {
             // 宫格频道卡（复用竖屏缩略图宫格：2列玻璃卡）
             if (searchedChannels.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    // 订阅源仍在后台加载时显示加载提示，避免被误认为无频道
+                    val status by viewModel.iptvStatus.collectAsState()
                     Text(
-                        if (searchQuery.isBlank()) "暂无频道" else "无匹配频道",
+                        when {
+                            searchQuery.isNotBlank() -> "无匹配频道"
+                            status?.sourceLoading == true -> "正在加载订阅源..."
+                            else -> "暂无频道"
+                        },
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
                     )

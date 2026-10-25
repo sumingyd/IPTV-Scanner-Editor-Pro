@@ -662,8 +662,10 @@ internal fun PortraitChannelOnlyList(viewModel: AppViewModel) {
 
     if (filteredChannels.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            // 订阅源仍在后台加载时显示加载提示，避免被误认为无频道
+            val status by viewModel.iptvStatus.collectAsState()
             Text(
-                text = "暂无频道",
+                text = if (status?.sourceLoading == true) "正在加载订阅源..." else "暂无频道",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp
             )

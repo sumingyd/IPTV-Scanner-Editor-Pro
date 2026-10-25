@@ -59,12 +59,16 @@ fun SplashScreen(viewModel: AppViewModel) {
                     modifier = Modifier.width(56.dp).height(56.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("v49.2-DEV", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+                Text(
+                    text = viewModel.getCurrentVersion(),
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 14.sp
+                )
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
                 Text(
-                    text = "IPTV 扫描编辑器专业版",
+                    text = "光屿 GuangYu",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground
                 )
