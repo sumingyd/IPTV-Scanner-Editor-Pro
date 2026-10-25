@@ -364,7 +364,7 @@ internal fun AppViewModel.downloadAndInstallApk(url: String) {
     // 构建下载请求
     val request = try {
         DownloadManager.Request(Uri.parse(url)).apply {
-            setTitle("ISEP 更新")
+            setTitle("光屿 更新")
             setDescription("正在下载最新版 APK...")
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
             setDestinationUri(Uri.fromFile(apkFile))
@@ -569,7 +569,7 @@ internal fun AppViewModel.fetchLatestRelease(): Triple<String?, String?, String?
     val conn = java.net.URL(AppViewModel.GITHUB_LATEST_API).openConnection() as java.net.HttpURLConnection
     try {
         conn.requestMethod = "GET"
-        conn.setRequestProperty("User-Agent", "IPTV-Scanner-Editor-Pro")
+        conn.setRequestProperty("User-Agent", "GuangYu")
         conn.setRequestProperty("Accept", "application/vnd.github+json")
         conn.connectTimeout = 10_000
         conn.readTimeout = 10_000
@@ -594,6 +594,9 @@ internal fun AppViewModel.fetchLatestRelease(): Triple<String?, String?, String?
 
                 // 优先匹配通用 APK（无 ABI 后缀或 -universal 后缀，含所有 ABI）
                 val universalApk = androidApks.firstOrNull { (name, _) ->
+                    name.equals("GuangYu-Android.apk", ignoreCase = true) ||
+                    name.equals("GuangYu-Android-universal.apk", ignoreCase = true) ||
+                    // 旧版本 APK 文件名兼容（历史 release 仍可被识别升级）
                     name.equals("ISEP-Android.apk", ignoreCase = true) ||
                     name.equals("ISEP-Android-universal.apk", ignoreCase = true) ||
                     name.equals("IPTV Scanner Editor Pro-Android.apk", ignoreCase = true) ||

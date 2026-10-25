@@ -242,7 +242,7 @@ _I18N = {
         'no_data': '暂无频道数据',
     },
     'en': {
-        'title': 'ISEP',
+        'title': 'GuangYu',
         'subtitle': 'Live Streaming Server & RESTful API',
         'status': 'Server Status',
         'running': 'Running',
@@ -255,7 +255,7 @@ _I18N = {
         'scan': 'Scan',
         'epg': 'EPG',
         'stream_proxy': 'Stream Proxy',
-        'footer': 'ISEP · Built-in HTTP Server · Powered by aiohttp',
+        'footer': 'GuangYu · Built-in HTTP Server · Powered by aiohttp',
         'm3u_desc': 'M3U playlist (params: valid=1, search=, group=)',
         'm3u_group_desc': 'M3U playlist by group',
         'ch_list_desc': 'Channel list (params: valid=1/0, group=, search=, page=, size=, source=)',

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ISEP</string>
+    <string name="app_name">GuangYu</string>
     <string name="server_starting">Starting server…</string>
     <string name="server_failed">Server startup failed</string>
     <string name="permission_network">Network access required for streaming</string>

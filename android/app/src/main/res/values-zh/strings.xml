@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ISEP</string>
+    <string name="app_name">光屿</string>
     <string name="server_starting">正在启动服务器…</string>
     <string name="server_failed">服务器启动失败</string>
     <string name="permission_network">播放需要网络访问权限</string>

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ISEP - 独立 Web 服务器模式
+GuangYu - 独立 Web 服务器模式
 无需 GUI，直接启动 Web 服务器，提供 RESTful API 和移动端 Web UI
 支持 Windows/macOS/Linux 桌面端和 Android (Chaquopy) 环境
 """
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     _setup_android_env()
 
     import argparse
-    parser = argparse.ArgumentParser(description='ISEP - Web Server')
+    parser = argparse.ArgumentParser(description='GuangYu - Web Server')
     parser.add_argument('--host', default='127.0.0.1',
                         help='监听地址 (默认: 127.0.0.1，局域网访问请用 0.0.0.0)')
     parser.add_argument('--port', type=int, default=8080, help='监听端口 (默认: 8080)')

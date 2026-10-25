@@ -126,13 +126,13 @@ fun AboutPanel(viewModel: AppViewModel) {
 
     PanelScaffold(
         title = "关于",
-        subtitle = "ISEP",
+        subtitle = "光屿",
         onClose = { viewModel.toggleAboutPanel() }
     ) {
         SettingsGroup("版本信息") {
             // SettingsGroup 在 APTV 模式下已自带玻璃卡容器，此处直接排 InfoRow，避免双层嵌套
             Column(modifier = Modifier.fillMaxWidth()) {
-                InfoRow("应用名称", "ISEP")
+                InfoRow("应用名称", "光屿 GuangYu")
                 InfoRow("版本", currentVersion)
                 InfoRow("播放引擎", "mpv (libmpv)")
                 InfoRow("UI 框架", "Jetpack Compose")

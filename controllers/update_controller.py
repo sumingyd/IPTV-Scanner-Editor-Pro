@@ -22,32 +22,32 @@ from utils.delay_constants import DelayMs
 def _get_platform_asset_name():
     """返回当前平台对应的 Release asset 文件名
 
-    优先匹配新命名（ISEP-xxx），兼容旧命名（IPTV Scanner Editor Pro-xxx）。
+    优先匹配新命名（GuangYu-xxx），兼容旧命名（ISEP-xxx / IPTV Scanner Editor Pro-xxx）。
     """
     system = platform.system()
     if system == "Windows":
-        return "ISEP-Windows-x86_64.exe"
+        return "GuangYu-Windows-x86_64.exe"
     elif system == "Darwin":
-        return "ISEP-macOS-ARM64.zip"
+        return "GuangYu-macOS-ARM64.zip"
     elif system == "Linux":
         machine = platform.machine()
         if machine in ("aarch64", "arm64"):
-            return "ISEP-Linux-ARM64.tar.gz"
-        return "ISEP-Linux-x86_64.tar.gz"
+            return "GuangYu-Linux-ARM64.tar.gz"
+        return "GuangYu-Linux-x86_64.tar.gz"
     return None
 
 
-# 旧版资产名（用于向后兼容，匹配 GitHub Release 中的旧版文件）
+# 旧版资产名（用于向后兼容，匹配 GitHub Release 中的旧版文件：ISEP-xxx / IPTV Scanner Editor Pro-xxx）
 _LEGACY_ASSET_NAMES = {
-    "Windows": "IPTV Scanner Editor Pro-Windows-x86_64.exe",
-    "Darwin": "IPTV Scanner Editor Pro-macOS-ARM64.zip",
-    "Linux-ARM64": "IPTV Scanner Editor Pro-Linux-ARM64.tar.gz",
-    "Linux-x86_64": "IPTV Scanner Editor Pro-Linux-x86_64.tar.gz",
+    "Windows": ("ISEP-Windows-x86_64.exe", "IPTV Scanner Editor Pro-Windows-x86_64.exe"),
+    "Darwin": ("ISEP-macOS-ARM64.zip", "IPTV Scanner Editor Pro-macOS-ARM64.zip"),
+    "Linux-ARM64": ("ISEP-Linux-ARM64.tar.gz", "IPTV Scanner Editor Pro-Linux-ARM64.tar.gz"),
+    "Linux-x86_64": ("ISEP-Linux-x86_64.tar.gz", "IPTV Scanner Editor Pro-Linux-x86_64.tar.gz"),
 }
 
 
 def _get_legacy_asset_name():
-    """返回当前平台对应的旧版 Release asset 文件名（用于向后兼容）"""
+    """返回当前平台对应的旧版 Release asset 文件名元组（用于向后兼容）"""
     system = platform.system()
     if system == "Windows":
         return _LEGACY_ASSET_NAMES["Windows"]
@@ -113,7 +113,7 @@ class UpdateCheckThread(QThread):
             import aiohttp
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest",
+                    "https://api.github.com/repos/sumingyd/guangyu/releases/latest",
                     headers={'User-Agent': APP_USER_AGENT},
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
@@ -125,11 +125,11 @@ class UpdateCheckThread(QThread):
                         # 查找当前平台对应的下载链接
                         download_url = release_url
                         asset_name = _get_platform_asset_name()
-                        legacy_name = _get_legacy_asset_name()
+                        legacy_names = _get_legacy_asset_name() or ()
                         if asset_name:
                             for asset in data.get('assets', []):
                                 name = asset.get('name', '')
-                                if name == asset_name or name == legacy_name:
+                                if name == asset_name or name in legacy_names:
                                     download_url = asset.get('browser_download_url', release_url)
                                     break
 

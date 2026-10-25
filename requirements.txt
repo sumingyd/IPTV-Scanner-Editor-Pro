@@ -1,4 +1,4 @@
-# ISEP 依赖声明
+# GuangYu 依赖声明
 # 使用 pip install -r requirements.txt 安装所有依赖
 
 # 核心GUI框架

@@ -46,7 +46,7 @@ class AboutDialog(FloatingDialog):
         from ui.styles import AppStyles
         tr = self.language_manager.tr
         c = self._colors
-        self.setWindowTitle(tr("about_dialog_title", "About ISEP"))
+        self.setWindowTitle(tr("about_dialog_title", "About GuangYu"))
         self.setMinimumSize(420, 380)
 
         main_layout = QtWidgets.QVBoxLayout(self)
@@ -152,7 +152,7 @@ class AboutDialog(FloatingDialog):
         bottom_layout = QtWidgets.QHBoxLayout()
         bottom_layout.setSpacing(12)
 
-        self.copyright_label = QtWidgets.QLabel(tr("copyright_text", "© 2025-2026 ISEP"))
+        self.copyright_label = QtWidgets.QLabel(tr("copyright_text", "© 2025-2026 GuangYu"))
         self.copyright_label.setStyleSheet(
             f"font-size: 10px; color: {c['player_panel_secondary']};"
             f" background-color: transparent;"
@@ -160,7 +160,7 @@ class AboutDialog(FloatingDialog):
 
         github_link = QtWidgets.QLabel()
         github_link.setText(
-            f'<a href="https://github.com/sumingyd/IPTV-Scanner-Editor-Pro" '
+            f'<a href="https://github.com/sumingyd/guangyu" '
             f'style="color: {c["accent"]}; text-decoration: none; font-size: 10px;">'
             f'{tr("github_repo", "GitHub Repository")}</a>'
         )
@@ -277,7 +277,7 @@ class AboutDialog(FloatingDialog):
             import aiohttp
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest",
+                    "https://api.github.com/repos/sumingyd/guangyu/releases/latest",
                     headers={'User-Agent': APP_USER_AGENT}
                 ) as response:
                     if response.status == 200:

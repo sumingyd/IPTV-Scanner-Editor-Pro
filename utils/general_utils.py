@@ -342,7 +342,7 @@ def _ensure_prog_id(prog_id, app_name=None):
         return False
     try:
         if app_name is None:
-            app_name = "ISEP"
+            app_name = "GuangYu"
         with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, f"Software\\Classes\\{prog_id}", 0, winreg.KEY_WRITE) as key:
             winreg.SetValueEx(key, "", 0, winreg.REG_SZ, app_name)
 

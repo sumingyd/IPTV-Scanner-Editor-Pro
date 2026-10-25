@@ -113,4 +113,4 @@ class TrayMixin:
         tray = self._system_tray
         if tray:
             tray.show()
-            tray.setToolTip(tr('app_title', 'ISEP'))
+            tray.setToolTip(tr('app_title', 'GuangYu'))

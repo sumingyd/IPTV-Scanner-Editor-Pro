@@ -19,5 +19,5 @@ dependencyResolutionManagement {
         maven { url "https://chaquo.com/maven" }
     }
 }
-rootProject.name = "ISEP"
+rootProject.name = "GuangYu"
 include ':app'

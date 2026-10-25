@@ -101,9 +101,9 @@ android {
     /* 自定义 APK 输出文件名：按 ABI 命名
      *
      * 通过 -PtargetAbi=xxx 控制单 ABI 构建：
-     * - gradlew assembleRelease -PtargetAbi=arm64-v8a   → ISEP-Android-arm64.apk
-     * - gradlew assembleRelease -PtargetAbi=armeabi-v7a → ISEP-Android-arm32.apk
-     * - 不传参数 → ISEP-Android-universal.apk（含两个 ABI）
+     * - gradlew assembleRelease -PtargetAbi=arm64-v8a   → GuangYu-Android-arm64.apk
+     * - gradlew assembleRelease -PtargetAbi=armeabi-v7a → GuangYu-Android-arm32.apk
+     * - 不传参数 → GuangYu-Android-universal.apk（含两个 ABI）
      *
      * versionCode 按 ABI 区分（确保各 ABI 的 versionCode 唯一）：
      * arm64-v8a: versionCode 不变（主版本）
@@ -123,7 +123,7 @@ android {
             } else {
                 abiSuffix = '-universal'
             }
-            output.outputFileName = "ISEP-Android${abiSuffix}.apk"
+            output.outputFileName = "GuangYu-Android${abiSuffix}.apk"
         }
     }
 

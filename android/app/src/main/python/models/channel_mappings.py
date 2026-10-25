@@ -46,7 +46,7 @@ except ImportError:
 
 # 默认远程URL - 优先使用CSV格式，如果不存在则尝试TXT格式
 DEFAULT_REMOTE_URL = (
-    "https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/local_channel_mappings.csv"
+    "https://raw.githubusercontent.com/sumingyd/guangyu/main/local_channel_mappings.csv"
 )
 
 # 本地缓存文件路径（使用绝对路径，兼容PyInstaller打包）

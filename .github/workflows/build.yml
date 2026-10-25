@@ -81,10 +81,10 @@ jobs:
       - name: Verify and rename executable
         shell: pwsh
         run: |
-          if (-not (Test-Path "dist/ISEP.exe")) {
+          if (-not (Test-Path "dist/GuangYu.exe")) {
             throw "Expected executable was not found"
           }
-          Move-Item "dist/ISEP.exe" "dist/ISEP-Windows-x86_64.exe" -Force
+          Move-Item "dist/GuangYu.exe" "dist/GuangYu-Windows-x86_64.exe" -Force
 
       - name: Package libmpv fallback
         shell: pwsh
@@ -103,7 +103,7 @@ jobs:
         with:
           tag_name: ${{ inputs.release_tag }}
           files: |
-            dist/ISEP-Windows-x86_64.exe
+            dist/GuangYu-Windows-x86_64.exe
             dist/libmpv-fallback-windows.zip
           fail_on_unmatched_files: true
           overwrite_files: true
@@ -156,13 +156,13 @@ jobs:
       - name: Package .app as zip
         run: |
           cd dist
-          zip -r "ISEP-macOS-ARM64.zip" "ISEP.app"
+          zip -r "GuangYu-macOS-ARM64.zip" "GuangYu.app"
 
       - name: Upload .app to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: dist/ISEP-macOS-ARM64.zip
+          files: dist/GuangYu-macOS-ARM64.zip
           fail_on_unmatched_files: true
           overwrite_files: true
         env:
@@ -220,23 +220,23 @@ jobs:
 
       - name: Verify executable
         run: |
-          if [ ! -f "dist/ISEP" ]; then
+          if [ ! -f "dist/GuangYu" ]; then
             echo "Expected executable was not found"
             exit 1
           fi
-          chmod +x "dist/ISEP"
-          file "dist/ISEP"
+          chmod +x "dist/GuangYu"
+          file "dist/GuangYu"
 
       - name: Compress executable
         run: |
           cd dist
-          tar czf "ISEP-Linux-x86_64.tar.gz" "ISEP" "icons" "ISEP.desktop" "install.sh"
+          tar czf "GuangYu-Linux-x86_64.tar.gz" "GuangYu" "icons" "GuangYu.desktop" "install.sh"
 
       - name: Upload executable to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: dist/ISEP-Linux-x86_64.tar.gz
+          files: dist/GuangYu-Linux-x86_64.tar.gz
           fail_on_unmatched_files: true
           overwrite_files: true
         env:
@@ -319,23 +319,23 @@ jobs:
 
       - name: Verify executable
         run: |
-          if [ ! -f "dist/ISEP" ]; then
+          if [ ! -f "dist/GuangYu" ]; then
             echo "Expected executable was not found"
             exit 1
           fi
-          chmod +x "dist/ISEP"
-          file "dist/ISEP"
+          chmod +x "dist/GuangYu"
+          file "dist/GuangYu"
 
       - name: Compress executable
         run: |
           cd dist
-          tar czf "ISEP-Linux-ARM64.tar.gz" "ISEP" "icons" "ISEP.desktop" "install.sh"
+          tar czf "GuangYu-Linux-ARM64.tar.gz" "GuangYu" "icons" "GuangYu.desktop" "install.sh"
 
       - name: Upload executable to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: dist/ISEP-Linux-ARM64.tar.gz
+          files: dist/GuangYu-Linux-ARM64.tar.gz
           fail_on_unmatched_files: true
           overwrite_files: true
         env:
@@ -465,7 +465,7 @@ jobs:
         working-directory: android
         run: |
           mkdir -p apk-output
-          cp "app/build/outputs/apk/release/ISEP-Android-arm64.apk" apk-output/
+          cp "app/build/outputs/apk/release/GuangYu-Android-arm64.apk" apk-output/
 
       - name: Build arm32 release APK
         working-directory: android
@@ -477,7 +477,7 @@ jobs:
       - name: Stash arm32 APK
         working-directory: android
         run: |
-          cp "app/build/outputs/apk/release/ISEP-Android-arm32.apk" apk-output/
+          cp "app/build/outputs/apk/release/GuangYu-Android-arm32.apk" apk-output/
 
       - name: Verify APKs
         id: apk
@@ -486,8 +486,8 @@ jobs:
           echo "=== All APK files ==="
           ls -la apk-output/
 
-          ARM64_APK="apk-output/ISEP-Android-arm64.apk"
-          ARM32_APK="apk-output/ISEP-Android-arm32.apk"
+          ARM64_APK="apk-output/GuangYu-Android-arm64.apk"
+          ARM32_APK="apk-output/GuangYu-Android-arm32.apk"
 
           if [ ! -f "$ARM64_APK" ]; then
             echo "ERROR: arm64 APK not found"
@@ -502,7 +502,7 @@ jobs:
           echo "arm32 APK: $ARM32_APK ($(ls -lh "$ARM32_APK" | awk '{print $5}'))"
 
           # 输出 glob 模式（相对于仓库根目录），匹配两个 APK
-          echo "apk_glob=android/apk-output/ISEP-Android-arm*.apk" >> "$GITHUB_OUTPUT"
+          echo "apk_glob=android/apk-output/GuangYu-Android-arm*.apk" >> "$GITHUB_OUTPUT"
 
       - name: Upload APKs to release
         uses: softprops/action-gh-release@v2

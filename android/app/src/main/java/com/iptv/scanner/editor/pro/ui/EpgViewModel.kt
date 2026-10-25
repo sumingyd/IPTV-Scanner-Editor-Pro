@@ -821,7 +821,7 @@ internal fun AppViewModel.buildM3uContent(channels: List<IptvChannel>): String {
 
 internal fun AppViewModel.writeM3uToFile(content: String): Boolean {
     val now = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
-    val filename = "ISEP_export_$now.m3u"
+    val filename = "GuangYu_export_$now.m3u"
     return try {
         val app = getApplication<Application>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -908,7 +908,7 @@ internal fun AppViewModel.exportClip(startTime: Double, duration: Double, format
             val app = getApplication<Application>()
             val now = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
             val ext = when (format) { "gif" -> "gif"; "mp3" -> "mp3"; else -> "mp4" }
-            val filename = "ISEP_clip_$now.$ext"
+            val filename = "GuangYu_clip_$now.$ext"
 
             // 获取输出路径
             val outFile = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

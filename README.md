@@ -1,11 +1,13 @@
-# ISEP — IPTV Scanner Editor Pro
+# 光屿 GuangYu
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
 [![PySide6](https://img.shields.io/badge/PySide6-6.4+-green.svg)](https://www.qt.io/qt-for-python)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-lightgrey.svg)](https://github.com/sumingyd/IPTV-Scanner-Editor-Pro)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-lightgrey.svg)](https://github.com/sumingyd/guangyu)
 
-**ISEP**（IPTV Scanner Editor Pro）是一款专业强大的 IPTV 播放器，跨平台支持 Windows / macOS / Linux 桌面端与 Android 手机 / 平板 / TV。以 **MPV 播放引擎为核心**，集成 FFprobe 流探测，覆盖「看、扫、管」完整链路：支持 EPG 电子节目单、频道台标自动匹配、HDR 显示、时移/回看、在线字幕下载、音频可视化、断点续播、片段导出等高级播放能力，同时提供频道扫描、批量验证、订阅管理等辅助工具。液态玻璃质感界面、中英双语，从扫描到观看一站式完成。
+**光屿 GuangYu** 是一款专业强大的 IPTV 播放器，跨平台支持 Windows / macOS / Linux 桌面端与 Android 手机 / 平板 / TV。以 **MPV 播放引擎为核心**，集成 FFprobe 流探测，覆盖「看、扫、管」完整链路：支持 EPG 电子节目单、频道台标自动匹配、HDR 显示、时移/回看、在线字幕下载、音频可视化、断点续播、片段导出等高级播放能力，同时提供频道扫描、批量验证、订阅管理等辅助工具。液态玻璃质感界面、中英双语，从扫描到观看一站式完成。
+
+> 🏷️ 原名 **IPTV-Scanner-Editor-Pro**（ISEP），已更名为 **光屿 GuangYu**，GitHub 旧链接自动重定向，历史数据与配置完全兼容。
 
 ## 📸 程序截图
 
@@ -783,7 +785,7 @@ python main.py
 ## 📁 项目结构
 
 ```
-IPTV-Scanner-Editor-Pro/
+guangyu/
 ├── pyqt_player.py              # 主窗口 & 播放器核心（954行，15个Mixin + QMainWindow）
 ├── build.py                    # PyInstaller 打包脚本
 ├── requirements.txt            # Python 依赖
@@ -1043,7 +1045,7 @@ IPTV-Scanner-Editor-Pro/
 
 - **QQ群**：[757694351](https://qm.qq.com/q/lVkybTyrdK)
 
-- **GitHub Issues**：[提交问题](https://github.com/sumingyd/IPTV-Scanner-Editor-Pro/issues)
+- **GitHub Issues**：[提交问题](https://github.com/sumingyd/guangyu/issues)
 
 ## 💖 支持项目
 

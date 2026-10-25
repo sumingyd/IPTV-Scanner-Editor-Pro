@@ -8,7 +8,7 @@ LogoRule = Tuple[Pattern, Union[str, Callable[[re.Match], Optional[str]]]]
 
 class LogoMatcher:
 
-    LOGO_BASE_URL = 'https://raw.githubusercontent.com/sumingyd/IPTV-Scanner-Editor-Pro/main/img/'
+    LOGO_BASE_URL = 'https://raw.githubusercontent.com/sumingyd/guangyu/main/img/'
 
     # ── 所有可用 logo 文件名（不含 .png 后缀） ──
     # 新增 logo 后需运行: (Get-ChildItem img/*.png -Name) | ForEach-Object { "'$($_ -replace '\.png$','')'," } | Sort-Object

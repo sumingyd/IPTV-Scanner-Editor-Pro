@@ -1709,7 +1709,7 @@ internal var currentIsLocalFile: Boolean
 
     companion object {
         internal const val TAG = "AppViewModel"
-        internal const val GITHUB_LATEST_API = "https://api.github.com/repos/sumingyd/IPTV-Scanner-Editor-Pro/releases/latest"
+        internal const val GITHUB_LATEST_API = "https://api.github.com/repos/sumingyd/guangyu/releases/latest"
 
         fun factory(app: Application): ViewModelProvider.AndroidViewModelFactory =
             object : ViewModelProvider.AndroidViewModelFactory(app) {}

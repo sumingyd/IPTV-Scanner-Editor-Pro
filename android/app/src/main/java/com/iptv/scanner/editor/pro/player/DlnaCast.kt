@@ -182,7 +182,7 @@ object DlnaCast {
             append("MAN: \"ssdp:discover\"\r\n")
             append("MX: 2\r\n")
             append("ST: $target\r\n")
-            append("USER-AGENT: Android/1.0 UPnP/1.0 ISEP/1.0\r\n\r\n")
+            append("USER-AGENT: Android/1.0 UPnP/1.0 GuangYu/1.0\r\n\r\n")
         }.toByteArray(Charsets.UTF_8)
         return DatagramPacket(payload, payload.size, dest, SSDP_PORT)
     }
@@ -263,7 +263,7 @@ object DlnaCast {
         val conn = url.openConnection()
         conn.connectTimeout = DESC_TIMEOUT_MS
         conn.readTimeout = DESC_TIMEOUT_MS
-        conn.setRequestProperty("User-Agent", "Android/1.0 UPnP/1.0 ISEP/1.0")
+        conn.setRequestProperty("User-Agent", "Android/1.0 UPnP/1.0 GuangYu/1.0")
         return conn.getInputStream().bufferedReader(Charsets.UTF_8).use { it.readText() }
     }
 
