@@ -393,7 +393,7 @@ internal fun PortraitLocalFileInfo(
                         }
                         mediaInfo["fps"]?.takeIf { it.isNotEmpty() && it != "null" && it != "0" && it != "0.000" }?.let { fps ->
                             val fpsVal = fps.toFloatOrNull()
-                            MiniBadge(if (fpsVal != null) "${fpsVal.toInt()}fps" else "${fps}fps")
+                            MiniBadge(if (fpsVal != null) "${fpsVal.toInt()}FPS" else "${fps}FPS")
                         }
                     }
 

@@ -2788,7 +2788,7 @@ internal fun buildTvMediaBadges(mpv: com.iptv.scanner.editor.pro.player.Player, 
     // 帧率
     mediaInfo["fps"]?.takeIf { it.isNotEmpty() && it != "null" && it != "0" && it != "0.000" }?.let { fps ->
         val fpsVal = fps.toFloatOrNull()
-        result.add(if (fpsVal != null) "${fpsVal.toInt()}fps" else "${fps}fps")
+        result.add(if (fpsVal != null) "${fpsVal.toInt()}FPS" else "${fps}FPS")
     }
     // 容器格式
     mediaInfo["containerFormat"]?.takeIf { it.isNotEmpty() && it != "null" }?.let { fmt ->

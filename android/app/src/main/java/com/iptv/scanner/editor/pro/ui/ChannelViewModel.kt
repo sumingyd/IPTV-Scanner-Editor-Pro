@@ -1123,7 +1123,7 @@ internal fun AppViewModel.generateMissingThumbnails(channelsToGen: List<IptvChan
                             if (container.isNotEmpty()) parts.add(container)
                         }
                         // 帧率
-                        if (fps != null && fps > 0) parts.add("${fps.toInt()}fps")
+                        if (fps != null && fps > 0) parts.add("${fps.toInt()}FPS")
                         // 码率
                         if (br > 0) parts.add("${br / 1000}kbps")
                         // 协议

@@ -875,7 +875,7 @@ private fun buildSplitAllBadges(
     }
     // 帧率
     v("fps")?.let { s ->
-        s.toFloatOrNull()?.let { f -> result.add("${f.toInt()}fps") }
+        s.toFloatOrNull()?.let { f -> result.add("${f.toInt()}FPS") }
     }
     // 容器格式
     v("containerFormat")?.let { fmt ->

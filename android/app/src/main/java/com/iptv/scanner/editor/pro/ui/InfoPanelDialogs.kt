@@ -548,7 +548,7 @@ internal fun PortraitMediaInfoBar(viewModel: AppViewModel) {
                 // FPS
                 mediaInfo["fps"]?.takeIf { it.isNotEmpty() && it != "null" && it != "0" && it != "0.000" }?.let { fps ->
                     val fpsVal = fps.toFloatOrNull()
-                    val fpsLabel = if (fpsVal != null) "${fpsVal.toInt()}fps" else "${fps}fps"
+                    val fpsLabel = if (fpsVal != null) "${fpsVal.toInt()}FPS" else "${fps}FPS"
                     MediaBadge(label = fpsLabel, oc = oc)
                 }
                 // 音频编码（清理前缀：audio/aac → AAC）
