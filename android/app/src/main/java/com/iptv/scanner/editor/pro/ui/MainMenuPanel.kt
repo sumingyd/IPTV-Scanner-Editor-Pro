@@ -369,31 +369,17 @@ fun MainMenuPanel(viewModel: AppViewModel) {
                 // 底栏样式选择弹窗打开时：按键由菜单层统一路由给弹窗
                 // （上/下/左/右移动选中项，OK 在 KeyUp 应用；选择后弹窗保持打开可连续切换）
                 if (showStylePicker) {
-                    return@onPreviewKeyEvent when (event.type) {
-                        KeyEventType.KeyDown -> when (event.key) {
-                            Key.DirectionUp -> {
-                                stylePickerIdx = (stylePickerIdx + TV_BOTTOM_BAR_STYLES.size - 1) % TV_BOTTOM_BAR_STYLES.size
-                                viewModel.setStylePreview(stylePickerIdx)  // 底栏实时跟随焦点预览
-                                true
-                            }
-                            Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight -> {
-                                stylePickerIdx = (stylePickerIdx + 1) % TV_BOTTOM_BAR_STYLES.size
-                                viewModel.setStylePreview(stylePickerIdx)
-                                true
-                            }
-                            Key.DirectionCenter, Key.Enter -> true  // 应用延迟到 KeyUp（防焦点迁移误触发）
-                            else -> false
+                    return@onPreviewKeyEvent handleStylePickerKey(
+                        event,
+                        onMove = { dir ->
+                            stylePickerIdx = (stylePickerIdx + dir + TV_BOTTOM_BAR_STYLES.size) % TV_BOTTOM_BAR_STYLES.size
+                            viewModel.setStylePreview(stylePickerIdx)  // 底栏实时跟随焦点预览
+                        },
+                        onApply = {
+                            viewModel.setBottomBarStyle(stylePickerIdx)
+                            viewModel.setStylePreview(null)  // 已确定，退出预览态
                         }
-                        KeyEventType.KeyUp -> when (event.key) {
-                            Key.DirectionCenter, Key.Enter -> {
-                                viewModel.setBottomBarStyle(stylePickerIdx)
-                                viewModel.setStylePreview(null)  // 已确定，退出预览态
-                                true
-                            }
-                            else -> false
-                        }
-                        else -> false
-                    }
+                    )
                 }
                 when (event.type) {
                     KeyEventType.KeyDown -> when (event.key) {
@@ -582,7 +568,24 @@ fun MainMenuPanel(viewModel: AppViewModel) {
     }
 
     // PHONE模式：原有全屏覆盖菜单
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+            // 底栏样式弹窗打开时同样走统一按键路由（带键盘的平板/手机可用 OK 键确定）
+            if (showStylePicker) {
+                handleStylePickerKey(
+                    event,
+                    onMove = { dir ->
+                        stylePickerIdx = (stylePickerIdx + dir + TV_BOTTOM_BAR_STYLES.size) % TV_BOTTOM_BAR_STYLES.size
+                        viewModel.setStylePreview(stylePickerIdx)
+                    },
+                    onApply = {
+                        viewModel.setBottomBarStyle(stylePickerIdx)
+                        viewModel.setStylePreview(null)
+                    }
+                )
+            } else false
+        }
+    ) {
         val useDualColumn = maxWidth > 500.dp
         // 竖屏同样支持底栏样式选择弹窗
         if (showStylePicker) {
@@ -1038,6 +1041,29 @@ private fun MenuEntryItem(
 // -----------------------------------------------------------------
 // 全屏底栏样式选择弹窗
 // -----------------------------------------------------------------
+
+/**
+ * 底栏样式弹窗按键路由（TV/PHONE 模式共用）：
+ * 上/下（或左/右）移动选中项并实时预览，OK（DPAD_CENTER/Enter/小键盘Enter）在 KeyUp 应用
+ * （应用延迟到 KeyUp，防焦点迁移误触发）。不匹配的按键返回 false 交给外层继续处理。
+ */
+private fun handleStylePickerKey(
+    event: androidx.compose.ui.input.key.KeyEvent,
+    onMove: (Int) -> Unit,
+    onApply: () -> Unit
+): Boolean = when (event.type) {
+    KeyEventType.KeyDown -> when (event.key) {
+        Key.DirectionUp -> { onMove(-1); true }
+        Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight -> { onMove(1); true }
+        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> true
+        else -> false
+    }
+    KeyEventType.KeyUp -> when (event.key) {
+        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { onApply(); true }
+        else -> false
+    }
+    else -> false
+}
 
 /**
  * 全屏底栏样式单选弹窗：替代原「点击循环切换」——循环式无法预知切到哪个样式、

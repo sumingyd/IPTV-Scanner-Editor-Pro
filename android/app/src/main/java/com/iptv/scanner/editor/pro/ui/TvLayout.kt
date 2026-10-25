@@ -792,6 +792,7 @@ private fun TvBottomBarStyleB(
     var tick by remember { mutableStateOf(0L) }
     LaunchedEffect(Unit) { while (true) { tick = System.currentTimeMillis(); delay(1000L) } }
     val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+    val mediaBadges = TvBarMediaBadges(fileLoaded, mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     val statusTag = when {
         !fileLoaded -> null
@@ -841,6 +842,8 @@ private fun TvBottomBarStyleB(
                     Text(text = statusTag.first, color = statusTag.second, fontSize = 10.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
                 }
             }
+            Spacer(modifier = Modifier.width(4.dp))
+            TvBarBadgeTexts(mediaBadges.take(2), sp = 9.sp)
             Spacer(modifier = Modifier.width(8.dp))
             // 节目名 + 细进度（weight 占据剩余空间）
             Column(modifier = Modifier.weight(1f)) {
@@ -869,10 +872,7 @@ private fun TvBottomBarStyleB(
                 }
             }
             Spacer(modifier = Modifier.width(6.dp))
-            // 播放控制组
-            IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(30.dp).tvFocusBorder()) {
-                Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(16.dp))
-            }
+            // 播放控制组（播放/停止/返回分屏）
             IconButton(
                 onClick = { viewModel.mpv.setPause(!paused) },
                 modifier = Modifier
@@ -881,9 +881,6 @@ private fun TvBottomBarStyleB(
                     .tvFocusBorder()
             ) {
                 Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(18.dp))
-            }
-            IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(30.dp).tvFocusBorder()) {
-                Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(16.dp))
             }
             IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(30.dp).tvFocusBorder()) {
                 Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(15.dp))
@@ -918,6 +915,7 @@ private fun TvBottomBarStyleC(
     var tick by remember { mutableStateOf(0L) }
     LaunchedEffect(Unit) { while (true) { tick = System.currentTimeMillis(); delay(1000L) } }
     val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+    val mediaBadges = TvBarMediaBadges(fileLoaded, mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     val statusTag = when {
         !fileLoaded -> null
@@ -938,7 +936,7 @@ private fun TvBottomBarStyleC(
                 .padding(horizontal = 24.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 行1：频道号 + 名 + 状态 + 节目时间范围
+            // 行1：频道号 + 名 + 状态 + 徽章 + 节目时间范围
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (displayInfo.idx >= 0) {
                     Text(text = String.format("%03d", displayInfo.idx + 1), color = AptvAccent, fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -955,6 +953,8 @@ private fun TvBottomBarStyleC(
                         Text(text = statusTag.first, color = statusTag.second, fontSize = 11.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                     }
                 }
+                Spacer(modifier = Modifier.width(6.dp))
+                TvBarBadgeTexts(mediaBadges.take(3), sp = 9.sp)
                 if (currentProgram != null && currentProgram.stopTs > 0) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -964,11 +964,8 @@ private fun TvBottomBarStyleC(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            // 行2：居中大号控制按钮组
+            // 行2：居中大号控制按钮组（播放/停止/返回分屏）
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(40.dp).tvFocusBorder()) {
-                    Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.textPrimary, modifier = Modifier.size(26.dp))
-                }
                 Surface(color = AptvAccent.copy(alpha = 0.18f), shape = androidx.compose.foundation.shape.CircleShape) {
                     IconButton(
                         onClick = { viewModel.mpv.setPause(!paused) },
@@ -979,9 +976,6 @@ private fun TvBottomBarStyleC(
                     ) {
                         Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(30.dp))
                     }
-                }
-                IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(40.dp).tvFocusBorder()) {
-                    Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.textPrimary, modifier = Modifier.size(26.dp))
                 }
                 IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(36.dp).tvFocusBorder()) {
                     Icon(Icons.Default.Stop, "停止", tint = oc.textSecondary, modifier = Modifier.size(20.dp))
@@ -1036,6 +1030,7 @@ private fun TvBottomBarStyleD(
     var tick by remember { mutableStateOf(0L) }
     LaunchedEffect(Unit) { while (true) { tick = System.currentTimeMillis(); delay(1000L) } }
     val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+    val mediaBadges = TvBarMediaBadges(fileLoaded, mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     val statusTag = when {
         !fileLoaded -> null
@@ -1074,6 +1069,8 @@ private fun TvBottomBarStyleD(
                             Text(text = statusTag.first, color = statusTag.second, fontSize = 10.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
                         }
                     }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    TvBarBadgeTexts(mediaBadges.take(3), sp = 9.sp)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1106,11 +1103,8 @@ private fun TvBottomBarStyleD(
             // 竖分隔条
             Box(modifier = Modifier.width(1.dp).height(36.dp).background(TV_ROW_DIVIDER))
             Spacer(modifier = Modifier.width(10.dp))
-            // 右侧控制区
+            // 右侧控制区（暂停/停止/返回分屏）
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
-                    Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(18.dp))
-                }
                 IconButton(
                     onClick = { viewModel.mpv.setPause(!paused) },
                     modifier = Modifier
@@ -1119,9 +1113,6 @@ private fun TvBottomBarStyleD(
                         .tvFocusBorder()
                 ) {
                     Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(20.dp))
-                }
-                IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
-                    Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(18.dp))
                 }
                 IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(30.dp).tvFocusBorder()) {
                     Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(16.dp))
@@ -1250,14 +1241,14 @@ private fun TvBarThinProgress(progress: Float, modifier: Modifier = Modifier, he
     }
 }
 
-/** 共享：横排控制按钮组（上一台/播放/下一台/停止/返回分屏），barFocus 为初始焦点落点 */
+/** 共享：横排控制按钮组（播放/停止/返回分屏），barFocus 为初始焦点落点 */
 @Composable
 private fun TvBarControls(
     viewModel: AppViewModel,
     paused: Boolean,
     barFocus: FocusRequester?,
     oc: PlayerOverlayColors,
-    showPrevNext: Boolean = true,
+    showPrevNext: Boolean = false,
     buttonSize: Dp = 32.dp,
     playSize: Dp = 36.dp,
     iconSize: Dp = 17.dp,
@@ -1332,7 +1323,7 @@ private fun TvBarMediaBadges(
     tick: Long
 ): List<String> = if (fileLoaded) {
     remember(tick, videoWidth, videoHeight) {
-        buildTvMediaBadges(mpv, videoWidth, videoHeight, playbackUrl).take(4)
+        buildTvMediaBadges(mpv, videoWidth, videoHeight, playbackUrl)
     }
 } else emptyList()
 
@@ -1364,6 +1355,7 @@ private fun TvBottomBarStyleE(
 ) {
     val liquidGlass by viewModel.liquidGlass.collectAsState()
     val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+    val mediaBadges = TvBarMediaBadges(fileLoaded, viewModel.mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), 0L)
     // wrap 宽度胶囊在 820dp 容器内必须显式居中（Box 默认 TopStart 会贴左）
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         GlassPanel(liquidGlass = liquidGlass, cornerRadius = 22.dp, overlayDark = true) {
@@ -1391,6 +1383,8 @@ private fun TvBottomBarStyleE(
                     text = currentProgram?.title?.ifEmpty { null } ?: "精彩节目",
                     color = oc.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
+                Box(modifier = Modifier.width(1.dp).height(22.dp).background(TV_ROW_DIVIDER))
+                TvBarBadgeTexts(mediaBadges.take(2), sp = 9.sp)
                 Box(modifier = Modifier.width(1.dp).height(22.dp).background(TV_ROW_DIVIDER))
                 TvBarClockText()
                 Box(modifier = Modifier.width(1.dp).height(22.dp).background(TV_ROW_DIVIDER))
@@ -1495,6 +1489,7 @@ private fun TvBottomBarStyleF(
     val dateFmt = remember { java.text.SimpleDateFormat("MM月dd日 EE", java.util.Locale.CHINESE) }
     val fullTimeFmt = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
     val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+    val mediaBadges = TvBarMediaBadges(fileLoaded, mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 10.dp, overlayDark = true) {
         val oc = rememberPlayerOverlayColors()
@@ -1522,6 +1517,8 @@ private fun TvBottomBarStyleF(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         TvBarTags(statusTag, paused, fileLoaded)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        TvBarBadgeTexts(mediaBadges.take(3), sp = 9.sp)
                     }
                     Spacer(modifier = Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1705,6 +1702,7 @@ private fun TvBottomBarStyleH(
     val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
     val fullTimeFmt = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
     val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+    val mediaBadges = TvBarMediaBadges(fileLoaded, mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 8.dp, overlayDark = true) {
         val oc = rememberPlayerOverlayColors()
@@ -1721,7 +1719,7 @@ private fun TvBottomBarStyleH(
             Box(modifier = Modifier.width(1.dp).height(48.dp).background(TV_ROW_DIVIDER))
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                // 行1：台标 + 频道号 + 名 + 状态 + 暂停 | 时钟
+                // 行1：台标 + 频道号 + 名 + 状态 + 徽章 | 时钟
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TvBarLogo(displayInfo, 44.dp, 24.dp, 10.sp)
                     Spacer(modifier = Modifier.width(7.dp))
@@ -1736,6 +1734,8 @@ private fun TvBottomBarStyleH(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     TvBarTags(statusTag, paused, fileLoaded, sp = 10.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    TvBarBadgeTexts(mediaBadges.take(3), sp = 9.sp)
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
                         text = tvBarPosText(tick, timePos, playbackMode, showExitCatchup, fullTimeFmt),
@@ -1800,6 +1800,7 @@ private fun TvBottomBarStyleI(
     val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
     val fullTimeFmt = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
     val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+    val mediaBadges = TvBarMediaBadges(fileLoaded, mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 10.dp, overlayDark = true) {
         val oc = rememberPlayerOverlayColors()
@@ -1858,6 +1859,8 @@ private fun TvBottomBarStyleI(
                         color = Color(0x80FFFFFF), fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
+                Spacer(modifier = Modifier.height(3.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { TvBarBadgeTexts(mediaBadges.take(3), sp = 9.sp) }
             }
             Box(modifier = Modifier.width(1.dp).height(52.dp).background(TV_ROW_DIVIDER))
             Spacer(modifier = Modifier.width(8.dp))
@@ -1896,6 +1899,7 @@ private fun TvBottomBarStyleJ(
     val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
     val fullTimeFmt = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
     val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+    val mediaBadges = TvBarMediaBadges(fileLoaded, mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 14.dp, overlayDark = true) {
         val oc = rememberPlayerOverlayColors()
@@ -1908,7 +1912,7 @@ private fun TvBottomBarStyleJ(
         ) {
             // 左侧 OSD 信息区（垂直居中三行）
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                // 行1：频道号（大）+ 频道名（大）+ 状态 + 暂停
+                // 行1：频道号（大）+ 频道名（大）+ 状态 + 徽章
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (displayInfo.idx >= 0) {
                         Text(text = String.format("%03d", displayInfo.idx + 1), color = AptvAccent, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -1921,6 +1925,8 @@ private fun TvBottomBarStyleJ(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     TvBarTags(statusTag, paused, fileLoaded, sp = 10.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    TvBarBadgeTexts(mediaBadges.take(3), sp = 9.sp)
                 }
                 Spacer(modifier = Modifier.height(3.dp))
                 // 行2：当前节目 · 时段 · 时钟 · 剩余
@@ -1948,24 +1954,16 @@ private fun TvBottomBarStyleJ(
             Spacer(modifier = Modifier.width(12.dp))
             Box(modifier = Modifier.width(1.dp).height(52.dp).background(TV_ROW_DIVIDER))
             Spacer(modifier = Modifier.width(10.dp))
-            // 右侧竖排按钮组
+            // 右侧竖排按钮组（播放/停止/返回分屏）
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(28.dp).tvFocusBorder()) {
-                        Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(15.dp))
-                    }
-                    IconButton(
-                        onClick = { viewModel.mpv.setPause(!paused) },
-                        modifier = Modifier
-                            .size(32.dp)
-                            .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
-                            .tvFocusBorder()
-                    ) {
-                        Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(28.dp).tvFocusBorder()) {
-                        Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(15.dp))
-                    }
+                IconButton(
+                    onClick = { viewModel.mpv.setPause(!paused) },
+                    modifier = Modifier
+                        .size(32.dp)
+                        .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
+                        .tvFocusBorder()
+                ) {
+                    Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(18.dp))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(28.dp).tvFocusBorder()) {
@@ -2002,6 +2000,7 @@ private fun TvBottomBarStyleK(
     val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
     val fullTimeFmt = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
     val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+    val mediaBadges = TvBarMediaBadges(fileLoaded, mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 12.dp, overlayDark = true) {
         val oc = rememberPlayerOverlayColors()
@@ -2018,7 +2017,7 @@ private fun TvBottomBarStyleK(
                 buttonSize = 36.dp, playSize = 46.dp, iconSize = 20.dp, playIconSize = 27.dp, spacing = 14.dp
             )
             Spacer(modifier = Modifier.height(6.dp))
-            // 行2：台标+频道+状态 | 节目+时段+进度+时钟+剩余
+            // 行2：台标+频道+状态+徽章 | 节目+时段+进度+时钟+剩余
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 TvBarLogo(displayInfo, 40.dp, 22.dp, 9.sp)
                 Spacer(modifier = Modifier.width(7.dp))
@@ -2033,6 +2032,8 @@ private fun TvBottomBarStyleK(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 TvBarTags(statusTag, paused, fileLoaded, sp = 10.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                TvBarBadgeTexts(mediaBadges.take(3), sp = 9.sp)
                 Spacer(modifier = Modifier.weight(1f))
                 val range = tvBarProgramRange(currentProgram, timeFmt)
                 if (range != null) {
@@ -2085,6 +2086,7 @@ private fun TvBottomBarStyleL(
     val dateFmt = remember { java.text.SimpleDateFormat("MM月dd日", java.util.Locale.CHINESE) }
     val fullTimeFmt = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
     val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+    val mediaBadges = TvBarMediaBadges(fileLoaded, mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 10.dp, overlayDark = true) {
         val oc = rememberPlayerOverlayColors()
@@ -2113,6 +2115,8 @@ private fun TvBottomBarStyleL(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     TvBarTags(statusTag, paused, fileLoaded, sp = 10.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    TvBarBadgeTexts(mediaBadges.take(3), sp = 9.sp)
                 }
                 Spacer(modifier = Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2161,12 +2165,9 @@ private fun TvBottomBarStyleL(
             Spacer(modifier = Modifier.width(10.dp))
             Box(modifier = Modifier.width(1.dp).height(52.dp).background(TV_ROW_DIVIDER))
             Spacer(modifier = Modifier.width(8.dp))
-            // 右 2x2 按钮网格 + 返回分屏（竖排右侧）
+            // 右按钮组（播放/停止 | 返回分屏）
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
-                        Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(17.dp))
-                    }
                     IconButton(
                         onClick = { viewModel.mpv.setPause(!paused) },
                         modifier = Modifier
@@ -2176,22 +2177,13 @@ private fun TvBottomBarStyleL(
                     ) {
                         Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(18.dp))
                     }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
-                        Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(17.dp))
-                    }
                     IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
                         Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(16.dp))
                     }
                 }
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            Box(modifier = Modifier.width(1.dp).height(52.dp).background(TV_ROW_DIVIDER))
-            Spacer(modifier = Modifier.width(4.dp))
-            // 返回分屏（竖排右侧）
-            IconButton(onClick = { viewModel.setLandscapeSplitMode(true) }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
-                Icon(Icons.Default.FullscreenExit, "返回分屏", tint = oc.iconTint, modifier = Modifier.size(17.dp))
+                IconButton(onClick = { viewModel.setLandscapeSplitMode(true) }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                    Icon(Icons.Default.FullscreenExit, "返回分屏", tint = oc.iconTint, modifier = Modifier.size(17.dp))
+                }
             }
         }
     }
@@ -2542,7 +2534,7 @@ private fun TvBottomBarStyleP(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TvBarControls(viewModel, paused, barFocus, oc, buttonSize = 26.dp, playSize = 30.dp, iconSize = 14.dp, playIconSize = 16.dp, spacing = 2.dp)
                     Spacer(modifier = Modifier.weight(1f))
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { TvBarBadgeTexts(mediaBadges.take(2), sp = 9.sp) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { TvBarBadgeTexts(mediaBadges, sp = 9.sp) }
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -2612,7 +2604,7 @@ private fun TvBottomBarStyleQ(
                             Spacer(modifier = Modifier.width(6.dp))
                             TvBarTags(statusTag, paused, fileLoaded, sp = 9.sp)
                             Spacer(modifier = Modifier.weight(1f))
-                            TvBarBadgeTexts(mediaBadges.take(2), sp = 9.sp)
+                            TvBarBadgeTexts(mediaBadges.take(3), sp = 9.sp)
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         TvBarEpgLine("正在播放", currentProgram, timeFmt, oc.textPrimary, titleSp = 11.sp)
@@ -2622,32 +2614,22 @@ private fun TvBottomBarStyleQ(
                         TvBarEpgLine("下一节目", tvBarNextProgram(currentProgram, epgList), timeFmt, oc.textSecondary, titleSp = 10.sp)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    // 竖排双列按钮
+                    // 竖排按钮（播放/停止/返回分屏）
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(26.dp).tvFocusBorder()) {
-                                Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(14.dp))
-                            }
-                            IconButton(
-                                onClick = { viewModel.mpv.setPause(!paused) },
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
-                                    .tvFocusBorder()
-                            ) {
-                                Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(15.dp))
-                            }
-                            IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(26.dp).tvFocusBorder()) {
-                                Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(14.dp))
-                            }
+                        IconButton(
+                            onClick = { viewModel.mpv.setPause(!paused) },
+                            modifier = Modifier
+                                .size(26.dp)
+                                .then(if (barFocus != null) Modifier.focusRequester(barFocus) else Modifier)
+                                .tvFocusBorder()
+                        ) {
+                            Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(15.dp))
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(26.dp).tvFocusBorder()) {
-                                Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(14.dp))
-                            }
-                            IconButton(onClick = { viewModel.setLandscapeSplitMode(true) }, modifier = Modifier.size(26.dp).tvFocusBorder()) {
-                                Icon(Icons.Default.FullscreenExit, "返回分屏", tint = oc.iconTint, modifier = Modifier.size(14.dp))
-                            }
+                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(26.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(14.dp))
+                        }
+                        IconButton(onClick = { viewModel.setLandscapeSplitMode(true) }, modifier = Modifier.size(26.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.FullscreenExit, "返回分屏", tint = oc.iconTint, modifier = Modifier.size(14.dp))
                         }
                     }
                 }
@@ -2677,6 +2659,7 @@ private fun TvBottomBarStyleR(
     val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
     val fullTimeFmt = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
     val statusTag = tvBarStatusTag(fileLoaded, playbackMode, showExitCatchup)
+    val mediaBadges = TvBarMediaBadges(fileLoaded, viewModel.mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl(), tick)
 
     GlassPanel(liquidGlass = liquidGlass, cornerRadius = 10.dp, overlayDark = true) {
         val oc = rememberPlayerOverlayColors()
@@ -2731,12 +2714,13 @@ private fun TvBottomBarStyleR(
             Spacer(modifier = Modifier.width(10.dp))
             Box(modifier = Modifier.width(1.dp).height(56.dp).background(TV_ROW_DIVIDER))
             Spacer(modifier = Modifier.width(8.dp))
-            // 右：大时钟 + 网速 + 按钮
+            // 右：大时钟 + 徽章 + 网速 + 按钮
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     text = remember(tick) { fullTimeFmt.format(java.util.Date(tick)) },
                     color = Color(0xFFCCCCCC), fontSize = 16.sp, fontWeight = FontWeight.Bold
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { TvBarBadgeTexts(mediaBadges.take(2), sp = 9.sp) }
                 if (netSpeed != null) Text(text = "↓ $netSpeed", color = Color(0x99FFFFFF), fontSize = 9.sp)
                 TvBarControls(viewModel, paused, barFocus, oc, buttonSize = 26.dp, playSize = 30.dp, iconSize = 14.dp, playIconSize = 16.dp, spacing = 2.dp)
             }
