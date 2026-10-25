@@ -36,17 +36,22 @@ import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -63,6 +69,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.iptv.scanner.editor.pro.data.IptvEpgProgram
+import com.iptv.scanner.editor.pro.player.PlayMode
 import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.theme.GlassPanel
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
@@ -90,13 +98,11 @@ internal fun TvSplitLayout(
     val oc = rememberPlayerOverlayColors()
     val liquidGlass by viewModel.liquidGlass.collectAsState()
     val displayInfo by viewModel.channelDisplayInfo.collectAsState()
-    val currentChannel by viewModel.currentChannel.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
     val paused by viewModel.mpv.paused.collectAsState()
     val fileLoaded by viewModel.mpv.fileLoaded.collectAsState()
     val muted by viewModel.mpv.muted.collectAsState()
-    val dlnaConnected by viewModel.dlnaConnected.collectAsState()
     val currentEpg by viewModel.currentEpg.collectAsState()
 
     val currentProgram = remember(currentEpg) {
@@ -112,7 +118,6 @@ internal fun TvSplitLayout(
             delay(1000L)
         }
     }
-    val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
 
     // 统一画布背景（与横屏首页一致）：深/浅主题渐变底 + 三色光斑。
     // 修复分屏左列无背景透出窗口白底、深色主题下顶栏浅色文字不可见的问题
@@ -288,7 +293,9 @@ internal fun TvSplitLayout(
                 }
             }
 
-            // 控制条（常驻，图2样式）
+            // ==================== 视频下方复合面板 ====================
+            // 重排后的控制区：徽章标识行 + 最近节目单 + 实时频谱 + 单行核心控制
+            // （原信息行/进度行的内容已上移至徽章行与节目单块，控制行精简为单行）
             GlassPanel(
                 liquidGlass = liquidGlass,
                 cornerRadius = 12.dp,
@@ -300,139 +307,97 @@ internal fun TvSplitLayout(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 10.dp, vertical = 7.dp)
                 ) {
-                    // 行1（信息行）：频道号 + 频道名 + spacer + 节目时间范围（对齐全屏底栏第1行）
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (displayInfo.idx >= 0) {
-                            Text(
-                                text = String.format("%03d", displayInfo.idx + 1),
-                                color = AptvAccent,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Box(modifier = Modifier.width(1.dp).height(12.dp).background(Color(0x40FFFFFF)))
-                            Spacer(modifier = Modifier.width(5.dp))
-                        }
-                        Text(
-                            text = displayInfo.name.ifEmpty { "未选择频道" },
-                            color = oc.textPrimary,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        if (currentProgram != null && currentProgram.stopTs > 0) {
-                            Text(
-                                text = "${timeFmt.format(java.util.Date(currentProgram.startTs * 1000L))}-${timeFmt.format(java.util.Date(currentProgram.stopTs * 1000L))}",
-                                color = oc.textSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
+                    // 行1：徽章标识行（频道号/状态/收藏 + 全量媒体传输徽章，横向滚动）
+                    SplitBadgeRow(viewModel = viewModel, isFavorite = isFavorite)
 
                     // 行间分隔条
-                    Box(modifier = Modifier.fillMaxWidth().padding(top = 5.dp).height(1.dp).background(Color(0x1FFFFFFF)))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp)
+                            .height(1.dp)
+                            .background(Color(0x1FFFFFFF))
+                    )
 
-                    // 行2（进度行）：节目名 + 细进度条（对齐全屏底栏第2行）
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = currentProgram?.title?.ifEmpty { null } ?: "精彩节目",
-                            color = oc.textSecondary,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (currentProgram != null && currentProgram.stopTs > currentProgram.startTs) {
-                            val progress = remember(tick, currentProgram) {
-                                val nowSec = System.currentTimeMillis() / 1000L
-                                val total = (currentProgram.stopTs - currentProgram.startTs).coerceAtLeast(1)
-                                val elapsed = (nowSec - currentProgram.startTs).coerceIn(0, total)
-                                elapsed.toFloat() / total
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .width(140.dp)
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(1.5.dp))
-                                    .background(Color(0x30FFFFFF))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .fillMaxWidth(progress)
-                                        .clip(RoundedCornerShape(1.5.dp))
-                                        .background(AptvAccent)
-                                )
-                            }
-                        }
-                    }
+                    // 行2：最近节目单（当前节目 LIVE + 后续预告）
+                    SplitEpgBlock(viewModel = viewModel, currentProgram = currentProgram, tick = tick)
 
                     // 行间分隔条
-                    Box(modifier = Modifier.fillMaxWidth().padding(top = 5.dp).height(1.dp).background(Color(0x1FFFFFFF)))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp)
+                            .height(1.dp)
+                            .background(Color(0x1FFFFFFF))
+                    )
 
-                    // 行3（控制行）：上一台/播放暂停/下一台/静音/停止 | spacer | 收藏/播放工具/播放器设置/全屏
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // 行3：实时频谱（与右侧信息 Tab 共用采样，引用计数共存）
+                    SplitSpectrumBlock(viewModel = viewModel)
+
+                    // 行间分隔条
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp)
+                            .height(1.dp)
+                            .background(Color(0x1FFFFFFF))
+                    )
+
+                    // 行4：单行核心控制（上一台/播放/下一台/静音/停止 | 收藏/工具/设置/全屏）
+                    Spacer(modifier = Modifier.height(5.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         // 上一台
-                        IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
-                            Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(19.dp))
+                        IconButton(onClick = { viewModel.prevChannel() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.SkipPrevious, "上一个频道", tint = oc.iconTint, modifier = Modifier.size(18.dp))
                         }
                         // 播放/暂停
-                        IconButton(onClick = { viewModel.mpv.setPause(!paused) }, modifier = Modifier.size(40.dp).tvFocusBorder()) {
-                            Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(26.dp))
+                        IconButton(onClick = { viewModel.mpv.setPause(!paused) }, modifier = Modifier.size(38.dp).tvFocusBorder()) {
+                            Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, if (paused) "播放" else "暂停", tint = oc.accent, modifier = Modifier.size(24.dp))
                         }
                         // 下一台
-                        IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
-                            Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(19.dp))
+                        IconButton(onClick = { viewModel.nextChannel() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.SkipNext, "下一个频道", tint = oc.iconTint, modifier = Modifier.size(18.dp))
                         }
                         // 静音
-                        IconButton(onClick = { viewModel.mpv.setMute(!muted) }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                        IconButton(onClick = { viewModel.mpv.setMute(!muted) }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
                             Icon(
                                 if (muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                                 contentDescription = if (muted) "取消静音" else "静音",
                                 tint = if (muted) oc.iconTintActive else oc.iconTint,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                         // 停止
-                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
-                            Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(18.dp))
+                        IconButton(onClick = { viewModel.stopPlay() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.Stop, "停止", tint = oc.iconTint, modifier = Modifier.size(17.dp))
                         }
                         Spacer(modifier = Modifier.weight(1f))
                         // 收藏
-                        IconButton(onClick = { viewModel.toggleFavorite() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                        IconButton(onClick = { viewModel.toggleFavorite() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
                             Icon(
                                 if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = "收藏",
                                 tint = if (isFavorite) Color(0xFFFFC107) else oc.iconTint,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                         // 播放工具
-                        IconButton(onClick = { viewModel.togglePlayerToolsPanel() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
-                            Icon(Icons.Default.MoreVert, "播放工具", tint = oc.iconTint, modifier = Modifier.size(18.dp))
+                        IconButton(onClick = { viewModel.togglePlayerToolsPanel() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.MoreVert, "播放工具", tint = oc.iconTint, modifier = Modifier.size(17.dp))
                         }
                         // 播放器设置
-                        IconButton(onClick = { viewModel.togglePlayerSettings() }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
-                            Icon(Icons.Default.Settings, "播放器设置", tint = oc.iconTint, modifier = Modifier.size(18.dp))
+                        IconButton(onClick = { viewModel.togglePlayerSettings() }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
+                            Icon(Icons.Default.Settings, "播放器设置", tint = oc.iconTint, modifier = Modifier.size(17.dp))
                         }
                         // 全屏：切回传统全屏布局
-                        IconButton(onClick = { viewModel.setLandscapeSplitMode(false) }, modifier = Modifier.size(34.dp).tvFocusBorder()) {
+                        IconButton(onClick = { viewModel.setLandscapeSplitMode(false) }, modifier = Modifier.size(32.dp).tvFocusBorder()) {
                             Icon(
                                 Icons.Default.Fullscreen,
                                 contentDescription = "全屏",
                                 tint = oc.iconTint,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }
@@ -628,4 +593,309 @@ private fun SplitSidePanel(viewModel: AppViewModel) {
             }
         }
     }
+}
+
+/**
+ * 分屏左列徽章标识行：对齐全屏底栏第1行技术标签组 + 竖屏播放页媒体徽章，
+ * 能显示的尽量全：频道号/播放状态/暂停/已收藏 + 视频/音频/传输全量徽章（buildSplitAllBadges）。
+ * 横向 LazyRow 可滚动，2 秒刷新一次媒体信息。
+ */
+@Composable
+private fun SplitBadgeRow(viewModel: AppViewModel, isFavorite: Boolean) {
+    val fileLoaded by viewModel.mpv.fileLoaded.collectAsState()
+    val playbackState by viewModel.playbackState.collectAsState()
+    val showExitCatchup by viewModel.showExitCatchup.collectAsState()
+    val paused by viewModel.mpv.paused.collectAsState()
+    val videoWidth by viewModel.mpv.videoWidth.collectAsState()
+    val videoHeight by viewModel.mpv.videoHeight.collectAsState()
+    val currentIdx by viewModel.currentIdx.collectAsState()
+
+    // 媒体信息 2 秒刷新（与竖屏信息 Tab 节奏一致）
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) { while (true) { tick = System.currentTimeMillis(); delay(2000L) } }
+    val mediaBadges = if (fileLoaded) remember(tick, videoWidth, videoHeight) {
+        buildSplitAllBadges(viewModel.mpv, videoWidth, videoHeight, viewModel.getCurrentPlaybackUrl())
+    } else emptyList()
+
+    // 播放状态徽章（与全屏底栏一致：直播/时移/回看）
+    val statusBadge = when {
+        !fileLoaded -> null
+        playbackState.mode == PlayMode.TIMESHIFT -> "时移" to Color(0xFF42A5F5)
+        showExitCatchup -> "回看" to Color(0xFFFFA500)
+        else -> "直播" to AptvAccent
+    }
+
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (currentIdx >= 0) {
+            item { SplitBadge(String.format("%03d", currentIdx + 1), accent = true) }
+        }
+        statusBadge?.let { (label, color) ->
+            item { SplitBadge(label, tint = color) }
+        }
+        if (paused && fileLoaded) {
+            item { SplitBadge("暂停", tint = Color(0xFFBDBDBD)) }
+        }
+        if (isFavorite) {
+            item { SplitBadge("已收藏", tint = Color(0xFFFFC107)) }
+        }
+        items(mediaBadges.size) { i -> SplitBadge(mediaBadges[i]) }
+    }
+}
+
+/** 徽章胶囊：白微透轻玻璃底 + 语义色文字（暗玻璃面板内使用） */
+@Composable
+private fun SplitBadge(text: String, accent: Boolean = false, tint: Color = Color(0xCCFFFFFF)) {
+    Surface(
+        color = if (accent) AptvAccent.copy(alpha = 0.22f) else tint.copy(alpha = 0.18f),
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (accent) AptvAccent else tint,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+            maxLines = 1
+        )
+    }
+}
+
+/**
+ * 最近节目单块：当前节目（LIVE 徽章 + 时间 + 标题 + 细进度条）+ 后续 2 档预告。
+ * 数据源与竖屏节目 Tab 一致：getFullEpgForCurrent() 完整缓存（epgCacheVersion 驱动刷新）；
+ * 缓存为空时主动触发 fetchEpgForCurrent()（内部有缓存短路，重复调用安全）。
+ */
+@Composable
+private fun SplitEpgBlock(
+    viewModel: AppViewModel,
+    currentProgram: IptvEpgProgram?,
+    tick: Long
+) {
+    val oc = rememberPlayerOverlayColors()
+    val currentIdx by viewModel.currentIdx.collectAsState()
+    val epgCacheVersion by viewModel.epgCacheVersion.collectAsState()
+    val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+
+    // 缓存为空时主动拉取（订阅频道；切台后 idx 变化自动重拉）
+    LaunchedEffect(currentIdx) {
+        if (currentIdx >= 0 && viewModel.getFullEpgForCurrent().isEmpty()) {
+            viewModel.fetchEpgForCurrent()
+        }
+    }
+
+    val fullEpg = remember(currentIdx, epgCacheVersion) { viewModel.getFullEpgForCurrent() }
+    val effectiveProgram = currentProgram ?: ProgressHelper.findCurrentProgram(fullEpg, System.currentTimeMillis())
+
+    val upcoming = remember(fullEpg, effectiveProgram) {
+        if (effectiveProgram != null && effectiveProgram.stopTs > 0) {
+            fullEpg.filter { it.startTs >= effectiveProgram.stopTs && it.title.isNotEmpty() }.take(2)
+        } else emptyList()
+    }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        if (effectiveProgram != null && effectiveProgram.title.isNotEmpty()) {
+            // 当前行：LIVE 徽章 + 时间 + 标题 + 细进度条
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Surface(color = Color(0xFFE53935), shape = RoundedCornerShape(3.dp)) {
+                    Text(
+                        text = "LIVE",
+                        color = Color.White,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(5.dp))
+                Text(
+                    text = "${timeFmt.format(java.util.Date(effectiveProgram.startTs * 1000L))} ${effectiveProgram.title}",
+                    color = oc.textPrimary,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (effectiveProgram.stopTs > effectiveProgram.startTs) {
+                    val progress = remember(tick, effectiveProgram) {
+                        val nowSec = System.currentTimeMillis() / 1000L
+                        val total = (effectiveProgram.stopTs - effectiveProgram.startTs).coerceAtLeast(1)
+                        (nowSec - effectiveProgram.startTs).coerceIn(0, total).toFloat() / total
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(90.dp)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(Color(0x30FFFFFF))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(progress)
+                                .clip(RoundedCornerShape(1.5.dp))
+                                .background(AptvAccent)
+                        )
+                    }
+                }
+            }
+            // 后续预告行
+            upcoming.forEach { prog ->
+                Spacer(modifier = Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = timeFmt.format(java.util.Date(prog.startTs * 1000L)),
+                        color = oc.textSecondary.copy(alpha = 0.7f),
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.width(7.dp))
+                    Text(
+                        text = prog.title,
+                        color = oc.textSecondary,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        } else {
+            Text(
+                text = "暂无节目单信息",
+                color = oc.textSecondary.copy(alpha = 0.6f),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(vertical = 3.dp)
+            )
+        }
+    }
+}
+
+/**
+ * 实时频谱块（矮条版）：复用 SpectrumCanvas + viewModel.audioSpectrum。
+ * RECORD_AUDIO 权限在组合时申请（未授权弹申请/拒绝显示原因）；
+ * 采样走引用计数，与右侧信息 Tab / 音频可视化面板共存互不干扰。
+ */
+@Composable
+private fun SplitSpectrumBlock(viewModel: AppViewModel) {
+    val spectrum by viewModel.audioSpectrum.collectAsState()
+    val spectrumError by viewModel.audioSpectrumError.collectAsState()
+    val context = LocalContext.current
+    val permLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) viewModel.startSpectrumSampling()
+        else viewModel.setAudioSpectrumError("未授予麦克风权限\n系统 Visualizer 接口需要该权限才能获取真实频谱")
+    }
+    DisposableEffect(Unit) {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.RECORD_AUDIO
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) viewModel.startSpectrumSampling()
+        else permLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+        onDispose { viewModel.stopSpectrumSampling() }
+    }
+
+    if (spectrumError.isNotEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp)
+                .height(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0x14000000)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = spectrumError.replace("\n", " · "),
+                color = Color(0x99FFFFFF),
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 10.dp)
+            )
+        }
+    } else {
+        SpectrumCanvas(
+            spectrum = spectrum,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp)
+                .height(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0x14000000))
+        )
+    }
+}
+
+/**
+ * 分屏左列全量徽章：在 buildTvMediaBadges（全屏底栏，最多 8 个）基础上不截断并补充
+ * 精确分辨率/像素格式/采样率/硬解/轨道数等，尽量多尽量全。
+ */
+private fun buildSplitAllBadges(
+    mpv: com.iptv.scanner.editor.pro.player.Player,
+    videoWidth: Int,
+    videoHeight: Int,
+    playbackUrl: String
+): List<String> {
+    val result = mutableListOf<String>()
+    val mediaInfo = try { mpv.getMediaInfo() } catch (_: Exception) { emptyMap() }
+    fun v(key: String) = mediaInfo[key]?.takeIf { it.isNotEmpty() && it != "null" && it != "0" && it != "0.000" }
+    // 视频编码
+    v("videoCodec")?.let { result.add(it.removePrefix("video/").removePrefix("audio/").uppercase()) }
+    // 分辨率档位 + 精确分辨率
+    if (videoWidth > 0 && videoHeight > 0) {
+        result.add(when { videoWidth >= 3800 -> "4K"; videoWidth >= 1900 -> "1080P"; videoWidth >= 1200 -> "720P"; else -> "${videoHeight}P" })
+        result.add("${videoWidth}×${videoHeight}")
+    }
+    // 视频码率
+    val videoBitrate = try { mpv.getPropertyInt("video-bitrate") } catch (_: Exception) { null }
+    if (videoBitrate != null && videoBitrate > 0) {
+        val kbps = videoBitrate / 1000
+        result.add(if (kbps >= 1000) "%.1fMbps".format(kbps / 1000.0) else "${kbps}kbps")
+    }
+    // HDR（传输特性/色彩域）
+    when {
+        mediaInfo["videoGamma"] == "hlg" -> result.add("HLG")
+        mediaInfo["videoGamma"] == "pq" -> result.add("HDR10")
+        mediaInfo["videoPrimaries"] == "bt.2020" -> result.add("HDR")
+    }
+    // 像素格式
+    v("pixelFormat")?.let { result.add(it) }
+    // 音频编码
+    v("audioCodec")?.let { result.add(it.removePrefix("audio/").uppercase()) }
+    // 声道
+    val audioCh = try { mpv.getPropertyInt("audio-params/channels") } catch (_: Exception) { null }
+    if (audioCh != null && audioCh > 0) {
+        result.add(when (audioCh) { 1 -> "单声道"; 2 -> "立体声"; 6 -> "5.1ch"; 8 -> "7.1ch"; else -> "${audioCh}ch" })
+    }
+    // 采样率
+    v("audioSampleRate")?.let { s ->
+        s.toDoubleOrNull()?.let { hz -> result.add(String.format("%.1fkHz", hz / 1000)) }
+    }
+    // 帧率
+    v("fps")?.let { s ->
+        s.toFloatOrNull()?.let { f -> result.add("${f.toInt()}fps") }
+    }
+    // 容器格式
+    v("containerFormat")?.let { fmt ->
+        val short = fmt.substringAfter("/").substringAfterLast(".")
+        if (short.isNotEmpty()) result.add(short.uppercase())
+    }
+    // 传输协议
+    if (playbackUrl.isNotEmpty()) {
+        when (playbackUrl.substringBefore("://").lowercase()) {
+            "http", "https" -> result.add("HTTP")
+            "rtsp" -> result.add("RTSP")
+            "udp", "rtp" -> result.add("UDP")
+            "file" -> result.add("本地")
+        }
+    }
+    // 解码方式
+    mediaInfo["hwdec"]?.takeIf { it.isNotEmpty() && it != "null" }?.let {
+        result.add(if (it == "no") "软解" else "硬解")
+    }
+    // 轨道数
+    v("trackCount")?.let { result.add("${it}轨道") }
+    return result
 }

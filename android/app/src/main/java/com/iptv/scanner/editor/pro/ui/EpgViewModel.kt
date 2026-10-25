@@ -998,6 +998,7 @@ internal fun AppViewModel.toggleAudioVisualizer() {
 }
 
 internal fun AppViewModel.startSpectrumSampling() {
+    spectrumRefs++
     spectrumJob?.cancel()
     // 尝试用 Android Visualizer API 获取真实音频频谱
     var visualizerStarted = false

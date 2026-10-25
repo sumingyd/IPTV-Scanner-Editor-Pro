@@ -78,6 +78,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal fun AppViewModel.stopSpectrumSampling() {
+    // 引用计数：仍有其他面板（分屏左列常驻频谱/信息 Tab/音频可视化）在使用时不真正停止
+    spectrumRefs = (spectrumRefs - 1).coerceAtLeast(0)
+    if (spectrumRefs > 0) return
     spectrumJob?.cancel()
     spectrumJob = null
     visualizer?.enabled = false

@@ -1544,6 +1544,9 @@ internal var currentIsLocalFile: Boolean
 
     internal var spectrumJob: kotlinx.coroutines.Job? = null
     internal var visualizer: android.media.audiofx.Visualizer? = null
+    // 频谱采样引用计数：分屏左列常驻频谱与右侧信息 Tab/音频可视化面板可同时存活，
+    // 只有最后一个使用方退出时才真正停掉 Visualizer
+    internal var spectrumRefs = 0
 
     // 歌词 — 加载/显示/同步（与 PC 端 LyricsWidget 对齐）
 
