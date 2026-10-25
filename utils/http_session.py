@@ -31,11 +31,13 @@ def get(url, **kwargs):
     session = get_session()
     if session is None:
         raise ImportError('requests is not available')
+    # 统一用标量超时：此环境实测 requests 会把 (connect, read) 元组按相反顺序解释，
+    # 传 (10, 30) 实际读超时只有 10s，弱网下载订阅源必然超时。
+    # 标量 t 保证读超时完整为调用方指定值（订阅源加载传 30s）。
     if 'timeout' not in kwargs:
-        kwargs['timeout'] = (10, 30)
+        kwargs['timeout'] = 30.0
     elif isinstance(kwargs['timeout'], (int, float)):
-        t = kwargs['timeout']
-        kwargs['timeout'] = (min(t, 10), t)
+        kwargs['timeout'] = float(kwargs['timeout'])
     return session.get(url, **kwargs)
 
 
@@ -44,10 +46,9 @@ def head(url, **kwargs):
     if session is None:
         raise ImportError('requests is not available')
     if 'timeout' not in kwargs:
-        kwargs['timeout'] = (10, 30)
+        kwargs['timeout'] = 30.0
     elif isinstance(kwargs['timeout'], (int, float)):
-        t = kwargs['timeout']
-        kwargs['timeout'] = (min(t, 10), t)
+        kwargs['timeout'] = float(kwargs['timeout'])
     return session.head(url, **kwargs)
 
 
@@ -56,10 +57,9 @@ def post(url, **kwargs):
     if session is None:
         raise ImportError('requests is not available')
     if 'timeout' not in kwargs:
-        kwargs['timeout'] = (10, 30)
+        kwargs['timeout'] = 30.0
     elif isinstance(kwargs['timeout'], (int, float)):
-        t = kwargs['timeout']
-        kwargs['timeout'] = (min(t, 10), t)
+        kwargs['timeout'] = float(kwargs['timeout'])
     return session.post(url, **kwargs)
 
 

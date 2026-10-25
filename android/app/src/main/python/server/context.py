@@ -858,11 +858,26 @@ class ServerContext:
                     self._source_load_status['message'] = f'加载中 {idx+1}/{len(sources)}'
                 try:
                     from utils.http_session import get as _http_get
-                    resp = _http_get(src_url, timeout=30, headers={'User-Agent': APP_USER_AGENT})
-                    if resp.status_code != 200:
-                        err = f'HTTP {resp.status_code}'
+                    # 弱网下单次请求容易读超时（raw.githubusercontent.com 常见 20s+），
+                    # 每个源失败后自动重试一次，显著提高订阅源加载成功率
+                    resp = None
+                    last_err = ''
+                    for _attempt in range(2):
+                        try:
+                            _resp = _http_get(src_url, timeout=30, headers={'User-Agent': APP_USER_AGENT})
+                            if _resp.status_code == 200:
+                                resp = _resp
+                                break
+                            last_err = f'HTTP {_resp.status_code}'
+                        except Exception as fetch_err:
+                            last_err = str(fetch_err)
+                        if _attempt == 0:
+                            logger.warning(f"加载源 {redact_url(src_url)} 第 1 次失败: {last_err}，1.5s 后重试")
+                            time.sleep(1.5)
+                    if resp is None:
+                        err = (last_err or '加载失败')[:60]
                         errors.append(err)
-                        logger.warning(f"加载源 {redact_url(src_url)} 失败: {err}")
+                        logger.warning(f"加载源 {redact_url(src_url)} 失败（已重试 1 次）: {last_err}")
                         continue
                     content = load_m3u_from_url_data(resp.content)
                     channels, header_attrs = parse_m3u_content(content)

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -643,12 +644,25 @@ private fun LandscapeSystemOverviewPanel(viewModel: AppViewModel) {
     val groupCount = remember(channels) {
         channels.map { it.group.ifEmpty { "未分组" } }.distinct().size
     }
-    // 分组分布：按频道数降序取前 6 组
-    val groupStats = remember(channels) {
-        channels.groupBy { it.group.ifEmpty { "未分组" } }
-            .map { (g, list) -> g to list.size }
-            .sortedByDescending { it.second }
-            .take(6)
+
+    // ==================== 运行日志（app.log 尾部，5 秒自动刷新） ====================
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val appLogFile = remember(context) {
+        // 与 Python 端 _setup_android_paths 的目录解析顺序一致：
+        // /sdcard/ISEP/ → getExternalFilesDir()/ISEP/ → filesDir/ISEP/
+        listOf(
+            java.io.File("/sdcard/ISEP/app.log"),
+            context.getExternalFilesDir(null)?.let { java.io.File(it, "ISEP/app.log") },
+            java.io.File(context.filesDir, "ISEP/app.log")
+        ).firstOrNull { it != null && it.exists() }
+    }
+    var logTick by remember { mutableStateOf(0) }
+    var logText by remember { mutableStateOf("正在加载日志...") }
+    LaunchedEffect(logTick) {
+        while (true) {
+            logText = readLogTail(appLogFile)
+            kotlinx.coroutines.delay(5000)
+        }
     }
 
     Column(
@@ -822,41 +836,61 @@ private fun LandscapeSystemOverviewPanel(viewModel: AppViewModel) {
             }
         }
 
-        // ==================== 分组分布 ====================
-        if (groupStats.isNotEmpty()) {
-            AptvSectionHeader("分组分布")
-            AptvGroupCard {
-                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-                    groupStats.forEachIndexed { i, (group, count) ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = group,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                text = "$count 频道",
-                                color = AptvAccent,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                        if (i != groupStats.lastIndex) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
-                                thickness = 0.5.dp
-                            )
-                        }
+        // ==================== 运行日志 ====================
+        AptvSectionHeader("运行日志")
+        AptvGroupCard {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "app.log 尾部 · 每 5 秒自动刷新",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { logTick++ }, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "刷新日志",
+                            tint = AptvAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
+                Text(
+                    text = logText,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 280.dp)
+                        .verticalScroll(rememberScrollState())
+                )
             }
         }
+    }
+}
+
+/** 读取日志文件尾部（最多 32KB / 200 行），文件不存在或读取失败返回提示文本 */
+private fun readLogTail(file: java.io.File?, maxBytes: Int = 32 * 1024, maxLines: Int = 200): String {
+    if (file == null || !file.exists()) return "暂无日志（app.log 尚未生成）"
+    return try {
+        val raf = java.io.RandomAccessFile(file, "r")
+        val len = raf.length()
+        val start = (len - maxBytes).coerceAtLeast(0)
+        raf.seek(start)
+        val buf = ByteArray((len - start).toInt())
+        raf.readFully(buf)
+        raf.close()
+        val text = String(buf, Charsets.UTF_8)
+        val lines = text.lines()
+        // 从文件中部截断时丢弃可能不完整的首行
+        val body = if (start > 0 && lines.isNotEmpty()) lines.drop(1) else lines
+        val tail = body.takeLast(maxLines)
+        if (tail.isEmpty()) "暂无日志" else tail.joinToString("\n")
+    } catch (e: Exception) {
+        "读取日志失败: ${e.message}"
     }
 }
 

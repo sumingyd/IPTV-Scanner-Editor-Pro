@@ -498,7 +498,11 @@ internal fun AppViewModel.getFilteredChannels(): List<Pair<IptvChannel, Int>> {
 internal fun AppViewModel.playChannel(idx: Int, silent: Boolean = false) {
     val channel = _channels.value.getOrNull(idx) ?: return
     if (currentPlaybackUrl == channel.url && mpv.fileLoaded.value && _currentIdx.value == idx) {
-        Log.i(AppViewModel.TAG, "playChannel: skipped, same URL already playing")
+        // 相同频道已在播：不重复起播，但要离开首页进入播放页
+        // （此前直接 return 导致横屏首页点击正在播的频道时只停留在 Mini 播放条，
+        //   与「点击频道应进入分屏播放页」的预期不符）
+        Log.i(AppViewModel.TAG, "playChannel: same URL already playing, leave home only")
+        _showHome.value = false
         return
     }
     Log.i(AppViewModel.TAG, "playChannel: ${channel.name} (${channel.url})")
