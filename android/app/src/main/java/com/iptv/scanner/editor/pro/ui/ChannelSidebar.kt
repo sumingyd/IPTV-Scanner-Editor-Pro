@@ -108,6 +108,7 @@ import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.PlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
+import com.iptv.scanner.editor.pro.ui.theme.tvTextField
 import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -410,7 +411,8 @@ internal fun PortraitListScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    // TV 焦点导航：搜索框内 UP/DOWN 直接移出焦点，避免遥控器被输入框吞键
+                    modifier = Modifier.fillMaxWidth().tvTextField()
                 )
             }
         }

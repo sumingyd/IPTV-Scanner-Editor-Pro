@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.iptv.scanner.editor.pro.ui.theme.tvTextField
 
 /**
 
@@ -134,7 +135,8 @@ internal fun PortraitFavoritesScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    // TV 焦点导航：搜索框内 UP/DOWN 直接移出焦点，避免遥控器被输入框吞键
+                    modifier = Modifier.fillMaxWidth().tvTextField()
                 )
             }
         }

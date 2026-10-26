@@ -108,6 +108,8 @@ import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.PlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
+import com.iptv.scanner.editor.pro.ui.theme.tvTextField
 import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -250,13 +252,14 @@ internal fun PortraitToolsScreen(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier
+                        .tvFocusBorder(cornerRadius = 12)
                         .clickable { editMode = !editMode }
                         .padding(horizontal = 14.dp, vertical = 7.dp)
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
             // 刷新源与频道：玻璃圆形按钮
-            AptvGlassChip(cornerRadius = 16.dp, modifier = Modifier.size(32.dp)) {
+            AptvGlassChip(cornerRadius = 16.dp, modifier = Modifier.size(32.dp).tvFocusBorder(cornerRadius = 16, focusedScale = 1.18f)) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -293,6 +296,7 @@ internal fun PortraitToolsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .tvFocusBorder(cornerRadius = 10)
                     .clickable {
                         viewModel.setListSourceTab(ListSourceTab.LOCAL)
                         viewModel.setPortraitTab(PortraitTab.CHANNELS)
@@ -342,6 +346,7 @@ internal fun PortraitToolsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .tvFocusBorder(cornerRadius = 10)
                         .clickable(enabled = !editMode) {
                             viewModel.setListSourceTab(ListSourceTab.SUBSCRIPTION)
                             viewModel.setSelectedSource(s.url)
@@ -377,7 +382,9 @@ internal fun PortraitToolsScreen(
                     androidx.compose.material3.Switch(
                         checked = s.enabled,
                         onCheckedChange = { viewModel.toggleSourceEnabled(idx, it) },
-                        modifier = Modifier.padding(end = 4.dp)
+                        modifier = Modifier
+                            .tvFocusBorder(cornerRadius = 14, focusedScale = 1.2f)
+                            .padding(end = 4.dp)
                     )
                     // 编辑模式：删除
                     if (editMode) {
@@ -387,6 +394,7 @@ internal fun PortraitToolsScreen(
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier
                                 .size(22.dp)
+                                .tvFocusBorder(cornerRadius = 11, focusedScale = 1.25f)
                                 .clickable { deleteTargetIdx = idx }
                         )
                     }
@@ -396,6 +404,7 @@ internal fun PortraitToolsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .tvFocusBorder(cornerRadius = 10)
                     .clickable { showAddForm = !showAddForm }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -430,7 +439,7 @@ internal fun PortraitToolsScreen(
                     textStyle = androidx.compose.ui.text.TextStyle(
                         color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp
                     ),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).tvTextField()
                 )
                 androidx.compose.material3.TextField(
                     value = newName,
@@ -447,7 +456,7 @@ internal fun PortraitToolsScreen(
                     textStyle = androidx.compose.ui.text.TextStyle(
                         color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp
                     ),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).tvTextField()
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
@@ -459,6 +468,7 @@ internal fun PortraitToolsScreen(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
+                            .tvFocusBorder(cornerRadius = 12)
                             .clickable {
                                 viewModel.addSource(newUrl.trim(), newName.trim())
                                 newUrl = ""
@@ -510,6 +520,7 @@ internal fun PortraitToolsScreen(
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier
                                 .size(22.dp)
+                                .tvFocusBorder(cornerRadius = 11, focusedScale = 1.25f)
                                 .clickable { deleteEpgIdx = idx }
                         )
                     }
@@ -519,6 +530,7 @@ internal fun PortraitToolsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .tvFocusBorder(cornerRadius = 10)
                     .clickable { showEpgAddForm = !showEpgAddForm }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -553,7 +565,7 @@ internal fun PortraitToolsScreen(
                     textStyle = androidx.compose.ui.text.TextStyle(
                         color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp
                     ),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).tvTextField()
                 )
                 androidx.compose.material3.TextField(
                     value = newEpgName,
@@ -570,7 +582,7 @@ internal fun PortraitToolsScreen(
                     textStyle = androidx.compose.ui.text.TextStyle(
                         color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp
                     ),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).tvTextField()
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
@@ -582,6 +594,7 @@ internal fun PortraitToolsScreen(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
+                            .tvFocusBorder(cornerRadius = 12)
                             .clickable {
                                 viewModel.addEpgSource(newEpgUrl.trim(), newEpgName.trim())
                                 newEpgUrl = ""

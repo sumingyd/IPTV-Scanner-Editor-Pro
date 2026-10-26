@@ -108,6 +108,7 @@ import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.PlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -248,6 +249,7 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
                                     )
                                 else Modifier
                             )
+                            .tvFocusBorder(cornerRadius = 8)
                             .clickable { selectedTab = index }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -507,6 +509,7 @@ internal fun PortraitLocalFileInfo(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 2.dp)
+                        .tvFocusBorder(cornerRadius = 10)
                         .clickable { if (idx >= 0) viewModel.playChannel(idx) }
                 ) {
                     Row(
@@ -589,6 +592,7 @@ internal fun PortraitCategoryContent(viewModel: AppViewModel, onGroupSelected: (
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(if (isSelected) Modifier.background(AptvAccent.copy(alpha = 0.12f), RoundedCornerShape(8.dp)) else Modifier)
+                        .tvFocusBorder(cornerRadius = 8)
                         .clickable { viewModel.setSelectedGroup(""); onGroupSelected() }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -614,6 +618,7 @@ internal fun PortraitCategoryContent(viewModel: AppViewModel, onGroupSelected: (
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(if (isSelected) Modifier.background(AptvAccent.copy(alpha = 0.12f), RoundedCornerShape(8.dp)) else Modifier)
+                        .tvFocusBorder(cornerRadius = 8)
                         .clickable { viewModel.setSelectedGroup(group); onGroupSelected() }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -857,7 +862,7 @@ internal fun PortraitEpgContent(viewModel: AppViewModel) {
                             Surface(
                                 color = if (isSelected) oc.accent.copy(alpha = 0.15f) else Color.Transparent,
                                 shape = RoundedCornerShape(6.dp),
-                                modifier = Modifier.clickable { selectedDateIdx = idx }
+                                modifier = Modifier.tvFocusBorder(cornerRadius = 6).clickable { selectedDateIdx = idx }
                             ) {
                                 Text(
                                     text = dateLabel,
@@ -919,6 +924,7 @@ private fun PortraitEpgItem(
         modifier = Modifier
             .fillMaxWidth()
             .background(bg)
+            .tvFocusBorder(cornerRadius = 8)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1002,6 +1008,7 @@ internal fun PortraitRecentLocalFiles(viewModel: AppViewModel) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .tvFocusBorder(cornerRadius = 8)
                         .clickable { if (idx >= 0) viewModel.playChannel(idx) }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically

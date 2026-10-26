@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.data.IptvChannel
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
+import com.iptv.scanner.editor.pro.ui.theme.tvTextField
 
 // =================================================================
 // 频道编辑功能：编辑对话框 + 批量编辑面板
@@ -100,28 +101,28 @@ fun ChannelEditDialog(
                     onValueChange = { name = it },
                     label = { Text("频道名称") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).tvTextField()
                 )
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
                     label = { Text("频道 URL") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).tvTextField()
                 )
                 OutlinedTextField(
                     value = group,
                     onValueChange = { group = it },
                     label = { Text("分组") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).tvTextField()
                 )
                 OutlinedTextField(
                     value = logo,
                     onValueChange = { logo = it },
                     label = { Text("台标 URL") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).tvTextField()
                 )
                 if (error.isNotEmpty()) {
                     Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp,

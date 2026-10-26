@@ -170,6 +170,7 @@ fun OpenUrlDialog(viewModel: AppViewModel) {
                             fontSize = 16.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
+                                .tvFocusBorder(cornerRadius = 10)
                                 .clickable { viewModel.toggleOpenUrlDialog() }
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         )
@@ -180,6 +181,7 @@ fun OpenUrlDialog(viewModel: AppViewModel) {
                             fontWeight = FontWeight.Medium,
                             color = AptvAccent,
                             modifier = Modifier
+                                .tvFocusBorder(cornerRadius = 10)
                                 .clickable {
                                     viewModel.playUrl(url.trim())
                                     url = ""
@@ -378,6 +380,7 @@ private fun ExitOptionRow(label: String, tint: Color = Color.Unspecified, bold: 
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .tvFocusBorder(cornerRadius = 10)
             .clickable { onClick() }
             .padding(vertical = 15.dp),
         contentAlignment = Alignment.Center
@@ -484,6 +487,7 @@ fun DlnaCastPanel(viewModel: AppViewModel) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .tvFocusBorder(cornerRadius = 10)
                                     .clickable {
                                         if (isConnected) viewModel.stopDlnaCast() else viewModel.castToDevice(device)
                                     }

@@ -83,7 +83,9 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import kotlinx.coroutines.delay
 
@@ -151,23 +153,44 @@ internal fun TvSplitLayout(
         }
     }
     // 焦点归零兜底：电视端异步加载重组可能清掉初焦，方向键落 Activity 兜底后递增 tick，
-    // 这里把焦点重新请求到视频区（按键驱动，不赌加载时序）
+    // 这里把焦点重新请求到视频区（按键驱动，不赌加载时序）。
+    // 注意：Activity 兜底只在"焦点树真无活跃焦点"时才递增 tick（见 splitTreeHasFocus），
+    // 边缘方向搜索失败（焦点还在）不会走到这里，避免焦点被强行拉回视频区。
     val focusResetTick by viewModel.splitFocusResetTick.collectAsState()
     androidx.compose.runtime.LaunchedEffect(focusResetTick) {
         if (focusResetTick > 0L) {
-            try {
-                videoFocusRequester.requestFocus()
-            } catch (_: Exception) {
+            // 小步重试：电视端重组/异步加载时序下单次 requestFocus 可能抛异常落空
+            repeat(10) { attempt ->
+                if (attempt > 0) delay(100)
+                try {
+                    videoFocusRequester.requestFocus()
+                    return@LaunchedEffect
+                } catch (_: Exception) {
+                }
             }
         }
     }
 
+    // TV 遥控器焦点隔离：MainPlayerScreen 是常驻组合，首页只是覆盖层——
+    // 首页显示时若不禁用本子树焦点，TAB/方向键会落到被覆盖的返回按钮/视频区/
+    // 控制栏等不可见元素上（"切着切着焦点消失"的根源）。
+    // 注意：必须用 remember(splitShowHome) 固化 modifier——直接在 focusProperties
+    // block 里读委托 state 会被强跳过模式 memoize（modifier 永不更新，canFocus
+    // 缓存住首次求值结果），导致分屏内方向键几何搜索把右列全部过滤掉。
+    val splitFocusIsolation = remember(splitShowHome) {
+        val allowFocus = !splitShowHome
+        Modifier.focusProperties { canFocus = allowFocus }
+    }
     // 统一画布背景（与横屏首页一致）：深/浅主题渐变底 + 三色光斑。
     // 修复分屏左列无背景透出窗口白底、深色主题下顶栏浅色文字不可见的问题
     val canvasDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Row(
         modifier = Modifier
             .fillMaxSize()
+            .then(splitFocusIsolation)
+            // 同步维护"焦点树是否持有焦点"标记，供 Activity DPAD 兜底区分
+            // "真无焦点→归零恢复"与"边缘搜索失败→原地保持"两种情况
+            .onFocusChanged { viewModel.splitTreeHasFocus = it.hasFocus }
             .background(MaterialTheme.colorScheme.background)
             .drawBehind {
                 drawRect(
@@ -599,6 +622,7 @@ private fun SplitSidePanel(viewModel: AppViewModel) {
                                     )
                                 else Modifier
                             )
+                            .tvFocusBorder(cornerRadius = 8)
                             .clickable { selectedTab = index }
                             .padding(vertical = 7.dp),
                         contentAlignment = Alignment.Center

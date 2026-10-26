@@ -1237,6 +1237,15 @@ internal var currentIsLocalFile: Boolean
     internal val _splitFocusResetTick = MutableStateFlow(0L)
     val splitFocusResetTick: StateFlow<Long> = _splitFocusResetTick.asStateFlow()
 
+    /**
+     * 分屏焦点树当前是否持有活跃焦点（TvSplitLayout 根 Row 的 onFocusChanged 同步维护，
+     * 仅主线程读写）。Activity 的 DPAD 兜底用它区分两种情况：
+     * - false：焦点树真无活跃焦点（初焦被重组清掉等），需要归零回视频区；
+     * - true：焦点仍在树内、只是方向键几何搜索到边缘无候选——必须原地保持焦点，
+     *   若也无差别归零，用户每次按到边缘焦点都会跳回视频区（"切着切着焦点消失"的根源）。
+     */
+    var splitTreeHasFocus: Boolean = false
+
     /** 设置横屏分屏模式 */
     fun setLandscapeSplitMode(value: Boolean) {
         _landscapeSplitMode.value = value
