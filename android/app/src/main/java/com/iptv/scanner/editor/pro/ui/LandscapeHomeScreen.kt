@@ -353,28 +353,21 @@ private fun LandscapeChannelSplitContent(viewModel: AppViewModel) {
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
-                            // TV 遥控器焦点高亮（clickable 外层，确保收到焦点事件）
-                            .tvFocusBorder(cornerRadius = 10)
+                            // TV 遥控器焦点高亮（clickable 外层，确保收到焦点事件）；小元素用更大倍数
+                            .tvFocusBorder(cornerRadius = 10, focusedScale = 1.12f)
                             .clickable { showGroupSheet = true }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                AptvGlassChip(cornerRadius = 20.dp, modifier = Modifier.size(36.dp)) {
-                    IconButton(
-                        onClick = { showSourceSheet = true },
-                        // TV 焦点放大（IconButton 内置 focusable，tvFocusBorder 在外层观察）
-                        modifier = Modifier.size(36.dp).tvFocusBorder(cornerRadius = 8)
-                    ) {
+                AptvGlassChip(cornerRadius = 20.dp, modifier = Modifier.size(36.dp).tvFocusBorder(cornerRadius = 20, focusedScale = 1.18f)) {
+                    IconButton(onClick = { showSourceSheet = true }, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Default.SwapHoriz, "切换订阅源", tint = AptvAccent, modifier = Modifier.size(18.dp))
                     }
                 }
                 Spacer(modifier = Modifier.width(6.dp))
-                AptvGlassChip(cornerRadius = 20.dp, modifier = Modifier.size(36.dp)) {
-                    IconButton(
-                        onClick = { viewModel.loadChannels() },
-                        modifier = Modifier.size(36.dp).tvFocusBorder(cornerRadius = 8)
-                    ) {
+                AptvGlassChip(cornerRadius = 20.dp, modifier = Modifier.size(36.dp).tvFocusBorder(cornerRadius = 20, focusedScale = 1.18f)) {
+                    IconButton(onClick = { viewModel.loadChannels() }, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Default.Refresh, "刷新频道", tint = AptvAccent, modifier = Modifier.size(18.dp))
                     }
                 }

@@ -204,13 +204,13 @@ internal fun MiniPlayerBar(
             Modifier
                 .widthIn(max = 460.dp)
                 .height(48.dp)
-                .tvFocusBorder(cornerRadius = 12)
+                .tvFocusBorder(cornerRadius = 12, focusedScale = 1.08f)
         } else {
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp)
                 .height(48.dp)
-                .tvFocusBorder(cornerRadius = 12)
+                .tvFocusBorder(cornerRadius = 12, focusedScale = 1.08f)
         }
     ) {
         Row(

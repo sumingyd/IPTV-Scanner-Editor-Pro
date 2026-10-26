@@ -220,7 +220,7 @@ internal fun PortraitBottomTabBar(
                     .height(54.dp)
                     // TV 焦点放大+白边必须放在 clip 之前（外层）：
                     // 放在 clip 之后放大超出部分会被裁掉，焦点视觉只剩边框没有放大
-                    .tvFocusBorder(cornerRadius = 10)
+                    .tvFocusBorder(cornerRadius = 10, focusedScale = 1.10f)
                     .clip(RoundedCornerShape(10.dp))
                     .then(
                         if (isSelected) Modifier

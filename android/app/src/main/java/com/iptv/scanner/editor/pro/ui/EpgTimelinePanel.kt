@@ -183,10 +183,10 @@ maxLines = 1
 )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // 日期切换
+                    // 日期切换（小图标按钮放大倍数加大，焦点视觉更明显）
                     IconButton(
                         onClick = { viewModel.setEpgTimelineDateOffset(dateOffset - 1) },
-                        modifier = Modifier.tvFocusBorder()
+                        modifier = Modifier.tvFocusBorder(cornerRadius = 20, focusedScale = 1.18f)
                     ) {
                         Text("◀", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
                     }
@@ -203,7 +203,7 @@ maxLines = 1
                     )
                     IconButton(
                         onClick = { viewModel.setEpgTimelineDateOffset(dateOffset + 1) },
-                        modifier = Modifier.tvFocusBorder()
+                        modifier = Modifier.tvFocusBorder(cornerRadius = 20, focusedScale = 1.18f)
                     ) {
                         Text("▶", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
                     }
@@ -211,7 +211,7 @@ maxLines = 1
                     // 刷新
                     IconButton(
                         onClick = { viewModel.loadEpgTimeline() },
-                        modifier = Modifier.tvFocusBorder()
+                        modifier = Modifier.tvFocusBorder(cornerRadius = 20, focusedScale = 1.18f)
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = "刷新", tint = MaterialTheme.colorScheme.onSurface)
                     }
@@ -219,7 +219,7 @@ maxLines = 1
                     IconButton(
                         onClick = { viewModel.toggleEpgTimelinePanel() },
                         modifier = Modifier
-                            .tvFocusBorder()
+                            .tvFocusBorder(cornerRadius = 20, focusedScale = 1.18f)
                             .focusRequester(closeFocusRequester)
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "关闭", tint = MaterialTheme.colorScheme.onSurface)
@@ -235,19 +235,19 @@ maxLines = 1
                     selected = range == EpgTimelineRange.ALL,
                     onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.ALL) },
                     label = { Text("全部频道", fontSize = 11.sp) },
-                    modifier = Modifier.tvFocusBorder()
+                    modifier = Modifier.tvFocusBorder(cornerRadius = 8, focusedScale = 1.15f)
                 )
                 FilterChip(
                     selected = range == EpgTimelineRange.FAVORITES,
                     onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.FAVORITES) },
                     label = { Text("仅收藏", fontSize = 11.sp) },
-                    modifier = Modifier.tvFocusBorder()
+                    modifier = Modifier.tvFocusBorder(cornerRadius = 8, focusedScale = 1.15f)
                 )
                 FilterChip(
                     selected = range == EpgTimelineRange.CURRENT_GROUP,
                     onClick = { viewModel.setEpgTimelineRange(EpgTimelineRange.CURRENT_GROUP) },
                     label = { Text("当前分组", fontSize = 11.sp) },
-                    modifier = Modifier.tvFocusBorder()
+                    modifier = Modifier.tvFocusBorder(cornerRadius = 8, focusedScale = 1.15f)
                 )
             }
 
