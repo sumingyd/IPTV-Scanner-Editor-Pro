@@ -515,8 +515,9 @@ fun SubtitleSearchPanel(viewModel: AppViewModel) {
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.primary)
-                        .clickable { viewModel.searchSubtitles(query, selectedLang) }
+                        // tvFocusBorder 在 clickable 之前（外层）才能收到焦点事件
                         .tvFocusBorder()
+                        .clickable { viewModel.searchSubtitles(query, selectedLang) }
                         .padding(vertical = 10.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically

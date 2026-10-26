@@ -296,8 +296,10 @@ internal fun AptvRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // tvFocusBorder 必须在 clickable 之前（外层）：onFocusChanged 只能观察到
+            // 链中内层方向的 focus target，放在 clickable 之后收不到焦点事件（无高亮/放大）
+            .then(if (disabled) Modifier else Modifier.tvFocusBorder())
             .then(if (disabled) Modifier else Modifier.clickable(onClick = onClick))
-            .tvFocusBorder()
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -354,9 +356,9 @@ internal fun AptvSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            // 遥控器友好：整行可点切换开关 + 焦点边框
-            .clickable { onCheckedChange(!checked) }
+            // tvFocusBorder 在 clickable 之前（外层）才能收到焦点事件
             .tvFocusBorder()
+            .clickable { onCheckedChange(!checked) }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -406,6 +408,8 @@ internal fun SelectionGroup(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                // TV 遥控器焦点高亮（clickable 外层）
+                .then(if (disabled) Modifier else Modifier.tvFocusBorder())
                 .then(if (disabled) Modifier else Modifier.clickable { showSheet = true })
                 .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically

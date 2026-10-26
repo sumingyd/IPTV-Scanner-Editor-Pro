@@ -75,6 +75,16 @@ import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.theme.GlassPanel
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusable
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import kotlinx.coroutines.delay
 
 /**
@@ -97,6 +107,7 @@ internal fun TvSplitLayout(
 ) {
     val oc = rememberPlayerOverlayColors()
     val liquidGlass by viewModel.liquidGlass.collectAsState()
+    val focusManager = LocalFocusManager.current
     val displayInfo by viewModel.channelDisplayInfo.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val currentIdx by viewModel.currentIdx.collectAsState()
@@ -116,6 +127,27 @@ internal fun TvSplitLayout(
         while (true) {
             tick = System.currentTimeMillis()
             delay(1000L)
+        }
+    }
+
+    // TV 遥控器初焦：进入分屏播放页（或从全屏切回）时把焦点请求到视频区。
+    // 没有初焦时 Compose 焦点系统无活跃焦点节点，方向键会落到 Activity 兜底
+    // （全局切台/seek），右侧面板与控制栏（含全屏按钮）永远无法用遥控器到达。
+    val videoFocusRequester = remember { FocusRequester() }
+    // 注意：MainPlayerScreen 是常驻组合（首页只是覆盖层），TvSplitLayout 不会 dispose，
+    // LaunchedEffect(Unit) 只在首次进入时执行——BACK 回首页再进分屏不会再触发。
+    // 因此 key 用 showHome/landscapeSplitMode：每次真正"进入分屏播放页"都重新请求初焦。
+    val splitShowHome by viewModel.showHome.collectAsState()
+    val splitSplitMode by viewModel.landscapeSplitMode.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(splitShowHome, splitSplitMode) {
+        if (splitShowHome || !splitSplitMode) return@LaunchedEffect
+        repeat(15) {
+            delay(150)
+            try {
+                videoFocusRequester.requestFocus()
+                return@LaunchedEffect
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -243,7 +275,52 @@ internal fun TvSplitLayout(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .weight(1f)
+                    .focusRequester(videoFocusRequester)
+                    // TV 遥控器：视频区可聚焦。焦点落在视频区时方向键=切台(UP/DOWN)/快进快退(LEFT/RIGHT)，
+                    // 焦点在右侧面板/控制栏时仍是正常的焦点导航——互不干扰
+                    // （onPreviewKeyEvent 仅在视频区自身聚焦时处于按键分发路径上）
+                    .tvFocusable(cornerRadius = 8, focusedScale = 1f)
+                    .onPreviewKeyEvent { ev ->
+                        if (ev.type != KeyEventType.KeyDown) {
+                            return@onPreviewKeyEvent false
+                        }
+                        when (ev.key) {
+                            Key.DirectionUp -> {
+                                viewModel.prevChannel()
+                                true
+                            }
+                            Key.DirectionDown -> {
+                                viewModel.nextChannel()
+                                true
+                            }
+                            Key.DirectionLeft -> {
+                                val mode = viewModel.playbackState.value.mode
+                                if (mode.isCatchup || viewModel.currentChannel.value == null) {
+                                    viewModel.mpv.seekRelative(-10.0)
+                                } else {
+                                    viewModel.seekLiveRelative(-10.0)
+                                }
+                                true
+                            }
+                            Key.DirectionRight -> {
+                                val mode = viewModel.playbackState.value.mode
+                                if (mode.isCatchup || viewModel.currentChannel.value == null) {
+                                    viewModel.mpv.seekRelative(10.0)
+                                } else {
+                                    viewModel.seekLiveRelative(10.0)
+                                }
+                                true
+                            }
+                            // OK 键：焦点移到正下方控制栏（上一频/播放/…/全屏），
+                            // 全屏按钮即可通过遥控器 RIGHT+OK 到达；右侧面板可从控制栏 RIGHT 几何进入
+                            Key.DirectionCenter, Key.Enter -> {
+                                focusManager.moveFocus(FocusDirection.Down)
+                                true
+                            }
+                            else -> false
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Box(

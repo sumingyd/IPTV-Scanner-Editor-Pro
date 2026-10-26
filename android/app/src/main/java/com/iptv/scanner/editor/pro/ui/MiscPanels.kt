@@ -639,8 +639,9 @@ private fun ToolEntryRow(tool: ToolEntry) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { tool.onClick() }
+            // tvFocusBorder 在 clickable 之前（外层）才能收到焦点事件
             .tvFocusBorder()
+            .clickable { tool.onClick() }
             .padding(vertical = 12.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -274,9 +274,10 @@ Surface(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        // tvFocusBorder 在 clickable 之前（外层）才能收到焦点事件
+                        .tvFocusBorder()
                         .clickable { currentPath = parentPath }
                         .padding(horizontal = 16.dp, vertical = 10.dp)
-                        .tvFocusBorder()
                         .focusRequester(upFocusRequester),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

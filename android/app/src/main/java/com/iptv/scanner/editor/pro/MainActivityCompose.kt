@@ -436,6 +436,13 @@ class MainActivityCompose : ComponentActivity() {
                     if (viewModel.showHome.value) {
                         return super.dispatchKeyEvent(event)
                     }
+                    // 分屏播放页：同样放行 → Compose 焦点系统。
+                    // 右侧面板（分类/频道/节目/信息）与左侧控制栏按钮（含全屏）都是焦点可导航元素；
+                    // 若走 onKeyDown 会被全局拦截为切台(UP/DOWN)/快进快退(LEFT/RIGHT)，
+                    // 导致面板内焦点无法移动、遥控器无法聚焦全屏按钮进全屏。
+                    if (isLandscapeMode() && viewModel.landscapeSplitMode.value) {
+                        return super.dispatchKeyEvent(event)
+                    }
                     return onKeyDown(kc, event)
                 }
             }
