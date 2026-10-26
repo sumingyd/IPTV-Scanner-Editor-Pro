@@ -261,6 +261,8 @@ android/tv_*.log
 
 # IDE 临时备份文件
 .trae/rules/old_*
+# Trae IDE 临时文件（会话缓存/待办快照等，无需提交）
+.trae/tmp/
 
 # 解压临时目录
 ku9_extracted/
