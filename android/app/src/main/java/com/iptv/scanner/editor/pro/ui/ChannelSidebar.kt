@@ -107,6 +107,7 @@ import com.iptv.scanner.editor.pro.player.ProgressHelper
 import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.PlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -149,6 +150,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -836,6 +840,8 @@ private fun ChannelListPanel(
                         if (isCurrent) AptvAccent.copy(alpha = 0.10f) else Color.Transparent,
                         RoundedCornerShape(12.dp)
                     )
+                    // TV 遥控器焦点高亮：必须放在 clickable 之前（外层），否则收不到焦点事件
+                    .tvFocusBorder(cornerRadius = 12)
                     .combinedClickable(
                         onClick = { if (idx >= 0) viewModel.playChannel(idx) },
                         onLongClick = {
@@ -983,7 +989,9 @@ internal fun ChannelThumbnailPanel(
     latencyMap: Map<String, Int> = emptyMap(),
     groupList: List<Pair<String, Int>> = emptyList(),
     mediaInfoMap: Map<String, String> = emptyMap(),
-    bottomContentPadding: androidx.compose.ui.unit.Dp = 130.dp
+    bottomContentPadding: androidx.compose.ui.unit.Dp = 130.dp,
+    // TV 首页初始焦点：非空时请求到宫格第一张卡（遥控器打开首页即可直接方向键导航）
+    firstCardFocusRequester: FocusRequester? = null
 ) {
     val epgCacheVersion by viewModel.epgCacheVersion.collectAsState()
 
@@ -994,7 +1002,7 @@ internal fun ChannelThumbnailPanel(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        gridItems(displayChannels) { channel ->
+        gridItemsIndexed(displayChannels) { cardIndex, channel ->
             val idx = channels.indexOf(channel)
             val isCurrent = fileLoaded && idx == currentIdx
             val isFav = favorites.contains(idx)
@@ -1015,10 +1023,18 @@ internal fun ChannelThumbnailPanel(
                 fallbackColor = if (isCurrent) AptvAccent.copy(alpha = 0.12f)
                     else MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
+                    .then(
+                        if (firstCardFocusRequester != null && cardIndex == 0)
+                            Modifier.focusRequester(firstCardFocusRequester) else Modifier
+                    )
                     .background(
                         if (isCurrent) AptvAccent.copy(alpha = 0.10f) else Color.Transparent,
                         RoundedCornerShape(12.dp)
                     )
+                    // TV 遥控器焦点高亮：必须放在 clickable 之前（外层）——
+                    // onFocusChanged 只能观察到链中内层方向的 focus target，
+                    // 放在 clickable 之后会收不到焦点事件，高亮和放大动画都不会触发
+                    .tvFocusBorder(cornerRadius = 12)
                     .combinedClickable(
                         onClick = { if (idx >= 0) viewModel.playChannel(idx) },
                         onLongClick = {

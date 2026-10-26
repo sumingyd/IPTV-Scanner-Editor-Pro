@@ -166,6 +166,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.ui.focus.focusProperties
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import java.io.File
 
 /**
@@ -211,14 +213,19 @@ internal fun MiniPlayerBar(
         Row(
             modifier = Modifier
                 .fillMaxSize()
+                // TV 遥控器：整条 mini 播放条获得焦点时放大高亮（clickable 外层）
+                .tvFocusBorder(cornerRadius = 10)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 播放/暂停按钮：裸图标（不套玻璃圆底，避免过大）
+            // TV 上禁掉独立焦点（canFocus=false）：遥控器 OK 一律打开播放页，
+            // 避免与外层 Row 的 focusable 形成嵌套双焦点导致焦点搜索混乱
             androidx.compose.foundation.layout.Box(
                 modifier = Modifier
                     .size(32.dp)
+                    .focusProperties { canFocus = false }
                     .clickable(onClick = onPlayPause),
                 contentAlignment = Alignment.Center
             ) {

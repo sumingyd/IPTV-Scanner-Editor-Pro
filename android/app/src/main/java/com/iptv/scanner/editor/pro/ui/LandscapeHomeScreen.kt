@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.sp
 import com.iptv.scanner.editor.pro.R
 import com.iptv.scanner.editor.pro.ui.theme.LocalHazeState
 import com.iptv.scanner.editor.pro.ui.theme.liquidGlassSource
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
+import com.iptv.scanner.editor.pro.ui.theme.tvTextField
 import dev.chrisbanes.haze.HazeState
 import java.io.File
 
@@ -307,6 +309,18 @@ private fun LandscapeChannelSplitContent(viewModel: AppViewModel) {
         if (selectedGroup.isEmpty()) filteredChannels
         else filteredChannels.filter { it.group == selectedGroup }
     }
+    // TV 遥控器初始焦点：进入首页（或切分组/搜索导致列表重建）后请求到宫格第一张卡。
+    // 延迟等待宫格首帧组合完成；列表为空时 FocusRequester 未附加，静默忽略。
+    val firstCardFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(displayChannels.isNotEmpty()) {
+        if (displayChannels.isNotEmpty()) {
+            kotlinx.coroutines.delay(600)
+            try {
+                firstCardFocus.requestFocus()
+            } catch (_: IllegalStateException) {
+            }
+        }
+    }
     var searchQuery by remember { mutableStateOf("") }
     val searchedChannels = remember(displayChannels, searchQuery) {
         if (searchQuery.isBlank()) displayChannels
@@ -339,19 +353,28 @@ private fun LandscapeChannelSplitContent(viewModel: AppViewModel) {
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
+                            // TV 遥控器焦点高亮（clickable 外层，确保收到焦点事件）
+                            .tvFocusBorder(cornerRadius = 10)
                             .clickable { showGroupSheet = true }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 AptvGlassChip(cornerRadius = 20.dp, modifier = Modifier.size(36.dp)) {
-                    IconButton(onClick = { showSourceSheet = true }, modifier = Modifier.size(36.dp)) {
+                    IconButton(
+                        onClick = { showSourceSheet = true },
+                        // TV 焦点放大（IconButton 内置 focusable，tvFocusBorder 在外层观察）
+                        modifier = Modifier.size(36.dp).tvFocusBorder(cornerRadius = 8)
+                    ) {
                         Icon(Icons.Default.SwapHoriz, "切换订阅源", tint = AptvAccent, modifier = Modifier.size(18.dp))
                     }
                 }
                 Spacer(modifier = Modifier.width(6.dp))
                 AptvGlassChip(cornerRadius = 20.dp, modifier = Modifier.size(36.dp)) {
-                    IconButton(onClick = { viewModel.loadChannels() }, modifier = Modifier.size(36.dp)) {
+                    IconButton(
+                        onClick = { viewModel.loadChannels() },
+                        modifier = Modifier.size(36.dp).tvFocusBorder(cornerRadius = 8)
+                    ) {
                         Icon(Icons.Default.Refresh, "刷新频道", tint = AptvAccent, modifier = Modifier.size(18.dp))
                     }
                 }
@@ -382,7 +405,8 @@ private fun LandscapeChannelSplitContent(viewModel: AppViewModel) {
                             cursorColor = AptvAccent
                         ),
                         textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
-                        modifier = Modifier.fillMaxWidth()
+                        // TV 焦点导航：搜索框内按 UP/DOWN 直接移出焦点（否则方向键被输入框吞掉，遥控器切不出来）
+                        modifier = Modifier.fillMaxWidth().tvTextField()
                     )
                 }
             }
@@ -418,7 +442,10 @@ private fun LandscapeChannelSplitContent(viewModel: AppViewModel) {
                     groupList = groupList,
                     mediaInfoMap = mediaInfoMap,
                     // 横屏 TAB 悬浮于内容之上，底部预留让最后一张卡可滚出遮挡区
-                    bottomContentPadding = 64.dp
+                    bottomContentPadding = 64.dp,
+                    // TV 遥控器：首页组合后把初始焦点请求到宫格第一张卡，
+                    // 方向键即可直接在卡片间导航（否则首焦点会落到顶栏按钮上）
+                    firstCardFocusRequester = firstCardFocus
                 )
             }
 

@@ -430,6 +430,12 @@ class MainActivityCompose : ComponentActivity() {
                     }
                 }
                 if (isDpad && !viewModel.anyPanelOpen) {
+                    // 首页模式：直接放行走 View 树分发 → Compose 焦点系统（宫格/底栏/EPG 网格导航）。
+                    // 注意不能走 onKeyDown —— 从 dispatchKeyEvent 中间调 super.onKeyDown 只是
+                    // Activity 兜底逻辑，事件不会再进入焦点系统，遥控器在首页将无法移动焦点。
+                    if (viewModel.showHome.value) {
+                        return super.dispatchKeyEvent(event)
+                    }
                     return onKeyDown(kc, event)
                 }
             }
@@ -625,6 +631,11 @@ class MainActivityCompose : ComponentActivity() {
         // 关闭侧边栏由 BACK 键或菜单项 onClick 处理，此处不重复处理避免逻辑冲突。
         if (viewModel.anyPanelOpen && isDpadNavigation) {
             // 交给 Compose 焦点系统处理（在面板内导航/确认）
+            return super.onKeyDown(keyCode, event)
+        }
+        // 首页模式：方向键/OK 交给 Compose 焦点系统（宫格频道卡/底部 tab/EPG 时间线网格导航）。
+        // 否则首页按方向键会被下方全局逻辑拦截为切频道，TV 遥控器在首页永远无法移动焦点。
+        if (viewModel.showHome.value && isDpadNavigation) {
             return super.onKeyDown(keyCode, event)
         }
 

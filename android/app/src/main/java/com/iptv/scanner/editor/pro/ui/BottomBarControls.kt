@@ -108,6 +108,7 @@ import com.iptv.scanner.editor.pro.ui.ChannelTab
 import com.iptv.scanner.editor.pro.ui.theme.LiquidGlassSurface
 import com.iptv.scanner.editor.pro.ui.theme.PlayerOverlayColors
 import com.iptv.scanner.editor.pro.ui.theme.rememberPlayerOverlayColors
+import com.iptv.scanner.editor.pro.ui.theme.tvFocusBorder
 import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -169,6 +170,13 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import java.io.File
 
 @Composable
@@ -180,6 +188,7 @@ internal fun PortraitBottomTabBar(
     val portraitTab by viewModel.portraitTab.collectAsState()
     // 直接读开关：MainPlayerScreen 的 LocalLiquidGlass provider 不覆盖 tab 栏子树
     val liquidGlass by viewModel.liquidGlass.collectAsState()
+    val focusManager = LocalFocusManager.current
     val bgColor = MaterialTheme.colorScheme.surface
     // APTV 风格竖屏强调色（红粉），不影响横屏/TV 主题
     val accentColor = AptvAccent
@@ -215,6 +224,25 @@ internal fun PortraitBottomTabBar(
                             )
                         else Modifier
                     )
+                    // TV 遥控器焦点高亮：必须放在 clickable 之前（外层），否则收不到焦点事件
+                    .tvFocusBorder(cornerRadius = 10)
+                    // 底栏横向 tab 的按键语义：RIGHT/DOWN=下一个 tab，LEFT=上一个 tab，
+                    // 显式消费并移动焦点——防止按 RIGHT 时焦点被几何搜索抢到右侧 EPG 面板，
+                    // 也让习惯按 DOWN 的用户能在 tab 间连续切换（UP 不拦截，保留回上方区域的路径）
+                    .onPreviewKeyEvent { ev ->
+                        if (ev.type != KeyEventType.KeyDown) {
+                            return@onPreviewKeyEvent false
+                        }
+                        when (ev.key) {
+                            Key.DirectionRight,
+                            Key.DirectionDown ->
+                                focusManager.moveFocus(FocusDirection.Right)
+                            Key.DirectionLeft ->
+                                focusManager.moveFocus(FocusDirection.Left)
+                            else -> return@onPreviewKeyEvent false
+                        }
+                        true
+                    }
                     .clickable {
                         viewModel.setPortraitTab(tab)
                     }

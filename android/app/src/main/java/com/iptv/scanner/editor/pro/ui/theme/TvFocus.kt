@@ -1,5 +1,7 @@
 package com.iptv.scanner.editor.pro.ui.theme
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -14,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -21,30 +24,44 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 
 /**
  * TV 端焦点高亮边框 Modifier。
  *
- * 焦点反馈增强（柔和边框 + 半透明背景）：
- * - 获取焦点时显示 2dp 白色圆角边框 + 半透明白色背景
- * - 未获取焦点时无边框无背景
+ * 焦点反馈增强（放大 + 高亮）：
+ * - 获取焦点：元素平滑放大（默认 1.07 倍）+ 提升绘制层级（不被相邻卡片遮挡）+
+ *   2.5dp 白色圆角边框 + 半透明白色背景
+ * - 失去焦点：动画还原到原始大小
  *
  * 仅添加焦点检测和条件边框，不添加 focusable（因为 `Modifier.clickable` 已内置 focusable）。
  * 适用于已有 `clickable` 的组件，链式调用 `.tvFocusBorder()` 即可。
  *
  * @param cornerRadius 边框圆角（dp），默认 8
+ * @param focusedScale 焦点时放大倍数，默认 1.07
  */
-fun Modifier.tvFocusBorder(cornerRadius: Int = 8): Modifier = composed {
+fun Modifier.tvFocusBorder(cornerRadius: Int = 8, focusedScale: Float = 1.07f): Modifier = composed {
     var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) focusedScale else 1f,
+        animationSpec = tween(durationMillis = 160),
+        label = "tvFocusBorderScale"
+    )
     this
+        // 焦点元素提升绘制层级：放大后不被相邻网格卡/列表行遮挡
+        .zIndex(if (isFocused) 1f else 0f)
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
         .onFocusChanged { isFocused = it.isFocused }
         .then(
             if (isFocused) {
                 Modifier
                     .clip(RoundedCornerShape(cornerRadius.dp))
-                    .background(Color(0x22FFFFFF))
+                    .background(Color(0x30FFFFFF))
                     .border(
-                        width = 2.dp,
+                        width = 2.5.dp,
                         color = Color.White,
                         shape = RoundedCornerShape(cornerRadius.dp)
                     )
@@ -76,23 +93,34 @@ fun Modifier.tvGlassSelected(cornerRadius: Int = 10): Modifier = composed {
 /**
  * TV 端可聚焦 + 焦点高亮 Modifier。
  *
- * 同时添加 `focusable()` + 焦点高亮边框。
+ * 同时添加 `focusable()` + 焦点高亮（焦点时放大 + 2.5dp 白边，与 tvFocusBorder 一致）。
  * 适用于没有 `clickable` 但需要 D-pad 焦点导航的组件（如纯展示性 Surface）。
  *
  * @param cornerRadius 边框圆角（dp），默认 8
+ * @param focusedScale 焦点时放大倍数，默认 1.07
  */
-fun Modifier.tvFocusable(cornerRadius: Int = 8): Modifier = composed {
+fun Modifier.tvFocusable(cornerRadius: Int = 8, focusedScale: Float = 1.07f): Modifier = composed {
     var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) focusedScale else 1f,
+        animationSpec = tween(durationMillis = 160),
+        label = "tvFocusableScale"
+    )
     this
+        .zIndex(if (isFocused) 1f else 0f)
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
         .onFocusChanged { isFocused = it.isFocused }
         .focusable()
         .then(
             if (isFocused) {
                 Modifier
                     .clip(RoundedCornerShape(cornerRadius.dp))
-                    .background(Color(0x22FFFFFF))
+                    .background(Color(0x30FFFFFF))
                     .border(
-                        width = 2.dp,
+                        width = 2.5.dp,
                         color = Color.White,
                         shape = RoundedCornerShape(cornerRadius.dp)
                     )
