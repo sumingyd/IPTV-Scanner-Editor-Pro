@@ -170,13 +170,14 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalFocusManager
 import java.io.File
 
 @Composable
@@ -188,7 +189,6 @@ internal fun PortraitBottomTabBar(
     val portraitTab by viewModel.portraitTab.collectAsState()
     // 直接读开关：MainPlayerScreen 的 LocalLiquidGlass provider 不覆盖 tab 栏子树
     val liquidGlass by viewModel.liquidGlass.collectAsState()
-    val focusManager = LocalFocusManager.current
     val bgColor = MaterialTheme.colorScheme.surface
     // APTV 风格竖屏强调色（红粉），不影响横屏/TV 主题
     val accentColor = AptvAccent
@@ -202,14 +202,25 @@ internal fun PortraitBottomTabBar(
         Triple(Icons.Default.Settings, stringResource(R.string.tab_settings), PortraitTab.SETTINGS)
     )
 
+    // TV 遥控器 tab 精确切换：每个 tab 一个 FocusRequester + 记录当前焦点索引。
+    // 方向键直接按索引循环移动（RIGHT/DOWN=下一个，LEFT=上一个，到端点回绕），
+    // 完全绕开几何搜索——修复 moveFocus 在端点清空焦点、或把焦点抢到右侧 EPG 面板的问题。
+    val tabFocusRequesters = remember(tabItems.size) { List(tabItems.size) { FocusRequester() } }
+    var focusedTabIndex by remember { mutableStateOf(-1) }
+
     val tabContent: @Composable RowScope.() -> Unit = {
-        tabItems.forEach { (icon, label, tab) ->
+        tabItems.forEachIndexed { index, (icon, label, tab) ->
             val isSelected = portraitTab == tab
             val tint = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
+                    .focusRequester(tabFocusRequesters[index])
+                    .onFocusChanged { if (it.isFocused) focusedTabIndex = index }
                     .height(54.dp)
+                    // TV 焦点放大+白边必须放在 clip 之前（外层）：
+                    // 放在 clip 之后放大超出部分会被裁掉，焦点视觉只剩边框没有放大
+                    .tvFocusBorder(cornerRadius = 10)
                     .clip(RoundedCornerShape(10.dp))
                     .then(
                         if (isSelected) Modifier
@@ -225,20 +236,22 @@ internal fun PortraitBottomTabBar(
                         else Modifier
                     )
                     // TV 遥控器焦点高亮：必须放在 clickable 之前（外层），否则收不到焦点事件
-                    .tvFocusBorder(cornerRadius = 10)
-                    // 底栏横向 tab 的按键语义：RIGHT/DOWN=下一个 tab，LEFT=上一个 tab，
-                    // 显式消费并移动焦点——防止按 RIGHT 时焦点被几何搜索抢到右侧 EPG 面板，
-                    // 也让习惯按 DOWN 的用户能在 tab 间连续切换（UP 不拦截，保留回上方区域的路径）
+                    // 底栏横向 tab 的按键语义：RIGHT/DOWN=下一个 tab（端点回绕到首页），
+                    // LEFT=上一个 tab（回绕到设置）。按索引精确移动焦点，
+                    // 不消费 UP（保留回上方宫格区域的路径）
                     .onPreviewKeyEvent { ev ->
                         if (ev.type != KeyEventType.KeyDown) {
                             return@onPreviewKeyEvent false
                         }
+                        val cur = focusedTabIndex
+                        if (cur < 0 || cur >= tabFocusRequesters.size) {
+                            return@onPreviewKeyEvent false
+                        }
                         when (ev.key) {
-                            Key.DirectionRight,
-                            Key.DirectionDown ->
-                                focusManager.moveFocus(FocusDirection.Right)
+                            Key.DirectionRight, Key.DirectionDown ->
+                                tabFocusRequesters[(cur + 1) % tabFocusRequesters.size].requestFocus()
                             Key.DirectionLeft ->
-                                focusManager.moveFocus(FocusDirection.Left)
+                                tabFocusRequesters[(cur - 1 + tabFocusRequesters.size) % tabFocusRequesters.size].requestFocus()
                             else -> return@onPreviewKeyEvent false
                         }
                         true

@@ -197,24 +197,25 @@ internal fun MiniPlayerBar(
 
     // Mini 播放条：玻璃底座（磨砂+描边），关闭/降级回落原 surfaceVariant 实底
     // floating=true：横屏首页顶部悬浮胶囊——按内容收缩宽度（上限 460dp），不占整行
+    // TV 焦点放大放在玻璃容器外层：放在内部 Row 上会被容器的 clip 裁掉放大与边框
     AptvGlassChip(
         cornerRadius = 12.dp,
         modifier = if (floating) {
             Modifier
                 .widthIn(max = 460.dp)
                 .height(48.dp)
+                .tvFocusBorder(cornerRadius = 12)
         } else {
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp)
                 .height(48.dp)
+                .tvFocusBorder(cornerRadius = 12)
         }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                // TV 遥控器：整条 mini 播放条获得焦点时放大高亮（clickable 外层）
-                .tvFocusBorder(cornerRadius = 10)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically

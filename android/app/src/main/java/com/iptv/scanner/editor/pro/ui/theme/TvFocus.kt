@@ -12,10 +12,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -25,6 +28,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.drawWithContent
 
 /**
  * TV 端焦点高亮边框 Modifier。
@@ -50,25 +54,31 @@ fun Modifier.tvFocusBorder(cornerRadius: Int = 8, focusedScale: Float = 1.07f): 
     this
         // 焦点元素提升绘制层级：放大后不被相邻网格卡/列表行遮挡
         .zIndex(if (isFocused) 1f else 0f)
+        .onFocusChanged { isFocused = it.isFocused }
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
         }
-        .onFocusChanged { isFocused = it.isFocused }
-        .then(
+        // 焦点视觉用 drawWithContent 画在内容之上：
+        // 不会被链上更内层的不透明背景（chip 表面/选中底色）盖住，也不会被外层 clip 裁掉边框
+        .drawWithContent {
+            drawContent()
             if (isFocused) {
-                Modifier
-                    .clip(RoundedCornerShape(cornerRadius.dp))
-                    .background(Color(0x30FFFFFF))
-                    .border(
-                        width = 2.5.dp,
-                        color = Color.White,
-                        shape = RoundedCornerShape(cornerRadius.dp)
-                    )
-            } else {
-                Modifier
+                val stroke = 2.5.dp.toPx()
+                // 半透明白底蒙层（很淡，保持内容可读）
+                drawRoundRect(
+                    color = Color(0x26FFFFFF),
+                    cornerRadius = CornerRadius(cornerRadius.dp.toPx())
+                )
+                drawRoundRect(
+                    color = Color.White,
+                    topLeft = Offset(stroke / 2f, stroke / 2f),
+                    size = Size(size.width - stroke, size.height - stroke),
+                    cornerRadius = CornerRadius(cornerRadius.dp.toPx()),
+                    style = Stroke(width = stroke)
+                )
             }
-        )
+        }
 }
 
 /**
@@ -108,26 +118,29 @@ fun Modifier.tvFocusable(cornerRadius: Int = 8, focusedScale: Float = 1.07f): Mo
     )
     this
         .zIndex(if (isFocused) 1f else 0f)
+        .onFocusChanged { isFocused = it.isFocused }
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
         }
-        .onFocusChanged { isFocused = it.isFocused }
         .focusable()
-        .then(
+        .drawWithContent {
+            drawContent()
             if (isFocused) {
-                Modifier
-                    .clip(RoundedCornerShape(cornerRadius.dp))
-                    .background(Color(0x30FFFFFF))
-                    .border(
-                        width = 2.5.dp,
-                        color = Color.White,
-                        shape = RoundedCornerShape(cornerRadius.dp)
-                    )
-            } else {
-                Modifier
+                val stroke = 2.5.dp.toPx()
+                drawRoundRect(
+                    color = Color(0x26FFFFFF),
+                    cornerRadius = CornerRadius(cornerRadius.dp.toPx())
+                )
+                drawRoundRect(
+                    color = Color.White,
+                    topLeft = Offset(stroke / 2f, stroke / 2f),
+                    size = Size(size.width - stroke, size.height - stroke),
+                    cornerRadius = CornerRadius(cornerRadius.dp.toPx()),
+                    style = Stroke(width = stroke)
+                )
             }
-        )
+        }
 }
 
 /**
