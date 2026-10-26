@@ -664,6 +664,18 @@ class MainActivityCompose : ComponentActivity() {
             }
         }
 
+        // 分屏播放页兜底：事件能落到这里说明 Compose 焦点系统当前无活跃焦点节点
+        // （初焦请求被异步加载重组清掉、或电视端时序异常）。此时方向键不应执行
+        // 切台/快进快退，而是把焦点重新请求到视频区——下一击开始正常焦点导航。
+        if (isLandscapeMode() && viewModel.landscapeSplitMode.value && !viewModel.showHome.value) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+                keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+            ) {
+                viewModel._splitFocusResetTick.value++
+                return true
+            }
+        }
+
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_UP -> {
                 viewModel.prevChannel()

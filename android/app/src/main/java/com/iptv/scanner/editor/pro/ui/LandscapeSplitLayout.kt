@@ -150,6 +150,17 @@ internal fun TvSplitLayout(
             }
         }
     }
+    // 焦点归零兜底：电视端异步加载重组可能清掉初焦，方向键落 Activity 兜底后递增 tick，
+    // 这里把焦点重新请求到视频区（按键驱动，不赌加载时序）
+    val focusResetTick by viewModel.splitFocusResetTick.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(focusResetTick) {
+        if (focusResetTick > 0L) {
+            try {
+                videoFocusRequester.requestFocus()
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     // 统一画布背景（与横屏首页一致）：深/浅主题渐变底 + 三色光斑。
     // 修复分屏左列无背景透出窗口白底、深色主题下顶栏浅色文字不可见的问题
@@ -277,40 +288,32 @@ internal fun TvSplitLayout(
                     .fillMaxWidth()
                     .weight(1f)
                     .focusRequester(videoFocusRequester)
-                    // TV 遥控器：视频区可聚焦。焦点落在视频区时方向键=切台(UP/DOWN)/快进快退(LEFT/RIGHT)，
-                    // 焦点在右侧面板/控制栏时仍是正常的焦点导航——互不干扰
-                    // （onPreviewKeyEvent 仅在视频区自身聚焦时处于按键分发路径上）
+                    // TV 遥控器：视频区可聚焦。UP/DOWN 永不拦截（焦点导航到控制栏/上方）；
+                    // 仅回看/本地文件时 LEFT/RIGHT 拦截为 seek，直播时放行给焦点导航（RIGHT 进右列面板）；
+                    // OK = 焦点移到正下方控制栏
                     .tvFocusable(cornerRadius = 8, focusedScale = 1f)
                     .onPreviewKeyEvent { ev ->
                         if (ev.type != KeyEventType.KeyDown) {
                             return@onPreviewKeyEvent false
                         }
                         when (ev.key) {
-                            Key.DirectionUp -> {
-                                viewModel.prevChannel()
-                                true
-                            }
-                            Key.DirectionDown -> {
-                                viewModel.nextChannel()
-                                true
-                            }
                             Key.DirectionLeft -> {
                                 val mode = viewModel.playbackState.value.mode
                                 if (mode.isCatchup || viewModel.currentChannel.value == null) {
                                     viewModel.mpv.seekRelative(-10.0)
+                                    true
                                 } else {
-                                    viewModel.seekLiveRelative(-10.0)
+                                    false
                                 }
-                                true
                             }
                             Key.DirectionRight -> {
                                 val mode = viewModel.playbackState.value.mode
                                 if (mode.isCatchup || viewModel.currentChannel.value == null) {
                                     viewModel.mpv.seekRelative(10.0)
+                                    true
                                 } else {
-                                    viewModel.seekLiveRelative(10.0)
+                                    false
                                 }
-                                true
                             }
                             // OK 键：焦点移到正下方控制栏（上一频/播放/…/全屏），
                             // 全屏按钮即可通过遥控器 RIGHT+OK 到达；右侧面板可从控制栏 RIGHT 几何进入

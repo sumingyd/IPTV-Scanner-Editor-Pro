@@ -1229,6 +1229,14 @@ internal var currentIsLocalFile: Boolean
     internal val _landscapeSplitMode = MutableStateFlow(userPrefs.getLandscapeSplitMode())
     val landscapeSplitMode: StateFlow<Boolean> = _landscapeSplitMode.asStateFlow()
 
+    /**
+     * 分屏播放页"焦点归零"重置信号：Compose 焦点系统无活跃焦点节点时（初焦被异步
+     * 加载重组清掉、或电视端时序异常），方向键会一路落到 Activity.onKeyDown 兜底。
+     * 此时递增此 tick，LandscapeSplitLayout 监听到后把焦点重新请求到视频区。
+     */
+    internal val _splitFocusResetTick = MutableStateFlow(0L)
+    val splitFocusResetTick: StateFlow<Long> = _splitFocusResetTick.asStateFlow()
+
     /** 设置横屏分屏模式 */
     fun setLandscapeSplitMode(value: Boolean) {
         _landscapeSplitMode.value = value
