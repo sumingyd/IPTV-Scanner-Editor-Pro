@@ -512,6 +512,7 @@
   "menu_catchup": "回看",
   "menu_clear_history": "清空历史",
   "menu_clip_export": "切片导出 / GIF...",
+  "menu_audio_only_hint": "播放音频时可用",
   "menu_color_mode": "颜色模式",
   "menu_control_panel": "控制面板\tM",
   "menu_edit": "编辑",

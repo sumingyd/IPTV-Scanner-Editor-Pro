@@ -1324,6 +1324,23 @@ class UIController:
             clip_export.triggered.connect(self._open_clip_export_dialog)
             video_img_menu.addAction(clip_export)
 
+            # ---- 音频可视化 / 歌词（仅播放音频时可用，动态填充） ----
+            def _refresh_audio_menu(menu, populate):
+                menu.clear()
+                mc = getattr(self.window, 'media_ctrl', None)
+                if mc and mc._is_audio_only():
+                    populate(menu)
+                else:
+                    hint = menu.addAction(tr("menu_audio_only_hint", "播放音频时可用"))
+                    hint.setEnabled(False)
+
+            vis_menu = playback_menu.addMenu(tr("ctx_audio_visual", "音频可视化"))
+            vis_menu.aboutToShow.connect(
+                lambda: _refresh_audio_menu(vis_menu, self.window.media_ctrl._populate_visual_menu))
+            lyrics_menu = playback_menu.addMenu(tr("ctx_lyrics", "歌词"))
+            lyrics_menu.aboutToShow.connect(
+                lambda: _refresh_audio_menu(lyrics_menu, self.window.media_ctrl._populate_lyrics_menu))
+
             # ---- 高级工具 子菜单 ----
             adv_tools_menu = playback_menu.addMenu(tr("menu_advanced_tools", "Advanced Tools"))
             bookmarks = QAction(tr("menu_bookmarks", "Bookmarks & Chapters..."), self.window)

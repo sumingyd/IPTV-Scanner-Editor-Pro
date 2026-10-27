@@ -850,7 +850,7 @@ class MpvPlayback:
                     self._facade._schedule_media_info_start()
                     self._facade._adjust_buffer_for_content()
                     self._facade._apply_hdr_on_file_loaded()
-                    if hasattr(self, 'audio_visual') and self._facade.audio_visual:
+                    if self._facade.audio_visual:
                         self._facade.audio_visual.auto_enable_if_audio()
                     self._facade._safe_emit(self._facade.file_loaded)
 
@@ -1845,7 +1845,7 @@ class MpvPlayback:
 
             self._facade._setup_protocol_options(url, program_duration)
 
-            if hasattr(self, 'audio_visual') and self._facade.audio_visual:
+            if self._facade.audio_visual:
                 self._facade.audio_visual.prepare_before_loadfile(url)
 
             is_vod = 'starttime=' in url.lower() or 'endtime=' in url.lower() or 'playseek' in url.lower()
@@ -2232,7 +2232,7 @@ class MpvPlayback:
 
             if was_playing:
                 self._facade.logger.info("停止播放")
-            if hasattr(self, 'audio_visual'):
+            if self._facade.audio_visual:
                 self._facade.audio_visual.clear_visual()
         except Exception as e:
             self._facade.logger.error(f"停止播放失败: {str(e)}")

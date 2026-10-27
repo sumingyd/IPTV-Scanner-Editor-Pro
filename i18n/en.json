@@ -513,6 +513,7 @@
   "menu_catchup": "Catchup",
   "menu_clear_history": "Clear History",
   "menu_clip_export": "Clip Export / GIF...",
+  "menu_audio_only_hint": "Available while playing audio",
   "menu_color_mode": "Color Mode",
   "menu_control_panel": "Control Panel\tM",
   "menu_edit": "Edit",
