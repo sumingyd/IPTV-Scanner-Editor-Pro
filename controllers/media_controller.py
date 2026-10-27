@@ -23,6 +23,14 @@ class MediaController:
 
     SPEED_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 5.0]
     ASPECT_CYCLE = ['default', '16:9', '4:3', 'stretch', 'fill']
+    # 右键菜单 HDR 输出模式 (mode, i18n_key)，与设置窗口 hdr_items 保持一致
+    _HDR_MODES = [
+        ('disable', 'hdr_disable'),
+        ('auto', 'hdr_auto'),
+        ('scrgb', 'hdr_scrgb'),
+        ('passthrough', 'hdr_passthrough'),
+        ('tonemap', 'hdr_tonemap'),
+    ]
 
     def __init__(self, main_window: PlaybackProtocol):
         self.window: PlaybackProtocol = main_window
