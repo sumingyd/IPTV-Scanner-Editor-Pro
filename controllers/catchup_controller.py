@@ -544,8 +544,10 @@ class CatchupController:
                 self._cooldown_timer = None
             w._catchup_start_time = _time.time()
             w._catchup_start_progress = position
-            # 新URL从请求位置开播，time-pos换算偏移归零
-            w._catchup_time_pos_offset = 0.0
+            # 新URL从节目内 position 处开播，mpv time-pos 从 0 重新计数，
+            # 偏移 = 节目起点 - URL起点 = -position，使 raw = time-pos + position
+            # 才是节目内真实位置，否则进度条会跳回节目开头
+            w._catchup_time_pos_offset = -float(position)
 
             if hasattr(w, 'player_controller') and w.player_controller:
                 w.player_controller.play(catchup_url, f"{channel_name} - {title} ({w.language_manager.tr('catchup_osd', '回看')})")
@@ -566,7 +568,10 @@ class CatchupController:
         if catchup_start_progress is None:
             return False
 
-        target_mpv_pos = position - catchup_start_progress
+        # 流内绝对位置 = 节目内位置 + 偏移（offset = 节目起点 - URL起点）。
+        # 不能用 _catchup_start_progress 计算：它已被进度tick持续同步为
+        # "当前"节目位置，用它算出的是相对距离，当绝对位置用会跳错位置
+        target_mpv_pos = position + getattr(w, '_catchup_time_pos_offset', 0.0)
         if target_mpv_pos < 0:
             return False
 
@@ -753,10 +758,10 @@ class CatchupController:
         if next_program:
             next_start = datetime.fromisoformat(next_program['start'])
             next_end = datetime.fromisoformat(next_program['end'])
-            if next_end > now:
-                play_start = next_start
-            else:
-                play_start = next_end - timedelta(seconds=5)
+            # 无论下一节目是否已播完，都从其开头续播（连播体验）；
+            # 原先"已播完则从结尾前5秒续播"会跳过下一节目内容
+            play_start = next_start
+            start_offset = 0.0
             end_time = next_end if next_end > now else now + timedelta(minutes=30)
             catchup_url = self.build_catchup_url(self.original_channel, play_start, end_time)
             self.catchup_program = {
@@ -788,15 +793,17 @@ class CatchupController:
             end_time = program_end if program_end > now else now + timedelta(minutes=30)
             catchup_url = self.build_catchup_url(self.original_channel, new_start_time, end_time)
             logger.info(f"时移续播(同节目) -> new_start={new_start_time}, end={end_time}")
+            # 新URL从节目内 new_start_time 处开播，记账偏移 = new_start_time - 节目起点
+            start_offset = max(0.0, (new_start_time - program_start).total_seconds())
 
-        w._pending_catchup_progress = 0
+        w._pending_catchup_progress = start_offset
         import time as _time
         self._last_url_rebuild_time = _time.time()
         self._url_rebuild_pending = True
         w._catchup_start_time = _time.time()
-        w._catchup_start_progress = 0
-        # 新URL从下一节目起点开播，time-pos换算偏移归零
-        w._catchup_time_pos_offset = 0.0
+        w._catchup_start_progress = start_offset
+        # 新URL从节目内 start_offset 处开播，mpv time-pos 从 0 重新计数
+        w._catchup_time_pos_offset = -float(start_offset)
 
         if hasattr(w, 'player_controller') and w.player_controller:
             w.player_controller.play(catchup_url, f"{channel_name} ({w.language_manager.tr('timeshift_resume', '时移续播')})")

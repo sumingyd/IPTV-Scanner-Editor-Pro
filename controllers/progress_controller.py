@@ -58,7 +58,8 @@ class ProgressController:
                         and w._catchup_start_time is not None and w._catchup_start_progress is not None:
                     import time
                     current_time = time.time()
-                    speed = w.player_controller.get_speed() if w.player_controller else 1.0
+                    # get_speed 在流结束/加载中可能返回 None，参与运算会 TypeError
+                    speed = (w.player_controller.get_speed() if w.player_controller else 1.0) or 1.0
 
                     if current_time_ms:
                         # 以mpv实际内容位置为准：倍速下墙钟外推会在网络缓冲停顿时
@@ -85,7 +86,7 @@ class ProgressController:
 
                     if progress_seconds >= int(total_duration) * 0.98 and hasattr(w, 'speed_button') and w.player_controller:
                         current_speed = w.player_controller.get_speed()
-                        if abs(current_speed - 1.0) > 0.01:
+                        if current_speed is not None and abs(current_speed - 1.0) > 0.01:
                             w.player_controller.set_speed(1.0)
                             w.speed_button.setText("1.0x")
                             logger.info("回看已追上直播，自动恢复倍速到1.0x")
@@ -144,7 +145,7 @@ class ProgressController:
                     and w._catchup_start_time is not None and w._catchup_start_progress is not None:
                 import time
                 elapsed = time.time() - w._catchup_start_time
-                speed = w.player_controller.get_speed() if w.player_controller else 1.0
+                speed = (w.player_controller.get_speed() if w.player_controller else 1.0) or 1.0
                 current_position = w._catchup_start_progress + elapsed * speed
                 current_position = max(0, min(current_position, total_duration))
             else:

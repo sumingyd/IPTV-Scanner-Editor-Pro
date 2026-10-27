@@ -74,8 +74,10 @@ class PlaybackMixin:
         safe_single_shot(self.RECONNECT_DELAY_MS, self, _reconnect_callback)
 
     def _on_timeshift_continue(self):
-        if self.play_state.is_timeshift:
-            logger.info("时移流播放到终点，自动续播")
+        # 回看流的URL带endTime，节目播完服务器会切断流触发EOF，
+        # 同样需要自动续播到下一节目（时移同理）
+        if self.play_state.is_catchup_or_timeshift:
+            logger.info("回看/时移流播放到终点，自动续播")
             self.catchup_ctrl.continue_timeshift()
 
     def _do_reconnect(self, url):
