@@ -948,7 +948,7 @@ class ScanChannelDialog(FloatingDialog):
 
         # 各列默认列宽
         _col_widths = {
-            ChannelListModel.COL_INDEX: 45,          # 序号
+            ChannelListModel.COL_INDEX: 65,          # 序号（保证4位数完整显示）
             ChannelListModel.COL_NAME: 140,          # 频道名称（变窄）
             ChannelListModel.COL_RESOLUTION: 95,     # 分辨率（加宽，可完整显示1920*1080）
             ChannelListModel.COL_URL: 200,           # URL

@@ -170,52 +170,26 @@ class MappingManagerDialog(FloatingDialog):
 
         self.mapping_table = QtWidgets.QTableWidget()
         self.mapping_table.setStyleSheet(AppStyles.table_style())
-        self.mapping_table.setColumnCount(4)
+        self.mapping_table.setColumnCount(5)
         self.mapping_table.setHorizontalHeaderLabels([
+            _('serial_number', 'No.'),
             _('standard_name', 'Standard Name'),
             _('raw_name', 'Raw Name'),
             _('group', 'Group'),
             _('logo_address', 'Logo Address')
         ])
+        # 序号列：普通内容列，宽度随内容自适应
         self.mapping_table.horizontalHeader().setSectionResizeMode(
-            0, QtWidgets.QHeaderView.ResizeMode.Interactive)
+            0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         self.mapping_table.horizontalHeader().setSectionResizeMode(
             1, QtWidgets.QHeaderView.ResizeMode.Interactive)
         self.mapping_table.horizontalHeader().setSectionResizeMode(
             2, QtWidgets.QHeaderView.ResizeMode.Interactive)
+        self.mapping_table.horizontalHeader().setSectionResizeMode(
+            3, QtWidgets.QHeaderView.ResizeMode.Interactive)
         self.mapping_table.horizontalHeader().setStretchLastSection(True)
-        vh = self.mapping_table.verticalHeader()
-        vh.setFixedWidth(28)
-        _colors = AppStyles._get_colors()
-        vh.setStyleSheet(f"""
-            QHeaderView {{ background-color: {_colors['table_header']}; border: none; }}
-            QHeaderView::section {{
-                background-color: {_colors['table_header']};
-                color: {_colors['window_text']};
-                padding: 2px;
-                border: none;
-                border-right: 1px solid {_colors['mid']};
-                font-size: 11px;
-            }}
-        """)
-        # 行号列（纵向表头）顶部是QTableCornerButton，默认不绘制文字且QSS无法设置，
-        # 用覆盖其上的同主题标签显示"序号"标题
-        self._serial_header_label = QtWidgets.QLabel(_('serial_number', 'No.'), self.mapping_table)
-        self._serial_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._serial_header_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self._serial_header_label.setStyleSheet(f"""
-            QLabel {{
-                background-color: {_colors['table_header']};
-                color: {_colors['window_text']};
-                font-size: 11px;
-                font-weight: 600;
-                border: none;
-                border-right: 1px solid {_colors['mid']};
-                border-bottom: 1px solid {_colors['mid']};
-            }}
-        """)
-        self.mapping_table.horizontalHeader().geometriesChanged.connect(self._position_serial_label)
-        self._position_serial_label()
+        # 隐藏纵向行号表头：序号由第0列普通内容列承担，避免视觉上像表头
+        self.mapping_table.verticalHeader().setVisible(False)
         self.mapping_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.mapping_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.mapping_table.setMaximumHeight(200)
@@ -312,33 +286,29 @@ class MappingManagerDialog(FloatingDialog):
         )
         self._update_check_worker = None
 
-    def _position_serial_label(self):
-        """把"序号"标题标签定位到行号列顶部的角按钮上"""
-        if hasattr(self, '_serial_header_label'):
-            hh = self.mapping_table.horizontalHeader()
-            self._serial_header_label.setGeometry(
-                0, 0, self.mapping_table.verticalHeader().width(), hh.height())
-            self._serial_header_label.raise_()
-
     def load_user_mappings(self):
         self.mapping_table.setRowCount(0)
         row = 0
         for standard_name, mapping_data in mapping_manager.user_mappings.items():
             for raw_name in mapping_data.get('raw_names', []):
                 self.mapping_table.insertRow(row)
-                self.mapping_table.setItem(row, 0, QtWidgets.QTableWidgetItem(standard_name))
-                self.mapping_table.setItem(row, 1, QtWidgets.QTableWidgetItem(raw_name))
+                serial_item = QtWidgets.QTableWidgetItem(str(row + 1))
+                serial_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                serial_item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+                self.mapping_table.setItem(row, 0, serial_item)
+                self.mapping_table.setItem(row, 1, QtWidgets.QTableWidgetItem(standard_name))
+                self.mapping_table.setItem(row, 2, QtWidgets.QTableWidgetItem(raw_name))
                 group = mapping_data.get('group_name', '')
-                self.mapping_table.setItem(row, 2, QtWidgets.QTableWidgetItem(group))
+                self.mapping_table.setItem(row, 3, QtWidgets.QTableWidgetItem(group))
                 logo_url = mapping_data.get('logo_url', '')
-                self.mapping_table.setItem(row, 3, QtWidgets.QTableWidgetItem(logo_url))
+                self.mapping_table.setItem(row, 4, QtWidgets.QTableWidgetItem(logo_url))
                 row += 1
         self.mapping_table.resizeColumnsToContents()
         if row == 0:
             from ui.styles import AppStyles
             tr = self.language_manager.tr if self.language_manager else (lambda k, d='': d)
             self.mapping_table.setRowCount(1)
-            self.mapping_table.setSpan(0, 0, 1, 4)
+            self.mapping_table.setSpan(0, 0, 1, 5)
             empty_item = QtWidgets.QTableWidgetItem(tr('mapping_empty', '暂无自定义映射，请在下方添加'))
             empty_item.setFlags(Qt.ItemFlag.NoItemFlags)
             colors = AppStyles._get_colors()
@@ -358,7 +328,7 @@ class MappingManagerDialog(FloatingDialog):
         option_map[_('search_group_only', 'Group')] = 'group'
         mode = option_map.get(search_option, 'all')
 
-        col_map = {'all': None, 'standard': 0, 'raw': 1, 'group': 2}
+        col_map = {'all': None, 'standard': 1, 'raw': 2, 'group': 3}
         target_col = col_map.get(mode)
 
         for row in range(self.mapping_table.rowCount()):
@@ -367,7 +337,7 @@ class MappingManagerDialog(FloatingDialog):
             elif target_col is None:
                 should_show = any(
                     self.mapping_table.item(row, c) and search_text in self.mapping_table.item(row, c).text().lower()
-                    for c in range(self.mapping_table.columnCount())
+                    for c in range(1, self.mapping_table.columnCount())
                 )
             else:
                 item = self.mapping_table.item(row, target_col)
@@ -398,10 +368,10 @@ class MappingManagerDialog(FloatingDialog):
             )
             return
         row = selected_rows[0].row()
-        standard_name = self.mapping_table.item(row, 0).text()
-        raw_name = self.mapping_table.item(row, 1).text()
-        group_name = self.mapping_table.item(row, 2).text()
-        logo_url = self.mapping_table.item(row, 3).text()
+        standard_name = self.mapping_table.item(row, 1).text()
+        raw_name = self.mapping_table.item(row, 2).text()
+        group_name = self.mapping_table.item(row, 3).text()
+        logo_url = self.mapping_table.item(row, 4).text()
         dialog = MappingEditDialog(self, standard_name, raw_name, group_name, logo_url)
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             new_data = dialog.get_mapping_data()
@@ -426,8 +396,8 @@ class MappingManagerDialog(FloatingDialog):
             )
             return
         row = selected_rows[0].row()
-        standard_name = self.mapping_table.item(row, 0).text()
-        raw_name = self.mapping_table.item(row, 1).text()
+        standard_name = self.mapping_table.item(row, 1).text()
+        raw_name = self.mapping_table.item(row, 2).text()
         reply = show_confirm(
             self._tr('confirm_delete_mapping', 'Confirm Delete Mapping'),
             self._tr('delete_mapping_confirm', "Delete mapping '{}' → '{}'?").format(raw_name, standard_name),
@@ -568,13 +538,12 @@ class MappingManagerDialog(FloatingDialog):
                 self.search_options.setCurrentIndex(idx)
             if hasattr(self, 'mapping_table'):
                 self.mapping_table.setHorizontalHeaderLabels([
+                    _('serial_number', 'No.'),
                     _('standard_name', 'Standard Name'),
                     _('raw_name', 'Raw Name'),
                     _('group', 'Group'),
                     _('logo_address', 'Logo Address')
                 ])
-            if hasattr(self, '_serial_header_label'):
-                self._serial_header_label.setText(_('serial_number', 'No.'))
             if hasattr(self, 'add_mapping_btn'):
                 self.add_mapping_btn.setText(_('add_mapping', 'Add'))
             if hasattr(self, 'edit_mapping_btn'):

@@ -186,6 +186,12 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
     // 判断是订阅频道还是本地文件
     val isLocalFile = currentChannel == null || currentIdx < 0
 
+    // Tab 状态：订阅频道 = [分类, 频道, 节目, 信息]，本地文件 = [信息, 最近文件]
+    // 必须在下方 fileLoaded 提前 return 之前 remember：切台时 mpv 会短暂置
+    // fileLoaded=false，若放在 return 之后，状态槽随组合销毁，新频道加载完成后
+    // selectedTab 会被重置回「分类」，无法停留在「频道」列表连续选台
+    var selectedTab by remember { mutableStateOf(0) }
+
     if (!fileLoaded) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -199,9 +205,6 @@ internal fun PortraitPlayerDynamicContent(viewModel: AppViewModel) {
         }
         return
     }
-
-    // Tab 状态：订阅频道 = [分类, 频道, 节目, 信息]，本地文件 = [信息, 最近文件]
-    var selectedTab by remember { mutableStateOf(0) }
 
     val tabs = if (isLocalFile) {
         listOf(stringResource(R.string.tab_info), stringResource(R.string.tab_recent_files))
