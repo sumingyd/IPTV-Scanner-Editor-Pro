@@ -47,6 +47,47 @@ class LyricsController:
         menu.addSeparator()
         load_label = tr("ctx_load_lyrics", "加载外部歌词...")
         menu.addAction(load_label, lambda *a: self._facade._load_external_lyrics())
+        self._populate_lyrics_display_menu(menu)
+
+    def _populate_lyrics_display_menu(self, menu):
+        """歌词显示设置子菜单：位置 / 形式 / 字号（任务B）。"""
+        tr = self._facade.window.language_manager.tr
+        if not hasattr(self._facade.window, '_lyrics_widget') or not self._facade.window._lyrics_widget:
+            self._facade._create_lyrics_widget()
+        lw = self._facade.window._lyrics_widget
+
+        menu.addSeparator()
+        pos_menu = menu.addMenu(tr("lyrics_pos_menu", "歌词位置"))
+        for key, label_key, label_def in (
+            ('top', "lyrics_pos_top", "顶部"),
+            ('center', "lyrics_pos_center", "居中"),
+            ('bottom', "lyrics_pos_bottom", "底部"),
+        ):
+            label = tr(label_key, label_def)
+            if lw.get_position_mode() == key:
+                label += " ✓"
+            pos_menu.addAction(label, lambda *a, k=key: lw.set_position_mode(k))
+
+        mode_menu = menu.addMenu(tr("lyrics_mode_menu", "歌词形式"))
+        for key, label_key, label_def in (
+            ('single', "lyrics_mode_single", "单行大字"),
+            ('multi', "lyrics_mode_multi", "多行滚动"),
+        ):
+            label = tr(label_key, label_def)
+            if lw.get_display_mode() == key:
+                label += " ✓"
+            mode_menu.addAction(label, lambda *a, k=key: lw.set_display_mode(k))
+
+        font_menu = menu.addMenu(tr("lyrics_font_menu", "字号"))
+        for key, label_key, label_def in (
+            ('small', "lyrics_font_small", "小"),
+            ('medium', "lyrics_font_medium", "中"),
+            ('large', "lyrics_font_large", "大"),
+        ):
+            label = tr(label_key, label_def)
+            if lw.get_font_scale_mode() == key:
+                label += " ✓"
+            font_menu.addAction(label, lambda *a, k=key: lw.set_font_scale(k))
 
     def _refresh_lyrics(self):
         if not hasattr(self._facade.window, '_lyrics_widget') or not self._facade.window._lyrics_widget:

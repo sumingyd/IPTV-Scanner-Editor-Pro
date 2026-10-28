@@ -1446,6 +1446,67 @@ class ContextMenuController:
             off_label += " ✓"
         menu.addAction(off_label, lambda *a: self._facade._set_visual_style('none'))
 
+        self._populate_cover_menu(menu)
+
+    def _populate_cover_menu(self, menu):
+        """封面显示子菜单：位置 / 大小 / 形式（任务B）。"""
+        tr = self._facade.window.language_manager.tr
+        widget = None
+        pc = self._facade.window.player_controller
+        if pc and hasattr(pc, 'audio_visual') and pc.audio_visual:
+            widget = pc.audio_visual.get_visual_widget()
+
+        menu.addSeparator()
+        cover_menu = menu.addMenu(tr("cover_display_menu", "封面显示"))
+        cur_pos = widget.get_cover_pos() if widget else 'center'
+        cur_size = widget.get_cover_size() if widget else 'medium'
+        cur_shape = widget.get_cover_shape() if widget else 'card'
+
+        pos_menu = cover_menu.addMenu(tr("cover_pos_menu", "位置"))
+        for key, label_key, label_def in (
+            ('center', "cover_pos_center", "居中"),
+            ('left', "cover_pos_left", "左侧"),
+            ('right', "cover_pos_right", "右侧"),
+        ):
+            label = tr(label_key, label_def)
+            if cur_pos == key:
+                label += " ✓"
+            if widget:
+                pos_menu.addAction(label, lambda *a, k=key: widget.set_cover_pos(k))
+            else:
+                from services.audio_visual_service import AudioVisualWidget
+                pos_menu.addAction(label, lambda *a, k=key: AudioVisualWidget._save_cover_setting('pos', k))
+
+        size_menu = cover_menu.addMenu(tr("cover_size_menu", "大小"))
+        for key, label_key, label_def in (
+            ('small', "cover_size_small", "小"),
+            ('medium', "cover_size_medium", "中"),
+            ('large', "cover_size_large", "大"),
+        ):
+            label = tr(label_key, label_def)
+            if cur_size == key:
+                label += " ✓"
+            if widget:
+                size_menu.addAction(label, lambda *a, k=key: widget.set_cover_size(k))
+            else:
+                from services.audio_visual_service import AudioVisualWidget
+                size_menu.addAction(label, lambda *a, k=key: AudioVisualWidget._save_cover_setting('size', k))
+
+        shape_menu = cover_menu.addMenu(tr("cover_shape_menu", "形式"))
+        for key, label_key, label_def in (
+            ('card', "cover_shape_card", "圆角卡片"),
+            ('circle', "cover_shape_circle", "圆形"),
+            ('hidden', "cover_shape_hidden", "隐藏封面"),
+        ):
+            label = tr(label_key, label_def)
+            if cur_shape == key:
+                label += " ✓"
+            if widget:
+                shape_menu.addAction(label, lambda *a, k=key: widget.set_cover_shape(k))
+            else:
+                from services.audio_visual_service import AudioVisualWidget
+                shape_menu.addAction(label, lambda *a, k=key: AudioVisualWidget._save_cover_setting('shape', k))
+
     def _set_visual_style(self, style_key):
         pc = self._facade.window.player_controller
         if not pc or not hasattr(pc, 'audio_visual') or not pc.audio_visual:
